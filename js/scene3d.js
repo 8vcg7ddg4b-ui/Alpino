@@ -2,7 +2,7 @@ import { TILE_TYPES } from './data.js';
 import { unitTotalCount, factionById } from './state.js';
 
 export const TILE_SIZE = 6;
-const ELEV_SCALE = 2.2;
+const ELEV_SCALE = 2.9;
 
 let renderer, scene, camera;
 let canvasEl;
@@ -149,18 +149,32 @@ function addTreeProp(group, col, row, topY, rng) {
   group.add(leaves);
 }
 
-function addPeakProp(group, col, row, topY, rng) {
-  const jx = (rng() - 0.5) * TILE_SIZE * 0.5;
-  const jz = (rng() - 0.5) * TILE_SIZE * 0.5;
-  const size = 1.5 + rng() * 1.4;
-  const height = 2.4 + rng() * 2.4;
-  const peak = new THREE.Mesh(
-    new THREE.ConeGeometry(size, height, 5),
-    new THREE.MeshStandardMaterial({ color: rng() < 0.5 ? '#eef0f4' : '#c9c6c0', flatShading: true })
-  );
-  peak.rotation.y = rng() * Math.PI;
-  peak.position.set(worldX(col) + jx, topY + height / 2, worldZ(row) + jz);
-  group.add(peak);
+// Peaks scale with how high the underlying crest already is, so a tile on the
+// spine grows a tall cluster while a saddle only gets low rocks - the range
+// then reads as a varied silhouette rather than a row of identical cones.
+function addPeakProp(group, col, row, elevation, rng) {
+  const topY = tileTopY(elevation);
+  const prominence = Math.min(1, Math.max(0, (elevation - 1.2) / 1.9));
+  const count = 1 + Math.floor(rng() * 2 + prominence * 1.6);
+
+  for (let i = 0; i < count; i++) {
+    const jx = (rng() - 0.5) * TILE_SIZE * 0.75;
+    const jz = (rng() - 0.5) * TILE_SIZE * 0.75;
+    const height = (1.1 + prominence * 3.4) * (0.55 + rng() * 0.75);
+    const radius = height * (0.42 + rng() * 0.28);
+    const snowy = prominence > 0.55 && rng() < 0.55 + prominence * 0.4;
+    const peak = new THREE.Mesh(
+      new THREE.ConeGeometry(radius, height, 5 + Math.floor(rng() * 3)),
+      new THREE.MeshStandardMaterial({
+        color: snowy ? '#eef1f5' : '#9c958a',
+        flatShading: true,
+        roughness: 0.95,
+      })
+    );
+    peak.rotation.y = rng() * Math.PI * 2;
+    peak.position.set(worldX(col) + jx, topY + height / 2 - 0.25, worldZ(row) + jz);
+    group.add(peak);
+  }
 }
 
 function seededRandomFactory(seed) {
@@ -233,7 +247,7 @@ export function buildMap(state) {
 
       if (tile.type !== 'water') {
         if (TILE_TYPES[tile.type].deco === 'tree' && rng() < 0.85) addTreeProp(propsGroup, col, row, tileTopY(tile.elevation), rng);
-        if (TILE_TYPES[tile.type].deco === 'peak' && rng() < 0.75) addPeakProp(propsGroup, col, row, tileTopY(tile.elevation), rng);
+        if (TILE_TYPES[tile.type].deco === 'peak') addPeakProp(propsGroup, col, row, tile.elevation, rng);
       }
     }
   }
