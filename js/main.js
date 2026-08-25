@@ -105,15 +105,38 @@ function setupDpad() {
   });
 }
 
+// Without a WebGL context three.js throws while constructing the renderer.
+// Say so plainly instead of leaving the player on a blank map - on desktop
+// this is usually an outdated graphics driver or a VM without acceleration.
+function showGraphicsError() {
+  document.getElementById('startScreen').classList.remove('hidden');
+  appEl.classList.add('hidden');
+  const box = document.querySelector('.start-help');
+  if (!box || box.querySelector('.start-error')) return;
+  const note = document.createElement('p');
+  note.className = 'start-error';
+  note.textContent = 'Die 3D-Darstellung konnte nicht gestartet werden: Dieser Rechner '
+    + 'stellt kein WebGL bereit. Bitte den Grafiktreiber aktualisieren oder die '
+    + 'Hardwarebeschleunigung im Browser aktivieren.';
+  box.prepend(note);
+}
+
 function startNewGame() {
   requestAppFullscreen();
   document.getElementById('startScreen').classList.add('hidden');
   appEl.classList.remove('hidden');
 
   state = createInitialState();
-  initScene(canvas);
-  resizeScene();
-  buildMap(state);
+  try {
+    initScene(canvas);
+    resizeScene();
+    buildMap(state);
+  } catch (err) {
+    console.error('3D-Initialisierung fehlgeschlagen:', err);
+    state = null;
+    showGraphicsError();
+    return;
+  }
 
   const player = playerFaction(state);
   const capital = state.cities.find((c) => c.factionId === player.id && c.capital);

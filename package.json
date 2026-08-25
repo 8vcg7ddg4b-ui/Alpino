@@ -1,10 +1,46 @@
 {
-  "name": "spqr-browser-game",
+  "name": "spqr",
   "version": "1.0.0",
-  "description": "Rundenbasiertes 2.5D-Browserstrategiespiel im Stil von Total War: Rome. Züge und Kämpfe finden direkt auf der Kampagnenkarte statt.",
+  "description": "Rundenbasiertes 3D-Strategiespiel im Stil von Total War: Rome. Züge und Kämpfe finden direkt auf der Kampagnenkarte statt. Läuft im Browser und als Desktop-Anwendung.",
   "type": "module",
+  "main": "desktop/main.js",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "desktop": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^44.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "de.spqr.game",
+    "productName": "SPQR",
+    "files": [
+      "index.html",
+      "css/**/*",
+      "js/**/*",
+      "desktop/**/*",
+      "server.js"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.strategy-games"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Game",
+      "executableName": "spqr"
+    }
   }
 }

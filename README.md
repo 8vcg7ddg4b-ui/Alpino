@@ -1,11 +1,34 @@
 # SPQR – Rundenstrategie in 3D
 
-Ein rundenbasiertes Browserspiel im Stil von *Total War: Rome*. Die Kampagnenkarte
+Ein rundenbasiertes Strategiespiel im Stil von *Total War: Rome*. Die Kampagnenkarte
 umfasst Europa und das Mittelmeer und wird in echtem 3D (Three.js/WebGL) aus einer
 isometrischen Kameraperspektive dargestellt; Bewegung, Belagerungen und Kämpfe
 finden direkt auf dieser Karte statt – es gibt keinen separaten Schlachtbildschirm.
 
-## Starten
+Das Spiel läuft wahlweise **im Browser** oder als **eigenständige Desktop-Anwendung**
+(Windows/macOS/Linux) mit eigenem Fenster, eigenem Icon und ohne sichtbaren Browser.
+
+## Als Desktop-Programm starten
+
+```bash
+npm install      # einmalig: lädt Electron
+npm run desktop  # startet SPQR als Desktop-App
+```
+
+### Installationsdatei bauen
+
+Erzeugt ein weitergebbares Installationspaket im Ordner `dist/`. Gebaut wird immer
+für das System, auf dem der Befehl läuft – für eine `.exe` also unter Windows:
+
+```bash
+npm run dist:win     # Windows: SPQR Setup.exe (NSIS-Installer)
+npm run dist:mac     # macOS:   SPQR.dmg
+npm run dist:linux   # Linux:   SPQR.AppImage
+```
+
+Tastatur in der Desktop-Version: **F11** Vollbild, **Strg/Cmd + N** neues Spiel.
+
+## Im Browser starten
 
 Kein Build-Schritt, keine npm-Abhängigkeiten (Three.js liegt fertig gebaut unter
 `js/vendor/three.min.js`). Einfach einen kleinen Webserver starten (ES-Module
