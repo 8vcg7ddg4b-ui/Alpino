@@ -3,23 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SPQR: Herrschaft über Italien</title>
+  <title>SPQR</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦅</text></svg>" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <div id="app">
+  <div id="startScreen">
+    <div class="start-box">
+      <div class="start-eagle">🦅</div>
+      <h1 class="start-title">SPQR</h1>
+      <p class="start-tagline">Ein rundenbasiertes 3D-Feldzugsspiel über Europa und das Mittelmeer</p>
+      <button id="startGameBtn" class="start-btn">Neues Spiel starten ▶</button>
+      <button id="menuFullscreenBtn" class="start-secondary-btn">⛶ Vollbildmodus</button>
+      <div class="start-help">
+        <p><strong>Armee</strong> anklicken, dann ein grünes Feld (Zug) oder rotes Feld (Angriff) wählen.</p>
+        <p>Karte per Ziehen, Pfeiltasten/WASD oder den Richtungstasten unten links verschieben.</p>
+        <p>Städte anklicken, um Truppen zu rekrutieren. „Runde beenden“, wenn du fertig bist.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
     <header id="topbar">
-      <div class="brand">🦅 <span>SPQR</span> <small>Rundenstrategie · 2.5D</small></div>
+      <div class="brand">🦅 <span>SPQR</span> <small>Rundenstrategie · 3D</small></div>
       <div id="turnLabel" class="pill">Runde 1</div>
       <div id="goldLabel" class="pill">💰 0 Gold</div>
+      <button id="fullscreenBtn" class="icon-btn" title="Vollbildmodus">⛶</button>
       <button id="endTurnBtn" class="end-turn">Runde beenden ▶</button>
     </header>
 
     <main id="layout">
       <div id="mapWrap">
         <canvas id="gameCanvas"></canvas>
-        <div id="mapHint">Ziehen zum Verschieben der Karte · Pfeiltasten/WASD · Armee anklicken, dann Zielfeld wählen</div>
+        <div id="mapHint">Ziehen zum Verschieben · Armee anklicken, dann Zielfeld wählen</div>
+
+        <div id="mapControls">
+          <div class="dpad">
+            <button class="dpad-btn dpad-up" data-pan="0,-1">▲</button>
+            <button class="dpad-btn dpad-left" data-pan="-1,0">◀</button>
+            <button class="dpad-btn dpad-right" data-pan="1,0">▶</button>
+            <button class="dpad-btn dpad-down" data-pan="0,1">▼</button>
+          </div>
+          <div class="zoom-controls">
+            <button class="zoom-btn" data-zoom="1.2">+</button>
+            <button class="zoom-btn" data-zoom="0.83">−</button>
+          </div>
+        </div>
       </div>
 
       <aside id="sidebar">
@@ -47,6 +76,7 @@
     </div>
   </div>
 
+  <script src="js/vendor/three.min.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

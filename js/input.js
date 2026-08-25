@@ -1,11 +1,11 @@
-import { screenToTile } from './iso.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import { armyAt, cityAt, playerFaction } from './state.js';
 import { moveArmy } from './actions.js';
+import { pickTile, groundPointAt, panCameraByWorld, panCamera, zoomCamera } from './scene3d.js';
 
 const PAN_KEYS = {
-  ArrowUp: [0, -30], ArrowDown: [0, 30], ArrowLeft: [-30, 0], ArrowRight: [30, 0],
-  w: [0, -30], s: [0, 30], a: [-30, 0], d: [30, 0],
+  ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+  w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0],
 };
 
 function selectArmy(state, army) {
@@ -20,30 +20,38 @@ function clearSelection(state) {
   state.reachable = null;
 }
 
+function toNdc(canvas, clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: ((clientX - rect.left) / rect.width) * 2 - 1,
+    y: -((clientY - rect.top) / rect.height) * 2 + 1,
+  };
+}
+
 export function setupInput(canvas, state, onChange) {
   let dragging = false;
   let dragMoved = false;
-  let lastX = 0;
-  let lastY = 0;
+  let dragAnchor = null;
 
   canvas.addEventListener('mousedown', (e) => {
     dragging = true;
     dragMoved = false;
-    lastX = e.clientX;
-    lastY = e.clientY;
+    const ndc = toNdc(canvas, e.clientX, e.clientY);
+    dragAnchor = groundPointAt(ndc.x, ndc.y);
   });
 
   window.addEventListener('mousemove', (e) => {
     if (!dragging) return;
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
-    if (dragMoved) {
-      state.cam.x -= dx;
-      state.cam.y -= dy;
-      lastX = e.clientX;
-      lastY = e.clientY;
-      onChange();
+    const ndc = toNdc(canvas, e.clientX, e.clientY);
+    const q = groundPointAt(ndc.x, ndc.y);
+    if (dragAnchor && q) {
+      const dx = dragAnchor.x - q.x;
+      const dz = dragAnchor.z - q.z;
+      if (Math.abs(dx) > 0.05 || Math.abs(dz) > 0.05) dragMoved = true;
+      if (dragMoved) {
+        panCameraByWorld(dx, dz);
+        onChange();
+      }
     }
   });
 
@@ -54,20 +62,29 @@ export function setupInput(canvas, state, onChange) {
     dragging = false;
   });
 
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    zoomCamera(e.deltaY < 0 ? 1.12 : 0.89);
+    onChange();
+  }, { passive: false });
+
   window.addEventListener('keydown', (e) => {
     const delta = PAN_KEYS[e.key];
     if (!delta) return;
-    state.cam.x += delta[0];
-    state.cam.y += delta[1];
+    panCamera(delta[0] * 1.4, delta[1] * 1.4);
     onChange();
   });
 
   function handleClick(e) {
     if (state.gameOver) return;
-    const rect = canvas.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-    const { col, row } = screenToTile(sx, sy, state.cam);
+    const ndc = toNdc(canvas, e.clientX, e.clientY);
+    const tile = pickTile(ndc.x, ndc.y);
+    if (!tile) {
+      clearSelection(state);
+      onChange();
+      return;
+    }
+    const { col, row } = tile;
     if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) {
       clearSelection(state);
       onChange();

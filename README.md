@@ -1,13 +1,15 @@
-# SPQR – Rundenstrategie in 2.5D
+# SPQR – Rundenstrategie in 3D
 
 Ein rundenbasiertes Browserspiel im Stil von *Total War: Rome*. Die Kampagnenkarte
-wird in isometrischer 2.5D-Ansicht dargestellt; Bewegung, Belagerungen und Kämpfe
+umfasst Europa und das Mittelmeer und wird in echtem 3D (Three.js/WebGL) aus einer
+isometrischen Kameraperspektive dargestellt; Bewegung, Belagerungen und Kämpfe
 finden direkt auf dieser Karte statt – es gibt keinen separaten Schlachtbildschirm.
 
 ## Starten
 
-Kein Build-Schritt, keine Abhängigkeiten. Einfach einen kleinen Webserver starten
-(ES-Module benötigen `http://`, kein `file://`):
+Kein Build-Schritt, keine npm-Abhängigkeiten (Three.js liegt fertig gebaut unter
+`js/vendor/three.min.js`). Einfach einen kleinen Webserver starten (ES-Module
+benötigen `http://`, kein `file://`):
 
 ```bash
 node server.js
@@ -15,31 +17,41 @@ node server.js
 npm start
 ```
 
-Dann `http://localhost:8080` im Browser öffnen.
+Dann `http://localhost:8080` im Browser öffnen. Auf dem Startbildschirm „Neues
+Spiel starten" klicken.
 
 Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 
-## Spielprinzip
+## Bedienung
 
-- Du spielst **Rom** gegen die KI-Fraktionen **Karthago** und die **Gallier**,
-  außerdem gibt es die unabhängige Stadt Massilia.
-- Jede Runde: Armeen anklicken und auf ein grün markiertes Feld bewegen
-  (freie Bewegung) oder auf ein rot markiertes Feld (löst sofort einen Kampf
-  auf der Karte aus – Feldschlacht oder Belagerung).
-- Städte anklicken, um Einheiten zu rekrutieren (Legionäre, Kavallerie,
+- **Armee bewegen**: anklicken, dann ein grün markiertes Feld (freie Bewegung)
+  oder ein rot markiertes Feld (löst sofort einen Kampf aus) wählen.
+- **Karte verschieben**: Ziehen mit der Maus, Pfeiltasten/WASD, das Steuerkreuz
+  unten links auf der Karte, oder Mausrad zum Zoomen.
+- **Städte**: anklicken, um Einheiten zu rekrutieren (Legionäre, Kavallerie,
   Bogenschützen) und Garnisonen zu Feldarmeen auszuheben.
+- **Vollbildmodus**: Button oben rechts (⛶) bzw. auf dem Startbildschirm.
 - „Runde beenden" lässt die KI-Fraktionen ziehen, kassiert Einkommen und lässt
   Garnisonen langsam nachwachsen.
+
+## Spielprinzip
+
+- Du spielst **Rom** gegen die KI-Fraktionen **Karthago**, die **Gallier** und
+  die **Griechen**, verteilt über eine stilisierte Europa-/Mittelmeerkarte
+  (Iberische Halbinsel, Alpen/Pyrenäen, italienischer Stiefel, Sizilien,
+  Griechenland, Nordafrika) plus mehrere unabhängige Städte.
 - Sieg: alle gegnerischen Fraktionen ausschalten. Niederlage: Rom verliert
   alle Städte und Armeen.
 
 ## Struktur
 
-- `js/data.js` – Einheiten-, Gelände- und Fraktionsdefinitionen
-- `js/mapgen.js` / `js/state.js` – Kartengenerierung & Spielzustand
+- `js/data.js` – Einheiten-, Gelände- und Fraktionsdefinitionen, Kartengröße
+- `js/mapgen.js` / `js/state.js` – Europa-Küstenlinie & Kartengenerierung, Spielzustand
 - `js/pathfind.js` – Bewegungsreichweite (Dijkstra) inkl. Kampf-Zielfelder
 - `js/combat.js` – Kampfauflösung (mehrere Runden, Fernkampf-Bonus, Moral)
 - `js/actions.js` – Bewegen, Rekrutieren, Armee ausheben, Rundenwechsel
 - `js/ai.js` – einfache KI (Wirtschaft + Angriffsverhalten)
-- `js/render.js` – isometrisches Canvas-Rendering
-- `js/ui.js`, `js/input.js`, `js/main.js` – Seitenleiste, Eingabe, Bootstrap
+- `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
+  3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl
+- `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
+- `js/ui.js`, `js/input.js`, `js/main.js` – Seitenleiste, Eingabe, Startbildschirm, Bootstrap
