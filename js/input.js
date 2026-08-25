@@ -111,8 +111,20 @@ export function setupInput(canvas, state, onChange) {
       }
     }
 
-    if (clickedArmy && clickedArmy.factionId === player.id) {
-      selectArmy(state, clickedArmy);
+    const ownArmyHere = clickedArmy && clickedArmy.factionId === player.id ? clickedArmy : null;
+
+    if (ownArmyHere && clickedCity) {
+      // A tile can hold both a friendly army and a city (e.g. a garrisoned
+      // capital) - repeated clicks alternate between the two selections.
+      if (state.selectedArmyId === ownArmyHere.id) {
+        state.selectedCityId = clickedCity.id;
+        state.selectedArmyId = null;
+        state.reachable = null;
+      } else {
+        selectArmy(state, ownArmyHere);
+      }
+    } else if (ownArmyHere) {
+      selectArmy(state, ownArmyHere);
     } else if (clickedCity) {
       state.selectedCityId = clickedCity.id;
       state.selectedArmyId = null;

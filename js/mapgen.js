@@ -113,5 +113,35 @@ export function generateMap(seed = 1337) {
     }
   }
 
+  // Elevation is purely cosmetic (gameplay cost/defense comes from tile.type),
+  // so it can be blurred into gradual slopes for a natural-looking terrain
+  // mesh instead of the sheer cliffs a per-type constant would otherwise draw.
+  smoothElevation(tiles, 2);
+
   return { cols: MAP_COLS, rows: MAP_ROWS, tiles };
+}
+
+function smoothElevation(tiles, iterations) {
+  const neighborOffsets = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (let iter = 0; iter < iterations; iter++) {
+    const next = tiles.map((row) => row.map((t) => t.elevation));
+    for (let row = 0; row < MAP_ROWS; row++) {
+      for (let col = 0; col < MAP_COLS; col++) {
+        let sum = tiles[row][col].elevation;
+        let count = 1;
+        for (const [dc, dr] of neighborOffsets) {
+          const nc = col + dc;
+          const nr = row + dr;
+          if (nc >= 0 && nc < MAP_COLS && nr >= 0 && nr < MAP_ROWS) {
+            sum += tiles[nr][nc].elevation;
+            count++;
+          }
+        }
+        next[row][col] = sum / count;
+      }
+    }
+    for (let row = 0; row < MAP_ROWS; row++) {
+      for (let col = 0; col < MAP_COLS; col++) tiles[row][col].elevation = next[row][col];
+    }
+  }
 }

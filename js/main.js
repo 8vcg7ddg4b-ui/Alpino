@@ -64,14 +64,21 @@ function endTurn() {
   refresh();
 }
 
+function requestAppFullscreen() {
+  const root = document.documentElement;
+  const request = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!request) return;
+  // Some sandboxed embeds (e.g. an iframe'd artifact preview) reject
+  // fullscreen entirely - fail silently rather than break game start.
+  Promise.resolve(request.call(root)).catch(() => {});
+}
+
 function setupFullscreenButton(button) {
   button.addEventListener('click', () => {
     if (document.fullscreenElement) {
       document.exitFullscreen();
-    } else if (appEl.requestFullscreen) {
-      appEl.requestFullscreen();
-    } else if (appEl.webkitRequestFullscreen) {
-      appEl.webkitRequestFullscreen();
+    } else {
+      requestAppFullscreen();
     }
   });
   document.addEventListener('fullscreenchange', () => {
@@ -99,6 +106,7 @@ function setupDpad() {
 }
 
 function startNewGame() {
+  requestAppFullscreen();
   document.getElementById('startScreen').classList.add('hidden');
   appEl.classList.remove('hidden');
 

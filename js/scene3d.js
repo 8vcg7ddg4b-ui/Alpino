@@ -1,9 +1,8 @@
-import { TILE_TYPES, UNIT_ORDER, UNIT_TYPES } from './data.js';
-import { unitTotalCount, factionById, cityAt } from './state.js';
+import { TILE_TYPES } from './data.js';
+import { unitTotalCount, factionById } from './state.js';
 
 export const TILE_SIZE = 6;
-const ELEV_SCALE = 3;
-const SLAB_THICKNESS = 3;
+const ELEV_SCALE = 2.2;
 
 let renderer, scene, camera;
 let canvasEl;
@@ -11,10 +10,10 @@ let mapCols = 0;
 let mapRows = 0;
 
 const cam = { col: 0, row: 0, zoom: 1 };
-const ISO_DIR = new THREE.Vector3(1, 1.15, 1).normalize();
-const BASE_DISTANCE = 140;
+const ISO_DIR = new THREE.Vector3(1, 1.05, 1).normalize();
+const BASE_DISTANCE = 130;
 
-const pickables = []; // { mesh, lookup: [{col,row}, ...] }
+let terrainMesh = null;
 let waterMesh = null;
 
 const cityGroups = new Map(); // cityId -> { group, roof, flag, label }
@@ -65,22 +64,23 @@ function makeLabelSprite(text, opts = {}) {
   return sprite;
 }
 
+const SKY_COLOR = '#bcd8ec';
+
 export function initScene(canvas) {
   canvasEl = canvas;
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color('#0e0c09');
-  scene.fog = new THREE.Fog('#0e0c09', BASE_DISTANCE * 1.6, BASE_DISTANCE * 3.4);
+  scene.background = new THREE.Color(SKY_COLOR);
+  scene.fog = new THREE.Fog(SKY_COLOR, BASE_DISTANCE * 2.6, BASE_DISTANCE * 8);
 
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 2000);
+  camera = new THREE.PerspectiveCamera(40, 1, 0.5, 3000);
 
-  scene.add(new THREE.AmbientLight('#8899bb', 0.65));
-  const sun = new THREE.DirectionalLight('#fff3d6', 1.1);
-  sun.position.set(120, 200, 80);
+  scene.add(new THREE.AmbientLight('#ffffff', 0.65));
+  const sun = new THREE.DirectionalLight('#fff3d2', 1.05);
+  sun.position.set(140, 220, 90);
   scene.add(sun);
-  scene.add(new THREE.HemisphereLight('#cfe0ff', '#3a2c1d', 0.35));
 }
 
 function applyCamera() {
@@ -95,12 +95,7 @@ function applyCamera() {
 export function resize(width, height) {
   if (!renderer) return;
   renderer.setSize(width, height, false);
-  const aspect = width / Math.max(1, height);
-  const viewSize = 90;
-  camera.left = (-viewSize * aspect) / 2;
-  camera.right = (viewSize * aspect) / 2;
-  camera.top = viewSize / 2;
-  camera.bottom = -viewSize / 2;
+  camera.aspect = width / Math.max(1, height);
   applyCamera();
 }
 
@@ -154,69 +149,169 @@ function addTreeProp(group, col, row, topY, rng) {
   group.add(leaves);
 }
 
-function addPeakProp(group, col, row, topY) {
+function addPeakProp(group, col, row, topY, rng) {
+  const jx = (rng() - 0.5) * TILE_SIZE * 0.5;
+  const jz = (rng() - 0.5) * TILE_SIZE * 0.5;
+  const size = 1.5 + rng() * 1.4;
+  const height = 2.4 + rng() * 2.4;
   const peak = new THREE.Mesh(
-    new THREE.ConeGeometry(2.2, 3.4, 5),
-    new THREE.MeshStandardMaterial({ color: '#e8e8ec', flatShading: true })
+    new THREE.ConeGeometry(size, height, 5),
+    new THREE.MeshStandardMaterial({ color: rng() < 0.5 ? '#eef0f4' : '#c9c6c0', flatShading: true })
   );
-  peak.position.set(worldX(col), topY + 1.7, worldZ(row));
+  peak.rotation.y = rng() * Math.PI;
+  peak.position.set(worldX(col) + jx, topY + height / 2, worldZ(row) + jz);
   group.add(peak);
 }
 
-// Builds the terrain once from the generated map: instanced slabs per land
-// type plus a single sea plane, decorative props, and pickable lookup tables.
+function seededRandomFactory(seed) {
+  let s = seed;
+  return function seededRandom() {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    return (s % 10000) / 10000;
+  };
+}
+
+// A small tileable speckle-noise texture, layered on top of the vertex
+// colors to break up the flat, plasticky look of a pure color material.
+function makeNoiseTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const rng = seededRandomFactory(7);
+  const image = ctx.createImageData(size, size);
+  for (let i = 0; i < size * size; i++) {
+    const v = 205 + Math.floor(rng() * 50);
+    image.data[i * 4] = v;
+    image.data[i * 4 + 1] = v;
+    image.data[i * 4 + 2] = v;
+    image.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
+function colorFor(type, rng) {
+  const c = new THREE.Color(TILE_TYPES[type].color);
+  const jitter = 0.92 + rng() * 0.16;
+  c.multiplyScalar(jitter);
+  return c;
+}
+
+// Builds a single smooth, vertex-colored heightmap mesh for the whole map
+// (one vertex per tile centre, so slopes blend naturally between tiles),
+// a translucent sea surface, decorative props, and roads between cities.
 export function buildMap(state) {
   mapCols = state.map.cols;
   mapRows = state.map.rows;
   const propsGroup = new THREE.Group();
   scene.add(propsGroup);
+  const rng = seededRandomFactory(11);
 
-  const byType = { plains: [], forest: [], hills: [], mountain: [] };
+  const positions = new Float32Array(mapCols * mapRows * 3);
+  const colors = new Float32Array(mapCols * mapRows * 3);
+  const uvs = new Float32Array(mapCols * mapRows * 2);
+  const idx = (col, row) => row * mapCols + col;
+
   for (let row = 0; row < mapRows; row++) {
     for (let col = 0; col < mapCols; col++) {
-      const type = state.map.tiles[row][col].type;
-      if (type === 'water') continue;
-      byType[type].push({ col, row });
+      const tile = state.map.tiles[row][col];
+      const i = idx(col, row);
+      positions[i * 3] = worldX(col);
+      positions[i * 3 + 1] = tileTopY(tile.elevation);
+      positions[i * 3 + 2] = worldZ(row);
+      const color = colorFor(tile.type, rng);
+      colors[i * 3] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
+      uvs[i * 2] = col / 3;
+      uvs[i * 2 + 1] = row / 3;
+
+      if (tile.type !== 'water') {
+        if (TILE_TYPES[tile.type].deco === 'tree' && rng() < 0.85) addTreeProp(propsGroup, col, row, tileTopY(tile.elevation), rng);
+        if (TILE_TYPES[tile.type].deco === 'peak' && rng() < 0.75) addPeakProp(propsGroup, col, row, tileTopY(tile.elevation), rng);
+      }
     }
   }
 
-  let seedCounter = 1;
-  function seededRandom() {
-    seedCounter = (seedCounter * 1103515245 + 12345) & 0x7fffffff;
-    return (seedCounter % 10000) / 10000;
+  const indices = [];
+  for (let row = 0; row < mapRows - 1; row++) {
+    for (let col = 0; col < mapCols - 1; col++) {
+      const a = idx(col, row);
+      const b = idx(col + 1, row);
+      const c = idx(col, row + 1);
+      const d = idx(col + 1, row + 1);
+      indices.push(a, c, b, b, c, d);
+    }
   }
 
-  for (const type of Object.keys(byType)) {
-    const cells = byType[type];
-    if (!cells.length) continue;
-    const def = TILE_TYPES[type];
-    const topY = tileTopY(def.elevation);
-    const geometry = new THREE.BoxGeometry(TILE_SIZE * 0.96, SLAB_THICKNESS, TILE_SIZE * 0.96);
-    const material = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.9 });
-    const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
-    mesh.castShadow = false;
-    const matrix = new THREE.Matrix4();
-    const lookup = [];
-    cells.forEach((cell, i) => {
-      matrix.makeTranslation(worldX(cell.col), topY - SLAB_THICKNESS / 2, worldZ(cell.row));
-      mesh.setMatrixAt(i, matrix);
-      lookup.push(cell);
-      if (def.deco === 'tree') addTreeProp(propsGroup, cell.col, cell.row, topY, seededRandom);
-      if (def.deco === 'peak') addPeakProp(propsGroup, cell.col, cell.row, topY);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-    scene.add(mesh);
-    pickables.push({ mesh, lookup });
-  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  const material = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    map: makeNoiseTexture(),
+    roughness: 0.95,
+  });
+  terrainMesh = new THREE.Mesh(geometry, material);
+  scene.add(terrainMesh);
 
   const seaSize = Math.max(mapCols, mapRows) * TILE_SIZE * 1.6;
   waterMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(seaSize, seaSize),
-    new THREE.MeshStandardMaterial({ color: TILE_TYPES.water.color, transparent: true, opacity: 0.88, roughness: 0.3 })
+    new THREE.MeshStandardMaterial({ color: TILE_TYPES.water.color, transparent: true, opacity: 0.82, roughness: 0.25 })
   );
   waterMesh.rotation.x = -Math.PI / 2;
-  waterMesh.position.y = tileTopY(TILE_TYPES.water.elevation) - SLAB_THICKNESS / 2;
+  waterMesh.position.y = tileTopY(TILE_TYPES.water.elevation) + 0.3;
   scene.add(waterMesh);
+
+  buildRoads(state);
+}
+
+function elevationNear(state, col, row) {
+  const c = Math.max(0, Math.min(mapCols - 1, Math.round(col)));
+  const r = Math.max(0, Math.min(mapRows - 1, Math.round(row)));
+  return state.map.tiles[r][c].elevation;
+}
+
+function buildRoad(state, from, to) {
+  const steps = Math.max(10, Math.round(Math.hypot(to.col - from.col, to.row - from.row) * 2));
+  const points = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const col = from.col + (to.col - from.col) * t;
+    const row = from.row + (to.row - from.row) * t;
+    const elevation = elevationNear(state, col, row);
+    points.push(new THREE.Vector3(worldX(col), tileTopY(elevation) + 0.14, worldZ(row)));
+  }
+  const curve = new THREE.CatmullRomCurve3(points);
+  const geometry = new THREE.TubeGeometry(curve, steps * 2, 0.34, 5, false);
+  const material = new THREE.MeshStandardMaterial({ color: '#a9895c', roughness: 1 });
+  scene.add(new THREE.Mesh(geometry, material));
+}
+
+// Decorative roads linking each faction's two settlements together.
+function buildRoads(state) {
+  const byFaction = new Map();
+  for (const city of state.cities) {
+    if (!byFaction.has(city.factionId)) byFaction.set(city.factionId, []);
+    byFaction.get(city.factionId).push(city);
+  }
+  for (const [factionId, cities] of byFaction) {
+    if (factionId === 'neutral' || cities.length < 2) continue;
+    const capital = cities.find((c) => c.capital) || cities[0];
+    for (const city of cities) {
+      if (city !== capital) buildRoad(state, capital, city);
+    }
+  }
 }
 
 function buildCityGroup(city) {
@@ -400,27 +495,20 @@ export function render() {
   if (renderer) renderer.render(scene, camera);
 }
 
-// Raycasts against the instanced terrain first (exact per-tile hit including
-// elevation), falling back to the flat sea plane for clicks on open water.
+// Raycasts against whichever of the terrain or sea surface is closer to the
+// camera, then derives the tile from the hit point (vertices sit exactly at
+// tile centres, so a simple round-to-nearest is exact for the terrain and a
+// good approximation for open water).
 export function pickTile(ndcX, ndcY) {
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera);
 
-  let closest = null;
-  for (const { mesh, lookup } of pickables) {
-    const hits = raycaster.intersectObject(mesh, false);
-    if (hits.length && (!closest || hits[0].distance < closest.distance)) {
-      closest = { distance: hits[0].distance, tile: lookup[hits[0].instanceId] };
-    }
-  }
-  if (closest) return closest.tile;
-
-  if (waterMesh) {
-    const hits = raycaster.intersectObject(waterMesh, false);
-    if (hits.length) {
-      const p = hits[0].point;
-      return { col: colFromWorldX(p.x), row: rowFromWorldZ(p.z) };
-    }
-  }
-  return null;
+  const candidates = [terrainMesh, waterMesh].filter(Boolean);
+  const hits = raycaster.intersectObjects(candidates, false);
+  if (!hits.length) return null;
+  const p = hits[0].point;
+  const col = colFromWorldX(p.x);
+  const row = rowFromWorldZ(p.z);
+  if (col < 0 || col >= mapCols || row < 0 || row >= mapRows) return null;
+  return { col, row };
 }
