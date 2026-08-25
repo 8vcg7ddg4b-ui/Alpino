@@ -1,0 +1,10 @@
+{
+  "name": "spqr-browser-game",
+  "version": "1.0.0",
+  "description": "Rundenbasiertes 2.5D-Browserstrategiespiel im Stil von Total War: Rome. Züge und Kämpfe finden direkt auf der Kampagnenkarte statt.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  }
+}
