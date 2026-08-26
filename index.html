@@ -8,6 +8,51 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <noscript>
+    <div class="boot-error">
+      <div class="boot-box">
+        <h1>SPQR braucht JavaScript</h1>
+        <p>In dieser Ansicht ist JavaScript abgeschaltet. Lade die Datei herunter und
+          öffne sie direkt im Browser.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <div id="bootError" class="boot-error hidden">
+    <div class="boot-box">
+      <h1>SPQR konnte nicht starten</h1>
+      <p id="bootErrorText"></p>
+      <p class="boot-hint">Wenn du diese Seite in einer Dateivorschau betrachtest, werden
+        Skripte dort oft blockiert. Lade die Datei herunter und öffne sie per Doppelklick
+        im Browser – oder nutze den Artifact-Link.</p>
+    </div>
+  </div>
+
+  <script>
+    // Runs before everything else so a failure in the game code becomes a visible
+    // message instead of a dead start button.
+    (function () {
+      function show(message) {
+        var box = document.getElementById('bootError');
+        var text = document.getElementById('bootErrorText');
+        if (!box || !text) return;
+        text.textContent = message;
+        box.classList.remove('hidden');
+      }
+      window.addEventListener('error', function (event) {
+        // Ignore failed sub-resources (a missing favicon is not a boot failure).
+        if (event.target && event.target !== window) return;
+        show(event.message || 'Unbekannter Fehler beim Laden des Spiels.');
+      });
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (window.__spqrReady) return;
+          show('Das Spielskript wurde nicht ausgeführt.');
+        }, 2000);
+      });
+    })();
+  </script>
+
   <div id="startScreen">
     <div class="start-box">
       <div class="start-eagle">🦅</div>

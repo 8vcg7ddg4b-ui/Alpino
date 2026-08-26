@@ -352,3 +352,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 document.getElementById('startGameBtn').addEventListener('click', startNewGame);
+
+// The boot watchdog in index.html looks for this: reaching it means the whole
+// script parsed and the start button is wired.
+window.__spqrReady = true;
