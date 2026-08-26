@@ -18,7 +18,7 @@ function totalCount(units) {
 }
 
 // Simplified multi-round battle resolver. Runs entirely on the campaign map:
-// no separate battle screen, just a resolved outcome plus a readable log.
+// no separate battle screen. Returns enough detail for a full battle report.
 export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType) {
   const rng = mulberry32(battleSeed++);
   const attacker = cloneUnits(attackerUnitsIn);
@@ -32,10 +32,11 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType) {
 
   let ranged = true;
   let outcome = null;
+  let endedBy = 'erschöpft';
 
   for (let round = 1; round <= maxRounds; round++) {
-    if (totalCount(attacker) === 0) { outcome = 'defender'; break; }
-    if (totalCount(defender) === 0) { outcome = 'attacker'; break; }
+    if (totalCount(attacker) === 0) { outcome = 'defender'; endedBy = 'vernichtet'; break; }
+    if (totalCount(defender) === 0) { outcome = 'attacker'; endedBy = 'vernichtet'; break; }
 
     let atkPower = 0;
     let defPower = 0;
@@ -45,29 +46,37 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType) {
       atkPower += (attacker[key] || 0) * def.attack * rangedBonus;
       defPower += (defender[key] || 0) * def.defense * (1 + terrainBonus * 0.15) * (ranged && def.ranged ? 1.4 : 1);
     }
+    const volley = ranged;
     ranged = false;
 
     const variance = () => 0.8 + rng() * 0.4;
     const dmgToDefender = atkPower * 0.55 * variance();
     const dmgToAttacker = defPower * 0.42 * variance();
 
+    const attackerBefore = totalCount(attacker);
+    const defenderBefore = totalCount(defender);
     applyDamage(defender, dmgToDefender);
     applyDamage(attacker, dmgToAttacker);
 
     rounds.push({
       round,
+      volley,
       attackerLeft: totalCount(attacker),
       defenderLeft: totalCount(defender),
+      attackerLost: attackerBefore - totalCount(attacker),
+      defenderLost: defenderBefore - totalCount(defender),
     });
 
     const atkRemainRatio = totalStrength(attacker) / Math.max(1, startAtkStrength);
     const defRemainRatio = totalStrength(defender) / Math.max(1, startDefStrength);
     if (atkRemainRatio < 0.35 && atkRemainRatio < defRemainRatio && rng() < 0.35) {
       outcome = 'defender';
+      endedBy = 'Moral gebrochen';
       break;
     }
     if (defRemainRatio < 0.35 && defRemainRatio < atkRemainRatio && rng() < 0.35) {
       outcome = 'attacker';
+      endedBy = 'Moral gebrochen';
       break;
     }
   }
@@ -81,7 +90,12 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType) {
 
   return {
     outcome,
+    endedBy,
     rounds,
+    terrainType,
+    terrainBonus,
+    attackerEngaged: cloneUnits(attackerUnitsIn),
+    defenderEngaged: cloneUnits(defenderUnitsIn),
     attackerSurvivors: attacker,
     defenderSurvivors: defender,
     attackerLossesPct: 1 - totalCount(attacker) / Math.max(1, totalCount(attackerUnitsIn)),

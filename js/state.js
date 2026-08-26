@@ -64,7 +64,7 @@ export function createInitialState() {
     selectedArmyId: null,
     selectedCityId: null,
     reachable: null,
-    log: ['Das Spiel beginnt. Führe Rom zum Sieg!'],
+    log: [{ text: 'Das Spiel beginnt. Führe Rom zum Sieg!', reportId: null }],
     battleReports: [],
     gameOver: null,
     cam: { x: 0, y: 0 },
@@ -91,7 +91,9 @@ export function unitTotalCount(units) {
   return Object.values(units).reduce((sum, n) => sum + n, 0);
 }
 
-export function logMsg(state, msg) {
-  state.log.unshift(msg);
+// Log entries carry an optional battle-report id so the sidebar can turn them
+// into links back into the full report.
+export function logMsg(state, msg, reportId = null) {
+  state.log.unshift({ text: msg, reportId });
   if (state.log.length > 60) state.log.length = 60;
 }

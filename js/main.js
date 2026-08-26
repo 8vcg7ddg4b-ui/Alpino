@@ -1,5 +1,5 @@
 import { createInitialState, playerFaction } from './state.js';
-import { renderUI } from './ui.js';
+import { renderUI, battleReportHTML } from './ui.js';
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
 import { aiTakeAllTurns } from './ai.js';
@@ -37,6 +37,22 @@ function syncSelection() {
   }
 }
 
+const reportOverlay = document.getElementById('battleReport');
+
+function showBattleReport(reportOrId) {
+  if (!state) return;
+  const report = typeof reportOrId === 'string'
+    ? state.battleReports.find((r) => r.id === reportOrId)
+    : reportOrId;
+  if (!report) return;
+  document.getElementById('reportBody').innerHTML = battleReportHTML(state, report);
+  reportOverlay.classList.remove('hidden');
+}
+
+function hideBattleReport() {
+  reportOverlay.classList.add('hidden');
+}
+
 function refresh() {
   if (!state) return;
   syncSelection();
@@ -51,6 +67,7 @@ function refresh() {
       raiseArmyFromGarrison(state, cityId);
       refresh();
     },
+    onShowReport: showBattleReport,
   });
 }
 
@@ -58,6 +75,10 @@ function endTurn() {
   // Ending the turn mid-march would let the AI move while the player's army is
   // still visibly walking, and the resulting sync would teleport it.
   if (!state || state.gameOver || isAnimating()) return;
+  // Identify new reports by the previous head, not by length: the list is
+  // capped, so once it is full its length stops growing.
+  const previousHead = state.battleReports.length ? state.battleReports[0].id : null;
+
   aiTakeAllTurns(state);
   collectIncome(state);
   regenerateGarrisons(state);
@@ -65,6 +86,16 @@ function endTurn() {
   state.turn += 1;
   resetMovement(state);
   refresh();
+
+  // AI turns can produce a whole string of battles. Surface only the most
+  // recent one Rome was part of, so the player sees what happened to them
+  // without a stack of modals for wars between other factions.
+  let mine = null;
+  for (const report of state.battleReports) {
+    if (report.id === previousHead) break;
+    if (report.involvesPlayer) { mine = report; break; }
+  }
+  if (mine && !state.gameOver) showBattleReport(mine);
 }
 
 function requestAppFullscreen() {
@@ -145,7 +176,7 @@ function startNewGame() {
   const capital = state.cities.find((c) => c.factionId === player.id && c.capital);
   if (capital) centerOn(capital.col, capital.row);
 
-  setupInput(canvas, state, refresh);
+  setupInput(canvas, state, refresh, showBattleReport);
   document.getElementById('endTurnBtn').addEventListener('click', endTurn);
   refresh();
 }
@@ -158,5 +189,13 @@ window.addEventListener('resize', () => {
 setupFullscreenButton(document.getElementById('fullscreenBtn'));
 setupFullscreenButton(document.getElementById('menuFullscreenBtn'));
 setupDpad();
+
+document.getElementById('reportClose').addEventListener('click', hideBattleReport);
+reportOverlay.addEventListener('click', (e) => {
+  if (e.target === reportOverlay) hideBattleReport();
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') hideBattleReport();
+});
 
 document.getElementById('startGameBtn').addEventListener('click', startNewGame);

@@ -211,6 +211,142 @@ html, body {
 }
 .log-line:first-child { color: var(--text); border-left-color: var(--gold); }
 
+.log-line.log-battle {
+  cursor: pointer;
+  border-left-color: #c0392b;
+}
+.log-line.log-battle:hover { color: var(--text); background: rgba(192, 57, 43, 0.12); }
+.log-more {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--gold);
+  margin-top: 2px;
+  letter-spacing: 0.4px;
+}
+
+#battleReport {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.report-box {
+  position: relative;
+  background: var(--panel);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 26px 30px;
+  width: min(760px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.report-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.report-close:hover { color: var(--gold); border-color: var(--gold); }
+
+.report-title {
+  margin: 0 0 6px;
+  color: var(--gold);
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+}
+.report-meta { margin: 2px 0; color: var(--muted); font-size: 0.82rem; }
+
+.report-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.report-side {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--panel-2);
+}
+.report-side.side-won { border-color: #4d8f4d; }
+.report-side.side-lost { opacity: 0.82; }
+
+.side-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+.side-role { color: var(--muted); font-size: 0.75rem; }
+.side-verdict {
+  margin-left: auto;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.side-won .side-verdict { color: #8fd18f; border-color: #4d8f4d; }
+.side-lost .side-verdict { color: #d98a80; border-color: #7a3b33; }
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.report-table th {
+  text-align: right;
+  color: var(--muted);
+  font-weight: normal;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+.report-table th:first-child, .report-table td:first-child { text-align: left; }
+.report-table td { padding: 4px 0; }
+.report-table .u-num { text-align: right; padding-left: 10px; }
+.report-table .u-loss { color: #e08a7d; }
+.report-table tfoot td {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  font-weight: bold;
+}
+
+.report-rounds { margin-top: 18px; }
+.report-rounds summary {
+  cursor: pointer;
+  color: var(--gold);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 6px 0;
+}
+.rounds-table { margin-top: 8px; }
+.rounds-table .r-no { color: var(--muted); }
+.r-volley { font-size: 0.75rem; }
+
+@media (max-width: 680px) {
+  .report-sides { grid-template-columns: 1fr; }
+}
+
 #gameOverOverlay {
   position: fixed;
   inset: 0;

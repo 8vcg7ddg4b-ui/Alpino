@@ -3,7 +3,7 @@ import { armyAt, cityAt, playerFaction } from './state.js';
 import { moveArmy } from './actions.js';
 import {
   pickTile, groundPointAt, panCameraByWorld, panCamera, zoomCamera,
-  animateArmyPath, isAnimating,
+  animateArmyPath, playBattleClash, isAnimating,
 } from './scene3d.js';
 
 const PAN_KEYS = {
@@ -51,7 +51,7 @@ function toNdc(canvas, clientX, clientY) {
   };
 }
 
-export function setupInput(canvas, state, onChange) {
+export function setupInput(canvas, state, onChange, onShowReport) {
   let dragging = false;
   let dragMoved = false;
   let dragAnchor = null;
@@ -128,17 +128,26 @@ export function setupInput(canvas, state, onChange) {
         // Drop the range overlay before the march so the army isn't walking
         // across its own highlighted tiles.
         state.reachable = null;
-        moveArmy(state, armyId, col, row);
+        const outcome = moveArmy(state, armyId, col, row);
         const survivor = state.armies.find((a) => a.id === armyId);
         const route = buildMarchRoute(entry.path, origin, survivor, { col, row });
+        const reports = outcome.reports || [];
 
-        animateArmyPath(armyId, route, () => {
+        const settle = () => {
           if (survivor && survivor.movement > 0) {
             selectArmy(state, survivor);
           } else {
             clearSelection(state);
           }
           onChange();
+          // The report is the last beat: the player watches the clash, then
+          // reads what it cost.
+          if (reports.length && onShowReport) onShowReport(reports[reports.length - 1]);
+        };
+
+        animateArmyPath(armyId, route, () => {
+          if (reports.length) playBattleClash(col, row, settle);
+          else settle();
         });
         onChange();
         return;

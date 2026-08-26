@@ -48,7 +48,11 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 ## Bedienung
 
 - **Armee bewegen**: anklicken, dann ein grün markiertes Feld (freie Bewegung)
-  oder ein rot markiertes Feld (löst sofort einen Kampf aus) wählen.
+  oder ein rot markiertes Feld (löst sofort einen Kampf aus) wählen. Die Armee
+  marschiert sichtbar die gefundene Route entlang.
+- **Schlachtberichte**: Nach jedem Kampf öffnet sich ein Bericht mit Verlusten
+  pro Einheitentyp, Geländevorteil und Rundenverlauf. Ältere Kämpfe lassen sich
+  jederzeit über die Einträge in der Ereignisliste wieder öffnen (Esc schließt).
 - **Karte verschieben**: Ziehen mit der Maus, Pfeiltasten/WASD, das Steuerkreuz
   unten links auf der Karte, oder Mausrad zum Zoomen.
 - **Städte**: anklicken, um Einheiten zu rekrutieren (Legionäre, Kavallerie,

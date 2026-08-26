@@ -1,5 +1,100 @@
-import { UNIT_ORDER, UNIT_TYPES, GARRISON_POP_RATIO } from './data.js';
+import { UNIT_ORDER, UNIT_TYPES, GARRISON_POP_RATIO, TILE_TYPES } from './data.js';
 import { unitTotalCount, playerFaction, factionById } from './state.js';
+
+const TERRAIN_NAMES = {
+  plains: 'Ebene', forest: 'Wald', hills: 'Hügel', mountain: 'Gebirge', water: 'Wasser',
+};
+
+function escapeHTML(text) {
+  return String(text).replace(/[&<>"]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+  ));
+}
+
+// One side of the report: every unit type that took part, with how many
+// marched in, how many walked away, and the shortfall between the two.
+function sideHTML(state, factionId, label, engaged, survivors, lossPct, won) {
+  const faction = factionById(state, factionId);
+  const rows = UNIT_ORDER.filter((k) => (engaged[k] || 0) > 0).map((k) => {
+    const before = engaged[k] || 0;
+    const after = survivors[k] || 0;
+    const lost = before - after;
+    return `<tr>
+      <td class="u-name">${UNIT_TYPES[k].icon} ${UNIT_TYPES[k].name}</td>
+      <td class="u-num">${before.toLocaleString('de-DE')}</td>
+      <td class="u-num">${after.toLocaleString('de-DE')}</td>
+      <td class="u-num u-loss">${lost > 0 ? '−' + lost.toLocaleString('de-DE') : '0'}</td>
+    </tr>`;
+  }).join('');
+
+  const before = unitTotalCount(engaged);
+  const after = unitTotalCount(survivors);
+
+  return `
+    <div class="report-side ${won ? 'side-won' : 'side-lost'}">
+      <div class="side-head">
+        <span class="dot" style="background:${faction ? faction.color : '#888'}"></span>
+        <strong>${escapeHTML(faction ? faction.name : '?')}</strong>
+        <span class="side-role">${label}</span>
+        <span class="side-verdict">${won ? 'Sieg' : 'Niederlage'}</span>
+      </div>
+      <table class="report-table">
+        <thead><tr><th>Einheit</th><th>Eingesetzt</th><th>Übrig</th><th>Verlust</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" class="muted">keine Truppen</td></tr>'}</tbody>
+        <tfoot><tr>
+          <td>Gesamt</td>
+          <td class="u-num">${before.toLocaleString('de-DE')}</td>
+          <td class="u-num">${after.toLocaleString('de-DE')}</td>
+          <td class="u-num u-loss">${Math.round(lossPct * 100)}%</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+}
+
+function roundsHTML(rounds) {
+  if (!rounds || !rounds.length) return '';
+  const bars = rounds.map((r) => `
+    <tr>
+      <td class="r-no">${r.round}${r.volley ? ' <span class="r-volley" title="Fernkampf-Eröffnung">🏹</span>' : ''}</td>
+      <td class="u-num u-loss">−${r.attackerLost.toLocaleString('de-DE')}</td>
+      <td class="u-num">${r.attackerLeft.toLocaleString('de-DE')}</td>
+      <td class="u-num">${r.defenderLeft.toLocaleString('de-DE')}</td>
+      <td class="u-num u-loss">−${r.defenderLost.toLocaleString('de-DE')}</td>
+    </tr>`).join('');
+  return `
+    <details class="report-rounds" open>
+      <summary>Rundenverlauf (${rounds.length} ${rounds.length === 1 ? 'Runde' : 'Runden'})</summary>
+      <table class="report-table rounds-table">
+        <thead><tr>
+          <th>#</th><th>Angr. Verlust</th><th>Angr. übrig</th><th>Vert. übrig</th><th>Vert. Verlust</th>
+        </tr></thead>
+        <tbody>${bars}</tbody>
+      </table>
+    </details>`;
+}
+
+export function battleReportHTML(state, report) {
+  const attackerWon = report.outcome === 'attacker';
+  const terrain = TERRAIN_NAMES[report.terrainType] || report.terrainType;
+  const place = report.cityName
+    ? `${report.kind === 'city' ? 'Belagerung von' : 'Schlacht bei'} ${escapeHTML(report.cityName)}`
+    : 'Feldschlacht';
+  const bonus = report.terrainBonus > 0
+    ? ` · Geländevorteil für den Verteidiger: +${Math.round(report.terrainBonus * 15)}% Verteidigung`
+    : ' · kein Geländevorteil';
+
+  return `
+    <h2 class="report-title">${place}</h2>
+    <p class="report-meta">Runde ${report.turn} · ${escapeHTML(terrain)}${bonus}</p>
+    <p class="report-meta">Entschieden: ${escapeHTML(report.endedBy || '—')}</p>
+    <div class="report-sides">
+      ${sideHTML(state, report.attackerFactionId, 'Angreifer', report.attackerEngaged,
+    report.attackerSurvivors, report.attackerLossesPct, attackerWon)}
+      ${sideHTML(state, report.defenderFactionId, 'Verteidiger', report.defenderEngaged,
+    report.defenderSurvivors, report.defenderLossesPct, !attackerWon)}
+    </div>
+    ${roundsHTML(report.rounds)}`;
+}
 
 function unitBreakdownHTML(units) {
   return UNIT_ORDER.filter((k) => units[k] > 0)
@@ -85,7 +180,15 @@ export function renderUI(state, handlers) {
   }
 
   const logPanel = document.getElementById('logPanel');
-  logPanel.innerHTML = state.log.slice(0, 30).map((m) => `<div class="log-line">${m}</div>`).join('');
+  logPanel.innerHTML = state.log.slice(0, 30).map((entry) => {
+    const linked = entry.reportId ? ' log-battle' : '';
+    const attr = entry.reportId ? ` data-report="${entry.reportId}"` : '';
+    return `<div class="log-line${linked}"${attr}>${escapeHTML(entry.text)}${
+      entry.reportId ? '<span class="log-more">Bericht ansehen</span>' : ''}</div>`;
+  }).join('');
+  logPanel.querySelectorAll('[data-report]').forEach((el) => {
+    el.addEventListener('click', () => handlers.onShowReport(el.dataset.report));
+  });
 
   const overlay = document.getElementById('gameOverOverlay');
   if (state.gameOver) {

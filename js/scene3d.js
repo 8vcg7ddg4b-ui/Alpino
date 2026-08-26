@@ -22,6 +22,7 @@ let currentMap = null;
 // (already updated) destination, and must not despatch a group whose army was
 // destroyed until it has finished walking up to the fight.
 const armyAnimations = new Map();
+const effects = [];
 const completionQueue = [];
 let animationFrameId = null;
 const MARCH_TILES_PER_SECOND = 4.2;
@@ -591,26 +592,129 @@ function advanceAnimations(dt) {
   return armyAnimations.size > 0;
 }
 
+function advanceEffects(dt) {
+  for (let i = effects.length - 1; i >= 0; i--) {
+    const effect = effects[i];
+    effect.elapsed += dt;
+    effect.update(effect.elapsed / effect.duration, dt);
+    if (effect.elapsed >= effect.duration) {
+      effect.dispose();
+      completionQueue.push(effect.onComplete);
+      effects.splice(i, 1);
+    }
+  }
+  return effects.length > 0;
+}
+
 function startAnimationLoop() {
   if (animationFrameId !== null) return;
   let last = performance.now();
   const step = (now) => {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    // Cap the step so a stalled tab cannot jump an animation to its end, but
+    // keep the cap loose enough that a slow GPU plays it at roughly the right
+    // speed instead of in slow motion.
+    const dt = Math.min(0.12, (now - last) / 1000);
     last = now;
-    const running = advanceAnimations(dt);
+    const marching = advanceAnimations(dt);
+    const effecting = advanceEffects(dt);
     render();
-    if (running) {
+    if (marching || effecting) {
       animationFrameId = requestAnimationFrame(step);
       return;
     }
     animationFrameId = null;
+    // Callbacks may start the next stage (a march ending in a clash), which
+    // restarts the loop on its own.
     for (const done of completionQueue.splice(0)) if (done) done();
   };
   animationFrameId = requestAnimationFrame(step);
 }
 
 export function isAnimating() {
-  return armyAnimations.size > 0;
+  return armyAnimations.size > 0 || effects.length > 0;
+}
+
+const CLASH_DURATION = 1.35;
+
+// A clash where the armies actually meet: a shockwave ring races outward along
+// the ground, sparks are thrown up and fall back, and a light flares and dies.
+export function playBattleClash(col, row, onComplete) {
+  if (!scene) {
+    if (onComplete) onComplete();
+    return;
+  }
+  const centre = new THREE.Vector3(worldX(col), tileTopY(tileElevation(col, row)), worldZ(row));
+  const group = new THREE.Group();
+  group.position.copy(centre);
+  scene.add(group);
+
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.6, 1.15, 40),
+    new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, side: THREE.DoubleSide, depthWrite: false })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.25;
+  group.add(ring);
+
+  const flash = new THREE.PointLight('#ffb347', 0, 26);
+  flash.position.y = 2.4;
+  group.add(flash);
+
+  const rng = seededRandomFactory(col * 977 + row * 131 + 7);
+  const sparks = [];
+  for (let i = 0; i < 18; i++) {
+    const spark = new THREE.Mesh(
+      new THREE.TetrahedronGeometry(0.24 + rng() * 0.2),
+      new THREE.MeshBasicMaterial({ color: rng() < 0.5 ? '#ffd27a' : '#e8663d', transparent: true })
+    );
+    const angle = rng() * Math.PI * 2;
+    const speed = 5 + rng() * 7;
+    spark.position.set(0, 0.6, 0);
+    group.add(spark);
+    sparks.push({
+      mesh: spark,
+      vx: Math.cos(angle) * speed,
+      vz: Math.sin(angle) * speed,
+      vy: 5 + rng() * 6,
+      spin: (rng() - 0.5) * 12,
+    });
+  }
+
+  effects.push({
+    elapsed: 0,
+    duration: CLASH_DURATION,
+    onComplete,
+    update(t, dt) {
+      const eased = Math.min(1, t * 1.5);
+      ring.scale.setScalar(1 + eased * 7);
+      ring.material.opacity = Math.max(0, 0.85 * (1 - eased));
+      flash.intensity = t < 0.28 ? 5.5 * (1 - t / 0.28) : 0;
+
+      for (const s of sparks) {
+        s.vy -= 22 * dt;
+        s.mesh.position.x += s.vx * dt;
+        s.mesh.position.y += s.vy * dt;
+        s.mesh.position.z += s.vz * dt;
+        s.mesh.rotation.x += s.spin * dt;
+        s.mesh.rotation.y += s.spin * dt;
+        if (s.mesh.position.y < 0.1) {
+          s.mesh.position.y = 0.1;
+          s.vy = 0;
+          s.vx *= 0.7;
+          s.vz *= 0.7;
+        }
+        s.mesh.material.opacity = Math.max(0, 1 - t * 1.15);
+      }
+    },
+    dispose() {
+      group.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+      scene.remove(group);
+    },
+  });
+  startAnimationLoop();
 }
 
 // Walks an army's 3D group from where it currently stands through `tiles`.

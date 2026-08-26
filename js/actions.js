@@ -21,6 +21,45 @@ function battleLine(attackerFaction, defenderFaction, vs, result, cityName) {
   return `⚔️ ${attackerFaction.name} ${verb} ${defenderFaction.name}${place} – Sieg für ${winner} (Verluste: Angreifer ${(result.attackerLossesPct * 100).toFixed(0)}%, Verteidiger ${(result.defenderLossesPct * 100).toFixed(0)}%).`;
 }
 
+const MAX_BATTLE_REPORTS = 40;
+
+// Keeps the whole engagement, not just who won: the report panel reads its
+// per-unit breakdown, terrain modifier and round history straight from here.
+function recordBattle(state, opts) {
+  const { attackerFaction, defenderFaction, result, kind, city, col, row } = opts;
+  const report = {
+    id: makeId('battle'),
+    turn: state.turn,
+    kind,
+    col,
+    row,
+    cityName: city ? city.name : null,
+    attackerFactionId: attackerFaction.id,
+    defenderFactionId: defenderFaction.id,
+    attacker: attackerFaction.name,
+    defender: defenderFaction.name,
+    outcome: result.outcome,
+    endedBy: result.endedBy,
+    terrainType: result.terrainType,
+    terrainBonus: result.terrainBonus,
+    attackerEngaged: result.attackerEngaged,
+    defenderEngaged: result.defenderEngaged,
+    attackerSurvivors: { ...result.attackerSurvivors },
+    defenderSurvivors: { ...result.defenderSurvivors },
+    attackerLossesPct: result.attackerLossesPct,
+    defenderLossesPct: result.defenderLossesPct,
+    rounds: result.rounds,
+    involvesPlayer:
+      !!attackerFaction.isPlayer || !!defenderFaction.isPlayer,
+  };
+  state.battleReports.unshift(report);
+  if (state.battleReports.length > MAX_BATTLE_REPORTS) {
+    state.battleReports.length = MAX_BATTLE_REPORTS;
+  }
+  logMsg(state, battleLine(attackerFaction, defenderFaction, kind, result, city && city.name), report.id);
+  return report;
+}
+
 // Resolves everything that happens when `army` steps onto (col,row): 0, 1 or 2
 // sequential engagements (field army, then city garrison), all resolved on the
 // campaign map itself — there is no separate battle screen.
@@ -33,15 +72,14 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   let attackerUnits = { ...army.units };
   let capturedCity = false;
   let bounced = false;
+  const reports = [];
 
   if (defendingArmy) {
     const defenderFaction = factionById(state, defendingArmy.factionId);
     const result = resolveBattle(attackerUnits, defendingArmy.units, tileType);
-    logMsg(state, battleLine(attackerFaction, defenderFaction, 'army', result, city && city.name));
-    state.battleReports.unshift({
-      id: makeId('battle'), turn: state.turn, attacker: attackerFaction.name,
-      defender: defenderFaction.name, outcome: result.outcome, city: city ? city.name : null,
-    });
+    reports.push(recordBattle(state, {
+      attackerFaction, defenderFaction, result, kind: 'army', city, col: destCol, row: destRow,
+    }));
     attackerUnits = result.attackerSurvivors;
     if (result.outcome === 'attacker') {
       removeArmy(state, defendingArmy.id);
@@ -56,11 +94,9 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     const defenderFaction = factionById(state, city.factionId);
     if (unitTotalCount(city.garrison) > 0) {
       const result = resolveBattle(attackerUnits, city.garrison, tileType);
-      logMsg(state, battleLine(attackerFaction, defenderFaction, 'city', result, city.name));
-      state.battleReports.unshift({
-        id: makeId('battle'), turn: state.turn, attacker: attackerFaction.name,
-        defender: defenderFaction.name, outcome: result.outcome, city: city.name,
-      });
+      reports.push(recordBattle(state, {
+        attackerFaction, defenderFaction, result, kind: 'city', city, col: destCol, row: destRow,
+      }));
       attackerUnits = result.attackerSurvivors;
       if (result.outcome === 'attacker') {
         capturedCity = true;
@@ -85,13 +121,13 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   army.units = attackerUnits;
   if (unitTotalCount(attackerUnits) <= 0) {
     removeArmy(state, army.id);
-    return { ok: true, survived: false };
+    return { ok: true, survived: false, reports };
   }
   if (!city || capturedCity) {
     army.col = destCol;
     army.row = destRow;
   }
-  return { ok: true, survived: true, capturedCity };
+  return { ok: true, survived: true, capturedCity, reports };
 }
 
 export function moveArmy(state, armyId, destCol, destRow) {
@@ -106,7 +142,7 @@ export function moveArmy(state, armyId, destCol, destRow) {
   if (!entry.combat) {
     army.col = destCol;
     army.row = destRow;
-    return { ok: true, combat: false };
+    return { ok: true, combat: false, reports: [] };
   }
   return { ok: true, combat: true, ...resolveTileCombat(state, army, destCol, destRow) };
 }
