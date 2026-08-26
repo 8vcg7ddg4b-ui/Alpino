@@ -1,7 +1,10 @@
 import { computeReachable, tileKey } from './pathfind.js';
 import { armyAt, cityAt, playerFaction } from './state.js';
 import { moveArmy } from './actions.js';
-import { pickTile, groundPointAt, panCameraByWorld, panCamera, zoomCamera } from './scene3d.js';
+import {
+  pickTile, groundPointAt, panCameraByWorld, panCamera, zoomCamera,
+  animateArmyPath, isAnimating,
+} from './scene3d.js';
 
 const PAN_KEYS = {
   ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
@@ -18,6 +21,26 @@ function clearSelection(state) {
   state.selectedArmyId = null;
   state.selectedCityId = null;
   state.reachable = null;
+}
+
+// Turns the pathfinder's route into what the army visibly does. A clean move
+// walks the whole path; an attack that fails stops short, lunges at the
+// defender, and (if anyone survived) retreats back to where it started.
+function buildMarchRoute(path, origin, survivor, dest) {
+  if (survivor && survivor.col === dest.col && survivor.row === dest.row) return path;
+
+  const approach = path.slice(0, -1);
+  const from = approach.length ? approach[approach.length - 1] : origin;
+  const route = [...approach, {
+    col: from.col + (dest.col - from.col) * 0.45,
+    row: from.row + (dest.row - from.row) * 0.45,
+  }];
+
+  if (survivor) {
+    for (let i = approach.length - 1; i >= 0; i--) route.push(approach[i]);
+    route.push(origin);
+  }
+  return route;
 }
 
 function toNdc(canvas, clientX, clientY) {
@@ -76,7 +99,7 @@ export function setupInput(canvas, state, onChange) {
   });
 
   function handleClick(e) {
-    if (state.gameOver) return;
+    if (state.gameOver || isAnimating()) return;
     const ndc = toNdc(canvas, e.clientX, e.clientY);
     const tile = pickTile(ndc.x, ndc.y);
     if (!tile) {
@@ -96,16 +119,27 @@ export function setupInput(canvas, state, onChange) {
     const clickedCity = cityAt(state, col, row);
 
     if (state.selectedArmyId) {
-      const key = tileKey(col, row);
-      if (state.reachable && state.reachable.has(key)) {
+      const entry = state.reachable && state.reachable.get(tileKey(col, row));
+      if (entry) {
         const armyId = state.selectedArmyId;
+        const marching = state.armies.find((a) => a.id === armyId);
+        const origin = { col: marching.col, row: marching.row };
+
+        // Drop the range overlay before the march so the army isn't walking
+        // across its own highlighted tiles.
+        state.reachable = null;
         moveArmy(state, armyId, col, row);
-        const stillThere = state.armies.find((a) => a.id === armyId);
-        if (stillThere && stillThere.movement > 0) {
-          selectArmy(state, stillThere);
-        } else {
-          clearSelection(state);
-        }
+        const survivor = state.armies.find((a) => a.id === armyId);
+        const route = buildMarchRoute(entry.path, origin, survivor, { col, row });
+
+        animateArmyPath(armyId, route, () => {
+          if (survivor && survivor.movement > 0) {
+            selectArmy(state, survivor);
+          } else {
+            clearSelection(state);
+          }
+          onChange();
+        });
         onChange();
         return;
       }

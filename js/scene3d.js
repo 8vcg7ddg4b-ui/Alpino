@@ -15,6 +15,16 @@ const BASE_DISTANCE = 130;
 
 let terrainMesh = null;
 let waterMesh = null;
+let currentMap = null;
+
+// Armies march tile by tile instead of teleporting. While an army is animating
+// it owns its own position, so syncEntities must not snap it to the state's
+// (already updated) destination, and must not despatch a group whose army was
+// destroyed until it has finished walking up to the fight.
+const armyAnimations = new Map();
+const completionQueue = [];
+let animationFrameId = null;
+const MARCH_TILES_PER_SECOND = 4.2;
 
 const cityGroups = new Map(); // cityId -> { group, roof, flag, label }
 const armyGroups = new Map(); // armyId -> THREE.Group
@@ -222,6 +232,7 @@ function colorFor(type, rng) {
 export function buildMap(state) {
   mapCols = state.map.cols;
   mapRows = state.map.rows;
+  currentMap = state.map;
   const propsGroup = new THREE.Group();
   scene.add(propsGroup);
   const rng = seededRandomFactory(11);
@@ -412,8 +423,10 @@ function buildArmyGroup() {
 function syncArmyGroup(state, army, entry) {
   const { group } = entry;
   const faction = factionById(state, army.factionId);
-  const topY = tileTopY(state.map.tiles[army.row][army.col].elevation);
-  group.position.set(worldX(army.col), topY, worldZ(army.row));
+  if (!armyAnimations.has(army.id)) {
+    const topY = tileTopY(state.map.tiles[army.row][army.col].elevation);
+    group.position.set(worldX(army.col), topY, worldZ(army.row));
+  }
 
   const tierCount = tierForCount(unitTotalCount(army.units));
   const tents = group.userData.tents;
@@ -489,7 +502,9 @@ export function syncEntities(state) {
     syncArmyGroup(state, army, entry);
   }
   for (const [id, entry] of armyGroups) {
-    if (!seenArmies.has(id)) {
+    // A destroyed army keeps its group until it has finished marching to the
+    // battle; the animation's completion callback triggers the next sync.
+    if (!seenArmies.has(id) && !armyAnimations.has(id)) {
       scene.remove(entry.group);
       armyGroups.delete(id);
     }
@@ -507,6 +522,115 @@ export function syncEntities(state) {
 
 export function render() {
   if (renderer) renderer.render(scene, camera);
+}
+
+// Waypoints may sit between tile centres (a repelled army lunges partway into
+// the defender's tile), so the elevation lookup rounds to the nearest tile.
+function tileElevation(col, row) {
+  if (!currentMap) return 0;
+  const c = Math.max(0, Math.min(currentMap.cols - 1, Math.round(col)));
+  const r = Math.max(0, Math.min(currentMap.rows - 1, Math.round(row)));
+  return currentMap.tiles[r][c].elevation;
+}
+
+function waypointVector(tile) {
+  return new THREE.Vector3(
+    worldX(tile.col),
+    tileTopY(tileElevation(tile.col, tile.row)),
+    worldZ(tile.row)
+  );
+}
+
+function faceHeading(group, dx, dz) {
+  if (Math.abs(dx) < 1e-5 && Math.abs(dz) < 1e-5) return;
+  group.rotation.y = Math.atan2(dx, dz);
+}
+
+function setMarchBob(group, height) {
+  const tents = group.userData.tents;
+  if (tents) tents.position.y = height;
+}
+
+function advanceAnimations(dt) {
+  for (const [armyId, anim] of armyAnimations) {
+    anim.elapsed += dt;
+    let budget = MARCH_TILES_PER_SECOND * TILE_SIZE * dt;
+
+    while (budget > 0 && anim.segment < anim.points.length - 1) {
+      const from = anim.points[anim.segment];
+      const to = anim.points[anim.segment + 1];
+      const length = from.distanceTo(to);
+      if (length < 1e-4) {
+        anim.segment++;
+        anim.progress = 0;
+        continue;
+      }
+      anim.progress += budget / length;
+      if (anim.progress >= 1) {
+        budget = (anim.progress - 1) * length;
+        anim.segment++;
+        anim.progress = 0;
+      } else {
+        budget = 0;
+      }
+    }
+
+    if (anim.segment >= anim.points.length - 1) {
+      anim.group.position.copy(anim.points[anim.points.length - 1]);
+      setMarchBob(anim.group, 0);
+      completionQueue.push(anim.onComplete);
+      armyAnimations.delete(armyId);
+    } else {
+      const from = anim.points[anim.segment];
+      const to = anim.points[anim.segment + 1];
+      anim.group.position.lerpVectors(from, to, anim.progress);
+      faceHeading(anim.group, to.x - from.x, to.z - from.z);
+      setMarchBob(anim.group, Math.abs(Math.sin(anim.elapsed * 11)) * 0.28);
+    }
+  }
+  return armyAnimations.size > 0;
+}
+
+function startAnimationLoop() {
+  if (animationFrameId !== null) return;
+  let last = performance.now();
+  const step = (now) => {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const running = advanceAnimations(dt);
+    render();
+    if (running) {
+      animationFrameId = requestAnimationFrame(step);
+      return;
+    }
+    animationFrameId = null;
+    for (const done of completionQueue.splice(0)) if (done) done();
+  };
+  animationFrameId = requestAnimationFrame(step);
+}
+
+export function isAnimating() {
+  return armyAnimations.size > 0;
+}
+
+// Walks an army's 3D group from where it currently stands through `tiles`.
+// The caller composes the route, so an attack that gets repelled can march
+// out, lunge at the defender and fall back.
+export function animateArmyPath(armyId, tiles, onComplete) {
+  const entry = armyGroups.get(armyId);
+  if (!entry || !tiles || !tiles.length) {
+    if (onComplete) onComplete();
+    return;
+  }
+  armyAnimations.set(armyId, {
+    group: entry.group,
+    points: [entry.group.position.clone(), ...tiles.map(waypointVector)],
+    segment: 0,
+    progress: 0,
+    elapsed: 0,
+    onComplete,
+  });
+  startAnimationLoop();
 }
 
 // Raycasts against whichever of the terrain or sea surface is closer to the

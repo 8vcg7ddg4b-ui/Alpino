@@ -9,6 +9,7 @@ import {
 } from './actions.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, panCamera, zoomCamera,
+  isAnimating,
 } from './scene3d.js';
 
 const canvas = document.getElementById('gameCanvas');
@@ -54,7 +55,9 @@ function refresh() {
 }
 
 function endTurn() {
-  if (!state || state.gameOver) return;
+  // Ending the turn mid-march would let the AI move while the player's army is
+  // still visibly walking, and the resulting sync would teleport it.
+  if (!state || state.gameOver || isAnimating()) return;
   aiTakeAllTurns(state);
   collectIncome(state);
   regenerateGarrisons(state);
