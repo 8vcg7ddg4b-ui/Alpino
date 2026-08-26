@@ -67,7 +67,13 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
   Verteidigern danach einen deutlichen Bonus.
 - **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
   Rekrutierung, Mauerkauf, Auflösen oder ganzen Rundenwechsel.
+- **Ton**: 🔊 schaltet die Klänge um (Marsch, Schlacht, Rekrutierung, Mauerbau,
+  Rundenwechsel …). Alle Geräusche werden zur Laufzeit synthetisiert – keine
+  Audiodateien, funktioniert offline.
 - **Vollbildmodus**: Button oben rechts (⛶) bzw. auf dem Startbildschirm.
+  In einer eingebetteten Ansicht (iframe) verbietet der Browser Vollbild per
+  Permissions-Policy; das Spiel sagt das dann und der Knopf ⇥ blendet
+  stattdessen die Seitenleiste aus, um der Karte den Platz zu geben.
 - „Runde beenden" lässt die KI-Fraktionen ziehen, kassiert Einkommen und lässt
   Garnisonen langsam nachwachsen.
 

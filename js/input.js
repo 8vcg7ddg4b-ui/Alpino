@@ -5,6 +5,7 @@ import {
   pickTile, groundPointAt, panCameraByWorld, panCamera, zoomCamera,
   animateArmyPath, playBattleClash, isAnimating,
 } from './scene3d.js';
+import { sfx, startMarch, stopMarch } from './audio.js';
 
 const PAN_KEYS = {
   ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
@@ -147,9 +148,15 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
           if (reports.length && onShowReport) onShowReport(reports[reports.length - 1]);
         };
 
+        startMarch();
         animateArmyPath(armyId, route, () => {
-          if (reports.length) playBattleClash(col, row, settle);
-          else settle();
+          stopMarch();
+          if (reports.length) {
+            sfx.clash();
+            playBattleClash(col, row, settle);
+          } else {
+            settle();
+          }
         });
         onChange();
         return;
@@ -157,6 +164,8 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
     }
 
     const ownArmyHere = clickedArmy && clickedArmy.factionId === player.id ? clickedArmy : null;
+
+    if (ownArmyHere || clickedCity) sfx.select();
 
     if (ownArmyHere && clickedCity) {
       // A tile can hold both a friendly army and a city (e.g. a garrisoned

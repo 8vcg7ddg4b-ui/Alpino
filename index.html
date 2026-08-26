@@ -29,6 +29,8 @@
       <div id="turnLabel" class="pill">Runde 1</div>
       <div id="goldLabel" class="pill">💰 0 Gold</div>
       <button id="undoBtn" class="icon-btn" title="Letzten Zug rückgängig machen" disabled>↩</button>
+      <button id="muteBtn" class="icon-btn" title="Ton an/aus">🔊</button>
+      <button id="sidebarBtn" class="icon-btn" title="Seitenleiste ein-/ausblenden">⇥</button>
       <button id="fullscreenBtn" class="icon-btn" title="Vollbildmodus">⛶</button>
       <button id="endTurnBtn" class="end-turn">Runde beenden ▶</button>
     </header>
@@ -37,6 +39,7 @@
       <div id="mapWrap">
         <canvas id="gameCanvas"></canvas>
         <div id="mapHint">Ziehen zum Verschieben · Armee anklicken, dann Zielfeld wählen</div>
+        <div id="toast" class="hidden"></div>
 
         <div id="mapControls">
           <div class="dpad">
