@@ -330,6 +330,18 @@ html, body {
   font-weight: bold;
 }
 
+.report-combined { color: var(--gold); }
+
+.report-aftermath {
+  margin: 16px 0 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--gold);
+  background: var(--panel-2);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
 .report-rounds { margin-top: 18px; }
 .report-rounds summary {
   cursor: pointer;

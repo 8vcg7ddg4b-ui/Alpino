@@ -1,6 +1,6 @@
 import {
   UNIT_ORDER, UNIT_TYPES, MAX_MOVEMENT, INCOME_PER_CITY, GARRISON_POP_RATIO,
-  RECRUIT_BATCH, GARRISON_REGEN_BATCH,
+  RECRUIT_BATCH, GARRISON_REGEN_BATCH, TILE_TYPES,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import { resolveBattle } from './combat.js';
@@ -23,16 +23,77 @@ function battleLine(attackerFaction, defenderFaction, vs, result, cityName) {
 
 const MAX_BATTLE_REPORTS = 40;
 
+function mergeAllUnits(parts) {
+  const out = {};
+  for (const key of UNIT_ORDER) {
+    out[key] = parts.reduce((sum, part) => sum + (part[key] || 0), 0);
+  }
+  return out;
+}
+
+// Splits a combined force's survivors back over the contingents that made it
+// up, in proportion to what each contributed, so no single contingent absorbs
+// all of the casualties.
+function splitSurvivors(survivors, parts) {
+  const out = parts.map(() => ({}));
+  for (const key of UNIT_ORDER) {
+    const total = parts.reduce((sum, part) => sum + (part[key] || 0), 0);
+    const available = survivors[key] || 0;
+    if (total === 0) {
+      out.forEach((o) => { o[key] = 0; });
+      continue;
+    }
+    let assigned = 0;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const share = Math.round((available * (parts[i][key] || 0)) / total);
+      out[i][key] = Math.max(0, Math.min(available - assigned, share));
+      assigned += out[i][key];
+    }
+    out[parts.length - 1][key] = Math.max(0, available - assigned);
+  }
+  return out;
+}
+
+const NEIGHBOUR_OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+// A beaten army falls back rather than evaporating. It prefers the tile
+// furthest from the attacker; only a force with nowhere left to go is lost.
+function retreatArmy(state, defeated, fromCol, fromRow) {
+  let best = null;
+  let bestDistance = -1;
+  for (const [dc, dr] of NEIGHBOUR_OFFSETS) {
+    const col = defeated.col + dc;
+    const row = defeated.row + dr;
+    if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) continue;
+    if (TILE_TYPES[state.map.tiles[row][col].type].impassable) continue;
+    if (armyAt(state, col, row)) continue;
+    const city = cityAt(state, col, row);
+    if (city && city.factionId !== defeated.factionId) continue;
+    const distance = Math.abs(col - fromCol) + Math.abs(row - fromRow);
+    if (distance > bestDistance) {
+      bestDistance = distance;
+      best = { col, row };
+    }
+  }
+  if (!best) return null;
+  defeated.col = best.col;
+  defeated.row = best.row;
+  defeated.movement = 0;
+  return best;
+}
+
 // Keeps the whole engagement, not just who won: the report panel reads its
 // per-unit breakdown, terrain modifier and round history straight from here.
 function recordBattle(state, opts) {
-  const { attackerFaction, defenderFaction, result, kind, city, col, row } = opts;
+  const { attackerFaction, defenderFaction, result, kind, city, col, row, combined, aftermath } = opts;
   const report = {
     id: makeId('battle'),
     turn: state.turn,
     kind,
     col,
     row,
+    combined: !!combined,
+    aftermath: aftermath || null,
     cityName: city ? city.name : null,
     attackerFactionId: attackerFaction.id,
     defenderFactionId: defenderFaction.id,
@@ -74,35 +135,101 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   let bounced = false;
   const reports = [];
 
-  if (defendingArmy) {
-    const defenderFaction = factionById(state, defendingArmy.factionId);
-    const result = resolveBattle(attackerUnits, defendingArmy.units, tileType);
-    reports.push(recordBattle(state, {
-      attackerFaction, defenderFaction, result, kind: 'army', city, col: destCol, row: destRow,
-    }));
-    attackerUnits = result.attackerSurvivors;
-    if (result.outcome === 'attacker') {
-      removeArmy(state, defendingArmy.id);
-    } else {
-      defendingArmy.units = result.defenderSurvivors;
-      if (unitTotalCount(defendingArmy.units) <= 0) removeArmy(state, defendingArmy.id);
-      bounced = true;
+  const cityIsEnemy = city && city.factionId !== army.factionId;
+  // Everything holding the tile fights as one: every enemy army standing on it
+  // plus the city's garrison. Resolving them one after another would let an
+  // attacker beat a superior defence piecemeal.
+  const defendingArmies = state.armies.filter(
+    (a) => a.col === destCol && a.row === destRow && a.factionId !== army.factionId
+  );
+  const garrisonJoins = cityIsEnemy && unitTotalCount(city.garrison) > 0;
+
+  // Settles what becomes of a beaten defending army: it falls back with its
+  // survivors, and is only lost if it is wiped out or has nowhere to go.
+  function routArmy(defeated, survivors) {
+    defeated.units = survivors;
+    if (unitTotalCount(survivors) <= 0) {
+      removeArmy(state, defeated.id);
+      return 'destroyed';
     }
+    if (!retreatArmy(state, defeated, army.col, army.row)) {
+      removeArmy(state, defeated.id);
+      return 'encircled';
+    }
+    return 'retreated';
   }
 
-  if (!bounced && unitTotalCount(attackerUnits) > 0 && city && city.factionId !== army.factionId) {
+  if (defendingArmies.length || garrisonJoins) {
+    const contingents = defendingArmies.map((a) => ({ ...a.units }));
+    if (garrisonJoins) contingents.push({ ...city.garrison });
+
+    const result = resolveBattle(attackerUnits, mergeAllUnits(contingents), tileType);
+    attackerUnits = result.attackerSurvivors;
+    const shares = splitSurvivors(result.defenderSurvivors, contingents);
+
+    // The city's own faction speaks for the defence when one is involved.
+    const defenderFaction = factionById(
+      state,
+      garrisonJoins ? city.factionId : defendingArmies[0].factionId
+    );
+
+    let aftermath;
+    if (result.outcome === 'attacker') {
+      const fates = defendingArmies.map((a, i) => routArmy(a, shares[i]));
+      if (garrisonJoins) {
+        capturedCity = true;
+        city.garrison = {};
+      }
+      // What happened to the field armies outranks the fall of the city; with
+      // no armies present at all, the city's fall is the whole story.
+      aftermath = {
+        fate: fates.includes('retreated') ? 'retreated'
+          : fates.includes('encircled') ? 'encircled'
+            : fates.length ? 'destroyed' : 'cityFell',
+        garrisonCaptured: garrisonJoins ? unitTotalCount(shares[shares.length - 1]) : 0,
+      };
+    } else {
+      defendingArmies.forEach((a, i) => {
+        a.units = shares[i];
+        if (unitTotalCount(a.units) <= 0) removeArmy(state, a.id);
+      });
+      if (garrisonJoins) city.garrison = shares[shares.length - 1];
+      bounced = true;
+      aftermath = { fate: 'held' };
+    }
+
+    reports.push(recordBattle(state, {
+      attackerFaction,
+      defenderFaction,
+      result,
+      kind: garrisonJoins ? 'city' : 'army',
+      city,
+      col: destCol,
+      row: destRow,
+      combined: defendingArmies.length > 0 && garrisonJoins,
+      aftermath,
+    }));
+  }
+
+  if (!bounced && !capturedCity && unitTotalCount(attackerUnits) > 0 && cityIsEnemy) {
     const defenderFaction = factionById(state, city.factionId);
     if (unitTotalCount(city.garrison) > 0) {
       const result = resolveBattle(attackerUnits, city.garrison, tileType);
-      reports.push(recordBattle(state, {
-        attackerFaction, defenderFaction, result, kind: 'city', city, col: destCol, row: destRow,
-      }));
       attackerUnits = result.attackerSurvivors;
       if (result.outcome === 'attacker') {
         capturedCity = true;
+        reports.push(recordBattle(state, {
+          attackerFaction, defenderFaction, result, kind: 'city', city,
+          col: destCol, row: destRow,
+          aftermath: { fate: 'cityFell', garrisonCaptured: unitTotalCount(result.defenderSurvivors) },
+        }));
       } else {
         city.garrison = result.defenderSurvivors;
         bounced = true;
+        reports.push(recordBattle(state, {
+          attackerFaction, defenderFaction, result, kind: 'city', city,
+          col: destCol, row: destRow, aftermath: { fate: 'held' },
+        }));
       }
     } else {
       capturedCity = true;
@@ -123,7 +250,12 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     removeArmy(state, army.id);
     return { ok: true, survived: false, reports };
   }
-  if (!city || capturedCity) {
+  // Never stack two armies on one tile: if anything still holds the ground
+  // (a defender that could not be dislodged), the attacker stays put.
+  const stillHeld = state.armies.some(
+    (a) => a.id !== army.id && a.col === destCol && a.row === destRow
+  );
+  if ((!city || capturedCity) && !stillHeld) {
     army.col = destCol;
     army.row = destRow;
   }

@@ -73,6 +73,38 @@ function roundsHTML(rounds) {
     </details>`;
 }
 
+// Says what became of the men the report counts as survivors, so the numbers
+// can never contradict what the player then sees on the map.
+function aftermathHTML(report) {
+  const a = report.aftermath;
+  if (!a) return '';
+  const captured = a.garrisonCaptured
+    ? ` Die überlebende Garnison (${a.garrisonCaptured.toLocaleString('de-DE')}) fällt mit der Stadt in Gefangenschaft.`
+    : '';
+
+  let text;
+  switch (a.fate) {
+    case 'retreated':
+      text = `Die geschlagene Armee zieht sich mit ihren Überlebenden auf ein Nachbarfeld zurück.${captured}`;
+      break;
+    case 'encircled':
+      text = `Eingekesselt – ohne Rückzugsweg ergeben sich die Überlebenden.${captured}`;
+      break;
+    case 'destroyed':
+      text = `Die Streitmacht wird vollständig aufgerieben.${captured}`;
+      break;
+    case 'cityFell':
+      text = captured.trim() || 'Die Stadt fällt.';
+      break;
+    case 'held':
+      text = 'Die Verteidiger halten das Feld; der Angreifer weicht auf seine Ausgangsstellung zurück.';
+      break;
+    default:
+      return '';
+  }
+  return `<p class="report-aftermath">${escapeHTML(text)}</p>`;
+}
+
 export function battleReportHTML(state, report) {
   const attackerWon = report.outcome === 'attacker';
   const terrain = TERRAIN_NAMES[report.terrainType] || report.terrainType;
@@ -87,12 +119,17 @@ export function battleReportHTML(state, report) {
     <h2 class="report-title">${place}</h2>
     <p class="report-meta">Runde ${report.turn} · ${escapeHTML(terrain)}${bonus}</p>
     <p class="report-meta">Entschieden: ${escapeHTML(report.endedBy || '—')}</p>
+    ${report.combined
+      ? '<p class="report-meta report-combined">Feldarmee und Stadtgarnison verteidigen gemeinsam.</p>'
+      : ''}
     <div class="report-sides">
       ${sideHTML(state, report.attackerFactionId, 'Angreifer', report.attackerEngaged,
     report.attackerSurvivors, report.attackerLossesPct, attackerWon)}
-      ${sideHTML(state, report.defenderFactionId, 'Verteidiger', report.defenderEngaged,
+      ${sideHTML(state, report.defenderFactionId,
+    report.combined ? 'Verteidiger (Armee + Garnison)' : 'Verteidiger', report.defenderEngaged,
     report.defenderSurvivors, report.defenderLossesPct, !attackerWon)}
     </div>
+    ${aftermathHTML(report)}
     ${roundsHTML(report.rounds)}`;
 }
 
