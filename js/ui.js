@@ -1,4 +1,7 @@
-import { UNIT_ORDER, UNIT_TYPES, GARRISON_POP_RATIO, TILE_TYPES } from './data.js';
+import {
+  UNIT_ORDER, UNIT_TYPES, GARRISON_POP_RATIO, TILE_TYPES,
+  WALL_COST, WALL_BUILD_TURNS, WALL_DEFENCE_MULTIPLIER,
+} from './data.js';
 import { unitTotalCount, playerFaction, factionById } from './state.js';
 
 const TERRAIN_NAMES = {
@@ -119,6 +122,13 @@ export function battleReportHTML(state, report) {
     <h2 class="report-title">${place}</h2>
     <p class="report-meta">Runde ${report.turn} · ${escapeHTML(terrain)}${bonus}</p>
     <p class="report-meta">Entschieden: ${escapeHTML(report.endedBy || '—')}</p>
+    ${report.wallMultiplier > 1
+      ? `<p class="report-meta report-walls">🧱 Stadtmauer: +${Math.round((report.wallMultiplier - 1) * 100)}% Verteidigung</p>`
+      : ''}
+    <p class="report-meta">Verfassung – Angreifer: Moral ${Math.round(report.attackerMorale ?? 100)},
+      Erschöpfung ${Math.round(report.attackerExhaustion ?? 0)} ·
+      Verteidiger: Moral ${Math.round(report.defenderMorale ?? 100)},
+      Erschöpfung ${Math.round(report.defenderExhaustion ?? 0)}</p>
     ${report.combined
       ? '<p class="report-meta report-combined">Feldarmee und Stadtgarnison verteidigen gemeinsam.</p>'
       : ''}
@@ -139,12 +149,43 @@ function unitBreakdownHTML(units) {
     .join('') || '<span class="unit-chip empty">keine Truppen</span>';
 }
 
+function conditionLabel(value, scale) {
+  for (const [threshold, label] of scale) {
+    if (value >= threshold) return label;
+  }
+  return scale[scale.length - 1][1];
+}
+
+const MORALE_SCALE = [[85, 'entschlossen'], [65, 'zuversichtlich'], [45, 'schwankend'], [25, 'mürbe'], [0, 'gebrochen']];
+const EXHAUSTION_SCALE = [[75, 'erschöpft'], [50, 'ermattet'], [25, 'angestrengt'], [0, 'frisch']];
+
+// A bar plus a word: the number alone does not tell a player whether 55 is
+// good, and the wording is what they will actually read mid-turn.
+function conditionBarHTML(name, value, scale, tone) {
+  const pct = Math.round(Math.max(0, Math.min(100, value)));
+  return `
+    <div class="cond-row">
+      <span class="cond-name">${name}</span>
+      <span class="cond-track"><span class="cond-fill cond-${tone}" style="width:${pct}%"></span></span>
+      <span class="cond-value">${pct} <em>${conditionLabel(pct, scale)}</em></span>
+    </div>`;
+}
+
 function renderSelectedArmy(state, army) {
   const faction = factionById(state, army.factionId);
+  const city = state.cities.find((c) => c.col === army.col && c.row === army.row);
+  const canDisband = city && city.factionId === army.factionId;
   return `
-    <h3><span class="dot" style="background:${faction.color}"></span>${army.name}</h3>
-    <p class="muted">${faction.name} · Bewegung: ${army.movement} / ${army.maxMovement}</p>
+    <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(army.name)}</h3>
+    <p class="muted">${escapeHTML(faction.name)} · Bewegung: ${army.movement} / ${army.maxMovement}</p>
+    <div class="cond-block">
+      ${conditionBarHTML('Moral', army.morale ?? 100, MORALE_SCALE, 'morale')}
+      ${conditionBarHTML('Erschöpfung', army.exhaustion ?? 0, EXHAUSTION_SCALE, 'fatigue')}
+    </div>
     <div class="unit-list">${unitBreakdownHTML(army.units)}</div>
+    ${canDisband
+      ? `<button class="disband-btn" data-army="${army.id}">🏰 In ${escapeHTML(city.name)} auflösen – Garnison verstärken</button>`
+      : ''}
     <p class="hint">Grüne Felder: freie Bewegung · Rote Felder: Angriff auslösen.</p>
   `;
 }
@@ -173,12 +214,38 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
   }
 
   return `
-    <h3><span class="dot" style="background:${faction.color}"></span>${city.name} ${city.capital ? '👑' : ''}</h3>
-    <p class="muted">${faction.name} · Bevölkerung: ${city.population.toLocaleString('de-DE')}</p>
-    <p class="muted">Garnison: ${current} / ${maxTotal}</p>
+    <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(city.name)} ${city.capital ? '👑' : ''}</h3>
+    <p class="muted">${escapeHTML(faction.name)} · Bevölkerung: ${city.population.toLocaleString('de-DE')}</p>
+    <p class="muted">Garnison: ${current.toLocaleString('de-DE')}
+      ${current > maxTotal
+        ? `<span class="over-strength">über Sollstärke (${maxTotal.toLocaleString('de-DE')})</span>`
+        : `/ ${maxTotal.toLocaleString('de-DE')}`}</p>
+    ${wallHTML(city, isMine, player)}
     <div class="unit-list">${unitBreakdownHTML(city.garrison)}</div>
     ${recruitHTML}
   `;
+}
+
+function wallHTML(city, isMine, player) {
+  if (city.walls === 'complete') {
+    return `<p class="wall-line wall-done">🧱 Stadtmauer errichtet
+      <span class="muted">· +${Math.round((WALL_DEFENCE_MULTIPLIER - 1) * 100)}% Verteidigung</span></p>`;
+  }
+  if (city.walls === 'building') {
+    const left = city.wallTurnsLeft;
+    const done = WALL_BUILD_TURNS - left;
+    return `<p class="wall-line wall-building">🏗️ Stadtmauer im Bau –
+      noch ${left} ${left === 1 ? 'Runde' : 'Runden'}
+      <span class="wall-track"><span class="wall-fill" style="width:${(done / WALL_BUILD_TURNS) * 100}%"></span></span>
+    </p>`;
+  }
+  if (!isMine) return '<p class="wall-line muted">Keine Stadtmauer</p>';
+  const tooPoor = player.gold < WALL_COST;
+  return `
+    <button class="wall-btn" ${tooPoor ? 'disabled' : ''}>
+      🧱 Stadtmauer kaufen – ${WALL_COST} Gold
+      <small>${WALL_BUILD_TURNS} Runden Bauzeit</small>
+    </button>`;
 }
 
 export function renderUI(state, handlers) {
@@ -202,6 +269,10 @@ export function renderUI(state, handlers) {
   if (state.selectedArmyId) {
     const army = state.armies.find((a) => a.id === state.selectedArmyId);
     panel.innerHTML = army ? renderSelectedArmy(state, army) : '<p class="muted">Nichts ausgewählt.</p>';
+    const disbandBtn = panel.querySelector('.disband-btn');
+    if (disbandBtn) {
+      disbandBtn.addEventListener('click', () => handlers.onDisband(disbandBtn.dataset.army));
+    }
   } else if (state.selectedCityId) {
     const city = state.cities.find((c) => c.id === state.selectedCityId);
     if (city) {
@@ -211,6 +282,8 @@ export function renderUI(state, handlers) {
       });
       const raiseBtn = panel.querySelector('.raise-btn');
       if (raiseBtn) raiseBtn.addEventListener('click', () => handlers.onRaise(city.id));
+      const wallBtn = panel.querySelector('.wall-btn');
+      if (wallBtn) wallBtn.addEventListener('click', () => handlers.onBuyWalls(city.id));
     }
   } else {
     panel.innerHTML = '<p class="muted">Klicke auf eine Armee oder Stadt, um Details zu sehen.</p>';

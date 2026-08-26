@@ -377,7 +377,40 @@ function buildCityGroup(city) {
   label.position.y = 2.2 * scale + 4.6 * scale;
   group.add(label);
 
-  return { group, roof, flag, label };
+  // A ring of wall segments, hidden until the city is actually fortified.
+  const walls = new THREE.Group();
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: '#b8ab90', roughness: 0.9 });
+  const span = 4.4 * scale;
+  const thickness = 0.42 * scale;
+  const height = 1.5 * scale;
+  for (let i = 0; i < 4; i++) {
+    const segment = new THREE.Mesh(
+      new THREE.BoxGeometry(span, height, thickness),
+      wallMaterial
+    );
+    segment.position.y = height / 2;
+    segment.rotation.y = (i * Math.PI) / 2;
+    segment.position.x = Math.sin(segment.rotation.y) * (span / 2);
+    segment.position.z = Math.cos(segment.rotation.y) * (span / 2);
+    walls.add(segment);
+  }
+  for (let i = 0; i < 4; i++) {
+    const tower = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42 * scale, 0.48 * scale, height * 1.35, 7),
+      wallMaterial
+    );
+    const angle = Math.PI / 4 + (i * Math.PI) / 2;
+    tower.position.set(
+      Math.cos(angle) * (span / 2) * Math.SQRT2,
+      height * 0.68,
+      Math.sin(angle) * (span / 2) * Math.SQRT2
+    );
+    walls.add(tower);
+  }
+  walls.visible = false;
+  group.add(walls);
+
+  return { group, roof, flag, label, walls };
 }
 
 function tierForCount(count) {
@@ -488,6 +521,7 @@ export function syncEntities(state) {
     const faction = factionById(state, city.factionId);
     entry.roof.material.color.set(faction.color);
     entry.flag.material.color.set(faction.color);
+    if (entry.walls) entry.walls.visible = city.walls === 'complete';
   }
 
   const seenArmies = new Set();

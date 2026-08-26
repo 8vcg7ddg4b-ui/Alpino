@@ -1,6 +1,11 @@
 import {
   UNIT_ORDER, UNIT_TYPES, MAX_MOVEMENT, INCOME_PER_CITY, GARRISON_POP_RATIO,
   RECRUIT_BATCH, GARRISON_REGEN_BATCH, TILE_TYPES,
+  MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
+  MORALE_REST, MORALE_REST_IN_CITY, EXHAUSTION_PER_MOVE, EXHAUSTION_REST,
+  EXHAUSTION_REST_IN_CITY, EXHAUSTION_PER_BATTLE,
+  GARRISON_MORALE, GARRISON_EXHAUSTION,
+  WALL_COST, WALL_BUILD_TURNS, WALL_DEFENCE_MULTIPLIER,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import { resolveBattle } from './combat.js';
@@ -54,6 +59,41 @@ function splitSurvivors(survivors, parts) {
   return out;
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+// Averages a stat across the armies holding a tile and, when it joins in, the
+// city garrison - each weighted by how many men it brings to the line.
+function weightedCondition(armies, garrison, stat) {
+  const fallback = stat === 'morale' ? MORALE_START : 0;
+  let weighted = 0;
+  let men = 0;
+  for (const army of armies) {
+    const count = unitTotalCount(army.units);
+    weighted += (army[stat] ?? fallback) * count;
+    men += count;
+  }
+  if (garrison) {
+    const count = unitTotalCount(garrison);
+    weighted += (stat === 'morale' ? GARRISON_MORALE : GARRISON_EXHAUSTION) * count;
+    men += count;
+  }
+  return men > 0 ? weighted / men : fallback;
+}
+
+export function adjustMorale(army, delta) {
+  army.morale = clamp((army.morale ?? MORALE_START) + delta, 0, MORALE_MAX);
+}
+
+export function adjustExhaustion(army, delta) {
+  army.exhaustion = clamp((army.exhaustion ?? 0) + delta, 0, 100);
+}
+
+export function cityHasWalls(city) {
+  return !!city && city.walls === 'complete';
+}
+
 const NEIGHBOUR_OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 // A beaten army falls back rather than evaporating. It prefers the tile
@@ -103,6 +143,11 @@ function recordBattle(state, opts) {
     endedBy: result.endedBy,
     terrainType: result.terrainType,
     terrainBonus: result.terrainBonus,
+    wallMultiplier: result.wallMultiplier,
+    attackerMorale: result.attackerMorale,
+    attackerExhaustion: result.attackerExhaustion,
+    defenderMorale: result.defenderMorale,
+    defenderExhaustion: result.defenderExhaustion,
     attackerEngaged: result.attackerEngaged,
     defenderEngaged: result.defenderEngaged,
     attackerSurvivors: { ...result.attackerSurvivors },
@@ -163,7 +208,18 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     const contingents = defendingArmies.map((a) => ({ ...a.units }));
     if (garrisonJoins) contingents.push({ ...city.garrison });
 
-    const result = resolveBattle(attackerUnits, mergeAllUnits(contingents), tileType);
+    // The defence's condition is the weighted average of its contingents; the
+    // garrison contributes its own fixed standard.
+    const defenceMorale = weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'morale');
+    const defenceExhaustion = weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'exhaustion');
+
+    const result = resolveBattle(attackerUnits, mergeAllUnits(contingents), tileType, {
+      attackerMorale: army.morale,
+      attackerExhaustion: army.exhaustion,
+      defenderMorale: defenceMorale,
+      defenderExhaustion: defenceExhaustion,
+      wallMultiplier: cityIsEnemy && cityHasWalls(city) ? WALL_DEFENCE_MULTIPLIER : 1,
+    });
     attackerUnits = result.attackerSurvivors;
     const shares = splitSurvivors(result.defenderSurvivors, contingents);
 
@@ -172,6 +228,13 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       state,
       garrisonJoins ? city.factionId : defendingArmies[0].factionId
     );
+
+    adjustExhaustion(army, EXHAUSTION_PER_BATTLE);
+    adjustMorale(army, result.outcome === 'attacker' ? MORALE_AFTER_WIN : MORALE_AFTER_LOSS);
+    for (const defender of defendingArmies) {
+      adjustExhaustion(defender, EXHAUSTION_PER_BATTLE);
+      adjustMorale(defender, result.outcome === 'defender' ? MORALE_AFTER_WIN : MORALE_AFTER_LOSS);
+    }
 
     let aftermath;
     if (result.outcome === 'attacker') {
@@ -214,8 +277,16 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   if (!bounced && !capturedCity && unitTotalCount(attackerUnits) > 0 && cityIsEnemy) {
     const defenderFaction = factionById(state, city.factionId);
     if (unitTotalCount(city.garrison) > 0) {
-      const result = resolveBattle(attackerUnits, city.garrison, tileType);
+      const result = resolveBattle(attackerUnits, city.garrison, tileType, {
+        attackerMorale: army.morale,
+        attackerExhaustion: army.exhaustion,
+        defenderMorale: GARRISON_MORALE,
+        defenderExhaustion: GARRISON_EXHAUSTION,
+        wallMultiplier: cityHasWalls(city) ? WALL_DEFENCE_MULTIPLIER : 1,
+      });
       attackerUnits = result.attackerSurvivors;
+      adjustExhaustion(army, EXHAUSTION_PER_BATTLE);
+      adjustMorale(army, result.outcome === 'attacker' ? MORALE_AFTER_WIN : MORALE_AFTER_LOSS);
       if (result.outcome === 'attacker') {
         capturedCity = true;
         reports.push(recordBattle(state, {
@@ -270,6 +341,7 @@ export function moveArmy(state, armyId, destCol, destRow) {
   if (!entry) return { ok: false };
 
   army.movement = Math.max(0, army.movement - entry.cost);
+  adjustExhaustion(army, EXHAUSTION_PER_MOVE * entry.cost);
 
   if (!entry.combat) {
     army.col = destCol;
@@ -313,12 +385,78 @@ export function raiseArmyFromGarrison(state, cityId) {
 
   const newArmy = {
     id: makeId('army'), factionId: city.factionId, col: city.col, row: city.row,
-    movement: 0, maxMovement: MAX_MOVEMENT, units: { ...city.garrison }, name: `${faction.name} Armee`,
+    movement: 0, maxMovement: MAX_MOVEMENT, units: { ...city.garrison },
+    // Fresh out of the barracks: rested, and steady from having been paid.
+    morale: GARRISON_MORALE, exhaustion: 0,
+    name: `${faction.name} Armee`,
   };
   state.armies.push(newArmy);
   city.garrison = {};
   logMsg(state, `${faction.name} stellt in ${city.name} eine neue Armee auf.`);
   return { ok: true, armyId: newArmy.id };
+}
+
+// An army standing on a friendly city dissolves into its garrison: the men
+// stay, they just man the walls instead of marching.
+export function disbandArmyIntoCity(state, armyId) {
+  const army = state.armies.find((a) => a.id === armyId);
+  if (!army) return { ok: false };
+  const city = cityAt(state, army.col, army.row);
+  if (!city || city.factionId !== army.factionId) return { ok: false, reason: 'noCity' };
+
+  const joined = unitTotalCount(army.units);
+  if (joined <= 0) return { ok: false, reason: 'empty' };
+  for (const key of UNIT_ORDER) {
+    if (army.units[key]) city.garrison[key] = (city.garrison[key] || 0) + army.units[key];
+  }
+  removeArmy(state, army.id);
+  const faction = factionById(state, city.factionId);
+  logMsg(state, `${faction.name}: ${joined.toLocaleString('de-DE')} Mann treten in ${city.name} der Garnison bei.`);
+  return { ok: true, cityId: city.id, joined };
+}
+
+export function wallCost() {
+  return WALL_COST;
+}
+
+// Walls are paid for up front and then raised over several turns.
+export function buyCityWalls(state, cityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false };
+  if (city.walls !== 'none') return { ok: false, reason: 'exists' };
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  if (faction.gold < WALL_COST) return { ok: false, reason: 'gold' };
+
+  faction.gold -= WALL_COST;
+  city.walls = 'building';
+  city.wallTurnsLeft = WALL_BUILD_TURNS;
+  logMsg(state, `${faction.name} beginnt den Bau einer Stadtmauer in ${city.name} (${WALL_BUILD_TURNS} Runden).`);
+  return { ok: true };
+}
+
+export function advanceWallConstruction(state) {
+  for (const city of state.cities) {
+    if (city.walls !== 'building') continue;
+    city.wallTurnsLeft -= 1;
+    if (city.wallTurnsLeft <= 0) {
+      city.walls = 'complete';
+      city.wallTurnsLeft = 0;
+      logMsg(state, `Die Stadtmauer von ${city.name} ist fertiggestellt.`);
+    }
+  }
+}
+
+// Armies that stayed put regain their edge; a city lets them recover fastest.
+export function recoverArmies(state) {
+  for (const army of state.armies) {
+    const rested = army.movement === army.maxMovement;
+    if (!rested) continue;
+    const city = cityAt(state, army.col, army.row);
+    const inOwnCity = city && city.factionId === army.factionId;
+    adjustMorale(army, inOwnCity ? MORALE_REST_IN_CITY : MORALE_REST);
+    adjustExhaustion(army, inOwnCity ? EXHAUSTION_REST_IN_CITY : EXHAUSTION_REST);
+  }
 }
 
 export function collectIncome(state) {

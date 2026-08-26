@@ -57,6 +57,16 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
   unten links auf der Karte, oder Mausrad zum Zoomen.
 - **Städte**: anklicken, um Einheiten zu rekrutieren (Legionäre, Kavallerie,
   Bogenschützen) und Garnisonen zu Feldarmeen auszuheben.
+- **Moral und Erschöpfung**: Jede Armee führt beide Werte mit; sie gehen direkt
+  in die Kampfkraft ein. Märsche und Schlachten zehren, Rasten erholt – am
+  schnellsten in einer eigenen Stadt. Beides steht im Armee-Panel.
+- **Armee auflösen**: Steht eine Armee in einer eigenen Stadt, kann sie sich
+  auflösen; ihre Soldaten treten der Garnison bei.
+- **Stadtmauern**: Hauptstädte besitzen von Beginn an eine Mauer. Jede andere
+  eigene Stadt kann eine kaufen; sie wird in 5 Runden errichtet und gibt den
+  Verteidigern danach einen deutlichen Bonus.
+- **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
+  Rekrutierung, Mauerkauf, Auflösen oder ganzen Rundenwechsel.
 - **Vollbildmodus**: Button oben rechts (⛶) bzw. auf dem Startbildschirm.
 - „Runde beenden" lässt die KI-Fraktionen ziehen, kassiert Einkommen und lässt
   Garnisonen langsam nachwachsen.

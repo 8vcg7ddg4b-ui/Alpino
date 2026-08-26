@@ -17,13 +17,29 @@ function totalCount(units) {
   return UNIT_ORDER.reduce((sum, key) => sum + (units[key] || 0), 0);
 }
 
+// Fresh, confident troops hit harder; worn-out ones falter. Both inputs are
+// 0-100, and the result stays in a band that never trivialises a battle.
+export function conditionFactor(morale, exhaustion) {
+  const m = Math.max(0, Math.min(100, morale ?? 100));
+  const e = Math.max(0, Math.min(100, exhaustion ?? 0));
+  return (0.62 + 0.38 * (m / 100)) * (1 - 0.3 * (e / 100));
+}
+
 // Simplified multi-round battle resolver. Runs entirely on the campaign map:
 // no separate battle screen. Returns enough detail for a full battle report.
-export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType) {
+export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, modifiers = {}) {
+  const {
+    attackerMorale = 100, attackerExhaustion = 0,
+    defenderMorale = 100, defenderExhaustion = 0,
+    wallMultiplier = 1,
+  } = modifiers;
+
   const rng = mulberry32(battleSeed++);
   const attacker = cloneUnits(attackerUnitsIn);
   const defender = cloneUnits(defenderUnitsIn);
   const terrainBonus = (TILE_TYPES[terrainType] && TILE_TYPES[terrainType].defense) || 0;
+  const attackerCondition = conditionFactor(attackerMorale, attackerExhaustion);
+  const defenderCondition = conditionFactor(defenderMorale, defenderExhaustion);
 
   const startAtkStrength = totalStrength(attacker);
   const startDefStrength = totalStrength(defender);
@@ -48,6 +64,9 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType) {
     }
     const volley = ranged;
     ranged = false;
+
+    atkPower *= attackerCondition;
+    defPower *= defenderCondition * wallMultiplier;
 
     const variance = () => 0.8 + rng() * 0.4;
     const dmgToDefender = atkPower * 0.55 * variance();
@@ -94,6 +113,13 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType) {
     rounds,
     terrainType,
     terrainBonus,
+    wallMultiplier,
+    attackerMorale,
+    attackerExhaustion,
+    defenderMorale,
+    defenderExhaustion,
+    attackerCondition,
+    defenderCondition,
     attackerEngaged: cloneUnits(attackerUnitsIn),
     defenderEngaged: cloneUnits(defenderUnitsIn),
     attackerSurvivors: attacker,

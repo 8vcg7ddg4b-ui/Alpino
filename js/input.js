@@ -51,7 +51,7 @@ function toNdc(canvas, clientX, clientY) {
   };
 }
 
-export function setupInput(canvas, state, onChange, onShowReport) {
+export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction) {
   let dragging = false;
   let dragMoved = false;
   let dragAnchor = null;
@@ -99,7 +99,8 @@ export function setupInput(canvas, state, onChange, onShowReport) {
   });
 
   function handleClick(e) {
-    if (state.gameOver || isAnimating()) return;
+    const state = getState();
+    if (!state || state.gameOver || isAnimating()) return;
     const ndc = toNdc(canvas, e.clientX, e.clientY);
     const tile = pickTile(ndc.x, ndc.y);
     if (!tile) {
@@ -125,6 +126,7 @@ export function setupInput(canvas, state, onChange, onShowReport) {
         const marching = state.armies.find((a) => a.id === armyId);
         const origin = { col: marching.col, row: marching.row };
 
+        if (onBeforeAction) onBeforeAction();
         // Drop the range overlay before the march so the army isn't walking
         // across its own highlighted tiles.
         state.reachable = null;

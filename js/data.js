@@ -49,6 +49,28 @@ export const CITY_DEFS = [
   { name: 'Numantia', col: 8, row: 15, factionId: 'neutral', capital: false },
 ];
 
+// Morale and exhaustion scale a force's fighting power. Both are 0-100 and
+// recover when an army rests, fastest inside a friendly city.
+export const MORALE_MAX = 100;
+export const MORALE_START = 85;
+export const MORALE_AFTER_WIN = 12;
+export const MORALE_AFTER_LOSS = -28;
+export const MORALE_REST = 8;
+export const MORALE_REST_IN_CITY = 16;
+export const EXHAUSTION_PER_MOVE = 11;
+export const EXHAUSTION_REST = -18;
+export const EXHAUSTION_REST_IN_CITY = -34;
+export const EXHAUSTION_PER_BATTLE = 18;
+// Garrisons sit behind their own walls and are neither marched nor routed,
+// so they fight at a fixed, solid standard.
+export const GARRISON_MORALE = 90;
+export const GARRISON_EXHAUSTION = 0;
+
+export const WALL_COST = 350;
+export const WALL_BUILD_TURNS = 5;
+// Completed walls multiply the defenders' defensive power.
+export const WALL_DEFENCE_MULTIPLIER = 1.6;
+
 export const MAX_MOVEMENT = 6;
 export const STARTING_GOLD = 500;
 export const INCOME_PER_CITY = 40;

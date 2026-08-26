@@ -1,4 +1,6 @@
-import { FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD } from './data.js';
+import {
+  FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
+} from './data.js';
 import { generateMap } from './mapgen.js';
 
 let nextId = 1;
@@ -25,6 +27,10 @@ export function createInitialState() {
       factionId: def.factionId,
       capital: !!def.capital,
       population: def.capital ? 6000 : isNeutral ? 2000 : 3500,
+      // Capitals are fortified from the outset; every other city has to pay
+      // for its walls and wait out the construction.
+      walls: def.capital ? 'complete' : 'none',
+      wallTurnsLeft: 0,
       garrison: def.capital
         ? { legionary: 250, cavalry: 80, archer: 80 }
         : isNeutral
@@ -46,6 +52,8 @@ export function createInitialState() {
       movement: MAX_MOVEMENT,
       maxMovement: MAX_MOVEMENT,
       units: { legionary: 300, cavalry: 120, archer: 120 },
+      morale: MORALE_START,
+      exhaustion: 0,
       name: `${faction.name} Feldarmee`,
     });
   }

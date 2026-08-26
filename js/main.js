@@ -5,7 +5,8 @@ import { computeReachable } from './pathfind.js';
 import { aiTakeAllTurns } from './ai.js';
 import {
   recruitUnit, raiseArmyFromGarrison, collectIncome, regenerateGarrisons,
-  resetMovement, checkVictory,
+  resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
+  advanceWallConstruction, recoverArmies,
 } from './actions.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, panCamera, zoomCamera,
@@ -38,6 +39,34 @@ function syncSelection() {
 }
 
 const reportOverlay = document.getElementById('battleReport');
+const undoBtn = document.getElementById('undoBtn');
+
+const UNDO_LIMIT = 25;
+const undoStack = [];
+
+// The generated map never changes after startup, so snapshots share it by
+// reference instead of copying 1200 tiles per action.
+function snapshotState() {
+  const { map, reachable, ...rest } = state;
+  const copy = typeof structuredClone === 'function'
+    ? structuredClone(rest)
+    : JSON.parse(JSON.stringify(rest));
+  return copy;
+}
+
+function pushUndo() {
+  if (!state) return;
+  undoStack.push(snapshotState());
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+}
+
+function undoLastAction() {
+  if (!state || !undoStack.length || isAnimating()) return;
+  const previous = undoStack.pop();
+  state = { ...previous, map: state.map, reachable: null };
+  hideBattleReport();
+  refresh();
+}
 
 function showBattleReport(reportOrId) {
   if (!state) return;
@@ -60,21 +89,37 @@ function refresh() {
   render();
   renderUI(state, {
     onRecruit: (cityId, unitKey) => {
+      pushUndo();
       recruitUnit(state, cityId, unitKey);
       refresh();
     },
     onRaise: (cityId) => {
+      pushUndo();
       raiseArmyFromGarrison(state, cityId);
+      refresh();
+    },
+    onDisband: (armyId) => {
+      pushUndo();
+      const result = disbandArmyIntoCity(state, armyId);
+      if (result.ok) state.selectedCityId = result.cityId;
+      refresh();
+    },
+    onBuyWalls: (cityId) => {
+      pushUndo();
+      buyCityWalls(state, cityId);
       refresh();
     },
     onShowReport: showBattleReport,
   });
+
+  undoBtn.disabled = undoStack.length === 0;
 }
 
 function endTurn() {
   // Ending the turn mid-march would let the AI move while the player's army is
   // still visibly walking, and the resulting sync would teleport it.
   if (!state || state.gameOver || isAnimating()) return;
+  pushUndo();
   // Identify new reports by the previous head, not by length: the list is
   // capped, so once it is full its length stops growing.
   const previousHead = state.battleReports.length ? state.battleReports[0].id : null;
@@ -82,8 +127,12 @@ function endTurn() {
   aiTakeAllTurns(state);
   collectIncome(state);
   regenerateGarrisons(state);
+  advanceWallConstruction(state);
   checkVictory(state);
   state.turn += 1;
+  // Recovery is judged on the turn that just ended - an army that never spent
+  // a movement point rested - so it runs before movement is replenished.
+  recoverArmies(state);
   resetMovement(state);
   refresh();
 
@@ -176,8 +225,11 @@ function startNewGame() {
   const capital = state.cities.find((c) => c.factionId === player.id && c.capital);
   if (capital) centerOn(capital.col, capital.row);
 
-  setupInput(canvas, state, refresh, showBattleReport);
+  // Input holds no reference to `state` itself, so it reads through a getter -
+  // undo swaps the object wholesale.
+  setupInput(canvas, () => state, refresh, showBattleReport, pushUndo);
   document.getElementById('endTurnBtn').addEventListener('click', endTurn);
+  undoBtn.addEventListener('click', undoLastAction);
   refresh();
 }
 
