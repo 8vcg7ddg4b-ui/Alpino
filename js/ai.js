@@ -61,13 +61,18 @@ function nearestTarget(state, army, walkable) {
 // the player is shown, and declines a fight it is going to lose - a coarse
 // estimate is enough to tell a storming from a slaughter.
 const AI_FORECAST_SAMPLES = 12;
-const AI_MIN_WIN_CHANCE = 0.5;
+let aiMinWinChance = 0.5;
+
+// How sure of winning the AI insists on being, set from the settings panel.
+export function setAiStance(threshold) {
+  aiMinWinChance = threshold;
+}
 
 function worthAttacking(state, army, col, row) {
   const preview = previewTileCombat(state, army.id, col, row, AI_FORECAST_SAMPLES);
   if (!preview) return true;
   if (preview.unopposed) return true;
-  return preview.forecast.attackerWinChance >= AI_MIN_WIN_CHANCE;
+  return preview.forecast.attackerWinChance >= aiMinWinChance;
 }
 
 function stepArmyTowards(state, army, target) {

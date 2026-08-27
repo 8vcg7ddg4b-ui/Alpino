@@ -1,7 +1,7 @@
 import {
   UNIT_ORDER, UNIT_TYPES, settlementTier, garrisonCapacity, TILE_TYPES,
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
-  SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST,
+  SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST,
 } from './data.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
@@ -233,8 +233,9 @@ function renderSelectedArmy(state, army) {
       ? `<button class="disband-btn" data-army="${army.id}">🏰 In ${escapeHTML(city.name)} auflösen – Garnison verstärken</button>`
       : ''}
     ${embarkHTML(state, army)}
-    <p class="hint">Grüne Felder: freie Bewegung · Rote Felder: Angriff${
-      army.embarked ? ' · Gelbe Felder: an Land gehen' : ''}.</p>
+    <p class="hint">Grüne Felder: freie Bewegung · Orange: vom Feind kontrolliert
+      (+${ZOC_EXTRA_COST} Bewegung, kein Weiterziehen entlang der Front) ·
+      Rot: Angriff${army.embarked ? ' · Gelb: an Land gehen' : ''}.</p>
   `;
 }
 
@@ -379,6 +380,16 @@ export function terrainPanelHTML(state, tile) {
   }
   if (city && isCoastalCity(state, city)) notes.push('Hafen – hier kann eine Armee in See stechen.');
   if (city && cityWallLevel(city)) notes.push(`Befestigt: ${wallLevelName(cityWallLevel(city))}.`);
+
+  // Whose ground this is in the sense that matters for movement.
+  const holders = state.armies.filter((a) => !!a.embarked === (type === 'water')
+    && Math.abs(a.col - col) + Math.abs(a.row - row) === 1);
+  if (holders.length) {
+    const names = [...new Set(holders.map((a) => factionById(state, a.factionId).name))];
+    notes.push(`Im Kontrollbereich von ${names.join(' und ')} – hineinzuziehen kostet `
+      + `${ZOC_EXTRA_COST} Bewegungspunkte mehr, und aus dem Kontrollbereich heraus `
+      + 'geht es nur ins Freie oder in den Angriff.');
+  }
   if (type === 'desert') notes.push('Wüste – zäh zu durchqueren und ohne Deckung.');
   if (type === 'mountain') notes.push('Gebirge – für Armeen unpassierbar.');
 

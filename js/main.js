@@ -11,13 +11,68 @@ import {
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
-  setMapMode, getMapMode,
+  setMapMode, getMapMode, setMarchSpeed,
 } from './scene3d.js';
 import { sfx, unlockAudio, toggleMuted, isMuted, stopMarch } from './audio.js';
+import { CHRONICLE, chronicleSVG } from './chronicle.js';
+import {
+  loadSettings, getSetting, setSetting, resetSettings, settingsHTML,
+  MARCH_SPEED_FACTORS, AI_STANCE_THRESHOLDS,
+} from './settings.js';
+import { setAiStance } from './ai.js';
 
 const canvas = document.getElementById('gameCanvas');
 const appEl = document.getElementById('app');
 let state = null;
+
+// --- Einstellungen --------------------------------------------------------
+loadSettings();
+
+// Two settings reach into other modules; the rest are read where they matter.
+function applySettings() {
+  setMarchSpeed(MARCH_SPEED_FACTORS[getSetting('marchSpeed')] ?? 1);
+  setAiStance(AI_STANCE_THRESHOLDS[getSetting('aiStance')] ?? 0.5);
+}
+applySettings();
+
+const settingsOverlay = document.getElementById('settingsOverlay');
+
+function paintSettings() {
+  document.getElementById('settingsBody').innerHTML = settingsHTML(!isMuted());
+}
+
+function showSettings() {
+  paintSettings();
+  settingsOverlay.classList.remove('hidden');
+}
+
+function hideSettings() {
+  settingsOverlay.classList.add('hidden');
+}
+
+// One delegated handler for the whole panel: every control carries the key it
+// changes, so nothing has to be re-wired when the panel is repainted.
+document.getElementById('settingsBody').addEventListener('click', (event) => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  if (button.id === 'settingsReset') {
+    resetSettings();
+  } else if (button.dataset.key === 'sound') {
+    unlockAudio();
+    toggleMuted();
+  } else if (button.dataset.key) {
+    const setting = button.dataset.value !== undefined
+      ? button.dataset.value
+      : !getSetting(button.dataset.key);
+    setSetting(button.dataset.key, setting);
+  } else {
+    return;
+  }
+  applySettings();
+  paintSettings();
+  refreshMuteButton();
+  if (!isMuted()) sfx.select();
+});
 
 function resizeScene() {
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -52,39 +107,121 @@ function setupSidebarToggle() {
 
 // The tactical view is a way of looking at the same map, so the button says
 // which way you are looking at it right now.
+function refreshMapModeButton() {
+  const button = document.getElementById('mapModeBtn');
+  if (!button) return;
+  const tactical = getMapMode() === 'tactical';
+  button.classList.toggle('active', tactical);
+  button.textContent = tactical ? '🏔️' : '🗺';
+  button.title = tactical
+    ? 'Zurück zur Geländekarte'
+    : 'Taktische Sicht: Gebiete nach Fraktionen';
+}
+
+// --- Chronik im Startbildschirm ------------------------------------------
+// Zwei übereinanderliegende Ebenen, von denen immer eine sichtbar ist: das
+// nächste Bild wird unsichtbar aufgebaut und dann eingeblendet, damit der
+// Wechsel nie stockt.
+const CHRONICLE_INTERVAL = 11000;
+let chronicleIndex = 0;
+let chronicleSlot = 0;
+let chronicleTimer = null;
+
+function paintChronicle(index, { animate = true } = {}) {
+  const stage = document.getElementById('chronicleStage');
+  if (!stage || !CHRONICLE.length) return;
+  chronicleIndex = ((index % CHRONICLE.length) + CHRONICLE.length) % CHRONICLE.length;
+  const scene = CHRONICLE[chronicleIndex];
+  const layers = stage.querySelectorAll('.chron-layer');
+  const next = layers[chronicleSlot ^ 1];
+  const current = layers[chronicleSlot];
+
+  next.innerHTML = chronicleSVG(scene);
+  next.classList.toggle('chron-still', !animate);
+  // Restarting the slow drift means taking the element out of the animation
+  // and putting it back; without the reflow the browser keeps the old one.
+  next.style.animation = 'none';
+  void next.offsetWidth;
+  next.style.animation = '';
+  next.classList.add('visible');
+  current.classList.remove('visible');
+  chronicleSlot ^= 1;
+
+  document.querySelector('.chron-year').textContent = scene.year;
+  document.querySelector('.chron-title').textContent = scene.title;
+  document.querySelector('.chron-text').textContent = scene.text;
+  document.querySelectorAll('#chronDots button').forEach((dot, i) => {
+    dot.classList.toggle('active', i === chronicleIndex);
+    dot.setAttribute('aria-current', i === chronicleIndex ? 'true' : 'false');
+  });
+}
+
+function scheduleChronicle() {
+  clearTimeout(chronicleTimer);
+  if (!getSetting('chronicle')) return;
+  chronicleTimer = setTimeout(() => {
+    paintChronicle(chronicleIndex + 1);
+    scheduleChronicle();
+  }, CHRONICLE_INTERVAL);
+}
+
+function stepChronicle(delta) {
+  paintChronicle(chronicleIndex + delta);
+  scheduleChronicle();
+}
+
+function startChronicle() {
+  const dots = document.getElementById('chronDots');
+  if (!dots) return;
+  dots.innerHTML = CHRONICLE.map((scene, i) =>
+    `<button data-index="${i}" title="${scene.year} – ${scene.title}"
+      aria-label="${scene.year} – ${scene.title}"></button>`).join('');
+  dots.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    paintChronicle(Number(button.dataset.index));
+    scheduleChronicle();
+  });
+  document.getElementById('chronPrev').addEventListener('click', () => stepChronicle(-1));
+  document.getElementById('chronNext').addEventListener('click', () => stepChronicle(1));
+  // Start somewhere in the story rather than always at the founding.
+  paintChronicle(Math.floor(Math.random() * CHRONICLE.length), { animate: false });
+  scheduleChronicle();
+}
+
+function stopChronicle() {
+  clearTimeout(chronicleTimer);
+  chronicleTimer = null;
+}
+
 function setupMapModeButton() {
   const button = document.getElementById('mapModeBtn');
   if (!button) return;
-  const paint = () => {
-    const tactical = getMapMode() === 'tactical';
-    button.classList.toggle('active', tactical);
-    button.textContent = tactical ? '🏔️' : '🗺';
-    button.title = tactical
-      ? 'Zurück zur Geländekarte'
-      : 'Taktische Sicht: Gebiete nach Fraktionen';
-  };
   button.addEventListener('click', () => {
     if (!state) return;
     setMapMode(getMapMode() === 'tactical' ? 'terrain' : 'tactical', state);
-    paint();
+    refreshMapModeButton();
     sfx.select();
     render();
   });
-  paint();
+  refreshMapModeButton();
+}
+
+function refreshMuteButton() {
+  const button = document.getElementById('muteBtn');
+  if (!button) return;
+  button.textContent = isMuted() ? '🔇' : '🔊';
+  button.classList.toggle('active', !isMuted());
 }
 
 function setupMuteButton() {
   const button = document.getElementById('muteBtn');
   if (!button) return;
-  const paint = () => {
-    button.textContent = isMuted() ? '🔇' : '🔊';
-    button.classList.toggle('active', !isMuted());
-  };
-  paint();
+  refreshMuteButton();
   button.addEventListener('click', () => {
     unlockAudio();
     toggleMuted();
-    paint();
+    refreshMuteButton();
     if (!isMuted()) sfx.select();
   });
 }
@@ -164,6 +301,12 @@ function hideBattlePreview() {
 // this opens: cancelling leaves the army exactly where it stood.
 function showBattlePreview(preview, confirm) {
   if (!state) return;
+  // Turned off, the attack simply happens - the forecast was a courtesy, not
+  // a gate.
+  if (!getSetting('battlePreview')) {
+    confirm();
+    return;
+  }
   document.getElementById('previewBody').innerHTML = battlePreviewHTML(state, preview);
   const attackBtn = document.getElementById('previewAttack');
   attackBtn.textContent = preview.unopposed ? '🚩 Einnehmen' : '⚔️ Angreifen';
@@ -402,6 +545,7 @@ function showGraphicsError() {
 
 function startNewGame() {
   unlockAudio();
+  stopChronicle();
   // Starting a game is a click, which is the gesture fullscreen needs.
   wantsFullscreen = true;
   requestAppFullscreen({ explain: true });
@@ -419,6 +563,9 @@ function startNewGame() {
     showGraphicsError();
     return;
   }
+
+  if (getSetting('startMapMode') === 'tactical') setMapMode('tactical', state);
+  refreshMapModeButton();
 
   const player = playerFaction(state);
   const capital = state.cities.find((c) => c.factionId === player.id && c.capital);
@@ -462,11 +609,31 @@ window.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   // Escape backs out of the decision without attacking. With nothing open it
   // is the browser's own way out of fullscreen, and that is a decision too.
-  if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();
+  if (!settingsOverlay.classList.contains('hidden')) hideSettings();
+  else if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();
   else if (!reportOverlay.classList.contains('hidden')) hideBattleReport();
   else if (document.fullscreenElement) wantsFullscreen = false;
 });
 
+document.getElementById('settingsClose').addEventListener('click', hideSettings);
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) hideSettings();
+});
+for (const id of ['settingsBtn', 'menuSettingsBtn']) {
+  const button = document.getElementById(id);
+  if (button) button.addEventListener('click', showSettings);
+}
+
+const helpButton = document.getElementById('menuHelpBtn');
+if (helpButton) {
+  helpButton.addEventListener('click', () => {
+    const help = document.getElementById('startHelp');
+    const shown = help.classList.toggle('hidden');
+    helpButton.classList.toggle('active', !shown);
+  });
+}
+
+startChronicle();
 document.getElementById('startGameBtn').addEventListener('click', startNewGame);
 
 // The boot watchdog in index.html looks for this: reaching it means the whole

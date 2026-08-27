@@ -51,11 +51,30 @@ Spiel starten" klicken.
 
 Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 
+## Startbildschirm
+
+Das Menü führt ins Spiel, zu den **Einstellungen** (Ton, Kampfvorschau,
+Marschgeschwindigkeit, Kartensicht beim Start, Verhalten der Gegner, Bildwechsel)
+und zu den Spielregeln. Alle Einstellungen wirken sofort und werden im Browser
+gespeichert; die KI-Haltung legt fest, wie sicher sich die KI ihres Sieges sein
+muss, bevor sie einen Kampf überhaupt eingeht.
+
+Im Hintergrund läuft eine **Chronik der römischen Republik** in acht Bildern –
+von der Vertreibung der Könige 509 v. Chr. über Hannibals Alpenübergang und den
+Fall Karthagos bis Actium 31 v. Chr. Die Bilder sind vollständig als SVG
+gezeichnet (keine Bilddateien, funktioniert offline) und lassen sich mit ‹ › oder
+den Punkten durchblättern.
+
 ## Bedienung
 
 - **Armee bewegen**: anklicken, dann ein grün markiertes Feld (freie Bewegung)
   oder ein rot markiertes Feld (Angriff) wählen. Die Armee marschiert sichtbar
   die gefundene Route entlang.
+- **Kontrollzonen**: Jede Armee hält die vier Felder um sich herum. Orange
+  markiert heißt: Der Feind hält dieses Feld. Hineinzuziehen kostet 2
+  Bewegungspunkte extra, und aus einem gehaltenen Feld heraus geht es nur ins
+  Freie oder in den Angriff – seitlich an einer Armee vorbeizuschleichen ist
+  nicht möglich. Eine Flotte hält Wasserfelder, ein Landheer Landfelder.
 - **Kampfvorschau**: Vor jedem Angriff öffnet sich eine Vorschau mit Siegchance,
   erwarteten Verlusten auf beiden Seiten und allen Modifikatoren (Gelände,
   Stadtmauer, Landung vom Meer). „Abbrechen" lässt die Armee unverändert
@@ -154,4 +173,6 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 - `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl
 - `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
+- `js/settings.js` – Einstellungen: Schema, Speicherung, Einstellungsfenster
+- `js/chronicle.js` – die acht Chronikbilder als SVG-Silhouetten
 - `js/ui.js`, `js/input.js`, `js/main.js` – Seitenleiste, Eingabe, Startbildschirm, Bootstrap

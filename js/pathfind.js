@@ -1,4 +1,4 @@
-import { TILE_TYPES, SEA_MOVE_COST } from './data.js';
+import { TILE_TYPES, SEA_MOVE_COST, ZOC_EXTRA_COST } from './data.js';
 import { armyAt, cityAt } from './state.js';
 
 const NEIGHBORS = [
@@ -46,6 +46,30 @@ function classifyTile(state, col, row, movingFactionId, embarked) {
   return { blocked: false, cost, endpointOnly: landing, combat: false, landing };
 }
 
+// Every army holds the ground next to it. An enemy can push into that ground,
+// but it costs, and it cannot then slide sideways along the front: to get past
+// an army you either go round its zone or through the army itself.
+//
+// Control reaches only into the element the army is in - a legion on the shore
+// does not slow a fleet sailing past it, and a fleet does not pin troops
+// inland.
+export function zoneOfControl(state, army) {
+  const zoc = new Set();
+  const { cols, rows, tiles } = state.map;
+  for (const other of state.armies) {
+    if (other.factionId === army.factionId) continue;
+    const otherAtSea = !!other.embarked;
+    for (const [dc, dr] of NEIGHBORS) {
+      const col = other.col + dc;
+      const row = other.row + dr;
+      if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
+      if ((tiles[row][col].type === 'water') !== otherAtSea) continue;
+      zoc.add(key(col, row));
+    }
+  }
+  return zoc;
+}
+
 // Dijkstra over the movement-cost grid, bounded by the army's remaining movement.
 // Returns a Map keyed "col,row" -> { cost, path: [{col,row},...], combat }
 export function computeReachable(state, army) {
@@ -57,6 +81,8 @@ export function computeReachable(state, army) {
   const stopEndpoint = new Set();
   const landings = new Set();
   const embarked = !!army.embarked;
+  const zoc = zoneOfControl(state, army);
+  const contested = new Set();
   const frontier = [{ col: army.col, row: army.row, cost: 0 }];
 
   while (frontier.length) {
@@ -78,7 +104,12 @@ export function computeReachable(state, army) {
       const isStart = ncol === army.col && nrow === army.row;
       if (isStart) continue;
 
-      const newCost = current.cost + info.cost;
+      // Pushing into held ground costs; slipping from one held tile straight
+      // into another is not a march past, it is a battle declined.
+      const heldFrom = zoc.has(ck);
+      const heldTo = zoc.has(nk);
+      if (heldFrom && heldTo && !info.combat) continue;
+      const newCost = current.cost + info.cost + (heldTo && !info.combat ? ZOC_EXTRA_COST : 0);
       if (newCost > army.movement) continue;
 
       // Combat tiles - and shores a fleet lands on - are valid destinations
@@ -95,6 +126,8 @@ export function computeReachable(state, army) {
         else landings.delete(nk);
         if (info.combat || info.endpointOnly) stopEndpoint.add(nk);
         else stopEndpoint.delete(nk);
+        if (heldTo && !info.combat) contested.add(nk);
+        else contested.delete(nk);
         frontier.push({ col: ncol, row: nrow, cost: newCost });
       }
     }
@@ -110,7 +143,13 @@ export function computeReachable(state, army) {
       path.unshift({ col: c, row: r });
       cur = prev.get(cur);
     }
-    reachable.set(k, { cost, path, combat: combatEndpoint.has(k), landing: landings.has(k) });
+    reachable.set(k, {
+      cost,
+      path,
+      combat: combatEndpoint.has(k),
+      landing: landings.has(k),
+      contested: contested.has(k),
+    });
   }
   return reachable;
 }

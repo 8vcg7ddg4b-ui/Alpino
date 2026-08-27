@@ -236,6 +236,11 @@ export function wallDefenceMultiplier(level) {
 
 export const MAX_MOVEMENT = 9;
 
+// What it costs to push into ground an enemy army holds. Together with the
+// rule that forbids moving from one held tile straight into another, this is
+// what makes an army a barrier rather than a piece to walk around.
+export const ZOC_EXTRA_COST = 2;
+
 // --- Seefahrt -------------------------------------------------------------
 // An army takes ship in one of its own coastal settlements. At sea it travels
 // further than on foot, but it fights badly: rowing benches are no battle

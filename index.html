@@ -54,22 +54,49 @@
   </script>
 
   <div id="startScreen">
+    <div id="chronicleStage" aria-hidden="true">
+      <div class="chron-layer" data-slot="0"></div>
+      <div class="chron-layer" data-slot="1"></div>
+      <div class="chron-veil"></div>
+    </div>
+
     <div class="start-box">
       <div class="start-eagle">🦅</div>
       <h1 class="start-title">SPQR</h1>
       <p class="start-tagline">Ein rundenbasiertes 3D-Feldzugsspiel über Europa und das Mittelmeer</p>
-      <button id="startGameBtn" class="start-btn">Neues Spiel starten ▶</button>
-      <button id="menuFullscreenBtn" class="start-secondary-btn">⛶ Vollbildmodus</button>
-      <div class="start-help">
-        <p><strong>Armee</strong> anklicken, dann ein grünes Feld (Zug) oder rotes Feld (Angriff) wählen.</p>
-        <p>Karte per Ziehen, Pfeiltasten/WASD oder den Richtungstasten unten links verschieben.</p>
+      <nav class="start-menu">
+        <button id="startGameBtn" class="start-btn">Neues Spiel starten ▶</button>
+        <button id="menuSettingsBtn" class="start-secondary-btn">⚙ Einstellungen</button>
+        <button id="menuHelpBtn" class="start-secondary-btn">📜 Spielregeln</button>
+        <button id="menuFullscreenBtn" class="start-secondary-btn">⛶ Vollbildmodus</button>
+      </nav>
+      <div class="start-help hidden" id="startHelp">
+        <p><strong>Armee</strong> anklicken, dann ein grünes Feld (Zug) oder rotes Feld (Angriff) wählen.
+          Orange markierte Felder hält eine feindliche Armee: hineinzuziehen kostet mehr, und daraus
+          heraus geht es nur ins Freie oder in den Angriff.</p>
+        <p>Karte per Ziehen, Pfeiltasten/WASD oder den Richtungstasten unten links verschieben.
+          Zwei Finger drehen und zoomen.</p>
         <p>Ein Klick auf ein beliebiges Feld zeigt Gelände, Höhe und Lage in der Seitenleiste.</p>
         <p>🗺 schaltet auf die <strong>taktische Sicht</strong> um – die Karte in den Farben der Fraktionen.</p>
-        <p>Städte anklicken, um Truppen zu rekrutieren. „Runde beenden“, wenn du fertig bist.</p>
+        <p>Städte anklicken, um Truppen zu rekrutieren und die <strong>Befestigung</strong> auszubauen:
+          Holzpalisade, Große Holzpalisade, Steinmauer.</p>
         <p>Vor jedem Angriff zeigt die <strong>Kampfvorschau</strong> Siegchance und erwartete Verluste.</p>
         <p>In einer Hafenstadt kann eine Armee <strong>in See stechen</strong> und über das Meer angreifen.</p>
       </div>
     </div>
+
+    <figure id="chronicleCaption">
+      <figcaption>
+        <span class="chron-year"></span>
+        <strong class="chron-title"></strong>
+        <span class="chron-text"></span>
+      </figcaption>
+      <div class="chron-nav">
+        <button id="chronPrev" title="Vorheriges Bild" aria-label="Vorheriges Bild">‹</button>
+        <div class="chron-dots" id="chronDots"></div>
+        <button id="chronNext" title="Nächstes Bild" aria-label="Nächstes Bild">›</button>
+      </div>
+    </figure>
   </div>
 
   <div id="app" class="hidden">
@@ -79,6 +106,7 @@
       <div id="goldLabel" class="pill">💰 0 Gold</div>
       <button id="undoBtn" class="icon-btn" title="Letzten Zug rückgängig machen" disabled>↩</button>
       <button id="mapModeBtn" class="icon-btn" title="Taktische Sicht: Gebiete nach Fraktionen">🗺</button>
+      <button id="settingsBtn" class="icon-btn" title="Einstellungen">⚙</button>
       <button id="muteBtn" class="icon-btn" title="Ton an/aus">🔊</button>
       <button id="sidebarBtn" class="icon-btn" title="Seitenleiste ein-/ausblenden">⇥</button>
       <button id="fullscreenBtn" class="icon-btn" title="Vollbildmodus">⛶</button>
@@ -143,6 +171,13 @@
         <button id="previewCancel" class="preview-cancel">Abbrechen</button>
         <button id="previewAttack" class="preview-attack">⚔️ Angreifen</button>
       </div>
+    </div>
+  </div>
+
+  <div id="settingsOverlay" class="hidden">
+    <div class="report-box settings-box">
+      <button id="settingsClose" class="report-close" title="Schließen">✕</button>
+      <div id="settingsBody"></div>
     </div>
   </div>
 

@@ -45,6 +45,12 @@ const effects = [];
 const completionQueue = [];
 let animationFrameId = null;
 const MARCH_TILES_PER_SECOND = 4.2;
+// A multiplier the player sets; zero means the army is simply there.
+let marchSpeedFactor = 1;
+
+export function setMarchSpeed(factor) {
+  marchSpeedFactor = Math.max(0, factor);
+}
 
 const cityGroups = new Map(); // cityId -> { group, roof, flag, label }
 const armyGroups = new Map(); // armyId -> THREE.Group
@@ -854,9 +860,12 @@ export function syncEntities(state) {
   if (state.reachable) {
     for (const [key, info] of state.reachable) {
       const [col, row] = key.split(',').map(Number);
-      // A shore a fleet can land on is its own kind of move: neither a free
-      // march nor necessarily a fight.
-      const color = info.combat ? '#ff4d3d' : info.landing ? '#ffd166' : '#4dffa0';
+      // A shore a fleet can land on is its own kind of move, and ground an
+      // enemy army holds costs extra to enter - both deserve their own colour
+      // so the player can read the cost before paying it.
+      const color = info.combat ? '#ff4d3d'
+        : info.landing ? '#ffd166'
+          : info.contested ? '#ff8c42' : '#4dffa0';
       addHighlight(col, row, color);
     }
   }
@@ -997,7 +1006,7 @@ function setMarchBob(group, height) {
 function advanceAnimations(dt) {
   for (const [armyId, anim] of armyAnimations) {
     anim.elapsed += dt;
-    let budget = MARCH_TILES_PER_SECOND * TILE_SIZE * dt;
+    let budget = MARCH_TILES_PER_SECOND * marchSpeedFactor * TILE_SIZE * dt;
 
     while (budget > 0 && anim.segment < anim.points.length - 1) {
       const from = anim.points[anim.segment];
@@ -1164,7 +1173,7 @@ export function playBattleClash(col, row, onComplete) {
 // out, lunge at the defender and fall back.
 export function animateArmyPath(armyId, tiles, onComplete) {
   const entry = armyGroups.get(armyId);
-  if (!entry || !tiles || !tiles.length) {
+  if (!entry || !tiles || !tiles.length || marchSpeedFactor === 0) {
     if (onComplete) onComplete();
     return;
   }
