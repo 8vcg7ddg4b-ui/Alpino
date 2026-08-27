@@ -8,7 +8,7 @@ import { unitTotalCount, factionById, isCoastalCity, sameLandmass } from './stat
 
 // Keeps enough in the treasury that paying for a fleet never leaves a faction
 // unable to defend what it already has.
-const AI_FLEET_RESERVE = 300;
+const AI_FLEET_RESERVE = 200;
 // How much closer an overseas target must be before the fleet is worth it.
 const SEA_CROSSING_MARGIN = 3;
 
@@ -117,10 +117,16 @@ function stepArmyTowards(state, army, target) {
 // for a fleet or a wall. Recruiting stops at this floor.
 const AI_TREASURY_FLOOR = 400;
 
-function aiEconomy(state, faction) {
+function aiEconomy(state, faction, savingForFleet) {
+  // An army waiting in a harbour for want of coin will wait for ever if the
+  // treasury is spent on recruits every turn. When a crossing is pending, the
+  // floor rises until the fleet is paid for.
+  const floor = savingForFleet
+    ? Math.max(AI_TREASURY_FLOOR, SHIP_COST + AI_FLEET_RESERVE)
+    : AI_TREASURY_FLOOR;
   const ownCities = state.cities.filter((c) => c.factionId === faction.id);
   for (const city of ownCities) {
-    if (faction.gold <= AI_TREASURY_FLOOR) break;
+    if (faction.gold <= floor) break;
     const unitKey = UNIT_ORDER[Math.floor(Math.random() * UNIT_ORDER.length)];
     recruitUnit(state, city.id, unitKey);
 
@@ -134,9 +140,58 @@ function aiEconomy(state, faction) {
   }
 }
 
+// How close an enemy army has to be before a settlement counts as threatened.
+const HOME_GUARD_RANGE = 8;
+
+// The own settlement with an enemy army nearest to it, if one is close enough
+// to be a real danger.
+function threatenedCity(state, faction) {
+  let best = null;
+  let bestDistance = Infinity;
+  for (const city of state.cities) {
+    if (city.factionId !== faction.id) continue;
+    for (const enemy of state.armies) {
+      if (enemy.factionId === faction.id) continue;
+      const distance = Math.abs(enemy.col - city.col) + Math.abs(enemy.row - city.row);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = city;
+      }
+    }
+  }
+  return bestDistance <= HOME_GUARD_RANGE ? best : null;
+}
+
+// Returns whether a crossing is being held up by an empty treasury, so the
+// economy knows to stop spending.
 function aiMilitary(state, faction) {
+  let savingForFleet = false;
   const armies = state.armies.filter((a) => a.factionId === faction.id);
+
+  // Sending every army at the nearest enemy leaves nothing behind, and a
+  // faction with neighbours on three sides loses its towns behind its own
+  // army's back. With more than one host, the nearest one stays home.
+  let guard = null;
+  let guardHome = null;
+  if (armies.length > 1) {
+    const home = threatenedCity(state, faction);
+    if (home) {
+      guard = armies.reduce((closest, army) => {
+        const distance = Math.abs(army.col - home.col) + Math.abs(army.row - home.row);
+        const bestDistance = Math.abs(closest.col - home.col) + Math.abs(closest.row - home.row);
+        return distance < bestDistance ? army : closest;
+      });
+      guardHome = home;
+    }
+  }
   for (const army of armies) {
+    if (army === guard) {
+      // Standing on the town it is guarding is the whole job.
+      if (army.col !== guardHome.col || army.row !== guardHome.row) {
+        stepArmyTowards(state, army, guardHome);
+      }
+      continue;
+    }
     // A fleet already at sea navigates by the same rule; the pathfinder is
     // what knows the difference between a road and a sea lane.
     const walkable = army.embarked
@@ -152,16 +207,24 @@ function aiMilitary(state, faction) {
         embarkArmy(state, army.id);
         continue;
       }
-      // No fleet and no port: march for the nearest own harbour instead of
-      // standing still on the wrong side of the water.
+      // Already in a harbour and only short of coin, or waiting out a storm:
+      // hold. Marching off to look for a port it is already standing in was
+      // enough to keep an island faction at home for the whole game.
+      if (status.city) {
+        if (status.can || status.reason === 'gold') savingForFleet = true;
+        continue;
+      }
+      // Otherwise make for the nearest own harbour rather than standing still
+      // on the wrong side of the water.
       const port = nearestOwnPort(state, army, walkable);
-      if (port) {
+      if (port && (port.col !== army.col || port.row !== army.row)) {
         stepArmyTowards(state, army, port);
         continue;
       }
     }
     stepArmyTowards(state, army, target);
   }
+  return savingForFleet;
 }
 
 // The closest own harbour this army could actually walk to.
@@ -184,8 +247,8 @@ function nearestOwnPort(state, army, walkable) {
 export function aiTakeTurn(state, faction) {
   // Movement first: a fleet that is needed this turn should not find the
   // treasury already spent on another batch of recruits.
-  aiMilitary(state, faction);
-  aiEconomy(state, faction);
+  const savingForFleet = aiMilitary(state, faction);
+  aiEconomy(state, faction, savingForFleet);
 }
 
 export function aiTakeAllTurns(state) {

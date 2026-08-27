@@ -78,6 +78,8 @@ export function createInitialState() {
         units: { ...units },
         morale: MORALE_START,
         exhaustion: 0,
+        // Nobody starts as a veteran; that has to be earned in the field.
+        experience: 0,
         // Every army starts on foot; it only puts to sea once it takes ship.
         embarked: false,
         name: rosters.length > 1 ? `${faction.name} ${label} ${index + 1}` : `${faction.name} ${label}`,

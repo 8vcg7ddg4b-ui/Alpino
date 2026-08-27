@@ -6,6 +6,8 @@ import {
   EXHAUSTION_REST_IN_CITY, EXHAUSTION_PER_BATTLE,
   GARRISON_MORALE, GARRISON_EXHAUSTION,
   MAX_WALL_LEVEL, wallLevelInfo, wallDefenceMultiplier,
+  MAX_EXPERIENCE, EXPERIENCE_PER_BATTLE, EXPERIENCE_FOR_WIN,
+  experienceBonus, experienceStars, starMarks, starTitle,
   SHIP_COST, NAVAL_MOVEMENT, EXHAUSTION_PER_SEA_MOVE,
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_DEFENCE_MULTIPLIER,
 } from './data.js';
@@ -84,7 +86,10 @@ function weightedCondition(armies, garrison, stat) {
   }
   if (garrison) {
     const count = unitTotalCount(garrison);
-    weighted += (stat === 'morale' ? GARRISON_MORALE : GARRISON_EXHAUSTION) * count;
+    // Garrisons are levies: a fixed standard of morale, rested, and green.
+    const garrisonValue = stat === 'morale' ? GARRISON_MORALE
+      : stat === 'exhaustion' ? GARRISON_EXHAUSTION : 0;
+    weighted += garrisonValue * count;
     men += count;
   }
   return men > 0 ? weighted / men : fallback;
@@ -96,6 +101,17 @@ export function adjustMorale(army, delta) {
 
 export function adjustExhaustion(army, delta) {
   army.exhaustion = clamp((army.exhaustion ?? 0) + delta, 0, 100);
+}
+
+// Was eine Armee aus einer Schlacht mitnimmt. Wer gewinnt, lernt mehr - aber
+// auch der Geschlagene, der überlebt, hat etwas gelernt.
+export function awardExperience(army, won) {
+  const before = experienceStars(army.experience);
+  army.experience = clamp(
+    (army.experience || 0) + EXPERIENCE_PER_BATTLE + (won ? EXPERIENCE_FOR_WIN : 0),
+    0, MAX_EXPERIENCE
+  );
+  return experienceStars(army.experience) > before;
 }
 
 export function cityWallLevel(city) {
@@ -161,7 +177,7 @@ function retreatArmy(state, defeated, fromCol, fromRow) {
 function recordBattle(state, opts) {
   const {
     attackerFaction, defenderFaction, result, kind, city, col, row, combined,
-    aftermath, naval, amphibious, weather,
+    aftermath, naval, amphibious, weather, attackerExperience, defenderExperience,
   } = opts;
   const report = {
     id: makeId('battle'),
@@ -172,6 +188,10 @@ function recordBattle(state, opts) {
     combined: !!combined,
     naval: !!naval,
     amphibious: !!amphibious,
+    attackerExperience: attackerExperience ?? null,
+    defenderExperience: defenderExperience ?? null,
+    attackerVeterancy: result.attackerVeterancy,
+    defenderVeterancy: result.defenderVeterancy,
     weatherKey: weather ? weather.key : null,
     weatherName: weather ? weather.name : null,
     weatherIcon: weather ? weather.icon : null,
@@ -230,6 +250,11 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
   const amphibious = !!army.embarked && !atSea;
   const wallLevel = cityIsEnemy ? cityWallLevel(city) : 0;
   const sky = weatherBattleModifiers(state, destCol, destRow);
+  // The garrison is a levy and brings no veterancy, so it only dilutes what
+  // the field armies have learned.
+  const defenceExperience = weightedCondition(
+    defendingArmies, garrisonJoins ? city.garrison : null, 'experience'
+  );
 
   return {
     city,
@@ -246,6 +271,8 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
     wallLevel,
     wallName: wallLevel ? wallLevelInfo(wallLevel).name : null,
     weather: sky.weather,
+    attackerExperience: army.experience || 0,
+    defenceExperience,
     kind: garrisonJoins ? 'city' : 'army',
     modifiers: {
       attackerMorale: army.morale,
@@ -258,6 +285,8 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       defenderMultiplier: atSea ? SEA_DEFENCE_MULTIPLIER : 1,
       // Storming a shore straight off the ships is the hardest attack there is.
       attackerMultiplier: amphibious ? AMPHIBIOUS_ATTACK_MULTIPLIER : 1,
+      attackerVeterancy: experienceBonus(army.experience),
+      defenderVeterancy: experienceBonus(defenceExperience),
       ...sky.modifiers,
     },
   };
@@ -306,6 +335,10 @@ export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) 
     amphibious: defence.amphibious,
     walled: defence.walled,
     weather: defence.weather,
+    attackerExperience: defence.attackerExperience,
+    defenderExperience: defence.defenceExperience,
+    attackerVeterancy: defence.modifiers.attackerVeterancy,
+    defenderVeterancy: defence.modifiers.defenderVeterancy,
     arrivalExhaustion,
   };
 
@@ -338,6 +371,7 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   let capturedCity = false;
   let bounced = false;
   const reports = [];
+  const promotions = [];
 
   // Settles what becomes of a beaten defending army: it falls back with its
   // survivors, and is only lost if it is wiped out or has nowhere to go.
@@ -371,9 +405,13 @@ export function resolveTileCombat(state, army, destCol, destRow) {
 
     adjustExhaustion(army, EXHAUSTION_PER_BATTLE);
     adjustMorale(army, result.outcome === 'attacker' ? MORALE_AFTER_WIN : MORALE_AFTER_LOSS);
+    if (awardExperience(army, result.outcome === 'attacker')) {
+      promotions.push(army);
+    }
     for (const defender of defendingArmies) {
       adjustExhaustion(defender, EXHAUSTION_PER_BATTLE);
       adjustMorale(defender, result.outcome === 'defender' ? MORALE_AFTER_WIN : MORALE_AFTER_LOSS);
+      if (awardExperience(defender, result.outcome === 'defender')) promotions.push(defender);
     }
 
     let aftermath;
@@ -413,6 +451,8 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       naval: defence.atSea,
       amphibious: defence.amphibious,
       weather: defence.weather,
+      attackerExperience: defence.attackerExperience,
+      defenderExperience: defence.defenceExperience,
       aftermath,
     }));
   }
@@ -430,6 +470,7 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       attackerUnits = result.attackerSurvivors;
       adjustExhaustion(army, EXHAUSTION_PER_BATTLE);
       adjustMorale(army, result.outcome === 'attacker' ? MORALE_AFTER_WIN : MORALE_AFTER_LOSS);
+      if (awardExperience(army, result.outcome === 'attacker')) promotions.push(army);
       if (result.outcome === 'attacker') {
         capturedCity = true;
         reports.push(recordBattle(state, {
@@ -457,6 +498,14 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     // defenseless against a follow-up attack the same turn.
     city.garrison = { legionary: 30 };
     city.population = Math.round(city.population * 0.92);
+  }
+
+  // A promotion is worth saying out loud; it changes how the army fights from
+  // here on.
+  for (const promoted of promotions) {
+    if (!state.armies.includes(promoted)) continue;
+    logMsg(state, `${starMarks(promoted.experience)} ${promoted.name} steigt auf: `
+      + `${starTitle(promoted.experience)}.`);
   }
 
   army.units = attackerUnits;
@@ -575,6 +624,13 @@ export function raiseArmyFromGarrison(state, cityId) {
     (a) => a.factionId === city.factionId && a.col === city.col && a.row === city.row
   );
   if (existing) {
+    // Recruits dilute veterans: the army that takes them in is less practised
+    // than it was, in proportion to how many green men joined it.
+    const veterans = unitTotalCount(existing.units);
+    const recruits = unitTotalCount(city.garrison);
+    if (veterans + recruits > 0) {
+      existing.experience = ((existing.experience || 0) * veterans) / (veterans + recruits);
+    }
     for (const key of UNIT_ORDER) existing.units[key] = (existing.units[key] || 0) + (city.garrison[key] || 0);
     city.garrison = {};
     logMsg(state, `${faction.name}: Verstärkung aus ${city.name} schließt sich der Armee an.`);
@@ -584,8 +640,9 @@ export function raiseArmyFromGarrison(state, cityId) {
   const newArmy = {
     id: makeId('army'), factionId: city.factionId, col: city.col, row: city.row,
     movement: 0, maxMovement: MAX_MOVEMENT, units: { ...city.garrison },
-    // Fresh out of the barracks: rested, and steady from having been paid.
-    morale: GARRISON_MORALE, exhaustion: 0,
+    // Fresh out of the barracks: rested, steady from having been paid, and
+    // with nothing at all behind them.
+    morale: GARRISON_MORALE, exhaustion: 0, experience: 0,
     name: `${faction.name} Armee`,
   };
   state.armies.push(newArmy);

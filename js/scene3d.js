@@ -1,4 +1,4 @@
-import { TILE_TYPES, settlementTier, WALL_LEVELS } from './data.js';
+import { TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars } from './data.js';
 import { unitTotalCount, factionById } from './state.js';
 
 export const TILE_SIZE = 6;
@@ -589,68 +589,179 @@ function buildFortification(kind, scale) {
   return ring;
 }
 
-function buildCityGroup(city) {
-  const group = new THREE.Group();
-  // A große Stadt towers over a Dorf; being the seat of a faction adds a
-  // little more on top of whatever tier the settlement belongs to.
-  const scale = settlementTier(city.size).modelScale * (city.capital ? 1.12 : 1);
+// --- Siedlungen ----------------------------------------------------------
+// Ein Dorf, eine Stadt und eine große Stadt sollen sich schon an der
+// Silhouette unterscheiden lassen, nicht erst am Maßstab: Rundhütten mit
+// Strohdach, ein Rechteckbau mit Walmdach, ein Tempel mit Säulen und Giebel.
 
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(2.6 * scale, 2.2 * scale, 2.6 * scale),
-    new THREE.MeshStandardMaterial({ color: '#cbb98c', roughness: 0.8 })
-  );
-  base.position.y = 1.1 * scale;
-  group.add(base);
+const CITY_MATERIALS = {
+  plaster: new THREE.MeshStandardMaterial({ color: '#d8c9a3', roughness: 0.85 }),
+  timber: new THREE.MeshStandardMaterial({ color: '#8a6a45', roughness: 1 }),
+  thatch: new THREE.MeshStandardMaterial({ color: '#b39456', roughness: 1 }),
+  marble: new THREE.MeshStandardMaterial({ color: '#eee6d2', roughness: 0.55 }),
+  wood: new THREE.MeshStandardMaterial({ color: '#5a4127', roughness: 1 }),
+  gold: new THREE.MeshStandardMaterial({ color: '#d9b451', roughness: 0.4, metalness: 0.35 }),
+};
+
+// Ein Haus mit Walmdach. Das Dach trägt die Fraktionsfarbe - es ist das, was
+// aus der Vogelperspektive zu sehen ist.
+function addHouse(group, tinted, x, z, width, depth, height, rotation) {
+  const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), CITY_MATERIALS.plaster);
+  body.position.set(x, height / 2, z);
+  body.rotation.y = rotation;
+  group.add(body);
 
   const roof = new THREE.Mesh(
-    new THREE.ConeGeometry(2 * scale, 1.8 * scale, 4),
+    new THREE.ConeGeometry(Math.max(width, depth) * 0.78, height * 0.62, 4),
+    // Each roof gets its own material: they are tinted per faction, and a
+    // shared one would repaint every city on the map at once.
     new THREE.MeshStandardMaterial({ color: '#b5432f', roughness: 0.6 })
   );
-  roof.position.y = 2.2 * scale + 0.9 * scale;
-  roof.rotation.y = Math.PI / 4;
+  roof.position.set(x, height + height * 0.31, z);
+  roof.rotation.y = rotation + Math.PI / 4;
+  roof.scale.set(1, 1, Math.min(1, depth / Math.max(0.001, width)) * 1.1);
   group.add(roof);
+  tinted.push(roof);
+  return roof;
+}
 
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.06, 0.06, 3 * scale, 5),
-    new THREE.MeshStandardMaterial({ color: '#3a2c1d' })
+// Eine Rundhütte mit Strohdach - das Bild, das ein Dorf abgeben soll.
+function addHut(group, x, z, radius, height) {
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius * 1.06, height, 8),
+    CITY_MATERIALS.timber
   );
-  pole.position.y = 2.2 * scale + 1.9 * scale;
+  body.position.set(x, height / 2, z);
+  group.add(body);
+  const roof = new THREE.Mesh(
+    new THREE.ConeGeometry(radius * 1.35, height * 0.95, 8),
+    CITY_MATERIALS.thatch
+  );
+  roof.position.set(x, height + height * 0.47, z);
+  group.add(roof);
+}
+
+// Podium, Säulen, Gebälk, Giebel: ein Tempel, der als Tempel zu erkennen ist.
+function addTemple(group, tinted, x, z, width, rotation) {
+  const temple = new THREE.Group();
+  const depth = width * 0.62;
+  const columnHeight = width * 0.52;
+
+  const podium = new THREE.Mesh(
+    new THREE.BoxGeometry(width, width * 0.14, depth),
+    CITY_MATERIALS.marble
+  );
+  podium.position.y = width * 0.07;
+  temple.add(podium);
+
+  const columns = 6;
+  const columnGeometry = new THREE.CylinderGeometry(width * 0.045, width * 0.05, columnHeight, 7);
+  for (let i = 0; i < columns; i++) {
+    const front = i < columns / 2;
+    const along = (i % (columns / 2)) / (columns / 2 - 1) - 0.5;
+    const column = new THREE.Mesh(columnGeometry, CITY_MATERIALS.marble);
+    column.position.set(along * width * 0.72, width * 0.14 + columnHeight / 2,
+      (front ? 1 : -1) * depth * 0.34);
+    temple.add(column);
+  }
+
+  const entablature = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 0.92, width * 0.1, depth * 0.86),
+    CITY_MATERIALS.marble
+  );
+  entablature.position.y = width * 0.14 + columnHeight + width * 0.05;
+  temple.add(entablature);
+
+  // Der Giebel: eine vierseitige Spitze, auf einer Achse flachgedrückt, damit
+  // sie als Dreiecksgiebel und nicht als Zeltdach liest.
+  const pediment = new THREE.Mesh(
+    new THREE.ConeGeometry(width * 0.55, width * 0.3, 4),
+    new THREE.MeshStandardMaterial({ color: '#c65a41', roughness: 0.6 })
+  );
+  pediment.position.y = width * 0.14 + columnHeight + width * 0.25;
+  pediment.rotation.y = Math.PI / 4;
+  pediment.scale.set(1, 1, depth / width * 1.15);
+  temple.add(pediment);
+  tinted.push(pediment);
+
+  temple.position.set(x, 0, z);
+  temple.rotation.y = rotation;
+  group.add(temple);
+}
+
+// Ein Feldzeichen: Stange, Banner in der Fraktionsfarbe, vergoldete Spitze.
+function addStandard(group, tinted, height, bannerWidth) {
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.07, height, 6),
+    CITY_MATERIALS.wood
+  );
+  pole.position.y = height / 2;
   group.add(pole);
 
-  const flag = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.1 * scale, 0.7 * scale),
-    new THREE.MeshStandardMaterial({ color: '#999', side: THREE.DoubleSide })
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), CITY_MATERIALS.gold);
+  finial.position.y = height + 0.1;
+  group.add(finial);
+
+  const banner = new THREE.Mesh(
+    new THREE.PlaneGeometry(bannerWidth, bannerWidth * 0.72),
+    new THREE.MeshStandardMaterial({ color: '#999', side: THREE.DoubleSide, roughness: 0.85 })
   );
-  flag.position.set(0.6 * scale, 2.2 * scale + 2.9 * scale, 0);
-  group.add(flag);
+  banner.position.set(bannerWidth / 2, height - bannerWidth * 0.5, 0);
+  group.add(banner);
+  tinted.push(banner);
+  return banner;
+}
+
+function buildCityGroup(city) {
+  const group = new THREE.Group();
+  const tier = settlementTier(city.size);
+  const scale = tier.modelScale * (city.capital ? 1.12 : 1);
+  const tinted = [];
+  const rng = seededRandomFactory(city.col * 733 + city.row * 197 + 11);
+
+  if (city.size === 'village') {
+    // Ein Weiler: eine größere Hütte, ein paar kleinere darum.
+    addHut(group, 0, 0, 0.85 * scale, 1.15 * scale);
+    for (let i = 0; i < 3; i++) {
+      const angle = (i / 3) * Math.PI * 2 + rng() * 0.7;
+      addHut(group, Math.cos(angle) * 1.7 * scale, Math.sin(angle) * 1.7 * scale,
+        0.52 * scale, 0.78 * scale);
+    }
+    // Am Dorf ist das Banner das Einzige, was die Zugehörigkeit zeigt - es
+    // muss also von weitem zu sehen sein.
+    addStandard(group, tinted, 3.6 * scale, 1.15 * scale);
+  } else {
+    const large = city.size === 'large';
+    // Die Halle in der Mitte, quer gestellt, damit sie nicht wie ein Würfel
+    // wirkt.
+    // Die Halle nach hinten, damit der Tempel in der Standardansicht davor
+    // steht und nicht dahinter verschwindet.
+    addHouse(group, tinted, 0, -0.85 * scale, 2.7 * scale, 1.7 * scale, 1.5 * scale, 0);
+    const houses = large ? 7 : 5;
+    const ring = (large ? 2.6 : 2.3) * scale;
+    for (let i = 0; i < houses; i++) {
+      // Die Häuser weichen dem Tempel im Süden aus.
+      const angle = (i / houses) * Math.PI * 2 + (large ? 2.0 : 0.4);
+      const width = (0.85 + rng() * 0.5) * scale;
+      addHouse(group, tinted,
+        Math.cos(angle) * ring, Math.sin(angle) * ring,
+        width, width * 0.72, (0.75 + rng() * 0.45) * scale, angle);
+    }
+    // Innerhalb des Mauerrings (halbe Spannweite 2,2 · scale), sonst steht der
+    // Tempel vor den Toren.
+    if (large) addTemple(group, tinted, 0, 1.35 * scale, 2.1 * scale, 0);
+    addStandard(group, tinted, (large ? 4.6 : 3.8) * scale, (large ? 1.3 : 1.05) * scale);
+  }
 
   const label = makeLabelSprite(city.name, { scale: city.capital ? 1.15 : 0.95 });
-  // Big towns get outbuildings, so the three tiers read apart at a glance.
-  const outbuildings = Math.round(settlementTier(city.size).modelScale * 3);
-  for (let i = 0; i < outbuildings; i++) {
-    const angle = (i / Math.max(1, outbuildings)) * Math.PI * 2 + 0.6;
-    const hut = new THREE.Mesh(
-      new THREE.BoxGeometry(0.9 * scale, 0.8 * scale, 0.9 * scale),
-      new THREE.MeshStandardMaterial({ color: '#c3b184', roughness: 0.9 })
-    );
-    hut.position.set(Math.cos(angle) * 1.9 * scale, 0.4 * scale, Math.sin(angle) * 1.9 * scale);
-    hut.rotation.y = angle;
-    group.add(hut);
-  }
-  label.position.y = 2.2 * scale + 4.6 * scale;
+  label.position.y = (city.size === 'village' ? 4.2 : city.size === 'large' ? 6.6 : 5.6) * scale;
   group.add(label);
 
-  // Three rings of fortification, one per stage, all built up front and shown
-  // according to how far the settlement has got. A palisade has to read as
-  // stakes and a stone wall as masonry - a recoloured box would not.
-  const walls = WALL_LEVELS.map((stage) => {
-    const ring = buildFortification(stage.key, scale);
-    ring.visible = false;
-    group.add(ring);
-    return ring;
-  });
-
-  return { group, roof, flag, label, walls };
+  // Die Befestigungen entstehen erst, wenn sie gebaut sind: die meisten Orte
+  // haben keine, und jedes ungenutzte Modell kostet Zeichenaufrufe.
+  return {
+    group, label, tinted, scale, walls: [null, null, null],
+  };
 }
 
 function tierForCount(count) {
@@ -789,7 +900,14 @@ function syncArmyGroup(state, army, entry) {
   group.userData.banner.material.color.set(faction.color);
 
   if (group.userData.label) group.remove(group.userData.label);
-  const label = makeLabelSprite(String(unitTotalCount(army.units)), { fontSize: 40, scale: 0.85 });
+  // Strength, and the stars it has earned - both belong on the counter itself.
+  const stars = experienceStars(army.experience);
+  const caption = stars
+    ? `${unitTotalCount(army.units)} ${'★'.repeat(stars)}`
+    : String(unitTotalCount(army.units));
+  const label = makeLabelSprite(caption, {
+    fontSize: 40, scale: 0.85, color: stars ? '#ffe9a8' : '#ffffff',
+  });
   label.position.y = afloat ? 4.2 : 3.6;
   group.add(label);
   group.userData.label = label;
@@ -826,11 +944,18 @@ export function syncEntities(state) {
       cityGroups.set(city.id, entry);
     }
     const faction = factionById(state, city.factionId);
-    entry.roof.material.color.set(faction.color);
-    entry.flag.material.color.set(faction.color);
-    // Only the highest stage that actually stands is shown.
-    if (entry.walls) {
-      entry.walls.forEach((ring, index) => { ring.visible = (city.wallLevel || 0) === index + 1; });
+    // Roofs, pediments and banners all carry the owner's colour; the walls and
+    // the stonework stay stone.
+    for (const part of entry.tinted) part.material.color.set(faction.color);
+
+    // Only the stage that actually stands is built, and only when it is built.
+    const level = city.wallLevel || 0;
+    for (let index = 0; index < entry.walls.length; index++) {
+      if (index + 1 === level && !entry.walls[index]) {
+        entry.walls[index] = buildFortification(WALL_LEVELS[index].key, entry.scale);
+        entry.group.add(entry.walls[index]);
+      }
+      if (entry.walls[index]) entry.walls[index].visible = index + 1 === level;
     }
   }
 

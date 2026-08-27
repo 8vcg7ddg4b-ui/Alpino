@@ -1,6 +1,7 @@
 import {
   UNIT_ORDER, UNIT_TYPES, settlementTier, garrisonCapacity, TILE_TYPES,
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
+  starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST,
 } from './data.js';
 import {
@@ -133,6 +134,12 @@ function modifierNotesHTML(info) {
   }
   // The report stores the weather flattened, the forecast passes the object;
   // both describe the same sky.
+  for (const [side, value] of [['Angreifer', info.attackerVeterancy], ['Verteidiger', info.defenderVeterancy]]) {
+    if (!(value > 1.001)) continue;
+    const experience = side === 'Angreifer' ? info.attackerExperience : info.defenderExperience;
+    notes.push(`<span class="mod-note mod-vet">${starMarks(experience)} ${side}: +${
+      Math.round((value - 1) * 100)}% aus Erfahrung</span>`);
+  }
   const sky = info.weather || (info.weatherKey ? weatherInfo(info.weatherKey) : null);
   const scaled = Object.entries(info.unitScale || sky?.unitScale || {})
     .map(([unit, scale]) => `${UNIT_TYPES[unit].name} ${Math.round((scale - 1) * 100)}%`);
@@ -205,6 +212,28 @@ function conditionBarHTML(name, value, scale, tone) {
     </div>`;
 }
 
+// Sterne, was sie einbringen, und wie weit es zum nächsten ist.
+function veterancyHTML(army) {
+  const experience = army.experience || 0;
+  const stars = experienceStars(experience);
+  const next = EXPERIENCE_THRESHOLDS[stars];
+  const bonus = Math.round(stars * 12);
+  const progress = next
+    ? Math.round(((experience - (EXPERIENCE_THRESHOLDS[stars - 1] || 0))
+      / (next - (EXPERIENCE_THRESHOLDS[stars - 1] || 0))) * 100)
+    : 100;
+  return `
+    <div class="vet-row">
+      <span class="vet-stars" title="${escapeHTML(starTitle(experience))}">${starMarks(experience)}</span>
+      <span class="vet-title">${escapeHTML(starTitle(experience))}</span>
+      <span class="vet-bonus">${bonus ? `+${bonus}% Kampfkraft` : 'noch ohne Bonus'}</span>
+    </div>
+    <div class="vet-track" title="${next ? `${Math.round(experience)} von ${next} Erfahrung`
+    : `Höchststufe (${MAX_EXPERIENCE})`}">
+      <span class="vet-fill" style="width:${Math.max(0, Math.min(100, progress))}%"></span>
+    </div>`;
+}
+
 const EMBARK_REASONS = {
   noCity: 'Nur in einer eigenen Hafenstadt kann eine Armee an Bord gehen.',
   noPort: 'Diese Stadt liegt nicht am Meer.',
@@ -235,13 +264,16 @@ function renderSelectedArmy(state, army) {
     <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(army.name)}
       ${army.embarked ? '<span class="afloat-tag">⛵ Flotte</span>' : ''}</h3>
     <p class="muted">${escapeHTML(faction.name)} · Bewegung: ${army.movement} / ${army.maxMovement}</p>
+    ${veterancyHTML(army)}
     <div class="cond-block">
       ${conditionBarHTML('Moral', army.morale ?? 100, MORALE_SCALE, 'morale')}
       ${conditionBarHTML('Erschöpfung', army.exhaustion ?? 0, EXHAUSTION_SCALE, 'fatigue')}
     </div>
     <div class="unit-list">${unitBreakdownHTML(army.units)}</div>
     ${canDisband
-      ? `<button class="disband-btn" data-army="${army.id}">🏰 In ${escapeHTML(city.name)} auflösen – Garnison verstärken</button>`
+      ? `<button class="disband-btn" data-army="${army.id}">🏰 In ${escapeHTML(city.name)} auflösen – Garnison verstärken
+          ${experienceStars(army.experience)
+    ? '<small>Die Erfahrung der Armee geht dabei verloren.</small>' : ''}</button>`
       : ''}
     ${embarkHTML(state, army)}
     <p class="hint">Grüne Felder: freie Bewegung · Orange: vom Feind kontrolliert
@@ -391,8 +423,9 @@ export function terrainPanelHTML(state, tile) {
   if (army) {
     const owner = factionById(state, army.factionId);
     occupants.push(`<span class="dot" style="background:${owner.color}"></span>
-      ${escapeHTML(army.name)} <em>${unitTotalCount(army.units).toLocaleString('de-DE')} Mann${
-      army.embarked ? ', zur See' : ''}</em>`);
+      ${escapeHTML(army.name)} <span class="vet-stars">${starMarks(army.experience)}</span>
+      <em>${unitTotalCount(army.units).toLocaleString('de-DE')} Mann${
+  army.embarked ? ', zur See' : ''}</em>`);
   }
 
   const notes = [];

@@ -35,7 +35,13 @@ export const UNIT_ORDER = ['legionary', 'cavalry', 'archer'];
 export const FACTIONS = [
   { id: 'rom', name: 'Rom', color: '#c0392b', isPlayer: true },
   { id: 'karthago', name: 'Karthago', color: '#2c3e8c', isPlayer: false },
-  { id: 'gallier', name: 'Gallier', color: '#27632a', isPlayer: false },
+  // Der keltische Ruf gründet auf dem Ansturm des Fußvolks mit dem langen
+  // Schwert - viel Infanterie, wenig anderes.
+  {
+    id: 'gallier', name: 'Gallier', color: '#27632a', isPlayer: false,
+    startingArmy: { legionary: 380, cavalry: 110, archer: 50 },
+    armyLabel: 'Heerbann',
+  },
   { id: 'griechen', name: 'Griechen', color: '#7a4fae', isPlayer: false },
   // The tribes field a great mass of foot: no siege train, few horse and
   // fewer bows, but more men in the line than anyone else brings.
@@ -45,7 +51,20 @@ export const FACTIONS = [
     // foot, with horse and bows as an afterthought.
     startingArmy: { legionary: 360, cavalry: 100, archer: 80 },
     armyLabel: 'Heerhaufen',
-
+  },
+  // Auf der Insel, also von Anfang an auf Schiffe angewiesen. Ihre Stärke ist
+  // der Streitwagen - im Spiel die Reiterei.
+  {
+    id: 'britannier', name: 'Britannier', color: '#d97b2e', isPlayer: false,
+    startingArmy: { legionary: 300, cavalry: 150, archer: 90 },
+    armyLabel: 'Kriegsschar',
+  },
+  // Die iberischen Stämme kämpfen aus der Ferne: Schleuderer und Speerwerfer
+  // statt geschlossener Linie.
+  {
+    id: 'iberer', name: 'Iberer', color: '#b5397f', isPlayer: false,
+    startingArmy: { legionary: 250, cavalry: 100, archer: 190 },
+    armyLabel: 'Kriegerbund',
   },
   { id: 'neutral', name: 'Unabhängig', color: '#7f7f7f', isPlayer: false, isNeutral: true },
 ];
@@ -137,10 +156,10 @@ export const CITY_DEFS = [
   // --- Unabhängig: Hispanien ---------------------------------------------
   { name: 'Gades', lon: -6.29, lat: 36.53, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Malaca', lon: -4.42, lat: 36.72, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Corduba', lon: -4.78, lat: 37.89, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Numantia', lon: -2.45, lat: 41.81, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Corduba', lon: -4.78, lat: 37.89, factionId: 'iberer', capital: false, size: 'city' },
+  { name: 'Numantia', lon: -2.45, lat: 41.81, factionId: 'iberer', capital: true, size: 'large' },
   { name: 'Tarraco', lon: 1.25, lat: 41.12, factionId: 'neutral', capital: false, size: 'city' },
-  { name: 'Olisipo', lon: -9.14, lat: 38.72, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Olisipo', lon: -9.14, lat: 38.72, factionId: 'iberer', capital: false, size: 'village' },
   // --- Unabhängig: Gallien, Alpen, Italien -------------------------------
   { name: 'Massilia', lon: 5.37, lat: 43.30, factionId: 'neutral', capital: false, size: 'large' },
   { name: 'Argentorate', lon: 7.75, lat: 48.58, factionId: 'neutral', capital: false, size: 'village' },
@@ -173,8 +192,10 @@ export const CITY_DEFS = [
   { name: 'Olbia', lon: 31.90, lat: 46.63, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Chersonesos', lon: 33.49, lat: 44.61, factionId: 'neutral', capital: false, size: 'village' },
   // --- Unabhängig: Britannien --------------------------------------------
-  { name: 'Londinium', lon: -0.13, lat: 51.51, factionId: 'neutral', capital: false, size: 'city' },
-  { name: 'Eburacum', lon: -1.08, lat: 53.96, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Camulodunum', lon: 0.90, lat: 51.89, factionId: 'britannier', capital: true, size: 'city' },
+  { name: 'Londinium', lon: -0.13, lat: 51.51, factionId: 'britannier', capital: false, size: 'city' },
+  { name: 'Eburacum', lon: -1.08, lat: 53.96, factionId: 'britannier', capital: false, size: 'village' },
+  { name: 'Isca Dumnoniorum', lon: -3.53, lat: 50.72, factionId: 'britannier', capital: false, size: 'village' },
 ];
 
 // Morale and exhaustion scale a force's fighting power. Both are 0-100 and
@@ -232,6 +253,41 @@ export function wallLevelName(level) {
 export function wallDefenceMultiplier(level) {
   const info = wallLevelInfo(level);
   return info ? info.defence : 1;
+}
+
+// --- Erfahrung -----------------------------------------------------------
+// Armeen lernen im Feld. Drei Sterne sind das Höchste; jeder Stern ist echte
+// Kampfkraft, keine Verzierung.
+export const EXPERIENCE_THRESHOLDS = [20, 55, 110];
+export const MAX_STARS = EXPERIENCE_THRESHOLDS.length;
+export const MAX_EXPERIENCE = EXPERIENCE_THRESHOLDS[MAX_STARS - 1];
+export const EXPERIENCE_PER_BATTLE = 8;
+export const EXPERIENCE_FOR_WIN = 8;
+// Wie viel Kampfkraft ein Stern bringt.
+export const EXPERIENCE_BONUS_PER_STAR = 0.12;
+
+export const STAR_TITLES = ['Aushebung', 'Erprobt', 'Kampferfahren', 'Veteranen'];
+
+export function experienceStars(experience) {
+  let stars = 0;
+  for (const threshold of EXPERIENCE_THRESHOLDS) {
+    if ((experience || 0) >= threshold) stars++;
+  }
+  return stars;
+}
+
+export function experienceBonus(experience) {
+  return 1 + experienceStars(experience) * EXPERIENCE_BONUS_PER_STAR;
+}
+
+export function starTitle(experience) {
+  return STAR_TITLES[experienceStars(experience)];
+}
+
+// ★★☆ - gefüllte Sterne für das Erreichte, leere für das Mögliche.
+export function starMarks(experience) {
+  const stars = experienceStars(experience);
+  return '★'.repeat(stars) + '☆'.repeat(MAX_STARS - stars);
 }
 
 export const MAX_MOVEMENT = 9;

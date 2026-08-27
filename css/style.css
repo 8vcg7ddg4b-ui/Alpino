@@ -1207,3 +1207,37 @@ html, body {
   opacity: 0.24;
   background: linear-gradient(180deg, #e0a33c, #f0cf86 70%, #eebb5d);
 }
+
+/* --- Erfahrung ----------------------------------------------------------- */
+.vet-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 4px;
+  font-size: 0.8rem;
+}
+.vet-stars {
+  color: var(--gold);
+  letter-spacing: 2px;
+  font-size: 0.9rem;
+}
+.vet-title { color: var(--text); }
+.vet-bonus { margin-left: auto; color: var(--muted); font-size: 0.74rem; }
+
+.vet-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #3a2c22;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.vet-fill { display: block; height: 100%; background: var(--gold); }
+
+.mod-note.mod-vet { color: #f0d98a; border-color: #6b5528; }
+
+.disband-btn small {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 3px;
+}

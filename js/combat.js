@@ -35,6 +35,9 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     // The weather does not care which side you are on: wet bowstrings are wet
     // for everyone, and in fog nobody gets an opening volley.
     unitScale = null, openingVolley = true,
+    // Veterans hit harder, and the report has to be able to say by how much -
+    // so this is its own multiplier rather than folded into another.
+    attackerVeterancy = 1, defenderVeterancy = 1,
   } = modifiers;
 
   // A forecast passes its own seed and must not touch the campaign's battle
@@ -72,8 +75,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     const volley = ranged;
     ranged = false;
 
-    atkPower *= attackerCondition * attackerMultiplier;
-    defPower *= defenderCondition * wallMultiplier * defenderMultiplier;
+    atkPower *= attackerCondition * attackerMultiplier * attackerVeterancy;
+    defPower *= defenderCondition * wallMultiplier * defenderMultiplier * defenderVeterancy;
 
     const variance = () => 0.8 + rng() * 0.4;
     const dmgToDefender = atkPower * 0.55 * variance();
@@ -125,6 +128,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     attackerMultiplier,
     unitScale,
     openingVolley,
+    attackerVeterancy,
+    defenderVeterancy,
     attackerMorale,
     attackerExhaustion,
     defenderMorale,
@@ -174,6 +179,8 @@ function situationSeed(attacker, defender, terrainType, modifiers) {
   mix(modifiers.defenderMultiplier ?? 1);
   mix(modifiers.attackerMultiplier ?? 1);
   mix(modifiers.openingVolley === false ? 7 : 3);
+  mix(modifiers.attackerVeterancy ?? 1);
+  mix(modifiers.defenderVeterancy ?? 1);
   for (const key of UNIT_ORDER) mix((modifiers.unitScale && modifiers.unitScale[key]) ?? 1);
   return h >>> 0;
 }
@@ -238,6 +245,8 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     attackerMultiplier: modifiers.attackerMultiplier ?? 1,
     unitScale: modifiers.unitScale ?? null,
     openingVolley: modifiers.openingVolley !== false,
+    attackerVeterancy: modifiers.attackerVeterancy ?? 1,
+    defenderVeterancy: modifiers.defenderVeterancy ?? 1,
     attackerMorale: modifiers.attackerMorale ?? 100,
     attackerExhaustion: modifiers.attackerExhaustion ?? 0,
     defenderMorale: modifiers.defenderMorale ?? 100,
