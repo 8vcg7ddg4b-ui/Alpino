@@ -145,6 +145,7 @@ function cameraDirection() {
 }
 
 function applyCamera() {
+  updateWeatherForCamera();
   const dist = BASE_DISTANCE / cam.zoom;
   const target = new THREE.Vector3(worldX(cam.col), 0, worldZ(cam.row));
   camera.position.copy(target).addScaledVector(cameraDirection(), dist);
@@ -967,8 +968,12 @@ export function setMapMode(mode, state) {
   // Daylight adds up to about 1.7 and washes a flat colour out to near white.
   // The tactical view trades most of the sun for even light, keeping just
   // enough of it that the relief still shows.
-  if (ambientLight) ambientLight.intensity = tactical ? 0.78 : 0.65;
-  if (sunLight) sunLight.intensity = tactical ? 0.32 : 1.05;
+  if (ambientLight) {
+    ambientLight.intensity = tactical ? 0.78 : (weatherLook && weatherLook.ambient) || 0.65;
+  }
+  if (sunLight) {
+    sunLight.intensity = tactical ? 0.32 : (weatherLook && weatherLook.sun) || 1.05;
+  }
   if (terrainMesh) {
     terrainMesh.material.map = tactical ? null : noiseTexture;
     terrainMesh.material.needsUpdate = true;
@@ -983,6 +988,218 @@ export function setMapMode(mode, state) {
   }
   if (deepSeaMesh) deepSeaMesh.material.color.set(tactical ? '#2b435c' : '#1d3f66');
   return mapMode;
+}
+
+// --- Wetter --------------------------------------------------------------
+// Über der ganzen Karte gleichzeitig Regen und Schnee zu zeichnen wäre weder
+// machbar noch lesbar. Gezeigt wird deshalb das Wetter dort, wo die Kamera
+// hinsieht - fährt man im Winter nach Norden, fängt es an zu schneien.
+
+const WEATHER_LOOKS = {
+  rain: {
+    count: 2400, colour: '#bcd8f0', size: 0.5, fall: 78, drift: 10, streak: 3.4,
+    sky: '#7d8b98', fog: 0.62, ambient: 0.5, sun: 0.55,
+  },
+  storm: {
+    count: 3200, colour: '#d2e4f2', size: 0.55, fall: 96, drift: 30, streak: 4.6,
+    sky: '#5c6873', fog: 0.5, ambient: 0.42, sun: 0.38, lightning: true,
+  },
+  snow: {
+    count: 1900, colour: '#ffffff', size: 1.15, fall: 13, drift: 7, streak: 0,
+    sky: '#c3ccd4', fog: 0.7, ambient: 0.82, sun: 0.6,
+  },
+  sand: {
+    count: 3400, colour: '#f4dfae', size: 1.45, fall: 5, drift: 74, streak: 0,
+    sky: '#c9a86a', fog: 0.34, ambient: 0.7, sun: 0.5,
+  },
+  fog: {
+    count: 0, sky: '#c8ccc9', fog: 0.3, ambient: 0.85, sun: 0.35,
+  },
+  clouds: {
+    count: 0, sky: '#a9bccb', fog: 1.35, ambient: 0.6, sun: 0.72,
+  },
+  heat: {
+    count: 900, colour: '#fff0cc', size: 1.5, fall: -6, drift: 11, streak: 0,
+    sky: '#d9c48d', fog: 0.85, ambient: 0.78, sun: 1.2,
+  },
+};
+
+const WEATHER_VOLUME = 240;
+const WEATHER_HEIGHT = 120;
+let weatherPoints = null;
+let weatherLook = null;
+let weatherEffect = null;
+let weatherVelocity = null;
+let weatherVisible = true;
+let weatherLookup = null;
+let lightningTimer = 0;
+let onWeatherChange = null;
+
+export function setWeatherVisualsEnabled(enabled) {
+  weatherVisible = !!enabled;
+  if (!weatherVisible) applyWeatherEffect(null);
+  else if (weatherLookup) updateWeatherForCamera();
+}
+
+export function setWeatherReporter(callback) {
+  onWeatherChange = callback;
+}
+
+function disposeWeatherPoints() {
+  if (!weatherPoints) return;
+  scene.remove(weatherPoints);
+  weatherPoints.geometry.dispose();
+  weatherPoints.material.dispose();
+  weatherPoints = null;
+  weatherVelocity = null;
+}
+
+// Rain falls as streaks and snow as flakes, which needs two different objects:
+// a point cannot be stretched, and a line segment cannot be round. Everything
+// else about them - the volume, the wrapping, the per-mote speed - is shared.
+function buildWeatherPoints(look) {
+  disposeWeatherPoints();
+  if (!look.count) return;
+  const streaked = look.streak > 0;
+  const perMote = streaked ? 2 : 1;
+  const positions = new Float32Array(look.count * perMote * 3);
+  weatherVelocity = new Float32Array(look.count);
+  const rng = seededRandomFactory(613);
+
+  for (let i = 0; i < look.count; i++) {
+    const x = (rng() - 0.5) * WEATHER_VOLUME;
+    const y = rng() * WEATHER_HEIGHT;
+    const z = (rng() - 0.5) * WEATHER_VOLUME;
+    const base = i * perMote * 3;
+    positions[base] = x;
+    positions[base + 1] = y;
+    positions[base + 2] = z;
+    if (streaked) {
+      positions[base + 3] = x + look.drift * 0.02;
+      positions[base + 4] = y - look.streak;
+      positions[base + 5] = z;
+    }
+    // Each mote falls at its own pace, which is what stops the curtain from
+    // reading as one sheet coming down.
+    weatherVelocity[i] = 0.65 + rng() * 0.7;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const shared = { color: look.colour, transparent: true, opacity: 0.7, depthWrite: false };
+  weatherPoints = streaked
+    ? new THREE.LineSegments(geometry, new THREE.LineBasicMaterial(shared))
+    : new THREE.Points(geometry, new THREE.PointsMaterial({
+      ...shared, size: look.size, sizeAttenuation: true,
+    }));
+  weatherPoints.frustumCulled = false;
+  scene.add(weatherPoints);
+}
+
+function applyWeatherEffect(effect) {
+  if (weatherEffect === effect) return;
+  weatherEffect = effect;
+  const look = (effect && WEATHER_LOOKS[effect]) || null;
+  weatherLook = look;
+  buildWeatherPoints(look || { count: 0 });
+
+  // Clear weather is the scene's own daylight; anything else tints the sky,
+  // draws the fog in and takes the edge off the sun.
+  const skyColour = look && look.sky ? look.sky : SKY_COLOR;
+  scene.background = new THREE.Color(skyColour);
+  const fogScale = look && look.fog ? look.fog : 1;
+  scene.fog = new THREE.Fog(skyColour, BASE_DISTANCE * 2.6 * fogScale, BASE_DISTANCE * 8 * fogScale);
+  if (ambientLight) {
+    ambientLight.intensity = mapMode === 'tactical' ? 0.78 : (look && look.ambient ? look.ambient : 0.65);
+  }
+  if (sunLight) {
+    sunLight.intensity = mapMode === 'tactical' ? 0.32 : (look && look.sun ? look.sun : 1.05);
+  }
+  if (weatherPoints || look) startAnimationLoop();
+}
+
+function updateWeatherForCamera() {
+  if (!weatherLookup) return;
+  const col = Math.max(0, Math.min(mapCols - 1, Math.round(cam.col)));
+  const row = Math.max(0, Math.min(mapRows - 1, Math.round(cam.row)));
+  const weather = weatherLookup(col, row);
+  if (onWeatherChange) onWeatherChange(weather, col, row);
+  applyWeatherEffect(weatherVisible ? weather.effect : null);
+}
+
+// The scene asks the game what the weather is rather than being told, so
+// panning the camera is enough to change what falls out of the sky.
+export function setWeatherSource(lookup) {
+  weatherLookup = lookup;
+  updateWeatherForCamera();
+}
+
+function advanceWeatherPoints(dt) {
+  if (!weatherPoints || !weatherLook) return false;
+  const positions = weatherPoints.geometry.attributes.position;
+  const array = positions.array;
+  const streaked = weatherLook.streak > 0;
+  const perMote = streaked ? 2 : 1;
+  const half = WEATHER_VOLUME / 2;
+  const rising = weatherLook.fall < 0;
+
+  for (let i = 0; i < weatherVelocity.length; i++) {
+    const speed = weatherVelocity[i];
+    const dx = weatherLook.drift * speed * dt;
+    const dy = -weatherLook.fall * speed * dt;
+    const dz = weatherLook.drift * 0.35 * speed * dt;
+    const base = i * perMote * 3;
+
+    for (let v = 0; v < perMote; v++) {
+      array[base + v * 3] += dx;
+      array[base + v * 3 + 1] += dy;
+      array[base + v * 3 + 2] += dz;
+    }
+
+    const y = array[base + 1];
+    if (rising ? y > WEATHER_HEIGHT : y < 0) {
+      // Back to the other end of the volume, at a fresh spot, so the curtain
+      // never thins out where the wind has been carrying it.
+      const nx = (Math.random() - 0.5) * WEATHER_VOLUME;
+      const nz = (Math.random() - 0.5) * WEATHER_VOLUME;
+      const ny = rising ? 0 : WEATHER_HEIGHT;
+      for (let v = 0; v < perMote; v++) {
+        array[base + v * 3] = nx + (v ? weatherLook.drift * 0.02 : 0);
+        array[base + v * 3 + 1] = ny - (v ? weatherLook.streak : 0);
+        array[base + v * 3 + 2] = nz;
+      }
+      continue;
+    }
+
+    const x = array[base];
+    const z = array[base + 2];
+    const wrapX = x > half ? -WEATHER_VOLUME : x < -half ? WEATHER_VOLUME : 0;
+    const wrapZ = z > half ? -WEATHER_VOLUME : z < -half ? WEATHER_VOLUME : 0;
+    if (wrapX || wrapZ) {
+      for (let v = 0; v < perMote; v++) {
+        array[base + v * 3] += wrapX;
+        array[base + v * 3 + 2] += wrapZ;
+      }
+    }
+  }
+  positions.needsUpdate = true;
+
+  // The curtain travels with the view and widens as the camera pulls back, so
+  // it covers what is on screen at any zoom without simulating the whole map.
+  const spread = Math.max(1, Math.min(2.8, (BASE_DISTANCE / cam.zoom) / 180));
+  weatherPoints.position.set(worldX(cam.col), 0, worldZ(cam.row));
+  weatherPoints.scale.set(spread, 1, spread);
+
+  if (weatherLook.lightning && sunLight) {
+    lightningTimer -= dt;
+    if (lightningTimer <= 0) {
+      lightningTimer = 3 + Math.random() * 7;
+      sunLight.intensity = 2.6;
+    } else {
+      sunLight.intensity += (weatherLook.sun - sunLight.intensity) * Math.min(1, dt * 6);
+    }
+  }
+  return true;
 }
 
 export function render() {
@@ -1068,8 +1285,9 @@ function startAnimationLoop() {
     last = now;
     const marching = advanceAnimations(dt);
     const effecting = advanceEffects(dt);
+    const raining = advanceWeatherPoints(dt);
     render();
-    if (marching || effecting) {
+    if (marching || effecting || raining) {
       animationFrameId = requestAnimationFrame(step);
       return;
     }

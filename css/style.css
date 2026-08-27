@@ -1155,3 +1155,55 @@ html, body {
   cursor: pointer;
 }
 .set-reset:hover { color: var(--gold); border-color: var(--gold); }
+
+/* --- Wetter -------------------------------------------------------------- */
+.weather-pill {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.weather-pill.weather-harsh {
+  border-color: #6b7f96;
+  color: #cfe0ee;
+}
+
+.mod-note.mod-weather { color: #cfe0ee; border-color: #4a5c6e; }
+
+/* Ein Dunstschleier über der Karte. Der Nebel der Szene wirkt erst in der
+   Ferne; das Wetter muss aber auch im Nahen zu spüren sein. */
+#weatherVeil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.4s ease, background 1.4s ease;
+  mix-blend-mode: normal;
+}
+#weatherVeil[data-effect="clear"] { opacity: 0; }
+#weatherVeil[data-effect="clouds"] {
+  opacity: 0.16;
+  background: linear-gradient(180deg, #6c7d8c, #8c9aa5);
+}
+#weatherVeil[data-effect="rain"] {
+  opacity: 0.3;
+  background: linear-gradient(180deg, #35485c, #4a6076 60%, #55697c);
+}
+#weatherVeil[data-effect="storm"] {
+  opacity: 0.45;
+  background: linear-gradient(180deg, #1d2733, #33445a 55%, #2a3745);
+}
+#weatherVeil[data-effect="snow"] {
+  opacity: 0.3;
+  background: linear-gradient(180deg, #c8d4de, #e3ecf3);
+}
+#weatherVeil[data-effect="fog"] {
+  opacity: 0.5;
+  background: linear-gradient(180deg, #b9c0bd 20%, #d7dcd8);
+}
+#weatherVeil[data-effect="sand"] {
+  opacity: 0.52;
+  background: linear-gradient(180deg, #b98c3f, #d8b062 45%, #c99a4c);
+}
+#weatherVeil[data-effect="heat"] {
+  opacity: 0.24;
+  background: linear-gradient(180deg, #e0a33c, #f0cf86 70%, #eebb5d);
+}

@@ -40,6 +40,13 @@ export const SETTINGS = [
     fallback: 'balanced',
   },
   {
+    key: 'weatherEffects',
+    label: 'Wettereffekte anzeigen',
+    help: 'Regen, Schnee und Sandsturm auf der Karte. Die Regeln gelten in jedem Fall.',
+    type: 'toggle',
+    fallback: true,
+  },
+  {
     key: 'chronicle',
     label: 'Bilder im Startbildschirm wechseln',
     help: 'Die Chronik der Republik läuft von selbst weiter; sonst blättert man mit ‹ ›.',

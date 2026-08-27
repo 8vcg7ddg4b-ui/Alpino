@@ -4,6 +4,7 @@ import {
   CAPITAL_WALL_LEVEL,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
+import { rollWeather } from './weather.js';
 import { generateMap } from './mapgen.js';
 
 let nextId = 1;
@@ -95,8 +96,14 @@ export function createInitialState() {
     }
   }
 
+  // The weather seed travels with the game, so an undo restores the same
+  // spell of rain rather than rolling a new one.
+  const weatherSeed = Math.floor(Math.random() * 1e9);
+
   return {
     turn: 1,
+    weatherSeed,
+    weather: rollWeather(1, null, weatherSeed),
     map,
     factions,
     cities,

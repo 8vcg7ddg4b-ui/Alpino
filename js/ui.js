@@ -8,6 +8,7 @@ import {
   isWaterTile, isCoastalCity,
 } from './state.js';
 import { embarkStatus, cityWallLevel, nextWallLevel } from './actions.js';
+import { calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName } from './weather.js';
 
 const TERRAIN_NAMES = {
   plains: 'Ebene', forest: 'Wald', hills: 'Hügel', mountain: 'Gebirge', water: 'Wasser',
@@ -129,6 +130,16 @@ function modifierNotesHTML(info) {
   if (info.naval || (info.defenderMultiplier ?? 1) < 1) {
     notes.push(`<span class="mod-note mod-sea">⛵ Kampf auf See: −${
       Math.round((1 - (info.defenderMultiplier ?? 1)) * 100)}% Verteidigung</span>`);
+  }
+  // The report stores the weather flattened, the forecast passes the object;
+  // both describe the same sky.
+  const sky = info.weather || (info.weatherKey ? weatherInfo(info.weatherKey) : null);
+  const scaled = Object.entries(info.unitScale || sky?.unitScale || {})
+    .map(([unit, scale]) => `${UNIT_TYPES[unit].name} ${Math.round((scale - 1) * 100)}%`);
+  const noVolley = info.openingVolley === false || sky?.volley === false;
+  if (sky && (scaled.length || noVolley)) {
+    notes.push(`<span class="mod-note mod-weather">${sky.icon} ${escapeHTML(sky.name)}: ${
+      [...scaled, noVolley ? 'kein Fernkampf-Auftakt' : null].filter(Boolean).join(', ')}</span>`);
   }
   return notes.length ? `<p class="report-meta mod-notes">${notes.join('')}</p>` : '';
 }
@@ -344,6 +355,18 @@ function terrainFactsHTML(state, col, row) {
   }
   facts.push(['Lage', tilePosition(col, row).label]);
 
+  const weather = weatherAt(state, col, row);
+  const consequences = [];
+  if (weather.moveCost) consequences.push(`+${weather.moveCost} Bewegung je Feld`);
+  if (weather.wear) consequences.push(`Erschöpfung +${weather.wear} je Runde`);
+  if (weather.spirit) consequences.push(`Moral ${weather.spirit} je Runde`);
+  if (weather.volley === false) consequences.push('kein Fernkampf-Auftakt');
+  for (const [unit, scale] of Object.entries(weather.unitScale || {})) {
+    consequences.push(`${UNIT_TYPES[unit].name} ${Math.round((scale - 1) * 100)}%`);
+  }
+  facts.push([`${weather.icon} ${weather.name}`,
+    consequences.length ? consequences.join(' · ') : 'ohne Auswirkung']);
+
   return facts.map(([label, value]) =>
     `<div class="terrain-fact"><span>${label}</span><strong>${escapeHTML(value)}</strong></div>`).join('');
 }
@@ -381,8 +404,12 @@ export function terrainPanelHTML(state, tile) {
   if (city && isCoastalCity(state, city)) notes.push('Hafen – hier kann eine Armee in See stechen.');
   if (city && cityWallLevel(city)) notes.push(`Befestigt: ${wallLevelName(cityWallLevel(city))}.`);
 
-  // Whose ground this is in the sense that matters for movement.
-  const holders = state.armies.filter((a) => !!a.embarked === (type === 'water')
+  // Whose ground this is in the sense that matters for movement. Only hostile
+  // control is worth saying - your own army holding the ground next to your
+  // own capital is not news.
+  const player = playerFaction(state);
+  const holders = state.armies.filter((a) => a.factionId !== player.id
+    && !!a.embarked === (type === 'water')
     && Math.abs(a.col - col) + Math.abs(a.row - row) === 1);
   if (holders.length) {
     const names = [...new Set(holders.map((a) => factionById(state, a.factionId).name))];
@@ -391,6 +418,8 @@ export function terrainPanelHTML(state, tile) {
       + 'geht es nur ins Freie oder in den Angriff.');
   }
   if (type === 'desert') notes.push('Wüste – zäh zu durchqueren und ohne Deckung.');
+  const sky = weatherAt(state, col, row);
+  if (sky.note && sky.effect) notes.push(`${zoneName(zoneOf(row, type === 'water'))}: ${sky.note}`);
   if (type === 'mountain') notes.push('Gebirge – für Armeen unpassierbar.');
 
   return `
@@ -404,7 +433,10 @@ export function terrainPanelHTML(state, tile) {
 }
 
 export function renderUI(state, handlers) {
-  document.getElementById('turnLabel').textContent = `Runde ${state.turn}`;
+  const { season, year } = calendarOfTurn(state.turn);
+  document.getElementById('turnLabel').textContent =
+    `${season.icon} ${season.name} ${year} v. Chr.`;
+  document.getElementById('turnLabel').title = `Runde ${state.turn}`;
   const player = playerFaction(state);
   document.getElementById('goldLabel').textContent = `💰 ${player.gold} Gold`;
 

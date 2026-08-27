@@ -51,10 +51,45 @@ Spiel starten" klicken.
 
 Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 
+## Jahreszeiten und Wetter
+
+Vier Runden sind ein Jahr; das Spiel beginnt im **Frühling 264 v. Chr.**, dem
+Jahr, in dem der Erste Punische Krieg ausbricht. Die Kopfzeile zeigt Jahreszeit
+und Jahr, daneben das Wetter dort, wo die Kamera gerade hinsieht.
+
+Weil die Karte von der Nordsee bis in die Sahara reicht, gibt es kein einziges
+Wetter für alles: Vier Klimazonen (Nordeuropa, Mitteleuropa, Mittelmeerraum,
+Wüstengürtel), jeweils für Land und See getrennt, würfeln jede Runde ihr eigenes
+Wetter aus einer jahreszeitlichen Verteilung – und behalten es gerne eine Weile.
+Es kann also über Germanien schneien, während in Africa die Hitze steht.
+
+Jeder Wettertyp hat Regelwirkung; **klar** und **bewölkt** sind die beiden, die
+absichtlich nichts tun, damit die anderen etwas bedeuten:
+
+| Wetter | Bewegung | Erschöpfung | Kampf |
+| --- | --- | --- | --- |
+| 🌧️ Regen | +1 je Feld | +4 | Kavallerie −15 %, Bogen −30 %, kein Fernkampf-Auftakt |
+| 🌊 Sturm (See) | +1 je Feld | +6 | Kavallerie −15 %, Bogen −40 %; **kein Auslaufen aus dem Hafen** |
+| ❄️ Schnee | +2 je Feld | +7, Moral −3 | Kavallerie und Bogen −20 % |
+| 🌫️ Nebel | – | – | Bogen −20 %, kein Fernkampf-Auftakt |
+| 🔥 Gluthitze | +1 je Feld | +9 | Legionäre −8 % |
+| 🌪️ Sandsturm | +2 je Feld | +7, Moral −2 | Bogen −50 %, kein Fernkampf-Auftakt |
+
+In einer eigenen Stadt zehrt das Wetter nur zu 40 %. Die KI kämpft mit
+denselben Bedingungen – sie rechnet ihre Angriffe mit demselben Wetter durch
+wie du.
+
+Sichtbar ist das Ganze als Regen- und Sturmschlieren, Schneeflocken, Sandkörnern
+und Hitzeflimmern über der Karte, dazu Licht, Nebel und ein Dunstschleier je
+Wetter. Gezeigt wird immer das Wetter dort, wo die Kamera steht – fährt man im
+Winter nach Norden, fängt es an zu schneien. Die Optik lässt sich in den
+Einstellungen abschalten; die Regeln gelten weiter.
+
 ## Startbildschirm
 
 Das Menü führt ins Spiel, zu den **Einstellungen** (Ton, Kampfvorschau,
-Marschgeschwindigkeit, Kartensicht beim Start, Verhalten der Gegner, Bildwechsel)
+Marschgeschwindigkeit, Kartensicht beim Start, Verhalten der Gegner,
+Wettereffekte, Bildwechsel)
 und zu den Spielregeln. Alle Einstellungen wirken sofort und werden im Browser
 gespeichert; die KI-Haltung legt fest, wie sicher sich die KI ihres Sieges sein
 muss, bevor sie einen Kampf überhaupt eingeht.
@@ -173,6 +208,7 @@ den Punkten durchblättern.
 - `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl
 - `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
+- `js/weather.js` – Kalender, Klimazonen, Wettertypen und ihre Regelwirkung
 - `js/settings.js` – Einstellungen: Schema, Speicherung, Einstellungsfenster
 - `js/chronicle.js` – die acht Chronikbilder als SVG-Silhouetten
 - `js/ui.js`, `js/input.js`, `js/main.js` – Seitenleiste, Eingabe, Startbildschirm, Bootstrap

@@ -103,6 +103,7 @@
     <header id="topbar">
       <div class="brand">🦅 <span>SPQR</span> <small>Rundenstrategie · 3D</small></div>
       <div id="turnLabel" class="pill">Runde 1</div>
+      <div id="weatherLabel" class="pill weather-pill" title="Wetter im gezeigten Ausschnitt"></div>
       <div id="goldLabel" class="pill">💰 0 Gold</div>
       <button id="undoBtn" class="icon-btn" title="Letzten Zug rückgängig machen" disabled>↩</button>
       <button id="mapModeBtn" class="icon-btn" title="Taktische Sicht: Gebiete nach Fraktionen">🗺</button>
@@ -116,6 +117,7 @@
     <main id="layout">
       <div id="mapWrap">
         <canvas id="gameCanvas"></canvas>
+        <div id="weatherVeil" data-effect="clear" aria-hidden="true"></div>
         <div id="mapHint">Ziehen zum Verschieben · zwei Finger zum Drehen und Zoomen · Armee antippen, dann Zielfeld wählen</div>
         <div id="toast" class="hidden"></div>
 

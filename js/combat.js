@@ -32,6 +32,9 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     attackerMorale = 100, attackerExhaustion = 0,
     defenderMorale = 100, defenderExhaustion = 0,
     wallMultiplier = 1, defenderMultiplier = 1, attackerMultiplier = 1, seed,
+    // The weather does not care which side you are on: wet bowstrings are wet
+    // for everyone, and in fog nobody gets an opening volley.
+    unitScale = null, openingVolley = true,
   } = modifiers;
 
   // A forecast passes its own seed and must not touch the campaign's battle
@@ -48,7 +51,7 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
   const rounds = [];
   const maxRounds = 12;
 
-  let ranged = true;
+  let ranged = openingVolley !== false;
   let outcome = null;
   let endedBy = 'erschöpft';
 
@@ -61,8 +64,10 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     for (const key of UNIT_ORDER) {
       const def = UNIT_TYPES[key];
       const rangedBonus = ranged && def.ranged ? 1.6 : 1;
-      atkPower += (attacker[key] || 0) * def.attack * rangedBonus;
-      defPower += (defender[key] || 0) * def.defense * (1 + terrainBonus * 0.15) * (ranged && def.ranged ? 1.4 : 1);
+      const conditions = (unitScale && unitScale[key]) || 1;
+      atkPower += (attacker[key] || 0) * def.attack * rangedBonus * conditions;
+      defPower += (defender[key] || 0) * def.defense * (1 + terrainBonus * 0.15)
+        * (ranged && def.ranged ? 1.4 : 1) * conditions;
     }
     const volley = ranged;
     ranged = false;
@@ -118,6 +123,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     wallMultiplier,
     defenderMultiplier,
     attackerMultiplier,
+    unitScale,
+    openingVolley,
     attackerMorale,
     attackerExhaustion,
     defenderMorale,
@@ -166,6 +173,8 @@ function situationSeed(attacker, defender, terrainType, modifiers) {
   mix(modifiers.wallMultiplier ?? 1);
   mix(modifiers.defenderMultiplier ?? 1);
   mix(modifiers.attackerMultiplier ?? 1);
+  mix(modifiers.openingVolley === false ? 7 : 3);
+  for (const key of UNIT_ORDER) mix((modifiers.unitScale && modifiers.unitScale[key]) ?? 1);
   return h >>> 0;
 }
 
@@ -227,6 +236,8 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     wallMultiplier: modifiers.wallMultiplier ?? 1,
     defenderMultiplier: modifiers.defenderMultiplier ?? 1,
     attackerMultiplier: modifiers.attackerMultiplier ?? 1,
+    unitScale: modifiers.unitScale ?? null,
+    openingVolley: modifiers.openingVolley !== false,
     attackerMorale: modifiers.attackerMorale ?? 100,
     attackerExhaustion: modifiers.attackerExhaustion ?? 0,
     defenderMorale: modifiers.defenderMorale ?? 100,

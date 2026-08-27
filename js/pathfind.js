@@ -1,5 +1,6 @@
 import { TILE_TYPES, SEA_MOVE_COST, ZOC_EXTRA_COST } from './data.js';
 import { armyAt, cityAt } from './state.js';
+import { weatherMoveCost } from './weather.js';
 
 const NEIGHBORS = [
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -27,7 +28,8 @@ function classifyTile(state, col, row, movingFactionId, embarked) {
     return { blocked: true };
   }
 
-  const cost = isSea ? SEA_MOVE_COST : tileDef.cost;
+  // Mud, snow and sand are paid for by the tile, the same way terrain is.
+  const cost = (isSea ? SEA_MOVE_COST : tileDef.cost) + weatherMoveCost(state, col, row);
   // Coming ashore is the end of the voyage, whether or not anyone contests it.
   const landing = embarked && !isSea;
 

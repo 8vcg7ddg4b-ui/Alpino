@@ -15,6 +15,9 @@ import {
   makeId, factionById, cityAt, armyAt, unitTotalCount, logMsg, playerFaction,
   isWaterTile, isCoastalCity, harbourTile,
 } from './state.js';
+import {
+  rollWeather, weatherAt, weatherInfo, weatherBattleModifiers, calendarOfTurn, zoneName,
+} from './weather.js';
 
 export function removeArmy(state, armyId) {
   const idx = state.armies.findIndex((a) => a.id === armyId);
@@ -158,7 +161,7 @@ function retreatArmy(state, defeated, fromCol, fromRow) {
 function recordBattle(state, opts) {
   const {
     attackerFaction, defenderFaction, result, kind, city, col, row, combined,
-    aftermath, naval, amphibious,
+    aftermath, naval, amphibious, weather,
   } = opts;
   const report = {
     id: makeId('battle'),
@@ -169,6 +172,9 @@ function recordBattle(state, opts) {
     combined: !!combined,
     naval: !!naval,
     amphibious: !!amphibious,
+    weatherKey: weather ? weather.key : null,
+    weatherName: weather ? weather.name : null,
+    weatherIcon: weather ? weather.icon : null,
     aftermath: aftermath || null,
     cityName: city ? city.name : null,
     attackerFactionId: attackerFaction.id,
@@ -182,6 +188,8 @@ function recordBattle(state, opts) {
     wallMultiplier: result.wallMultiplier,
     defenderMultiplier: result.defenderMultiplier,
     attackerMultiplier: result.attackerMultiplier,
+    unitScale: result.unitScale,
+    openingVolley: result.openingVolley,
     attackerMorale: result.attackerMorale,
     attackerExhaustion: result.attackerExhaustion,
     defenderMorale: result.defenderMorale,
@@ -221,6 +229,7 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
   const atSea = isWaterTile(state, destCol, destRow);
   const amphibious = !!army.embarked && !atSea;
   const wallLevel = cityIsEnemy ? cityWallLevel(city) : 0;
+  const sky = weatherBattleModifiers(state, destCol, destRow);
 
   return {
     city,
@@ -236,6 +245,7 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
     amphibious,
     wallLevel,
     wallName: wallLevel ? wallLevelInfo(wallLevel).name : null,
+    weather: sky.weather,
     kind: garrisonJoins ? 'city' : 'army',
     modifiers: {
       attackerMorale: army.morale,
@@ -248,6 +258,7 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       defenderMultiplier: atSea ? SEA_DEFENCE_MULTIPLIER : 1,
       // Storming a shore straight off the ships is the hardest attack there is.
       attackerMultiplier: amphibious ? AMPHIBIOUS_ATTACK_MULTIPLIER : 1,
+      ...sky.modifiers,
     },
   };
 }
@@ -294,6 +305,7 @@ export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) 
     naval: defence.atSea,
     amphibious: defence.amphibious,
     walled: defence.walled,
+    weather: defence.weather,
     arrivalExhaustion,
   };
 
@@ -400,6 +412,7 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       combined: defence.combined,
       naval: defence.atSea,
       amphibious: defence.amphibious,
+      weather: defence.weather,
       aftermath,
     }));
   }
@@ -504,6 +517,9 @@ export function embarkArmy(state, armyId) {
 
   const berth = harbourTile(state, city, true);
   if (!berth) return { ok: false, reason: 'blocked' };
+  if (weatherAt(state, berth.col, berth.row).blocksEmbark) {
+    return { ok: false, reason: 'storm' };
+  }
 
   faction.gold -= SHIP_COST;
   army.col = berth.col;
@@ -525,7 +541,11 @@ export function embarkStatus(state, army) {
   if (!isCoastalCity(state, city)) return { can: false, reason: 'noPort', city };
   const faction = factionById(state, army.factionId);
   if (!faction || faction.gold < SHIP_COST) return { can: false, reason: 'gold', city };
-  if (!harbourTile(state, city, true)) return { can: false, reason: 'blocked', city };
+  const berth = harbourTile(state, city, true);
+  if (!berth) return { can: false, reason: 'blocked', city };
+  if (weatherAt(state, berth.col, berth.row).blocksEmbark) {
+    return { can: false, reason: 'storm', city };
+  }
   return { can: true, city };
 }
 
@@ -624,6 +644,46 @@ export function advanceWallConstruction(state) {
     logMsg(state, `${wallLevelInfo(city.wallLevel).name} von ${city.name} fertiggestellt.`);
   }
   return finished;
+}
+
+// What a season in the field costs. An army under snow or in the desert sun
+// wears down whether or not it meets an enemy; its own walls shelter it.
+export function applyWeather(state) {
+  const player = playerFaction(state);
+  const suffering = new Map();
+  for (const army of state.armies) {
+    const weather = weatherAt(state, army.col, army.row);
+    if (!weather.wear && !weather.spirit) continue;
+    const city = cityAt(state, army.col, army.row);
+    const shelter = city && city.factionId === army.factionId ? 0.4 : 1;
+    if (weather.wear) adjustExhaustion(army, weather.wear * shelter);
+    if (weather.spirit) adjustMorale(army, weather.spirit * shelter);
+    if (army.factionId === player.id && weather.wear >= 6) {
+      suffering.set(weather, (suffering.get(weather) || 0) + 1);
+    }
+  }
+  // Only the player's own hardship is worth a line in the log.
+  for (const [weather, count] of suffering) {
+    const subject = count === 1 ? 'Eine Armee Roms leidet' : `${count} Armeen Roms leiden`;
+    logMsg(state, `${weather.icon} ${subject} unter ${weather.name}.`);
+  }
+}
+
+// Rolls the next turn's weather and reports what the player can act on: a
+// storm season closing the sea matters more than a sunny day inland.
+export function advanceWeather(state) {
+  const previous = state.weather;
+  state.weather = rollWeather(state.turn, previous, state.weatherSeed);
+  const { season, year } = calendarOfTurn(state.turn);
+  const changes = [];
+  for (const [zone, key] of Object.entries(state.weather)) {
+    if (previous && previous[zone] === key) continue;
+    const weather = weatherInfo(key);
+    if (!weather.effect || weather.effect === 'clouds') continue;
+    changes.push(`${weather.icon} ${weather.name} über ${zoneName(zone)}`);
+  }
+  logMsg(state, `${season.icon} ${season.name} ${year} v. Chr.`
+    + (changes.length ? ` – ${changes.slice(0, 3).join(', ')}.` : ''));
 }
 
 // Armies that stayed put regain their edge; a city lets them recover fastest.

@@ -6,12 +6,13 @@ import { aiTakeAllTurns } from './ai.js';
 import {
   recruitUnit, raiseArmyFromGarrison, collectIncome, regenerateGarrisons,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
-  advanceWallConstruction, recoverArmies, embarkArmy,
+  advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
 } from './actions.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
   setMapMode, getMapMode, setMarchSpeed,
+  setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled,
 } from './scene3d.js';
 import { sfx, unlockAudio, toggleMuted, isMuted, stopMarch } from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
@@ -20,6 +21,7 @@ import {
   MARCH_SPEED_FACTORS, AI_STANCE_THRESHOLDS,
 } from './settings.js';
 import { setAiStance } from './ai.js';
+import { weatherAt, calendarOfTurn } from './weather.js';
 
 const canvas = document.getElementById('gameCanvas');
 const appEl = document.getElementById('app');
@@ -32,6 +34,7 @@ loadSettings();
 function applySettings() {
   setMarchSpeed(MARCH_SPEED_FACTORS[getSetting('marchSpeed')] ?? 1);
   setAiStance(AI_STANCE_THRESHOLDS[getSetting('aiStance')] ?? 0.5);
+  setWeatherVisualsEnabled(getSetting('weatherEffects'));
 }
 applySettings();
 
@@ -71,6 +74,7 @@ document.getElementById('settingsBody').addEventListener('click', (event) => {
   applySettings();
   paintSettings();
   refreshMuteButton();
+  if (state) setWeatherSource((col, row) => weatherAt(state, col, row));
   if (!isMuted()) sfx.select();
 });
 
@@ -107,6 +111,25 @@ function setupSidebarToggle() {
 
 // The tactical view is a way of looking at the same map, so the button says
 // which way you are looking at it right now.
+// Names the weather where the player is actually looking, with what it costs.
+function paintWeatherLabel(weather) {
+  // A tint over the whole map, which reads at any camera angle - the scene's
+  // own fog only bites at a distance, and a sandstorm has to be felt up close.
+  const veil = document.getElementById('weatherVeil');
+  if (veil) {
+    veil.dataset.effect = getSetting('weatherEffects') ? (weather.effect || 'clear') : 'clear';
+  }
+  const label = document.getElementById('weatherLabel');
+  if (!label || !state) return;
+  const { season } = calendarOfTurn(state.turn);
+  const price = [];
+  if (weather.moveCost) price.push(`+${weather.moveCost} Bew.`);
+  if (weather.wear) price.push(`+${weather.wear} Ersch.`);
+  label.textContent = `${weather.icon} ${weather.name}${price.length ? ` · ${price.join(' · ')}` : ''}`;
+  label.title = `${season.name}: ${weather.note || 'Kein besonderes Wetter.'}`;
+  label.classList.toggle('weather-harsh', !!weather.moveCost);
+}
+
 function refreshMapModeButton() {
   const button = document.getElementById('mapModeBtn');
   if (!button) return;
@@ -380,12 +403,18 @@ function endTurn() {
   collectIncome(state);
   regenerateGarrisons(state);
   advanceWallConstruction(state);
+  // The season that just passed is what wore the armies down; the next one is
+  // rolled once the turn has actually turned.
+  applyWeather(state);
   checkVictory(state);
   state.turn += 1;
+  advanceWeather(state);
   // Recovery is judged on the turn that just ended - an army that never spent
   // a movement point rested - so it runs before movement is replenished.
   recoverArmies(state);
   resetMovement(state);
+  // A new season means new weather; the scene has to be asked again.
+  setWeatherSource((col, row) => weatherAt(state, col, row));
   refresh();
 
   // AI turns can produce a whole string of battles. Surface only the most
@@ -566,6 +595,11 @@ function startNewGame() {
 
   if (getSetting('startMapMode') === 'tactical') setMapMode('tactical', state);
   refreshMapModeButton();
+
+  // The scene asks the game what the weather is wherever the camera looks, and
+  // reports back so the topbar can name it.
+  setWeatherReporter(paintWeatherLabel);
+  setWeatherSource((col, row) => weatherAt(state, col, row));
 
   const player = playerFaction(state);
   const capital = state.cities.find((c) => c.factionId === player.id && c.capital);
