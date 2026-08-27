@@ -76,8 +76,10 @@ export function createInitialState() {
       armies.push({
         id: makeId('army'),
         factionId: faction.id,
+        // Das Feld wird gleich vergeben; hier steht erst einmal der Heimatort.
         col: home.col,
-        row: home.row + (faction.id === 'rom' ? -1 : 1),
+        row: home.row,
+        home,
         movement: MAX_MOVEMENT,
         maxMovement: MAX_MOVEMENT,
         units: { ...units },
@@ -91,16 +93,36 @@ export function createInitialState() {
       });
     });
   }
-  // Nudge starting armies onto valid map tiles, and off the sea and the
-  // mountains if a capital happens to sit against one.
+  // Jedes Heer stellt sich vor seinen Heimatort - auf begehbaren Boden, nach
+  // Möglichkeit nicht in die Wüste und nicht auf ein Feld, das schon besetzt
+  // ist. Nur wenn ringsum nichts frei ist, steht es in der Stadt selbst.
+  const taken = new Set(cities.map((c) => `${c.col},${c.row}`));
+  const tileCost = (col, row) => {
+    if (col < 0 || col >= map.cols || row < 0 || row >= map.rows) return null;
+    const def = TILE_TYPES[map.tiles[row][col].type];
+    if (def.impassable) return null;
+    if (taken.has(`${col},${row}`)) return null;
+    return def.cost;
+  };
   for (const army of armies) {
-    army.row = Math.max(0, Math.min(map.rows - 1, army.row));
-    army.col = Math.max(0, Math.min(map.cols - 1, army.col));
-    if (TILE_TYPES[map.tiles[army.row][army.col].type].impassable) {
-      const capital = cities.find((c) => c.factionId === army.factionId && c.capital);
-      army.col = capital.col;
-      army.row = capital.row;
+    const home = army.home;
+    delete army.home;
+    // Rom blickt nach Norden, alle anderen nach Süden - sonst ist die
+    // Reihenfolge egal, es zählt das erste brauchbare Feld.
+    const order = army.factionId === 'rom'
+      ? [[0, -1], [0, 1], [1, 0], [-1, 0]]
+      : [[0, 1], [0, -1], [1, 0], [-1, 0]];
+    let best = null;
+    let bestCost = Infinity;
+    for (const [dc, dr] of order) {
+      const cost = tileCost(home.col + dc, home.row + dr);
+      if (cost === null || cost >= bestCost) continue;
+      bestCost = cost;
+      best = { col: home.col + dc, row: home.row + dr };
     }
+    army.col = best ? best.col : home.col;
+    army.row = best ? best.row : home.row;
+    taken.add(`${army.col},${army.row}`);
   }
 
   // The weather seed travels with the game, so an undo restores the same

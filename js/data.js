@@ -155,7 +155,7 @@ export const FACTIONS = [
   // Bogenschützen des Spiels, dafür wenig Reiterei.
   {
     id: 'ptolemaeer', name: 'Ptolemäer', color: '#12b5b0', isPlayer: false,
-    startingArmy: { infantry: 300, cavalry: 90, ranged: 160 },
+    startingArmy: { infantry: 300, cavalry: 90, ranged: 150 },
     armyLabel: 'Nilheer',
   },
   { id: 'neutral', name: 'Unabhängig', color: '#7f7f7f', isPlayer: false, isNeutral: true },
