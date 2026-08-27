@@ -1,4 +1,4 @@
-import { UNIT_TYPES, UNIT_ORDER, TILE_TYPES } from './data.js';
+import { UNIT_TYPES, UNIT_ORDER, TILE_TYPES, BATTLE_PREVIEW_SAMPLES } from './data.js';
 import { mulberry32 } from './prng.js';
 
 let battleSeed = 42;
@@ -31,10 +31,12 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
   const {
     attackerMorale = 100, attackerExhaustion = 0,
     defenderMorale = 100, defenderExhaustion = 0,
-    wallMultiplier = 1,
+    wallMultiplier = 1, defenderMultiplier = 1, attackerMultiplier = 1, seed,
   } = modifiers;
 
-  const rng = mulberry32(battleSeed++);
+  // A forecast passes its own seed and must not touch the campaign's battle
+  // sequence: previewing a fight may never change how that fight turns out.
+  const rng = mulberry32(seed === undefined ? battleSeed++ : seed);
   const attacker = cloneUnits(attackerUnitsIn);
   const defender = cloneUnits(defenderUnitsIn);
   const terrainBonus = (TILE_TYPES[terrainType] && TILE_TYPES[terrainType].defense) || 0;
@@ -65,8 +67,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     const volley = ranged;
     ranged = false;
 
-    atkPower *= attackerCondition;
-    defPower *= defenderCondition * wallMultiplier;
+    atkPower *= attackerCondition * attackerMultiplier;
+    defPower *= defenderCondition * wallMultiplier * defenderMultiplier;
 
     const variance = () => 0.8 + rng() * 0.4;
     const dmgToDefender = atkPower * 0.55 * variance();
@@ -114,6 +116,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     terrainType,
     terrainBonus,
     wallMultiplier,
+    defenderMultiplier,
+    attackerMultiplier,
     attackerMorale,
     attackerExhaustion,
     defenderMorale,
@@ -139,4 +143,93 @@ function applyDamage(units, dmg) {
     const casualties = Math.round((dmg * share) / UNIT_TYPES[key].hp);
     units[key] = Math.max(0, count - casualties);
   }
+}
+
+
+// A stable number for a given match-up, so the same forecast asked twice gives
+// the same answer instead of shimmering while the player reads it.
+function situationSeed(attacker, defender, terrainType, modifiers) {
+  let h = 2166136261;
+  const mix = (value) => {
+    h ^= Math.round(value * 1000) | 0;
+    h = Math.imul(h, 16777619);
+  };
+  for (const key of UNIT_ORDER) {
+    mix(attacker[key] || 0);
+    mix(defender[key] || 0);
+  }
+  mix(String(terrainType).length);
+  mix(modifiers.attackerMorale ?? 100);
+  mix(modifiers.attackerExhaustion ?? 0);
+  mix(modifiers.defenderMorale ?? 100);
+  mix(modifiers.defenderExhaustion ?? 0);
+  mix(modifiers.wallMultiplier ?? 1);
+  mix(modifiers.defenderMultiplier ?? 1);
+  mix(modifiers.attackerMultiplier ?? 1);
+  return h >>> 0;
+}
+
+// Plays the same battle through many times to answer the only question the
+// player actually has before committing: how likely is this, and what will it
+// cost? Runs on copies with its own seeds, so it changes nothing.
+export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, modifiers = {}, sampleCount) {
+  const samples = Math.max(1, sampleCount || BATTLE_PREVIEW_SAMPLES);
+  const base = situationSeed(attackerUnitsIn, defenderUnitsIn, terrainType, modifiers);
+
+  let wins = 0;
+  let attackerLoss = 0;
+  let defenderLoss = 0;
+  let attackerWipes = 0;
+  let defenderWipes = 0;
+  const attackerSurvivors = {};
+  const defenderSurvivors = {};
+  for (const key of UNIT_ORDER) {
+    attackerSurvivors[key] = 0;
+    defenderSurvivors[key] = 0;
+  }
+
+  let sample = null;
+  for (let i = 0; i < samples; i++) {
+    const result = resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, {
+      ...modifiers,
+      seed: (base + i * 0x9e3779b9) >>> 0,
+    });
+    if (result.outcome === 'attacker') wins++;
+    attackerLoss += result.attackerLossesPct;
+    defenderLoss += result.defenderLossesPct;
+    if (totalCount(result.attackerSurvivors) === 0) attackerWipes++;
+    if (totalCount(result.defenderSurvivors) === 0) defenderWipes++;
+    for (const key of UNIT_ORDER) {
+      attackerSurvivors[key] += result.attackerSurvivors[key] || 0;
+      defenderSurvivors[key] += result.defenderSurvivors[key] || 0;
+    }
+    if (i === 0) sample = result;
+  }
+
+  for (const key of UNIT_ORDER) {
+    attackerSurvivors[key] = Math.round(attackerSurvivors[key] / samples);
+    defenderSurvivors[key] = Math.round(defenderSurvivors[key] / samples);
+  }
+
+  return {
+    samples,
+    attackerWinChance: wins / samples,
+    attackerLossesPct: attackerLoss / samples,
+    defenderLossesPct: defenderLoss / samples,
+    attackerWipeChance: attackerWipes / samples,
+    defenderWipeChance: defenderWipes / samples,
+    attackerEngaged: cloneUnits(attackerUnitsIn),
+    defenderEngaged: cloneUnits(defenderUnitsIn),
+    attackerSurvivors,
+    defenderSurvivors,
+    terrainType,
+    terrainBonus: sample ? sample.terrainBonus : 0,
+    wallMultiplier: modifiers.wallMultiplier ?? 1,
+    defenderMultiplier: modifiers.defenderMultiplier ?? 1,
+    attackerMultiplier: modifiers.attackerMultiplier ?? 1,
+    attackerMorale: modifiers.attackerMorale ?? 100,
+    attackerExhaustion: modifiers.attackerExhaustion ?? 0,
+    defenderMorale: modifiers.defenderMorale ?? 100,
+    defenderExhaustion: modifiers.defenderExhaustion ?? 0,
+  };
 }

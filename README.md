@@ -48,8 +48,18 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 ## Bedienung
 
 - **Armee bewegen**: anklicken, dann ein grün markiertes Feld (freie Bewegung)
-  oder ein rot markiertes Feld (löst sofort einen Kampf aus) wählen. Die Armee
-  marschiert sichtbar die gefundene Route entlang.
+  oder ein rot markiertes Feld (Angriff) wählen. Die Armee marschiert sichtbar
+  die gefundene Route entlang.
+- **Kampfvorschau**: Vor jedem Angriff öffnet sich eine Vorschau mit Siegchance,
+  erwarteten Verlusten auf beiden Seiten und allen Modifikatoren (Gelände,
+  Stadtmauer, Landung vom Meer). „Abbrechen" lässt die Armee unverändert
+  stehen. Die Schätzung entsteht aus 60 durchgerechneten Schlachten und
+  verändert den späteren echten Kampf nicht.
+- **Schiffe**: In einer eigenen Hafenstadt kann eine Armee für 250 Gold
+  **in See stechen**. Auf dem Wasser hat sie 10 Bewegungspunkte statt 6; gelb
+  markierte Felder sind Landungen und beenden die Fahrt. Angriffe direkt vom
+  Schiff kosten 30 % Angriffskraft, auf offener See verteidigt es sich 25 %
+  schlechter. Nur so sind die Inseln (Caralis, Rhodos, Knossos) zu erreichen.
 - **Schlachtberichte**: Nach jedem Kampf öffnet sich ein Bericht mit Verlusten
   pro Einheitentyp, Geländevorteil und Rundenverlauf. Ältere Kämpfe lassen sich
   jederzeit über die Einträge in der Ereignisliste wieder öffnen (Esc schließt).
@@ -83,13 +93,21 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 
 ## Spielprinzip
 
-- Du spielst **Rom** gegen die KI-Fraktionen **Karthago**, die **Gallier** und
-  die **Griechen**, verteilt über eine stilisierte Europa-/Mittelmeerkarte
-  (Iberische Halbinsel, Alpen/Pyrenäen, italienischer Stiefel, Sizilien,
-  Griechenland, Nordafrika).
-- **24 Siedlungen**: 15 Städte und 9 Dörfer. Dörfer sind klein – wenig
-  Bevölkerung, schwache Garnison, halbes Grundeinkommen – aber leicht zu nehmen
-  und gute Sprungbretter. Neun davon gehören niemandem und sind frei zu erobern.
+- Du spielst **Rom** gegen die KI-Fraktionen **Karthago**, die **Gallier**, die
+  **Griechen** und die **Germanen**, verteilt über eine stilisierte Europa-/
+  Mittelmeerkarte (Iberische Halbinsel, Alpen/Pyrenäen, italienischer Stiefel,
+  Sizilien, Griechenland, Nordafrika, Nordsee und Germanien).
+- Die **Germanen** sitzen nördlich der Alpen in einem Waldgürtel, der jeden
+  Vormarsch verlangsamt. Sie führen keine stehende Armee, sondern einen
+  fußlastigen Heerhaufen – dafür stellt jede ihrer Siedlungen eine deutlich
+  größere Levy (Faktor 1,2 auf die Garnisonsstärke).
+- **31 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
+  Garnison, 1,7-faches Grundeinkommen), **Stadt** (Normalmaß) und **Dorf**
+  (klein, halbes Grundeinkommen – leicht zu nehmen und gute Sprungbretter).
+  Zwölf davon gehören niemandem und sind frei zu erobern; drei liegen auf
+  Inseln und sind nur mit Schiffen erreichbar.
+- Die KI rechnet vor jedem Angriff dieselbe Vorschau wie du und lässt sich auf
+  einen Kampf nur ein, wenn sie ihn voraussichtlich gewinnt.
 - Sieg: alle gegnerischen Fraktionen ausschalten. Niederlage: Rom verliert
   alle Städte und Armeen.
 
@@ -97,9 +115,12 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 
 - `js/data.js` – Einheiten-, Gelände- und Fraktionsdefinitionen, Kartengröße
 - `js/mapgen.js` / `js/state.js` – Europa-Küstenlinie & Kartengenerierung, Spielzustand
-- `js/pathfind.js` – Bewegungsreichweite (Dijkstra) inkl. Kampf-Zielfelder
-- `js/combat.js` – Kampfauflösung (mehrere Runden, Fernkampf-Bonus, Moral)
-- `js/actions.js` – Bewegen, Rekrutieren, Armee ausheben, Rundenwechsel
+- `js/pathfind.js` – Bewegungsreichweite (Dijkstra) inkl. Kampf-Zielfeldern
+  und Seewegen für eingeschiffte Armeen
+- `js/combat.js` – Kampfauflösung (mehrere Runden, Fernkampf-Bonus, Moral) und
+  die Vorschau-Simulation mit eigenem Zufallsstrom
+- `js/actions.js` – Bewegen, Einschiffen, Rekrutieren, Armee ausheben,
+  Rundenwechsel, Kampfvorschau
 - `js/ai.js` – einfache KI (Wirtschaft + Angriffsverhalten)
 - `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl

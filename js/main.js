@@ -1,12 +1,12 @@
 import { createInitialState, playerFaction } from './state.js';
-import { renderUI, battleReportHTML } from './ui.js';
+import { renderUI, battleReportHTML, battlePreviewHTML } from './ui.js';
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
 import { aiTakeAllTurns } from './ai.js';
 import {
   recruitUnit, raiseArmyFromGarrison, collectIncome, regenerateGarrisons,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
-  advanceWallConstruction, recoverArmies,
+  advanceWallConstruction, recoverArmies, embarkArmy,
 } from './actions.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
@@ -109,6 +109,7 @@ function undoLastAction() {
   state = { ...previous, map: state.map, reachable: null };
   stopMarch();
   sfx.undo();
+  hideBattlePreview();
   hideBattleReport();
   refresh();
 }
@@ -125,6 +126,32 @@ function showBattleReport(reportOrId) {
 
 function hideBattleReport() {
   reportOverlay.classList.add('hidden');
+}
+
+const previewOverlay = document.getElementById('battlePreview');
+let pendingAttack = null;
+
+function hideBattlePreview() {
+  previewOverlay.classList.add('hidden');
+  pendingAttack = null;
+}
+
+// The forecast, and the decision it exists for. Nothing has happened yet when
+// this opens: cancelling leaves the army exactly where it stood.
+function showBattlePreview(preview, confirm) {
+  if (!state) return;
+  document.getElementById('previewBody').innerHTML = battlePreviewHTML(state, preview);
+  const attackBtn = document.getElementById('previewAttack');
+  attackBtn.textContent = preview.unopposed ? '🚩 Einnehmen' : '⚔️ Angreifen';
+  pendingAttack = confirm;
+  previewOverlay.classList.remove('hidden');
+  attackBtn.focus();
+}
+
+function confirmPendingAttack() {
+  const run = pendingAttack;
+  hideBattlePreview();
+  if (run) run();
 }
 
 function refresh() {
@@ -158,6 +185,12 @@ function refresh() {
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
+    onEmbark: (armyId) => {
+      pushUndo();
+      const ok = embarkArmy(state, armyId).ok;
+      (ok ? sfx.embark : sfx.denied)();
+      refresh();
+    },
     onShowReport: showBattleReport,
   });
 
@@ -168,6 +201,7 @@ function endTurn() {
   // Ending the turn mid-march would let the AI move while the player's army is
   // still visibly walking, and the resulting sync would teleport it.
   if (!state || state.gameOver || isAnimating()) return;
+  hideBattlePreview();
   pushUndo();
   sfx.endTurn();
   const wallsBuilding = state.cities.filter((c) => c.walls === 'building').length;
@@ -340,7 +374,7 @@ function startNewGame() {
 
   // Input holds no reference to `state` itself, so it reads through a getter -
   // undo swaps the object wholesale.
-  setupInput(canvas, () => state, refresh, showBattleReport, pushUndo);
+  setupInput(canvas, () => state, refresh, showBattleReport, pushUndo, showBattlePreview);
   document.getElementById('endTurnBtn').addEventListener('click', endTurn);
   undoBtn.addEventListener('click', undoLastAction);
   observeMapSize();
@@ -363,8 +397,19 @@ document.getElementById('reportClose').addEventListener('click', hideBattleRepor
 reportOverlay.addEventListener('click', (e) => {
   if (e.target === reportOverlay) hideBattleReport();
 });
+
+document.getElementById('previewAttack').addEventListener('click', confirmPendingAttack);
+document.getElementById('previewCancel').addEventListener('click', hideBattlePreview);
+document.getElementById('previewClose').addEventListener('click', hideBattlePreview);
+previewOverlay.addEventListener('click', (e) => {
+  if (e.target === previewOverlay) hideBattlePreview();
+});
+
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') hideBattleReport();
+  if (e.key !== 'Escape') return;
+  // Escape backs out of the decision without attacking.
+  if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();
+  else hideBattleReport();
 });
 
 document.getElementById('startGameBtn').addEventListener('click', startNewGame);

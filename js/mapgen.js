@@ -7,9 +7,12 @@ function inBounds(col, row) {
 
 // Stylised Europe / Mediterranean / North-Africa coastline: a wide mainland
 // up north, three peninsulas (Iberia, Italy, Greece) reaching into an inland
-// sea, Sicily and a few Aegean islands, and a North-African strip in the south.
+// sea, Sicily, a handful of islands, and a North-African strip in the south.
+// Row 0 only carries land in the east: the north-west corner is the North Sea,
+// which gives Germania and Gaul a coast and joins the Atlantic down the western
+// edge of the map, so a fleet can sail from Treva all the way to Karthago.
 const MAINLAND_ROWS = {
-  0: [10, 34], 1: [6, 37], 2: [4, 39],
+  0: [21, 34], 1: [6, 37], 2: [4, 39],
 };
 const MAINLAND_DEFAULT = [3, 41];
 
@@ -31,7 +34,13 @@ const GREECE = {
 const AFRICA = {
   23: [20, 24], 24: [19, 25], 25: [6, 35], 26: [7, 33], 27: [9, 30],
 };
-const AEGEAN_ISLANDS = [[37, 19], [38, 21], [36, 23], [40, 22]];
+// Islands: unreachable on foot, and the reason a faction builds a fleet.
+const ISLANDS = [
+  // Ägäis
+  [37, 19], [38, 21], [36, 23], [40, 22],
+  // Sardinien, im westlichen Meer zwischen Italien, Gallien und Afrika
+  [19, 14], [19, 15],
+];
 
 // Mountain ranges are described by a curved spine rather than a rectangle, so
 // they read as a range winding across the land instead of a straight wall.
@@ -54,6 +63,11 @@ const RIDGES = [
   },
 ];
 
+// The Teutoburg belt across Germania, between the North Sea and the Alps.
+const GERMANIC_FOREST = [
+  [17, 2, 2.4], [20, 1, 2.2], [22, 4, 2.3], [25, 2, 2.6], [28, 3, 2.4], [30, 1, 2.0],
+];
+
 const MOUNTAIN_MIN_HEIGHT = 2.1;
 const HILL_MIN_HEIGHT = 0.85;
 
@@ -65,7 +79,7 @@ function isLand(col, row) {
     const range = table[row];
     if (range && col >= range[0] && col <= range[1]) return true;
   }
-  return AEGEAN_ISLANDS.some(([c, r]) => c === col && r === row);
+  return ISLANDS.some(([c, r]) => c === col && r === row);
 }
 
 // Smooth 1D/2D value noise, used to vary crest height, range width and the
@@ -206,6 +220,20 @@ export function generateMap(seed = 1337) {
     paintBlob(tiles, cx, cy, 1.6 + rng() * 1.4, 'forest', rng);
   }
 
+  // Germania is woodland. The belt is deliberate, not random: it doubles the
+  // cost of every step an invader takes into the tribes' homeland and gives
+  // the defenders trees to fight from - which is the whole reason the tribes
+  // held out against better-drilled armies.
+  for (const [cx, cy, radius] of GERMANIC_FOREST) {
+    for (let row = 0; row < MAP_ROWS; row++) {
+      for (let col = 0; col < MAP_COLS; col++) {
+        if (tiles[row][col].type !== 'plains') continue;
+        const wobble = radius * (0.85 + rng() * 0.3);
+        if (Math.hypot(col - cx, row - cy) <= wobble) tiles[row][col].type = 'forest';
+      }
+    }
+  }
+
   const hillBlobs = 14;
   for (let i = 0; i < hillBlobs; i++) {
     const cx = 2 + rng() * (MAP_COLS - 4);
@@ -214,12 +242,15 @@ export function generateMap(seed = 1337) {
   }
 
   // Clear terrain around every city so settlements always sit on open plains.
+  // The sea is left alone: pushing land into it would silt up the harbours
+  // and swallow the small islands whole.
   for (const city of CITY_DEFS) {
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
         const col = city.col + dc;
         const row = city.row + dr;
         if (!inBounds(col, row)) continue;
+        if (tiles[row][col].type === 'water') continue;
         tiles[row][col].type = 'plains';
         delete tiles[row][col].ridgeHeight;
       }

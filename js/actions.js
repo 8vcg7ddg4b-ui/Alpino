@@ -1,16 +1,19 @@
 import {
-  UNIT_ORDER, UNIT_TYPES, MAX_MOVEMENT, INCOME_PER_CITY, GARRISON_POP_RATIO,
-  RECRUIT_BATCH, GARRISON_REGEN_BATCH, TILE_TYPES, VILLAGE_INCOME_FACTOR,
+  UNIT_ORDER, UNIT_TYPES, MAX_MOVEMENT, INCOME_PER_CITY,
+  RECRUIT_BATCH, GARRISON_REGEN_BATCH, TILE_TYPES, settlementTier, garrisonCapacity,
   MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
   MORALE_REST, MORALE_REST_IN_CITY, EXHAUSTION_PER_MOVE, EXHAUSTION_REST,
   EXHAUSTION_REST_IN_CITY, EXHAUSTION_PER_BATTLE,
   GARRISON_MORALE, GARRISON_EXHAUSTION,
   WALL_COST, WALL_BUILD_TURNS, WALL_DEFENCE_MULTIPLIER,
+  SHIP_COST, NAVAL_MOVEMENT, EXHAUSTION_PER_SEA_MOVE,
+  AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_DEFENCE_MULTIPLIER,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
-import { resolveBattle } from './combat.js';
+import { resolveBattle, forecastBattle } from './combat.js';
 import {
   makeId, factionById, cityAt, armyAt, unitTotalCount, logMsg, playerFaction,
+  isWaterTile, isCoastalCity,
 } from './state.js';
 
 export function removeArmy(state, armyId) {
@@ -19,11 +22,13 @@ export function removeArmy(state, armyId) {
   if (state.selectedArmyId === armyId) state.selectedArmyId = null;
 }
 
-function battleLine(attackerFaction, defenderFaction, vs, result, cityName) {
+function battleLine(attackerFaction, defenderFaction, vs, result, cityName, opts = {}) {
   const winner = result.outcome === 'attacker' ? attackerFaction.name : defenderFaction.name;
   const place = vs === 'city' ? ` bei ${cityName}` : '';
-  const verb = vs === 'city' ? 'belagert' : 'greift';
-  return `⚔️ ${attackerFaction.name} ${verb} ${defenderFaction.name}${place} – Sieg für ${winner} (Verluste: Angreifer ${(result.attackerLossesPct * 100).toFixed(0)}%, Verteidiger ${(result.defenderLossesPct * 100).toFixed(0)}%).`;
+  const verb = opts.naval ? 'stellt zur See' : vs === 'city' ? 'belagert' : 'greift';
+  const icon = opts.naval ? '⛵' : opts.amphibious ? '🌊' : '⚔️';
+  const landing = opts.amphibious ? ' (Landung vom Meer)' : '';
+  return `${icon} ${attackerFaction.name} ${verb} ${defenderFaction.name}${place}${landing} – Sieg für ${winner} (Verluste: Angreifer ${(result.attackerLossesPct * 100).toFixed(0)}%, Verteidiger ${(result.defenderLossesPct * 100).toFixed(0)}%).`;
 }
 
 const MAX_BATTLE_REPORTS = 40;
@@ -96,6 +101,21 @@ export function cityHasWalls(city) {
 
 const NEIGHBOUR_OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
+// Rowing wears men down far less than marching in armour does.
+function moveExhaustion(army, cost) {
+  return (army.embarked ? EXHAUSTION_PER_SEA_MOVE : EXHAUSTION_PER_MOVE) * cost;
+}
+
+// An army that has reached dry land is an army again: it leaves the ships
+// behind, and wading ashore costs it the rest of the turn.
+function comeAshore(state, army) {
+  if (!army.embarked || isWaterTile(state, army.col, army.row)) return false;
+  army.embarked = false;
+  army.maxMovement = MAX_MOVEMENT;
+  army.movement = 0;
+  return true;
+}
+
 // A beaten army falls back rather than evaporating. It prefers the tile
 // furthest from the attacker; only a force with nowhere left to go is lost.
 function retreatArmy(state, defeated, fromCol, fromRow) {
@@ -105,7 +125,10 @@ function retreatArmy(state, defeated, fromCol, fromRow) {
     const col = defeated.col + dc;
     const row = defeated.row + dr;
     if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) continue;
-    if (TILE_TYPES[state.map.tiles[row][col].type].impassable) continue;
+    // A fleet falls back across the water, an army across the land; neither
+    // can retreat into the other's element.
+    const sea = isWaterTile(state, col, row);
+    if (defeated.embarked ? !sea : TILE_TYPES[state.map.tiles[row][col].type].impassable) continue;
     if (armyAt(state, col, row)) continue;
     const city = cityAt(state, col, row);
     if (city && city.factionId !== defeated.factionId) continue;
@@ -125,7 +148,10 @@ function retreatArmy(state, defeated, fromCol, fromRow) {
 // Keeps the whole engagement, not just who won: the report panel reads its
 // per-unit breakdown, terrain modifier and round history straight from here.
 function recordBattle(state, opts) {
-  const { attackerFaction, defenderFaction, result, kind, city, col, row, combined, aftermath } = opts;
+  const {
+    attackerFaction, defenderFaction, result, kind, city, col, row, combined,
+    aftermath, naval, amphibious,
+  } = opts;
   const report = {
     id: makeId('battle'),
     turn: state.turn,
@@ -133,6 +159,8 @@ function recordBattle(state, opts) {
     col,
     row,
     combined: !!combined,
+    naval: !!naval,
+    amphibious: !!amphibious,
     aftermath: aftermath || null,
     cityName: city ? city.name : null,
     attackerFactionId: attackerFaction.id,
@@ -144,6 +172,8 @@ function recordBattle(state, opts) {
     terrainType: result.terrainType,
     terrainBonus: result.terrainBonus,
     wallMultiplier: result.wallMultiplier,
+    defenderMultiplier: result.defenderMultiplier,
+    attackerMultiplier: result.attackerMultiplier,
     attackerMorale: result.attackerMorale,
     attackerExhaustion: result.attackerExhaustion,
     defenderMorale: result.defenderMorale,
@@ -162,32 +192,131 @@ function recordBattle(state, opts) {
   if (state.battleReports.length > MAX_BATTLE_REPORTS) {
     state.battleReports.length = MAX_BATTLE_REPORTS;
   }
-  logMsg(state, battleLine(attackerFaction, defenderFaction, kind, result, city && city.name), report.id);
+  logMsg(state, battleLine(attackerFaction, defenderFaction, kind, result, city && city.name,
+    { naval, amphibious }), report.id);
   return report;
+}
+
+// Everything the defence of a tile consists of, and every modifier the battle
+// will run under. Both the forecast and the real engagement read it from here,
+// so the preview can never promise a fight on terms the battle does not use.
+export function gatherDefence(state, army, destCol, destRow, attackerOverrides = {}) {
+  const city = cityAt(state, destCol, destRow);
+  const cityIsEnemy = !!city && city.factionId !== army.factionId;
+  const defendingArmies = state.armies.filter(
+    (a) => a.col === destCol && a.row === destRow && a.factionId !== army.factionId
+  );
+  const garrisonJoins = cityIsEnemy && unitTotalCount(city.garrison) > 0;
+  const contingents = defendingArmies.map((a) => ({ ...a.units }));
+  if (garrisonJoins) contingents.push({ ...city.garrison });
+
+  const atSea = isWaterTile(state, destCol, destRow);
+  const amphibious = !!army.embarked && !atSea;
+  const walled = cityIsEnemy && cityHasWalls(city);
+
+  return {
+    city,
+    cityIsEnemy,
+    defendingArmies,
+    garrisonJoins,
+    contingents,
+    defenders: mergeAllUnits(contingents),
+    hasDefence: defendingArmies.length > 0 || garrisonJoins,
+    combined: defendingArmies.length > 0 && garrisonJoins,
+    terrainType: state.map.tiles[destRow][destCol].type,
+    atSea,
+    amphibious,
+    walled,
+    kind: garrisonJoins ? 'city' : 'army',
+    modifiers: {
+      attackerMorale: army.morale,
+      attackerExhaustion: army.exhaustion,
+      ...attackerOverrides,
+      defenderMorale: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'morale'),
+      defenderExhaustion: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'exhaustion'),
+      wallMultiplier: walled ? WALL_DEFENCE_MULTIPLIER : 1,
+      // Caught on open water there is no line to form and no ground to hold.
+      defenderMultiplier: atSea ? SEA_DEFENCE_MULTIPLIER : 1,
+      // Storming a shore straight off the ships is the hardest attack there is.
+      attackerMultiplier: amphibious ? AMPHIBIOUS_ATTACK_MULTIPLIER : 1,
+    },
+  };
+}
+
+// What the player is about to walk into, worked out before anything is
+// committed: the odds, the expected cost, and every modifier that produced
+// them. Changes nothing - not the state, not the campaign's battle sequence.
+export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) {
+  const army = state.armies.find((a) => a.id === armyId);
+  if (!army) return null;
+  const entry = computeReachable(state, army).get(tileKey(destCol, destRow));
+  if (!entry || !entry.combat) return null;
+
+  // The march is paid for before the first blow falls, so the forecast has to
+  // fight with the exhaustion the army will actually arrive with.
+  const arrivalExhaustion = clamp(
+    (army.exhaustion ?? 0) + moveExhaustion(army, entry.cost), 0, 100
+  );
+  const defence = gatherDefence(state, army, destCol, destRow, {
+    attackerExhaustion: arrivalExhaustion,
+  });
+  const attackerFaction = factionById(state, army.factionId);
+  const defenderFaction = factionById(
+    state,
+    defence.garrisonJoins ? defence.city.factionId
+      : defence.defendingArmies.length ? defence.defendingArmies[0].factionId
+        : defence.city ? defence.city.factionId : null
+  );
+
+  const base = {
+    col: destCol,
+    row: destRow,
+    moveCost: entry.cost,
+    armyId,
+    armyName: army.name,
+    attackerFactionId: attackerFaction.id,
+    defenderFactionId: defenderFaction ? defenderFaction.id : null,
+    cityName: defence.city ? defence.city.name : null,
+    citySize: defence.city ? defence.city.size : null,
+    cityCapital: defence.city ? !!defence.city.capital : false,
+    kind: defence.kind,
+    combined: defence.combined,
+    terrainType: defence.terrainType,
+    naval: defence.atSea,
+    amphibious: defence.amphibious,
+    walled: defence.walled,
+    arrivalExhaustion,
+  };
+
+  if (!defence.hasDefence) {
+    return { ...base, unopposed: true, forecast: null };
+  }
+  return {
+    ...base,
+    unopposed: false,
+    forecast: forecastBattle(
+      { ...army.units }, defence.defenders, defence.terrainType, defence.modifiers, sampleCount
+    ),
+  };
 }
 
 // Resolves everything that happens when `army` steps onto (col,row): 0, 1 or 2
 // sequential engagements (field army, then city garrison), all resolved on the
 // campaign map itself — there is no separate battle screen.
 export function resolveTileCombat(state, army, destCol, destRow) {
-  const tileType = state.map.tiles[destRow][destCol].type;
-  const defendingArmy = armyAt(state, destCol, destRow);
-  const city = cityAt(state, destCol, destRow);
   const attackerFaction = factionById(state, army.factionId);
+  // Everything holding the tile fights as one: every enemy army standing on it
+  // plus the city's garrison. Resolving them one after another would let an
+  // attacker beat a superior defence piecemeal.
+  const defence = gatherDefence(state, army, destCol, destRow);
+  const {
+    city, cityIsEnemy, defendingArmies, garrisonJoins, contingents, terrainType,
+  } = defence;
 
   let attackerUnits = { ...army.units };
   let capturedCity = false;
   let bounced = false;
   const reports = [];
-
-  const cityIsEnemy = city && city.factionId !== army.factionId;
-  // Everything holding the tile fights as one: every enemy army standing on it
-  // plus the city's garrison. Resolving them one after another would let an
-  // attacker beat a superior defence piecemeal.
-  const defendingArmies = state.armies.filter(
-    (a) => a.col === destCol && a.row === destRow && a.factionId !== army.factionId
-  );
-  const garrisonJoins = cityIsEnemy && unitTotalCount(city.garrison) > 0;
 
   // Settles what becomes of a beaten defending army: it falls back with its
   // survivors, and is only lost if it is wiped out or has nowhere to go.
@@ -204,22 +333,12 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     return 'retreated';
   }
 
-  if (defendingArmies.length || garrisonJoins) {
-    const contingents = defendingArmies.map((a) => ({ ...a.units }));
-    if (garrisonJoins) contingents.push({ ...city.garrison });
-
+  if (defence.hasDefence) {
     // The defence's condition is the weighted average of its contingents; the
     // garrison contributes its own fixed standard.
-    const defenceMorale = weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'morale');
-    const defenceExhaustion = weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'exhaustion');
-
-    const result = resolveBattle(attackerUnits, mergeAllUnits(contingents), tileType, {
-      attackerMorale: army.morale,
-      attackerExhaustion: army.exhaustion,
-      defenderMorale: defenceMorale,
-      defenderExhaustion: defenceExhaustion,
-      wallMultiplier: cityIsEnemy && cityHasWalls(city) ? WALL_DEFENCE_MULTIPLIER : 1,
-    });
+    const result = resolveBattle(
+      attackerUnits, defence.defenders, terrainType, defence.modifiers
+    );
     attackerUnits = result.attackerSurvivors;
     const shares = splitSurvivors(result.defenderSurvivors, contingents);
 
@@ -265,11 +384,13 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       attackerFaction,
       defenderFaction,
       result,
-      kind: garrisonJoins ? 'city' : 'army',
+      kind: defence.kind,
       city,
       col: destCol,
       row: destRow,
-      combined: defendingArmies.length > 0 && garrisonJoins,
+      combined: defence.combined,
+      naval: defence.atSea,
+      amphibious: defence.amphibious,
       aftermath,
     }));
   }
@@ -277,7 +398,7 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   if (!bounced && !capturedCity && unitTotalCount(attackerUnits) > 0 && cityIsEnemy) {
     const defenderFaction = factionById(state, city.factionId);
     if (unitTotalCount(city.garrison) > 0) {
-      const result = resolveBattle(attackerUnits, city.garrison, tileType, {
+      const result = resolveBattle(attackerUnits, city.garrison, terrainType, {
         attackerMorale: army.morale,
         attackerExhaustion: army.exhaustion,
         defenderMorale: GARRISON_MORALE,
@@ -341,14 +462,67 @@ export function moveArmy(state, armyId, destCol, destRow) {
   if (!entry) return { ok: false };
 
   army.movement = Math.max(0, army.movement - entry.cost);
-  adjustExhaustion(army, EXHAUSTION_PER_MOVE * entry.cost);
+  adjustExhaustion(army, moveExhaustion(army, entry.cost));
 
   if (!entry.combat) {
     army.col = destCol;
     army.row = destRow;
-    return { ok: true, combat: false, reports: [] };
+    const landed = comeAshore(state, army);
+    if (landed) {
+      logMsg(state, `${factionById(state, army.factionId).name}: ${army.name} geht an Land.`);
+    }
+    return { ok: true, combat: false, landed, reports: [] };
   }
-  return { ok: true, combat: true, ...resolveTileCombat(state, army, destCol, destRow) };
+  const outcome = resolveTileCombat(state, army, destCol, destRow);
+  // An assault that carried the shore puts the troops ashore for good; one
+  // that was thrown back is still aboard its ships.
+  const landed = outcome.survived ? comeAshore(state, army) : false;
+  return { ok: true, combat: true, landed, ...outcome };
+}
+
+// Taking ship: the army leaves its home port and stands out to sea. The fleet
+// is paid for once, and boarding takes the rest of the turn.
+export function embarkArmy(state, armyId) {
+  const army = state.armies.find((a) => a.id === armyId);
+  if (!army) return { ok: false };
+  if (army.embarked) return { ok: false, reason: 'atSea' };
+  const city = cityAt(state, army.col, army.row);
+  if (!city || city.factionId !== army.factionId) return { ok: false, reason: 'noCity' };
+  if (!isCoastalCity(state, city)) return { ok: false, reason: 'noPort' };
+  const faction = factionById(state, army.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  if (faction.gold < SHIP_COST) return { ok: false, reason: 'gold' };
+
+  const berth = NEIGHBOUR_OFFSETS
+    .map(([dc, dr]) => ({ col: city.col + dc, row: city.row + dr }))
+    .find((t) => isWaterTile(state, t.col, t.row) && !armyAt(state, t.col, t.row));
+  if (!berth) return { ok: false, reason: 'blocked' };
+
+  faction.gold -= SHIP_COST;
+  army.col = berth.col;
+  army.row = berth.row;
+  army.embarked = true;
+  army.maxMovement = NAVAL_MOVEMENT;
+  army.movement = 0;
+  logMsg(state, `${faction.name}: ${army.name} sticht in ${city.name} in See (${SHIP_COST} Gold).`);
+  return { ok: true };
+}
+
+// Whether this army could take ship right now, and if not, why - the sidebar
+// needs the reason to explain the disabled button.
+export function embarkStatus(state, army) {
+  if (!army) return { can: false, reason: 'none' };
+  if (army.embarked) return { can: false, reason: 'atSea' };
+  const city = cityAt(state, army.col, army.row);
+  if (!city || city.factionId !== army.factionId) return { can: false, reason: 'noCity' };
+  if (!isCoastalCity(state, city)) return { can: false, reason: 'noPort', city };
+  const faction = factionById(state, army.factionId);
+  if (!faction || faction.gold < SHIP_COST) return { can: false, reason: 'gold', city };
+  const berth = NEIGHBOUR_OFFSETS
+    .map(([dc, dr]) => ({ col: city.col + dc, row: city.row + dr }))
+    .find((t) => isWaterTile(state, t.col, t.row) && !armyAt(state, t.col, t.row));
+  if (!berth) return { can: false, reason: 'blocked', city };
+  return { can: true, city };
 }
 
 export function recruitUnit(state, cityId, unitKey) {
@@ -357,7 +531,7 @@ export function recruitUnit(state, cityId, unitKey) {
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
   const def = UNIT_TYPES[unitKey];
-  const maxTotal = Math.floor(city.population / GARRISON_POP_RATIO);
+  const maxTotal = garrisonCapacity(city, faction);
   if (unitTotalCount(city.garrison) >= maxTotal) return { ok: false, reason: 'full' };
   if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
   faction.gold -= def.cost;
@@ -464,7 +638,7 @@ export function collectIncome(state) {
     if (faction.isNeutral) continue;
     const ownCities = state.cities.filter((c) => c.factionId === faction.id);
     let income = ownCities.reduce(
-      (sum, c) => sum + INCOME_PER_CITY * (c.village ? VILLAGE_INCOME_FACTOR : 1), 0
+      (sum, c) => sum + INCOME_PER_CITY * settlementTier(c.size).incomeFactor, 0
     );
     income += ownCities.reduce((s, c) => s + Math.floor(c.population / 200), 0);
     const upkeep = state.armies
@@ -476,7 +650,7 @@ export function collectIncome(state) {
 
 export function regenerateGarrisons(state) {
   for (const city of state.cities) {
-    const maxTotal = Math.floor(city.population / GARRISON_POP_RATIO);
+    const maxTotal = garrisonCapacity(city, factionById(state, city.factionId));
     const current = unitTotalCount(city.garrison);
     if (current < maxTotal && Math.random() < 0.5) {
       const grow = Math.min(GARRISON_REGEN_BATCH, maxTotal - current);

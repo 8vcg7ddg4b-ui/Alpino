@@ -1,8 +1,10 @@
 import {
-  UNIT_ORDER, UNIT_TYPES, GARRISON_POP_RATIO, TILE_TYPES,
+  UNIT_ORDER, UNIT_TYPES, settlementTier, garrisonCapacity,
   WALL_COST, WALL_BUILD_TURNS, WALL_DEFENCE_MULTIPLIER,
+  SHIP_COST, NAVAL_MOVEMENT,
 } from './data.js';
 import { unitTotalCount, playerFaction, factionById } from './state.js';
+import { embarkStatus } from './actions.js';
 
 const TERRAIN_NAMES = {
   plains: 'Ebene', forest: 'Wald', hills: 'Hügel', mountain: 'Gebirge', water: 'Wasser',
@@ -108,12 +110,31 @@ function aftermathHTML(report) {
   return `<p class="report-aftermath">${escapeHTML(text)}</p>`;
 }
 
+// Every modifier that bent this fight, in the same words for the forecast and
+// for the report - so what the player was promised is what they get told.
+function modifierNotesHTML(info) {
+  const notes = [];
+  if (info.wallMultiplier > 1) {
+    notes.push(`<span class="mod-note mod-wall">🧱 Stadtmauer: +${
+      Math.round((info.wallMultiplier - 1) * 100)}% Verteidigung</span>`);
+  }
+  if (info.amphibious || (info.attackerMultiplier ?? 1) < 1) {
+    notes.push(`<span class="mod-note mod-sea">🌊 Landung vom Meer: −${
+      Math.round((1 - (info.attackerMultiplier ?? 1)) * 100)}% Angriffskraft</span>`);
+  }
+  if (info.naval || (info.defenderMultiplier ?? 1) < 1) {
+    notes.push(`<span class="mod-note mod-sea">⛵ Kampf auf See: −${
+      Math.round((1 - (info.defenderMultiplier ?? 1)) * 100)}% Verteidigung</span>`);
+  }
+  return notes.length ? `<p class="report-meta mod-notes">${notes.join('')}</p>` : '';
+}
+
 export function battleReportHTML(state, report) {
   const attackerWon = report.outcome === 'attacker';
   const terrain = TERRAIN_NAMES[report.terrainType] || report.terrainType;
   const place = report.cityName
     ? `${report.kind === 'city' ? 'Belagerung von' : 'Schlacht bei'} ${escapeHTML(report.cityName)}`
-    : 'Feldschlacht';
+    : report.naval ? 'Seeschlacht' : 'Feldschlacht';
   const bonus = report.terrainBonus > 0
     ? ` · Geländevorteil für den Verteidiger: +${Math.round(report.terrainBonus * 15)}% Verteidigung`
     : ' · kein Geländevorteil';
@@ -122,13 +143,11 @@ export function battleReportHTML(state, report) {
     <h2 class="report-title">${place}</h2>
     <p class="report-meta">Runde ${report.turn} · ${escapeHTML(terrain)}${bonus}</p>
     <p class="report-meta">Entschieden: ${escapeHTML(report.endedBy || '—')}</p>
-    ${report.wallMultiplier > 1
-      ? `<p class="report-meta report-walls">🧱 Stadtmauer: +${Math.round((report.wallMultiplier - 1) * 100)}% Verteidigung</p>`
-      : ''}
     <p class="report-meta">Verfassung – Angreifer: Moral ${Math.round(report.attackerMorale ?? 100)},
       Erschöpfung ${Math.round(report.attackerExhaustion ?? 0)} ·
       Verteidiger: Moral ${Math.round(report.defenderMorale ?? 100)},
       Erschöpfung ${Math.round(report.defenderExhaustion ?? 0)}</p>
+    ${modifierNotesHTML(report)}
     ${report.combined
       ? '<p class="report-meta report-combined">Feldarmee und Stadtgarnison verteidigen gemeinsam.</p>'
       : ''}
@@ -171,12 +190,35 @@ function conditionBarHTML(name, value, scale, tone) {
     </div>`;
 }
 
+const EMBARK_REASONS = {
+  noCity: 'Nur in einer eigenen Hafenstadt kann eine Armee an Bord gehen.',
+  noPort: 'Diese Stadt liegt nicht am Meer.',
+  gold: `Zu wenig Gold – eine Flotte kostet ${SHIP_COST}.`,
+  blocked: 'Der Hafen ist belegt.',
+};
+
+function embarkHTML(state, army) {
+  if (army.embarked) {
+    return `<p class="sea-line">⛵ Auf See – ${NAVAL_MOVEMENT} Bewegungspunkte.
+      <span class="muted">Ein gelbes Feld ist eine Landung; sie beendet die Fahrt.</span></p>`;
+  }
+  const status = embarkStatus(state, army);
+  if (status.can) {
+    return `<button class="embark-btn" data-army="${army.id}">⛵ In See stechen – ${SHIP_COST} Gold
+      <small>aus ${escapeHTML(status.city.name)}; die Einschiffung kostet die Runde</small></button>`;
+  }
+  if (status.reason === 'noCity') return '';
+  return `<button class="embark-btn" disabled>⛵ In See stechen – ${SHIP_COST} Gold
+    <small>${escapeHTML(EMBARK_REASONS[status.reason] || '')}</small></button>`;
+}
+
 function renderSelectedArmy(state, army) {
   const faction = factionById(state, army.factionId);
   const city = state.cities.find((c) => c.col === army.col && c.row === army.row);
-  const canDisband = city && city.factionId === army.factionId;
+  const canDisband = city && city.factionId === army.factionId && !army.embarked;
   return `
-    <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(army.name)}</h3>
+    <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(army.name)}
+      ${army.embarked ? '<span class="afloat-tag">⛵ Flotte</span>' : ''}</h3>
     <p class="muted">${escapeHTML(faction.name)} · Bewegung: ${army.movement} / ${army.maxMovement}</p>
     <div class="cond-block">
       ${conditionBarHTML('Moral', army.morale ?? 100, MORALE_SCALE, 'morale')}
@@ -186,15 +228,23 @@ function renderSelectedArmy(state, army) {
     ${canDisband
       ? `<button class="disband-btn" data-army="${army.id}">🏰 In ${escapeHTML(city.name)} auflösen – Garnison verstärken</button>`
       : ''}
-    <p class="hint">Grüne Felder: freie Bewegung · Rote Felder: Angriff auslösen.</p>
+    ${embarkHTML(state, army)}
+    <p class="hint">Grüne Felder: freie Bewegung · Rote Felder: Angriff${
+      army.embarked ? ' · Gelbe Felder: an Land gehen' : ''}.</p>
   `;
+}
+
+// Große Stadt / Stadt / Dorf - and a capital says so on top of its tier.
+function settlementLabel(city) {
+  const tier = settlementTier(city.size).label;
+  return city.capital ? `Hauptstadt · ${tier}` : tier;
 }
 
 function renderSelectedCity(state, city, onRecruit, onRaise) {
   const faction = factionById(state, city.factionId);
   const player = playerFaction(state);
   const isMine = city.factionId === player.id;
-  const maxTotal = Math.floor(city.population / GARRISON_POP_RATIO);
+  const maxTotal = garrisonCapacity(city, faction);
   const current = unitTotalCount(city.garrison);
 
   let recruitHTML = '';
@@ -215,7 +265,7 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
 
   return `
     <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(city.name)} ${city.capital ? '👑' : ''}</h3>
-    <p class="muted">${city.capital ? 'Hauptstadt' : city.village ? 'Dorf' : 'Stadt'} ·
+    <p class="muted">${settlementLabel(city)} ·
       ${escapeHTML(faction.name)} · Bevölkerung: ${city.population.toLocaleString('de-DE')}</p>
     <p class="muted">Garnison: ${current.toLocaleString('de-DE')}
       ${current > maxTotal
@@ -274,6 +324,10 @@ export function renderUI(state, handlers) {
     if (disbandBtn) {
       disbandBtn.addEventListener('click', () => handlers.onDisband(disbandBtn.dataset.army));
     }
+    const embarkBtn = panel.querySelector('.embark-btn:not([disabled])');
+    if (embarkBtn) {
+      embarkBtn.addEventListener('click', () => handlers.onEmbark(embarkBtn.dataset.army));
+    }
   } else if (state.selectedCityId) {
     const city = state.cities.find((c) => c.id === state.selectedCityId);
     if (city) {
@@ -313,4 +367,109 @@ export function renderUI(state, handlers) {
   } else {
     overlay.classList.add('hidden');
   }
+}
+
+
+const ODDS_SCALE = [
+  [0.95, 'Sieg so gut wie sicher', 'odds-great'],
+  [0.75, 'klar im Vorteil', 'odds-good'],
+  [0.55, 'leicht im Vorteil', 'odds-even'],
+  [0.45, 'Ausgang offen', 'odds-even'],
+  [0.25, 'im Nachteil', 'odds-bad'],
+  [0.05, 'kaum Aussicht', 'odds-bad'],
+  [0, 'Niederlage so gut wie sicher', 'odds-awful'],
+];
+
+function oddsVerdict(chance) {
+  for (const [threshold, label, tone] of ODDS_SCALE) {
+    if (chance >= threshold) return { label, tone };
+  }
+  return { label: 'Ausgang offen', tone: 'odds-even' };
+}
+
+// One side of the forecast: what marches in and what is expected to walk away.
+function forecastSideHTML(state, factionId, label, engaged, survivors, lossPct) {
+  const faction = factionById(state, factionId);
+  const rows = UNIT_ORDER.filter((k) => (engaged[k] || 0) > 0).map((k) => `<tr>
+      <td class="u-name">${UNIT_TYPES[k].icon} ${UNIT_TYPES[k].name}</td>
+      <td class="u-num">${(engaged[k] || 0).toLocaleString('de-DE')}</td>
+      <td class="u-num">${(survivors[k] || 0).toLocaleString('de-DE')}</td>
+    </tr>`).join('');
+  return `
+    <div class="preview-side">
+      <div class="side-head">
+        <span class="dot" style="background:${faction ? faction.color : '#888'}"></span>
+        <strong>${escapeHTML(faction ? faction.name : 'Niemand')}</strong>
+        <span class="side-role">${label}</span>
+      </div>
+      <table class="report-table">
+        <thead><tr><th>Einheit</th><th>Stärke</th><th>voraussichtl. übrig</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="3" class="muted">keine Truppen</td></tr>'}</tbody>
+        <tfoot><tr>
+          <td>Gesamt</td>
+          <td class="u-num">${unitTotalCount(engaged).toLocaleString('de-DE')}</td>
+          <td class="u-num">${unitTotalCount(survivors).toLocaleString('de-DE')}
+            <span class="u-loss">(−${Math.round(lossPct * 100)}%)</span></td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+}
+
+// The forecast the player sees before committing. It is an estimate and says
+// so: the numbers come from playing the same battle through many times, and
+// the real one is fought once.
+export function battlePreviewHTML(state, preview) {
+  const attacker = factionById(state, preview.attackerFactionId);
+  const target = preview.cityName
+    ? `${escapeHTML(preview.cityName)}`
+    : preview.naval ? 'feindliche Flotte' : 'feindliche Armee';
+  const heading = preview.naval ? `Seegefecht – ${target}`
+    : preview.amphibious ? `Landung bei ${target}`
+      : preview.cityName ? `Angriff auf ${target}` : `Angriff auf ${target}`;
+  const terrain = TERRAIN_NAMES[preview.terrainType] || preview.terrainType;
+
+  if (preview.unopposed) {
+    return `
+      <h2 class="report-title">${escapeHTML(heading)}</h2>
+      <p class="report-meta">${escapeHTML(terrain)} · Bewegungskosten ${preview.moveCost}</p>
+      <p class="preview-unopposed">Hier steht niemand mehr, der sich wehrt.
+        ${preview.cityName ? escapeHTML(preview.cityName) + ' fällt kampflos.' : 'Das Feld ist frei.'}</p>`;
+  }
+
+  const f = preview.forecast;
+  const verdict = oddsVerdict(f.attackerWinChance);
+  const chance = Math.round(f.attackerWinChance * 100);
+  const bonus = f.terrainBonus > 0
+    ? ` · Geländevorteil für den Verteidiger: +${Math.round(f.terrainBonus * 15)}% Verteidigung`
+    : ' · kein Geländevorteil';
+
+  return `
+    <h2 class="report-title">${escapeHTML(heading)}</h2>
+    <p class="report-meta">${escapeHTML(terrain)}${bonus} · Bewegungskosten ${preview.moveCost}</p>
+    <div class="odds-block ${verdict.tone}">
+      <div class="odds-bar"><span style="width:${chance}%"></span></div>
+      <p class="odds-verdict"><strong>${chance}%</strong> Siegchance für ${escapeHTML(attacker.name)}
+        – ${verdict.label}</p>
+    </div>
+    ${modifierNotesHTML({ ...preview, ...f })}
+    <p class="report-meta">Verfassung – Angreifer: Moral ${Math.round(f.attackerMorale)},
+      Erschöpfung ${Math.round(f.attackerExhaustion)} <span class="muted">(nach dem Marsch)</span> ·
+      Verteidiger: Moral ${Math.round(f.defenderMorale)},
+      Erschöpfung ${Math.round(f.defenderExhaustion)}</p>
+    ${preview.combined
+      ? '<p class="report-meta report-combined">Feldarmee und Stadtgarnison verteidigen gemeinsam.</p>'
+      : ''}
+    <div class="report-sides">
+      ${forecastSideHTML(state, preview.attackerFactionId, 'Angriff',
+    f.attackerEngaged, f.attackerSurvivors, f.attackerLossesPct)}
+      ${forecastSideHTML(state, preview.defenderFactionId,
+    preview.combined ? 'Verteidigung (Armee + Garnison)' : 'Verteidigung',
+    f.defenderEngaged, f.defenderSurvivors, f.defenderLossesPct)}
+    </div>
+    ${f.attackerWipeChance > 0.02
+      ? `<p class="preview-warn">⚠️ In ${Math.round(f.attackerWipeChance * 100)}% der Fälle
+         wird die angreifende Armee vollständig aufgerieben.</p>`
+      : ''}
+    <p class="preview-note">Schätzung aus ${f.samples} durchgerechneten Schlachten.
+      Gekämpft wird sie nur einmal – der Ausgang kann abweichen.</p>`;
 }

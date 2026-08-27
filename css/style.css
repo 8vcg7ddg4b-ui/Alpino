@@ -665,3 +665,160 @@ html, body {
   .brand small { display: none; }
   .start-title { font-size: 2.4rem; letter-spacing: 3px; }
 }
+
+/* --- Seefahrt ------------------------------------------------------------ */
+.afloat-tag {
+  font-size: 0.7rem;
+  color: #9fd8e6;
+  border: 1px solid #3d6b78;
+  border-radius: 5px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.sea-line {
+  margin: 10px 0 4px;
+  font-size: 0.82rem;
+  color: #9fd8e6;
+  border-left: 3px solid #3d6b78;
+  padding-left: 9px;
+}
+
+.embark-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px 10px;
+  background: linear-gradient(#28414a, #1d3138);
+  border: 1px solid #3d6b78;
+  border-radius: 7px;
+  color: #d7ecf2;
+  font-family: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  text-align: left;
+}
+.embark-btn small {
+  display: block;
+  font-size: 0.7rem;
+  color: #8fb6c2;
+  margin-top: 2px;
+}
+.embark-btn:hover:not([disabled]) { border-color: #6fb6cc; }
+.embark-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Kampfvorschau ------------------------------------------------------- */
+#battlePreview {
+  position: fixed;
+  inset: 0;
+  z-index: 16;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.preview-box { width: min(720px, 100%); }
+
+.mod-notes { display: flex; flex-wrap: wrap; gap: 6px; }
+.mod-note {
+  font-size: 0.75rem;
+  border-radius: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+}
+.mod-note.mod-wall { color: #e5c98a; border-color: #6b5528; }
+.mod-note.mod-sea { color: #9fd8e6; border-color: #3d6b78; }
+
+.odds-block { margin: 14px 0 10px; }
+
+.odds-bar {
+  height: 12px;
+  border-radius: 6px;
+  background: #3a2c22;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.odds-bar span {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transition: width 0.2s ease;
+}
+.odds-great .odds-bar span { background: #6cc46c; }
+.odds-good .odds-bar span { background: #a8c85a; }
+.odds-even .odds-bar span { background: #d4af37; }
+.odds-bad .odds-bar span { background: #d98a3d; }
+.odds-awful .odds-bar span { background: #c0392b; }
+
+.odds-verdict {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+}
+.odds-verdict strong { font-size: 1.25rem; color: var(--gold); }
+
+.preview-side {
+  flex: 1 1 260px;
+  min-width: 240px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+
+.preview-unopposed {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--gold);
+  background: var(--panel-2);
+  font-size: 0.9rem;
+}
+
+.preview-warn {
+  margin: 12px 0 0;
+  color: #e8a08a;
+  font-size: 0.85rem;
+}
+
+.preview-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-style: italic;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: -26px;
+  background: var(--panel);
+}
+
+.preview-actions button {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 18px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.preview-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.preview-cancel:hover { color: var(--text); border-color: var(--gold); }
+
+.preview-attack {
+  background: linear-gradient(#8f2f22, #6d2419);
+  border: 1px solid var(--gold);
+  color: #ffeccd;
+  font-weight: bold;
+}
+.preview-attack:hover { background: linear-gradient(#a83a2b, #7d2a1d); }

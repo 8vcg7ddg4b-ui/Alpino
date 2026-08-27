@@ -1,6 +1,6 @@
 import { computeReachable, tileKey } from './pathfind.js';
 import { armyAt, cityAt, playerFaction } from './state.js';
-import { moveArmy } from './actions.js';
+import { moveArmy, previewTileCombat } from './actions.js';
 import {
   pickTile, groundPointAt, panCameraByWorld, panCameraRelative, zoomCamera, rotateCamera,
   animateArmyPath, playBattleClash, isAnimating,
@@ -52,7 +52,7 @@ function toNdc(canvas, clientX, clientY) {
   };
 }
 
-export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction) {
+export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction, onPreviewAttack) {
   // Pointer events cover mouse, pen and touch in one path. Two simultaneous
   // pointers mean a pinch: the distance between them zooms, the angle between
   // them turns the map.
@@ -168,6 +168,52 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
     onChange();
   });
 
+  // Commits a move: the state changes at once, and the army is then shown
+  // walking there. The route is re-derived here rather than reused, so a move
+  // confirmed from the forecast dialog still uses the current position.
+  function executeMove(armyId, col, row) {
+    const state = getState();
+    if (!state) return;
+    const marching = state.armies.find((a) => a.id === armyId);
+    if (!marching) return;
+    const entry = computeReachable(state, marching).get(tileKey(col, row));
+    if (!entry) return;
+    const origin = { col: marching.col, row: marching.row };
+
+    if (onBeforeAction) onBeforeAction();
+    // Drop the range overlay before the march so the army isn't walking
+    // across its own highlighted tiles.
+    state.reachable = null;
+    const outcome = moveArmy(state, armyId, col, row);
+    const survivor = state.armies.find((a) => a.id === armyId);
+    const route = buildMarchRoute(entry.path, origin, survivor, { col, row });
+    const reports = outcome.reports || [];
+
+    const settle = () => {
+      if (survivor && survivor.movement > 0) {
+        selectArmy(state, survivor);
+      } else {
+        clearSelection(state);
+      }
+      onChange();
+      // The report is the last beat: the player watches the clash, then
+      // reads what it cost.
+      if (reports.length && onShowReport) onShowReport(reports[reports.length - 1]);
+    };
+
+    startMarch();
+    animateArmyPath(armyId, route, () => {
+      stopMarch();
+      if (reports.length) {
+        sfx.clash();
+        playBattleClash(col, row, settle);
+      } else {
+        settle();
+      }
+    });
+    onChange();
+  }
+
   function handleClick(e) {
     const state = getState();
     if (!state || state.gameOver || isAnimating()) return;
@@ -193,41 +239,16 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
       const entry = state.reachable && state.reachable.get(tileKey(col, row));
       if (entry) {
         const armyId = state.selectedArmyId;
-        const marching = state.armies.find((a) => a.id === armyId);
-        const origin = { col: marching.col, row: marching.row };
-
-        if (onBeforeAction) onBeforeAction();
-        // Drop the range overlay before the march so the army isn't walking
-        // across its own highlighted tiles.
-        state.reachable = null;
-        const outcome = moveArmy(state, armyId, col, row);
-        const survivor = state.armies.find((a) => a.id === armyId);
-        const route = buildMarchRoute(entry.path, origin, survivor, { col, row });
-        const reports = outcome.reports || [];
-
-        const settle = () => {
-          if (survivor && survivor.movement > 0) {
-            selectArmy(state, survivor);
-          } else {
-            clearSelection(state);
+        // An attack is put to the player first: the forecast says what the
+        // fight is likely to cost, and only then is it committed to.
+        if (entry.combat && onPreviewAttack) {
+          const preview = previewTileCombat(state, armyId, col, row);
+          if (preview) {
+            onPreviewAttack(preview, () => executeMove(armyId, col, row));
+            return;
           }
-          onChange();
-          // The report is the last beat: the player watches the clash, then
-          // reads what it cost.
-          if (reports.length && onShowReport) onShowReport(reports[reports.length - 1]);
-        };
-
-        startMarch();
-        animateArmyPath(armyId, route, () => {
-          stopMarch();
-          if (reports.length) {
-            sfx.clash();
-            playBattleClash(col, row, settle);
-          } else {
-            settle();
-          }
-        });
-        onChange();
+        }
+        executeMove(armyId, col, row);
         return;
       }
     }

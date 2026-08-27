@@ -64,6 +64,8 @@
         <p><strong>Armee</strong> anklicken, dann ein grünes Feld (Zug) oder rotes Feld (Angriff) wählen.</p>
         <p>Karte per Ziehen, Pfeiltasten/WASD oder den Richtungstasten unten links verschieben.</p>
         <p>Städte anklicken, um Truppen zu rekrutieren. „Runde beenden“, wenn du fertig bist.</p>
+        <p>Vor jedem Angriff zeigt die <strong>Kampfvorschau</strong> Siegchance und erwartete Verluste.</p>
+        <p>In einer Hafenstadt kann eine Armee <strong>in See stechen</strong> und über das Meer angreifen.</p>
       </div>
     </div>
   </div>
@@ -126,6 +128,17 @@
     <div class="report-box">
       <button id="reportClose" class="report-close" title="Schließen">✕</button>
       <div id="reportBody"></div>
+    </div>
+  </div>
+
+  <div id="battlePreview" class="hidden">
+    <div class="report-box preview-box">
+      <button id="previewClose" class="report-close" title="Abbrechen">✕</button>
+      <div id="previewBody"></div>
+      <div class="preview-actions">
+        <button id="previewCancel" class="preview-cancel">Abbrechen</button>
+        <button id="previewAttack" class="preview-attack">⚔️ Angreifen</button>
+      </div>
     </div>
   </div>
 

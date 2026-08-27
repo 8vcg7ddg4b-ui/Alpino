@@ -157,6 +157,13 @@ export const sfx = {
 
   undo: () => play((c, t) => tone(c, t, { frequency: 300, duration: 0.26, gain: 0.16, type: 'sine', slideTo: 620 })),
 
+  // Casting off: creaking timber, water, and a boatswain's whistle.
+  embark: () => play((c, t) => {
+    noiseBurst(c, t, { duration: 0.55, gain: 0.26, frequency: 900, q: 0.6, type: 'lowpass' });
+    tone(c, t + 0.06, { frequency: 180, duration: 0.4, gain: 0.14, type: 'sawtooth', slideTo: 120 });
+    tone(c, t + 0.3, { frequency: 760, duration: 0.34, gain: 0.13, type: 'sine', slideTo: 1180 });
+  }),
+
   capture: () => play((c, t) => {
     [392, 523, 659, 784].forEach((f, i) => tone(c, t + i * 0.1, { frequency: f, duration: 0.45, gain: 0.17, type: 'sawtooth' }));
   }),

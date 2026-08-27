@@ -1,4 +1,4 @@
-import { TILE_TYPES } from './data.js';
+import { TILE_TYPES, SEA_MOVE_COST } from './data.js';
 import { armyAt, cityAt } from './state.js';
 
 const NEIGHBORS = [
@@ -9,14 +9,27 @@ function key(col, row) {
   return `${col},${row}`;
 }
 
-function classifyTile(state, col, row, movingFactionId) {
+// What a tile means to this army: blocked, free to cross, or a destination
+// that starts a fight. A fleet sees the map inverted - open water is its road
+// and every shore is a landing, which ends its voyage either way.
+function classifyTile(state, col, row, movingFactionId, embarked) {
   const map = state.map;
   if (col < 0 || col >= map.cols || row < 0 || row >= map.rows) {
     return { blocked: true };
   }
   const tile = map.tiles[row][col];
   const tileDef = TILE_TYPES[tile.type];
-  if (tileDef.impassable) return { blocked: true };
+  const isSea = tile.type === 'water';
+
+  if (embarked) {
+    if (!isSea && tileDef.impassable) return { blocked: true };
+  } else if (tileDef.impassable) {
+    return { blocked: true };
+  }
+
+  const cost = isSea ? SEA_MOVE_COST : tileDef.cost;
+  // Coming ashore is the end of the voyage, whether or not anyone contests it.
+  const landing = embarked && !isSea;
 
   const occupant = armyAt(state, col, row);
   const city = cityAt(state, col, row);
@@ -25,12 +38,12 @@ function classifyTile(state, col, row, movingFactionId) {
     return { blocked: true };
   }
   if (occupant && occupant.factionId !== movingFactionId) {
-    return { blocked: false, cost: tileDef.cost, endpointOnly: true, combat: true };
+    return { blocked: false, cost, endpointOnly: true, combat: true, landing };
   }
   if (city && city.factionId !== movingFactionId) {
-    return { blocked: false, cost: tileDef.cost, endpointOnly: true, combat: true };
+    return { blocked: false, cost, endpointOnly: true, combat: true, landing };
   }
-  return { blocked: false, cost: tileDef.cost, endpointOnly: false, combat: false };
+  return { blocked: false, cost, endpointOnly: landing, combat: false, landing };
 }
 
 // Dijkstra over the movement-cost grid, bounded by the army's remaining movement.
@@ -41,6 +54,9 @@ export function computeReachable(state, army) {
   const prev = new Map();
   const visited = new Set();
   const combatEndpoint = new Set();
+  const stopEndpoint = new Set();
+  const landings = new Set();
+  const embarked = !!army.embarked;
   const frontier = [{ col: army.col, row: army.row, cost: 0 }];
 
   while (frontier.length) {
@@ -56,7 +72,7 @@ export function computeReachable(state, army) {
       const nk = key(ncol, nrow);
       if (visited.has(nk)) continue;
 
-      const info = classifyTile(state, ncol, nrow, army.factionId);
+      const info = classifyTile(state, ncol, nrow, army.factionId, embarked);
       if (info.blocked) continue;
 
       const isStart = ncol === army.col && nrow === army.row;
@@ -65,9 +81,9 @@ export function computeReachable(state, army) {
       const newCost = current.cost + info.cost;
       if (newCost > army.movement) continue;
 
-      // Combat tiles are valid destinations but cannot be passed through.
-      const cameFromCombat = combatEndpoint.has(ck);
-      if (cameFromCombat) continue;
+      // Combat tiles - and shores a fleet lands on - are valid destinations
+      // but cannot be passed through.
+      if (stopEndpoint.has(ck)) continue;
 
       const existing = dist.get(nk);
       if (existing === undefined || newCost < existing) {
@@ -75,6 +91,10 @@ export function computeReachable(state, army) {
         prev.set(nk, ck);
         if (info.combat) combatEndpoint.add(nk);
         else combatEndpoint.delete(nk);
+        if (info.landing) landings.add(nk);
+        else landings.delete(nk);
+        if (info.combat || info.endpointOnly) stopEndpoint.add(nk);
+        else stopEndpoint.delete(nk);
         frontier.push({ col: ncol, row: nrow, cost: newCost });
       }
     }
@@ -90,7 +110,7 @@ export function computeReachable(state, army) {
       path.unshift({ col: c, row: r });
       cur = prev.get(cur);
     }
-    reachable.set(k, { cost, path, combat: combatEndpoint.has(k) });
+    reachable.set(k, { cost, path, combat: combatEndpoint.has(k), landing: landings.has(k) });
   }
   return reachable;
 }

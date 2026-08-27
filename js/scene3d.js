@@ -1,4 +1,4 @@
-import { TILE_TYPES } from './data.js';
+import { TILE_TYPES, settlementTier } from './data.js';
 import { unitTotalCount, factionById } from './state.js';
 
 export const TILE_SIZE = 6;
@@ -53,6 +53,21 @@ function rowFromWorldZ(z) {
 }
 function tileTopY(elevation) {
   return elevation * ELEV_SCALE;
+}
+
+// The sea is drawn as its own plane slightly above the sunken water tiles, so
+// anything afloat has to sit on that plane rather than on the sea bed.
+const SEA_LEVEL_Y = TILE_TYPES.water.elevation * ELEV_SCALE + 0.3;
+
+// The height an army, fleet or town actually stands at on a given tile.
+// Waypoints may sit between tile centres (a repelled army lunges partway into
+// the defender's tile), so the lookup rounds to the nearest tile.
+function surfaceY(col, row) {
+  if (!currentMap) return 0;
+  const c = Math.max(0, Math.min(currentMap.cols - 1, Math.round(col)));
+  const r = Math.max(0, Math.min(currentMap.rows - 1, Math.round(row)));
+  const tile = currentMap.tiles[r][c];
+  return tile.type === 'water' ? SEA_LEVEL_Y : tileTopY(tile.elevation);
 }
 
 function makeLabelSprite(text, opts = {}) {
@@ -329,7 +344,7 @@ export function buildMap(state) {
     new THREE.MeshStandardMaterial({ color: TILE_TYPES.water.color, transparent: true, opacity: 0.82, roughness: 0.25 })
   );
   waterMesh.rotation.x = -Math.PI / 2;
-  waterMesh.position.y = tileTopY(TILE_TYPES.water.elevation) + 0.3;
+  waterMesh.position.y = SEA_LEVEL_Y;
   scene.add(waterMesh);
 
   buildRoads(state);
@@ -375,7 +390,9 @@ function buildRoads(state) {
 
 function buildCityGroup(city) {
   const group = new THREE.Group();
-  const scale = city.capital ? 1.35 : city.village ? 0.68 : 1;
+  // A große Stadt towers over a Dorf; being the seat of a faction adds a
+  // little more on top of whatever tier the settlement belongs to.
+  const scale = settlementTier(city.size).modelScale * (city.capital ? 1.12 : 1);
 
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(2.6 * scale, 2.2 * scale, 2.6 * scale),
@@ -407,6 +424,18 @@ function buildCityGroup(city) {
   group.add(flag);
 
   const label = makeLabelSprite(city.name, { scale: city.capital ? 1.15 : 0.95 });
+  // Big towns get outbuildings, so the three tiers read apart at a glance.
+  const outbuildings = Math.round(settlementTier(city.size).modelScale * 3);
+  for (let i = 0; i < outbuildings; i++) {
+    const angle = (i / Math.max(1, outbuildings)) * Math.PI * 2 + 0.6;
+    const hut = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9 * scale, 0.8 * scale, 0.9 * scale),
+      new THREE.MeshStandardMaterial({ color: '#c3b184', roughness: 0.9 })
+    );
+    hut.position.set(Math.cos(angle) * 1.9 * scale, 0.4 * scale, Math.sin(angle) * 1.9 * scale);
+    hut.rotation.y = angle;
+    group.add(hut);
+  }
   label.position.y = 2.2 * scale + 4.6 * scale;
   group.add(label);
 
@@ -454,11 +483,68 @@ function tierForCount(count) {
   return 1;
 }
 
+// A single ship: hull, mast and sail. The whole fleet is drawn as one vessel
+// with the army's banner on it, the same way a camp stands in for an army.
+function buildShip(color) {
+  const ship = new THREE.Group();
+
+  const hull = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.62, 0.34, 3.4, 8, 1, false, 0, Math.PI),
+    new THREE.MeshStandardMaterial({ color: '#6b4423', roughness: 0.85, side: THREE.DoubleSide })
+  );
+  hull.rotation.z = Math.PI / 2;
+  hull.rotation.y = Math.PI / 2;
+  hull.position.y = 0.42;
+  ship.add(hull);
+
+  const deck = new THREE.Mesh(
+    new THREE.BoxGeometry(1.15, 0.16, 3.2),
+    new THREE.MeshStandardMaterial({ color: '#8a5c2e', roughness: 0.9 })
+  );
+  deck.position.y = 0.62;
+  ship.add(deck);
+
+  const mast = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.09, 2.6, 6),
+    new THREE.MeshStandardMaterial({ color: '#4a3520' })
+  );
+  mast.position.y = 1.9;
+  ship.add(mast);
+
+  const sail = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.7, 1.5),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.75, side: THREE.DoubleSide })
+  );
+  sail.position.set(0, 2.1, 0);
+  sail.rotation.y = Math.PI / 2;
+  ship.add(sail);
+  ship.userData.sail = sail;
+
+  // A wake, so a fleet at sea does not look like it is standing on glass.
+  const wake = new THREE.Mesh(
+    new THREE.RingGeometry(1.5, 2.4, 24),
+    new THREE.MeshBasicMaterial({
+      color: '#dff0ff', transparent: true, opacity: 0.3,
+      side: THREE.DoubleSide, depthWrite: false,
+    })
+  );
+  wake.rotation.x = -Math.PI / 2;
+  wake.position.y = 0.06;
+  ship.add(wake);
+
+  return ship;
+}
+
 function buildArmyGroup() {
   const group = new THREE.Group();
   const tents = new THREE.Group();
   group.add(tents);
   group.userData.tents = tents;
+
+  const ship = buildShip('#999999');
+  ship.visible = false;
+  group.add(ship);
+  group.userData.ship = ship;
 
   const pole = new THREE.Mesh(
     new THREE.CylinderGeometry(0.08, 0.08, 3.2, 5),
@@ -466,6 +552,7 @@ function buildArmyGroup() {
   );
   pole.position.y = 1.6;
   group.add(pole);
+  group.userData.pole = pole;
 
   const banner = new THREE.Mesh(
     new THREE.PlaneGeometry(1.3, 1.6),
@@ -491,9 +578,19 @@ function syncArmyGroup(state, army, entry) {
   const { group } = entry;
   const faction = factionById(state, army.factionId);
   if (!armyAnimations.has(army.id)) {
-    const topY = tileTopY(state.map.tiles[army.row][army.col].elevation);
-    group.position.set(worldX(army.col), topY, worldZ(army.row));
+    group.position.set(worldX(army.col), surfaceY(army.col, army.row), worldZ(army.row));
   }
+
+  // At sea the army is its fleet: the camp strikes its tents and boards.
+  const afloat = !!army.embarked;
+  const ship = group.userData.ship;
+  if (ship) {
+    ship.visible = afloat;
+    ship.userData.sail.material.color.set(faction.color);
+  }
+  group.userData.tents.visible = !afloat;
+  if (group.userData.pole) group.userData.pole.visible = !afloat;
+  group.userData.banner.visible = !afloat;
 
   const tierCount = tierForCount(unitTotalCount(army.units));
   const tents = group.userData.tents;
@@ -515,7 +612,7 @@ function syncArmyGroup(state, army, entry) {
 
   if (group.userData.label) group.remove(group.userData.label);
   const label = makeLabelSprite(String(unitTotalCount(army.units)), { fontSize: 40, scale: 0.85 });
-  label.position.y = 3.6;
+  label.position.y = afloat ? 4.2 : 3.6;
   group.add(label);
   group.userData.label = label;
 
@@ -527,13 +624,13 @@ function clearHighlights() {
   highlightMeshes.length = 0;
 }
 
-function addHighlight(col, row, elevation, color) {
+function addHighlight(col, row, color) {
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(TILE_SIZE * 0.9, TILE_SIZE * 0.9),
     new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, side: THREE.DoubleSide })
   );
   mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(worldX(col), tileTopY(elevation) + 0.15, worldZ(row));
+  mesh.position.set(worldX(col), surfaceY(col, row) + 0.15, worldZ(row));
   scene.add(mesh);
   highlightMeshes.push(mesh);
 }
@@ -546,8 +643,7 @@ export function syncEntities(state) {
     let entry = cityGroups.get(city.id);
     if (!entry) {
       entry = buildCityGroup(city);
-      const topY = tileTopY(state.map.tiles[city.row][city.col].elevation);
-      entry.group.position.set(worldX(city.col), topY, worldZ(city.row));
+      entry.group.position.set(worldX(city.col), surfaceY(city.col, city.row), worldZ(city.row));
       scene.add(entry.group);
       cityGroups.set(city.id, entry);
     }
@@ -582,8 +678,10 @@ export function syncEntities(state) {
   if (state.reachable) {
     for (const [key, info] of state.reachable) {
       const [col, row] = key.split(',').map(Number);
-      const elevation = state.map.tiles[row][col].elevation;
-      addHighlight(col, row, elevation, info.combat ? '#ff4d3d' : '#4dffa0');
+      // A shore a fleet can land on is its own kind of move: neither a free
+      // march nor necessarily a fight.
+      const color = info.combat ? '#ff4d3d' : info.landing ? '#ffd166' : '#4dffa0';
+      addHighlight(col, row, color);
     }
   }
 }
@@ -592,21 +690,8 @@ export function render() {
   if (renderer) renderer.render(scene, camera);
 }
 
-// Waypoints may sit between tile centres (a repelled army lunges partway into
-// the defender's tile), so the elevation lookup rounds to the nearest tile.
-function tileElevation(col, row) {
-  if (!currentMap) return 0;
-  const c = Math.max(0, Math.min(currentMap.cols - 1, Math.round(col)));
-  const r = Math.max(0, Math.min(currentMap.rows - 1, Math.round(row)));
-  return currentMap.tiles[r][c].elevation;
-}
-
 function waypointVector(tile) {
-  return new THREE.Vector3(
-    worldX(tile.col),
-    tileTopY(tileElevation(tile.col, tile.row)),
-    worldZ(tile.row)
-  );
+  return new THREE.Vector3(worldX(tile.col), surfaceY(tile.col, tile.row), worldZ(tile.row));
 }
 
 function faceHeading(group, dx, dz) {
@@ -710,7 +795,7 @@ export function playBattleClash(col, row, onComplete) {
     if (onComplete) onComplete();
     return;
   }
-  const centre = new THREE.Vector3(worldX(col), tileTopY(tileElevation(col, row)), worldZ(row));
+  const centre = new THREE.Vector3(worldX(col), surfaceY(col, row), worldZ(row));
   const group = new THREE.Group();
   group.position.copy(centre);
   scene.add(group);
