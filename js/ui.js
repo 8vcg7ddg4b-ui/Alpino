@@ -1,9 +1,12 @@
 import {
-  UNIT_ORDER, UNIT_TYPES, settlementTier, garrisonCapacity,
+  UNIT_ORDER, UNIT_TYPES, settlementTier, garrisonCapacity, TILE_TYPES,
   WALL_COST, WALL_BUILD_TURNS, WALL_DEFENCE_MULTIPLIER,
-  SHIP_COST, NAVAL_MOVEMENT,
+  SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST,
 } from './data.js';
-import { unitTotalCount, playerFaction, factionById } from './state.js';
+import {
+  unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
+  isWaterTile, isCoastalCity,
+} from './state.js';
 import { embarkStatus } from './actions.js';
 
 const TERRAIN_NAMES = {
@@ -299,6 +302,80 @@ function wallHTML(city, isMine, player) {
     </button>`;
 }
 
+const TERRAIN_ICONS = {
+  plains: '🌾', forest: '🌲', hills: '⛰️', desert: '🏜️', mountain: '🏔️', water: '🌊',
+};
+
+// One tile unit of elevation is about this many metres, which is what turns a
+// number nobody can read into a height a player recognises.
+const METRES_PER_ELEVATION = 900;
+
+function terrainFactsHTML(state, col, row) {
+  const tile = state.map.tiles[row][col];
+  const def = TILE_TYPES[tile.type];
+  const facts = [];
+
+  if (tile.type === 'water') {
+    facts.push(['Bewegung', `zur See ${SEA_MOVE_COST} Punkt je Feld · für Landarmeen unpassierbar`]);
+  } else {
+    facts.push(['Bewegungskosten', def.impassable
+      ? 'unpassierbar'
+      : `${def.cost} ${def.cost === 1 ? 'Punkt' : 'Punkte'} je Feld`]);
+    facts.push(['Verteidigung', def.defense > 0
+      ? `+${Math.round(def.defense * 15)}% für den Verteidiger`
+      : 'kein Geländevorteil']);
+    facts.push(['Höhe', `${Math.round(tile.elevation * METRES_PER_ELEVATION)} m`]);
+  }
+  facts.push(['Lage', tilePosition(col, row).label]);
+
+  return facts.map(([label, value]) =>
+    `<div class="terrain-fact"><span>${label}</span><strong>${escapeHTML(value)}</strong></div>`).join('');
+}
+
+// What the player learns by clicking a tile. Shown on its own for open ground,
+// and under the army or city panel for a tile that is occupied.
+export function terrainPanelHTML(state, tile) {
+  if (!tile) return '';
+  const { col, row } = tile;
+  if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) return '';
+  const type = state.map.tiles[row][col].type;
+  const def = TILE_TYPES[type];
+
+  const city = cityAt(state, col, row);
+  const army = armyAt(state, col, row);
+  const occupants = [];
+  if (city) {
+    const owner = factionById(state, city.factionId);
+    occupants.push(`<span class="dot" style="background:${owner.color}"></span>
+      ${escapeHTML(city.name)} <em>${settlementLabel(city)}, ${escapeHTML(owner.name)}</em>`);
+  }
+  if (army) {
+    const owner = factionById(state, army.factionId);
+    occupants.push(`<span class="dot" style="background:${owner.color}"></span>
+      ${escapeHTML(army.name)} <em>${unitTotalCount(army.units).toLocaleString('de-DE')} Mann${
+      army.embarked ? ', zur See' : ''}</em>`);
+  }
+
+  const notes = [];
+  if (type !== 'water' && !def.impassable) {
+    const shore = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .some(([dc, dr]) => isWaterTile(state, col + dc, row + dr));
+    if (shore) notes.push('Küstenfeld – eine Flotte kann hier landen.');
+  }
+  if (city && isCoastalCity(state, city)) notes.push('Hafen – hier kann eine Armee in See stechen.');
+  if (type === 'desert') notes.push('Wüste – zäh zu durchqueren und ohne Deckung.');
+  if (type === 'mountain') notes.push('Gebirge – für Armeen unpassierbar.');
+
+  return `
+    <div class="terrain-panel">
+      <h3 class="terrain-head">${TERRAIN_ICONS[type] || ''} ${escapeHTML(def.name || type)}</h3>
+      <div class="terrain-facts">${terrainFactsHTML(state, col, row)}</div>
+      ${occupants.length ? `<ul class="terrain-here">${
+        occupants.map((o) => `<li>${o}</li>`).join('')}</ul>` : ''}
+      ${notes.map((n) => `<p class="terrain-note">${escapeHTML(n)}</p>`).join('')}
+    </div>`;
+}
+
 export function renderUI(state, handlers) {
   document.getElementById('turnLabel').textContent = `Runde ${state.turn}`;
   const player = playerFaction(state);
@@ -341,7 +418,19 @@ export function renderUI(state, handlers) {
       if (wallBtn) wallBtn.addEventListener('click', () => handlers.onBuyWalls(city.id));
     }
   } else {
-    panel.innerHTML = '<p class="muted">Klicke auf eine Armee oder Stadt, um Details zu sehen.</p>';
+    panel.innerHTML = '';
+  }
+
+  // The terrain read-out sits under whatever is selected, and stands alone
+  // when the player clicked open ground.
+  const terrainPanel = document.getElementById('terrainPanel');
+  if (terrainPanel) {
+    terrainPanel.innerHTML = state.inspectedTile
+      ? terrainPanelHTML(state, state.inspectedTile)
+      : '';
+  }
+  if (!panel.innerHTML && !(terrainPanel && terrainPanel.innerHTML)) {
+    panel.innerHTML = '<p class="muted">Klicke auf ein Feld, eine Armee oder eine Stadt.</p>';
   }
 
   const logPanel = document.getElementById('logPanel');

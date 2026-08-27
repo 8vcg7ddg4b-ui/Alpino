@@ -18,7 +18,7 @@ const MIN_POLAR = 0.25;
 const MAX_POLAR = 1.35;
 
 const cam = { col: 0, row: 0, zoom: 1, azimuth: DEFAULT_AZIMUTH, polar: DEFAULT_POLAR };
-const BASE_DISTANCE = 130;
+const BASE_DISTANCE = 235;
 
 let terrainMesh = null;
 let waterMesh = null;
@@ -187,31 +187,28 @@ export function centerOn(col, row) {
 }
 
 export function zoomCamera(factor) {
-  cam.zoom = Math.max(0.5, Math.min(2.5, cam.zoom * factor));
+  cam.zoom = Math.max(0.35, Math.min(4.5, cam.zoom * factor));
   applyCamera();
 }
 
-function addTreeProp(group, col, row, topY, rng) {
+// Props are collected as plain transforms first and drawn as instanced meshes
+// afterwards. On a map this size there are thousands of them, and one draw
+// call per tree would cost more than everything else on screen put together.
+function collectTree(props, col, row, topY, rng) {
   const jx = (rng() - 0.5) * TILE_SIZE * 0.4;
   const jz = (rng() - 0.5) * TILE_SIZE * 0.4;
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.18, 0.24, 1.1, 6),
-    new THREE.MeshStandardMaterial({ color: '#5b3a22' })
-  );
-  trunk.position.set(worldX(col) + jx, topY + 0.55, worldZ(row) + jz);
-  group.add(trunk);
-  const leaves = new THREE.Mesh(
-    new THREE.ConeGeometry(1.1, 2.4, 7),
-    new THREE.MeshStandardMaterial({ color: '#2f6b34' })
-  );
-  leaves.position.set(worldX(col) + jx, topY + 1.9, worldZ(row) + jz);
-  group.add(leaves);
+  const scale = 0.8 + rng() * 0.5;
+  props.trunks.push({ x: worldX(col) + jx, y: topY + 0.55 * scale, z: worldZ(row) + jz, s: scale, r: 0 });
+  props.leaves.push({
+    x: worldX(col) + jx, y: topY + 1.9 * scale, z: worldZ(row) + jz,
+    s: scale, r: rng() * Math.PI,
+  });
 }
 
 // Peaks scale with how high the underlying crest already is, so a tile on the
 // spine grows a tall cluster while a saddle only gets low rocks - the range
 // then reads as a varied silhouette rather than a row of identical cones.
-function addPeakProp(group, col, row, elevation, rng) {
+function collectPeak(props, col, row, elevation, rng) {
   const topY = tileTopY(elevation);
   const prominence = Math.min(1, Math.max(0, (elevation - 1.2) / 1.9));
   const count = 1 + Math.floor(rng() * 2 + prominence * 1.6);
@@ -220,20 +217,61 @@ function addPeakProp(group, col, row, elevation, rng) {
     const jx = (rng() - 0.5) * TILE_SIZE * 0.75;
     const jz = (rng() - 0.5) * TILE_SIZE * 0.75;
     const height = (1.1 + prominence * 3.4) * (0.55 + rng() * 0.75);
-    const radius = height * (0.42 + rng() * 0.28);
     const snowy = prominence > 0.55 && rng() < 0.55 + prominence * 0.4;
-    const peak = new THREE.Mesh(
-      new THREE.ConeGeometry(radius, height, 5 + Math.floor(rng() * 3)),
-      new THREE.MeshStandardMaterial({
-        color: snowy ? '#eef1f5' : '#9c958a',
-        flatShading: true,
-        roughness: 0.95,
-      })
-    );
-    peak.rotation.y = rng() * Math.PI * 2;
-    peak.position.set(worldX(col) + jx, topY + height / 2 - 0.25, worldZ(row) + jz);
-    group.add(peak);
+    (snowy ? props.snowPeaks : props.rockPeaks).push({
+      x: worldX(col) + jx,
+      y: topY + height / 2 - 0.25,
+      z: worldZ(row) + jz,
+      s: height,
+      r: rng() * Math.PI * 2,
+    });
   }
+}
+
+function addInstanced(geometry, material, transforms) {
+  if (!transforms.length) return null;
+  const mesh = new THREE.InstancedMesh(geometry, material, transforms.length);
+  const matrix = new THREE.Matrix4();
+  const quaternion = new THREE.Quaternion();
+  const axis = new THREE.Vector3(0, 1, 0);
+  const position = new THREE.Vector3();
+  const scale = new THREE.Vector3();
+  transforms.forEach((t, i) => {
+    position.set(t.x, t.y, t.z);
+    quaternion.setFromAxisAngle(axis, t.r);
+    scale.setScalar(t.s);
+    matrix.compose(position, quaternion, scale);
+    mesh.setMatrixAt(i, matrix);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  scene.add(mesh);
+  return mesh;
+}
+
+// Cones and cylinders are authored at unit height so a single scale puts each
+// instance at its own size.
+function buildProps(props) {
+  addInstanced(
+    new THREE.CylinderGeometry(0.18, 0.24, 1.1, 6),
+    new THREE.MeshStandardMaterial({ color: '#5b3a22', roughness: 1 }),
+    props.trunks
+  );
+  addInstanced(
+    new THREE.ConeGeometry(1.1, 2.4, 7),
+    new THREE.MeshStandardMaterial({ color: '#2f6b34', roughness: 0.9 }),
+    props.leaves
+  );
+  const peakGeometry = new THREE.ConeGeometry(0.5, 1, 6);
+  addInstanced(
+    peakGeometry,
+    new THREE.MeshStandardMaterial({ color: '#9c958a', flatShading: true, roughness: 0.95 }),
+    props.rockPeaks
+  );
+  addInstanced(
+    peakGeometry,
+    new THREE.MeshStandardMaterial({ color: '#eef1f5', flatShading: true, roughness: 0.9 }),
+    props.snowPeaks
+  );
 }
 
 function seededRandomFactory(seed) {
@@ -282,8 +320,7 @@ export function buildMap(state) {
   mapCols = state.map.cols;
   mapRows = state.map.rows;
   currentMap = state.map;
-  const propsGroup = new THREE.Group();
-  scene.add(propsGroup);
+  const props = { trunks: [], leaves: [], rockPeaks: [], snowPeaks: [] };
   const rng = seededRandomFactory(11);
 
   const positions = new Float32Array(mapCols * mapRows * 3);
@@ -306,8 +343,8 @@ export function buildMap(state) {
       uvs[i * 2 + 1] = row / 3;
 
       if (tile.type !== 'water') {
-        if (TILE_TYPES[tile.type].deco === 'tree' && rng() < 0.85) addTreeProp(propsGroup, col, row, tileTopY(tile.elevation), rng);
-        if (TILE_TYPES[tile.type].deco === 'peak') addPeakProp(propsGroup, col, row, tile.elevation, rng);
+        if (TILE_TYPES[tile.type].deco === 'tree' && rng() < 0.85) collectTree(props, col, row, tileTopY(tile.elevation), rng);
+        if (TILE_TYPES[tile.type].deco === 'peak') collectPeak(props, col, row, tile.elevation, rng);
       }
     }
   }
@@ -338,7 +375,18 @@ export function buildMap(state) {
   terrainMesh = new THREE.Mesh(geometry, material);
   scene.add(terrainMesh);
 
-  const seaSize = Math.max(mapCols, mapRows) * TILE_SIZE * 1.6;
+  const seaSize = Math.max(mapCols, mapRows) * TILE_SIZE * 1.8;
+  // An opaque deep-ocean floor under the translucent surface. Without it the
+  // sea beyond the edge of the heightmap shows the sky through it and the map
+  // ends in a visible pale shelf.
+  const deepSea = new THREE.Mesh(
+    new THREE.PlaneGeometry(seaSize, seaSize),
+    new THREE.MeshStandardMaterial({ color: '#1d3f66', roughness: 0.9 })
+  );
+  deepSea.rotation.x = -Math.PI / 2;
+  deepSea.position.y = tileTopY(TILE_TYPES.water.elevation) - 0.6;
+  scene.add(deepSea);
+
   waterMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(seaSize, seaSize),
     new THREE.MeshStandardMaterial({ color: TILE_TYPES.water.color, transparent: true, opacity: 0.82, roughness: 0.25 })
@@ -347,32 +395,72 @@ export function buildMap(state) {
   waterMesh.position.y = SEA_LEVEL_Y;
   scene.add(waterMesh);
 
+  buildProps(props);
   buildRoads(state);
 }
 
-function elevationNear(state, col, row) {
-  const c = Math.max(0, Math.min(mapCols - 1, Math.round(col)));
-  const r = Math.max(0, Math.min(mapRows - 1, Math.round(row)));
-  return state.map.tiles[r][c].elevation;
+// A road follows the ground: a least-cost path over passable land, so it winds
+// round the sea and through the passes instead of ruling a straight line
+// across the Adriatic.
+function landRoute(state, from, to) {
+  const { cols, rows, tiles } = state.map;
+  const key = (col, row) => row * cols + col;
+  // Step costs are small integers, so the frontier is a row of buckets keyed
+  // by cost - no sorting, and the whole search stays linear.
+  const start = key(from.col, from.row);
+  const goal = key(to.col, to.row);
+  const cost = new Int32Array(cols * rows).fill(-1);
+  const prev = new Int32Array(cols * rows).fill(-1);
+  const buckets = [[start]];
+  cost[start] = 0;
+
+  for (let level = 0; level < buckets.length; level++) {
+    const bucket = buckets[level];
+    if (!bucket) continue;
+    for (const currentKey of bucket) {
+      if (cost[currentKey] !== level) continue;
+      if (currentKey === goal) { level = buckets.length; break; }
+      const col = currentKey % cols;
+      const row = (currentKey - col) / cols;
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nc = col + dc;
+        const nr = row + dr;
+        if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
+        const def = TILE_TYPES[tiles[nr][nc].type];
+        if (def.impassable) continue;
+        const next = level + def.cost;
+        const nextKey = key(nc, nr);
+        if (cost[nextKey] !== -1 && cost[nextKey] <= next) continue;
+        cost[nextKey] = next;
+        prev[nextKey] = currentKey;
+        (buckets[next] || (buckets[next] = [])).push(nextKey);
+      }
+    }
+  }
+
+  if (cost[goal] === -1) return null;
+  const path = [];
+  for (let k = goal; k !== -1; k = prev[k]) {
+    path.push({ col: k % cols, row: (k - (k % cols)) / cols });
+    if (k === start) break;
+  }
+  return path.reverse();
 }
 
-function buildRoad(state, from, to) {
-  const steps = Math.max(10, Math.round(Math.hypot(to.col - from.col, to.row - from.row) * 2));
-  const points = [];
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const col = from.col + (to.col - from.col) * t;
-    const row = from.row + (to.row - from.row) * t;
-    const elevation = elevationNear(state, col, row);
-    points.push(new THREE.Vector3(worldX(col), tileTopY(elevation) + 0.14, worldZ(row)));
-  }
+function buildRoad(state, route) {
+  const points = route.map((tile) => new THREE.Vector3(
+    worldX(tile.col), surfaceY(tile.col, tile.row) + 0.16, worldZ(tile.row)
+  ));
+  if (points.length < 2) return;
   const curve = new THREE.CatmullRomCurve3(points);
-  const geometry = new THREE.TubeGeometry(curve, steps * 2, 0.34, 5, false);
+  const segments = Math.min(600, points.length * 4);
+  const geometry = new THREE.TubeGeometry(curve, segments, 0.34, 5, false);
   const material = new THREE.MeshStandardMaterial({ color: '#a9895c', roughness: 1 });
   scene.add(new THREE.Mesh(geometry, material));
 }
 
-// Decorative roads linking each faction's two settlements together.
+// Each faction's roads run from its capital out to its own settlements. An
+// island holding gets none: there is no road to build.
 function buildRoads(state) {
   const byFaction = new Map();
   for (const city of state.cities) {
@@ -383,7 +471,9 @@ function buildRoads(state) {
     if (factionId === 'neutral' || cities.length < 2) continue;
     const capital = cities.find((c) => c.capital) || cities[0];
     for (const city of cities) {
-      if (city !== capital) buildRoad(state, capital, city);
+      if (city === capital) continue;
+      const route = landRoute(state, capital, city);
+      if (route) buildRoad(state, route);
     }
   }
 }

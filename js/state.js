@@ -2,6 +2,7 @@ import {
   FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES, factionGarrisonFactor,
 } from './data.js';
+import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { generateMap } from './mapgen.js';
 
 let nextId = 1;
@@ -34,8 +35,12 @@ export function createInitialState() {
     return {
       id: makeId('city'),
       name: def.name,
-      col: def.col,
-      row: def.row,
+      // Settlements are authored at the coordinates of the real towns; the
+      // tile they land on falls out of the map's resolution.
+      col: colOfLon(def.lon),
+      row: rowOfLat(def.lat),
+      lon: def.lon,
+      lat: def.lat,
       factionId: def.factionId,
       capital: !!def.capital,
       size,
@@ -97,6 +102,8 @@ export function createInitialState() {
     armies,
     selectedArmyId: null,
     selectedCityId: null,
+    // The tile the player last clicked, whose terrain the sidebar reports.
+    inspectedTile: null,
     reachable: null,
     log: [{ text: 'Das Spiel beginnt. Führe Rom zum Sieg!', reportId: null }],
     battleReports: [],
@@ -121,16 +128,58 @@ export function armyAt(state, col, row) {
   return state.armies.find((a) => a.col === col && a.row === row);
 }
 
+// Where a tile actually is on Earth, in the form people write coordinates.
+export function tilePosition(col, row) {
+  const lon = lonOfCol(col);
+  const lat = latOfRow(row);
+  const fmt = (value, positive, negative) =>
+    `${Math.abs(value).toFixed(1)}° ${value >= 0 ? positive : negative}`;
+  return { lon, lat, label: `${fmt(lat, 'N', 'S')}, ${fmt(lon, 'O', 'W')}` };
+}
+
+// Whether an army standing on one tile could, given unlimited time, walk to
+// the other. What the answer excludes is exactly what a fleet is for.
+export function sameLandmass(state, fromCol, fromRow, toCol, toRow) {
+  const { landmass, cols } = state.map;
+  if (!landmass) return true;
+  const a = landmass[fromRow * cols + fromCol];
+  const b = landmass[toRow * cols + toCol];
+  return a !== -1 && a === b;
+}
+
 export function isWaterTile(state, col, row) {
   if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) return false;
   return state.map.tiles[row][col].type === 'water';
 }
 
-// A settlement counts as a port when it can be reached from open water, which
-// is what lets an army take ship there.
+// A tile is 54 km across, and the great ancient ports sat up an estuary:
+// Hamburg, Bordeaux and London are all seaports without touching open water.
+// So a settlement is a port when the sea is within this many tiles.
+export const PORT_RANGE = 2;
+
+// The open water a fleet raised in this settlement would actually lie in -
+// the nearest free sea tile within reach of the harbour, or null if there is
+// none, which is exactly what makes a town landlocked.
+export function harbourTile(state, city, requireFree = false) {
+  let best = null;
+  let bestDistance = Infinity;
+  for (let dr = -PORT_RANGE; dr <= PORT_RANGE; dr++) {
+    for (let dc = -PORT_RANGE; dc <= PORT_RANGE; dc++) {
+      const distance = Math.abs(dc) + Math.abs(dr);
+      if (distance === 0 || distance > PORT_RANGE || distance >= bestDistance) continue;
+      const col = city.col + dc;
+      const row = city.row + dr;
+      if (!isWaterTile(state, col, row)) continue;
+      if (requireFree && armyAt(state, col, row)) continue;
+      bestDistance = distance;
+      best = { col, row };
+    }
+  }
+  return best;
+}
+
 export function isCoastalCity(state, city) {
-  return [[1, 0], [-1, 0], [0, 1], [0, -1]]
-    .some(([dc, dr]) => isWaterTile(state, city.col + dc, city.row + dr));
+  return harbourTile(state, city) !== null;
 }
 
 export function unitTotalCount(units) {

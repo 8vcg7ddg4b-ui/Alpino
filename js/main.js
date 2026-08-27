@@ -352,7 +352,8 @@ function showGraphicsError() {
 
 function startNewGame() {
   unlockAudio();
-  requestAppFullscreen({ explain: true });
+  // Fullscreen is the player's call and nobody else's: it is entered and left
+  // only through the ⛶ buttons, never on its own when a game starts.
   document.getElementById('startScreen').classList.add('hidden');
   appEl.classList.remove('hidden');
 

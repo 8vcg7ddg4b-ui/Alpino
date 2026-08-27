@@ -221,15 +221,19 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
     const tile = pickTile(ndc.x, ndc.y);
     if (!tile) {
       clearSelection(state);
+      state.inspectedTile = null;
       onChange();
       return;
     }
     const { col, row } = tile;
     if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) {
       clearSelection(state);
+      state.inspectedTile = null;
       onChange();
       return;
     }
+    // Every click reports the ground it landed on, whatever else it does.
+    state.inspectedTile = { col, row };
 
     const player = playerFaction(state);
     const clickedArmy = armyAt(state, col, row);

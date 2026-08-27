@@ -13,7 +13,7 @@ import { computeReachable, tileKey } from './pathfind.js';
 import { resolveBattle, forecastBattle } from './combat.js';
 import {
   makeId, factionById, cityAt, armyAt, unitTotalCount, logMsg, playerFaction,
-  isWaterTile, isCoastalCity,
+  isWaterTile, isCoastalCity, harbourTile,
 } from './state.js';
 
 export function removeArmy(state, armyId) {
@@ -493,9 +493,7 @@ export function embarkArmy(state, armyId) {
   if (!faction || faction.isNeutral) return { ok: false };
   if (faction.gold < SHIP_COST) return { ok: false, reason: 'gold' };
 
-  const berth = NEIGHBOUR_OFFSETS
-    .map(([dc, dr]) => ({ col: city.col + dc, row: city.row + dr }))
-    .find((t) => isWaterTile(state, t.col, t.row) && !armyAt(state, t.col, t.row));
+  const berth = harbourTile(state, city, true);
   if (!berth) return { ok: false, reason: 'blocked' };
 
   faction.gold -= SHIP_COST;
@@ -518,10 +516,7 @@ export function embarkStatus(state, army) {
   if (!isCoastalCity(state, city)) return { can: false, reason: 'noPort', city };
   const faction = factionById(state, army.factionId);
   if (!faction || faction.gold < SHIP_COST) return { can: false, reason: 'gold', city };
-  const berth = NEIGHBOUR_OFFSETS
-    .map(([dc, dr]) => ({ col: city.col + dc, row: city.row + dr }))
-    .find((t) => isWaterTile(state, t.col, t.row) && !armyAt(state, t.col, t.row));
-  if (!berth) return { can: false, reason: 'blocked', city };
+  if (!harbourTile(state, city, true)) return { can: false, reason: 'blocked', city };
   return { can: true, city };
 }
 

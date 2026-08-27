@@ -1,27 +1,10 @@
-import { UNIT_ORDER, TILE_TYPES, SHIP_COST } from './data.js';
+import { UNIT_ORDER, SHIP_COST } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
   moveArmy, recruitUnit, raiseArmyFromGarrison, embarkArmy, embarkStatus,
   previewTileCombat,
 } from './actions.js';
-import { unitTotalCount, factionById, isCoastalCity } from './state.js';
-
-// Every tile this army could walk to given all the time in the world. What is
-// missing from it is exactly what a fleet is for.
-function reachableByLand(state, fromCol, fromRow) {
-  const seen = new Set();
-  const stack = [[fromCol, fromRow]];
-  while (stack.length) {
-    const [col, row] = stack.pop();
-    if (col < 0 || row < 0 || col >= state.map.cols || row >= state.map.rows) continue;
-    const key = tileKey(col, row);
-    if (seen.has(key)) continue;
-    if (TILE_TYPES[state.map.tiles[row][col].type].impassable) continue;
-    seen.add(key);
-    stack.push([col + 1, row], [col - 1, row], [col, row + 1], [col, row - 1]);
-  }
-  return seen;
-}
+import { unitTotalCount, factionById, isCoastalCity, sameLandmass } from './state.js';
 
 // Keeps enough in the treasury that paying for a fleet never leaves a faction
 // unable to defend what it already has.
@@ -29,7 +12,7 @@ const AI_FLEET_RESERVE = 300;
 // How much closer an overseas target must be before the fleet is worth it.
 const SEA_CROSSING_MARGIN = 3;
 
-function nearestTarget(state, army, landReach) {
+function nearestTarget(state, army, walkable) {
   const candidates = [];
   for (const city of state.cities) {
     if (city.factionId !== army.factionId) {
@@ -53,8 +36,8 @@ function nearestTarget(state, army, landReach) {
   for (const c of candidates) {
     const dist = Math.abs(c.col - army.col) + Math.abs(c.row - army.row);
     const score = dist + c.weight * 0.05;
-    const walkable = !landReach || landReach.has(tileKey(c.col, c.row));
-    if (walkable) {
+    const reachable = !walkable || walkable(c.col, c.row);
+    if (reachable) {
       if (score < bestScore) {
         bestScore = score;
         best = c;
@@ -151,8 +134,10 @@ function aiMilitary(state, faction) {
   for (const army of armies) {
     // A fleet already at sea navigates by the same rule; the pathfinder is
     // what knows the difference between a road and a sea lane.
-    const landReach = army.embarked ? null : reachableByLand(state, army.col, army.row);
-    const target = nearestTarget(state, army, landReach);
+    const walkable = army.embarked
+      ? null
+      : (col, row) => sameLandmass(state, army.col, army.row, col, row);
+    const target = nearestTarget(state, army, walkable);
     if (!target) continue;
 
     if (target.needsSea && !army.embarked) {
@@ -164,7 +149,7 @@ function aiMilitary(state, faction) {
       }
       // No fleet and no port: march for the nearest own harbour instead of
       // standing still on the wrong side of the water.
-      const port = nearestOwnPort(state, army, landReach);
+      const port = nearestOwnPort(state, army, walkable);
       if (port) {
         stepArmyTowards(state, army, port);
         continue;
@@ -175,13 +160,13 @@ function aiMilitary(state, faction) {
 }
 
 // The closest own harbour this army could actually walk to.
-function nearestOwnPort(state, army, landReach) {
+function nearestOwnPort(state, army, walkable) {
   let best = null;
   let bestDist = Infinity;
   for (const city of state.cities) {
     if (city.factionId !== army.factionId) continue;
     if (!isCoastalCity(state, city)) continue;
-    if (landReach && !landReach.has(tileKey(city.col, city.row))) continue;
+    if (walkable && !walkable(city.col, city.row)) continue;
     const dist = Math.abs(city.col - army.col) + Math.abs(city.row - army.row);
     if (dist < bestDist) {
       bestDist = dist;

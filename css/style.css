@@ -822,3 +822,64 @@ html, body {
   font-weight: bold;
 }
 .preview-attack:hover { background: linear-gradient(#a83a2b, #7d2a1d); }
+
+/* --- Geländeauskunft ----------------------------------------------------- */
+.terrain-panel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+#selectedPanel:empty + .terrain-panel,
+#terrainPanel > .terrain-panel:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.terrain-head {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--gold);
+}
+
+.terrain-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 12px;
+  font-size: 0.82rem;
+}
+.terrain-fact {
+  display: contents;
+}
+.terrain-fact span { color: var(--muted); }
+.terrain-fact strong {
+  font-weight: normal;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.terrain-here {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 0.84rem;
+}
+.terrain-here li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+}
+.terrain-here em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.76rem;
+}
+
+.terrain-note {
+  margin: 8px 0 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+  border-left: 2px solid var(--border);
+  padding-left: 8px;
+}
