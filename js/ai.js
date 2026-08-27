@@ -1,8 +1,8 @@
-import { UNIT_ORDER, SHIP_COST } from './data.js';
+import { UNIT_ROLES, SHIP_COST, roadCost } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
   moveArmy, recruitUnit, raiseArmyFromGarrison, embarkArmy, embarkStatus,
-  previewTileCombat,
+  previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
 } from './actions.js';
 import { unitTotalCount, factionById, isCoastalCity, sameLandmass } from './state.js';
 
@@ -117,17 +117,19 @@ function stepArmyTowards(state, army, target) {
 // for a fleet or a wall. Recruiting stops at this floor.
 const AI_TREASURY_FLOOR = 400;
 
-function aiEconomy(state, faction, savingForFleet) {
+function aiEconomy(state, faction, savingForFleet, savingForRoad = false) {
   // An army waiting in a harbour for want of coin will wait for ever if the
   // treasury is spent on recruits every turn. When a crossing is pending, the
   // floor rises until the fleet is paid for.
-  const floor = savingForFleet
+  let floor = savingForFleet
     ? Math.max(AI_TREASURY_FLOOR, SHIP_COST + AI_FLEET_RESERVE)
     : AI_TREASURY_FLOOR;
+  // Auch eine Straße will erst bezahlt sein, bevor die nächste Aushebung kommt.
+  if (savingForRoad) floor = Math.max(floor, AI_TREASURY_FLOOR + AI_ROAD_MAX_COST);
   const ownCities = state.cities.filter((c) => c.factionId === faction.id);
   for (const city of ownCities) {
     if (faction.gold <= floor) break;
-    const unitKey = UNIT_ORDER[Math.floor(Math.random() * UNIT_ORDER.length)];
+    const unitKey = UNIT_ROLES[Math.floor(Math.random() * UNIT_ROLES.length)];
     recruitUnit(state, city.id, unitKey);
 
     const garrisonStrength = unitTotalCount(city.garrison);
@@ -138,6 +140,54 @@ function aiEconomy(state, faction, savingForFleet) {
       raiseArmyFromGarrison(state, city.id);
     }
   }
+}
+
+// Straßen sind eine Ausgabe für ruhige Zeiten, aber keine, die nie an die
+// Reihe kommt: eine Fraktion sucht sich den nächsten eigenen Ort ohne
+// Anschluss und spart darauf, so wie sie auf eine Flotte spart.
+const AI_ROAD_TREASURY = 260;
+// Teurer als das baut die KI nicht - für eine Straße quer durch Africa
+// stehen die Truppen sonst ein halbes Jahrzehnt ohne Nachschub da.
+const AI_ROAD_MAX_COST = 400;
+
+// Der nächste eigene Ort, der noch nicht am Netz hängt, und der Ort am Netz,
+// von dem aus er am kürzesten zu erreichen wäre.
+function roadPlan(state, faction) {
+  if ((state.roadProjects || []).some((p) => p.factionId === faction.id)) return null;
+  const own = state.cities.filter((c) => c.factionId === faction.id);
+  if (own.length < 2) return null;
+  const hub = own.find((c) => c.capital) || own[0];
+  const network = roadNetworkFrom(state, hub);
+  const connected = own.filter((c) => network.has(`${c.col},${c.row}`));
+  const anchors = connected.length ? connected : [hub];
+
+  let best = null;
+  for (const target of own) {
+    if (network.has(`${target.col},${target.row}`)) continue;
+    if (roadProjectOf(state, target.id)) continue;
+    if (!sameLandmass(state, hub.col, hub.row, target.col, target.row)) continue;
+    for (const from of anchors) {
+      if (from.id === target.id || roadProjectOf(state, from.id)) continue;
+      const air = Math.abs(from.col - target.col) + Math.abs(from.row - target.row);
+      if (!best || air < best.air) best = { from, target, air };
+    }
+  }
+  if (!best) return null;
+  best.estimate = roadCost(best.air);
+  return best.estimate <= AI_ROAD_MAX_COST ? best : null;
+}
+
+// Gibt zurück, ob die Fraktion gerade auf eine Straße spart - dann hält der
+// Wirtschaftsteil die Kasse hoch genug, dass sie sie auch bezahlen kann.
+function aiRoads(state, faction, savingForFleet) {
+  if (savingForFleet) return false;
+  const plan = roadPlan(state, faction);
+  if (!plan) return false;
+  if (faction.gold >= plan.estimate + AI_ROAD_TREASURY) {
+    buyRoad(state, plan.from.id, plan.target.id);
+    return false;
+  }
+  return true;
 }
 
 // How close an enemy army has to be before a settlement counts as threatened.
@@ -248,7 +298,8 @@ export function aiTakeTurn(state, faction) {
   // Movement first: a fleet that is needed this turn should not find the
   // treasury already spent on another batch of recruits.
   const savingForFleet = aiMilitary(state, faction);
-  aiEconomy(state, faction, savingForFleet);
+  const savingForRoad = aiRoads(state, faction, savingForFleet);
+  aiEconomy(state, faction, savingForFleet, savingForRoad);
 }
 
 export function aiTakeAllTurns(state) {

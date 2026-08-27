@@ -1,5 +1,5 @@
 import {
-  UNIT_ORDER, UNIT_TYPES, MAX_MOVEMENT, INCOME_PER_CITY,
+  UNIT_ROLES, unitDef, MAX_MOVEMENT, INCOME_PER_CITY,
   RECRUIT_BATCH, GARRISON_REGEN_BATCH, TILE_TYPES, settlementTier, garrisonCapacity,
   MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
   MORALE_REST, MORALE_REST_IN_CITY, EXHAUSTION_PER_MOVE, EXHAUSTION_REST,
@@ -10,7 +10,9 @@ import {
   experienceBonus, experienceStars, starMarks, starTitle,
   SHIP_COST, NAVAL_MOVEMENT, EXHAUSTION_PER_SEA_MOVE,
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_DEFENCE_MULTIPLIER,
+  ROAD_TARGET_CHOICES, roadCost, roadTurns,
 } from './data.js';
+import { landRoute } from './mapgen.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import { resolveBattle, forecastBattle } from './combat.js';
 import {
@@ -40,7 +42,7 @@ const MAX_BATTLE_REPORTS = 40;
 
 function mergeAllUnits(parts) {
   const out = {};
-  for (const key of UNIT_ORDER) {
+  for (const key of UNIT_ROLES) {
     out[key] = parts.reduce((sum, part) => sum + (part[key] || 0), 0);
   }
   return out;
@@ -51,7 +53,7 @@ function mergeAllUnits(parts) {
 // all of the casualties.
 function splitSurvivors(survivors, parts) {
   const out = parts.map(() => ({}));
-  for (const key of UNIT_ORDER) {
+  for (const key of UNIT_ROLES) {
     const total = parts.reduce((sum, part) => sum + (part[key] || 0), 0);
     const available = survivors[key] || 0;
     if (total === 0) {
@@ -250,6 +252,10 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
   const amphibious = !!army.embarked && !atSea;
   const wallLevel = cityIsEnemy ? cityWallLevel(city) : 0;
   const sky = weatherBattleModifiers(state, destCol, destRow);
+  // Who the defence actually is decides which arms it fights with.
+  const defenderFactionId = garrisonJoins ? city.factionId
+    : defendingArmies.length ? defendingArmies[0].factionId
+      : city ? city.factionId : 'neutral';
   // The garrison is a levy and brings no veterancy, so it only dilutes what
   // the field armies have learned.
   const defenceExperience = weightedCondition(
@@ -274,6 +280,7 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
     attackerExperience: army.experience || 0,
     defenceExperience,
     kind: garrisonJoins ? 'city' : 'army',
+    defenderFactionId,
     modifiers: {
       attackerMorale: army.morale,
       attackerExhaustion: army.exhaustion,
@@ -287,6 +294,8 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       attackerMultiplier: amphibious ? AMPHIBIOUS_ATTACK_MULTIPLIER : 1,
       attackerVeterancy: experienceBonus(army.experience),
       defenderVeterancy: experienceBonus(defenceExperience),
+      attackerFactionId: army.factionId,
+      defenderFactionId,
       ...sky.modifiers,
     },
   };
@@ -466,6 +475,8 @@ export function resolveTileCombat(state, army, destCol, destRow) {
         defenderMorale: GARRISON_MORALE,
         defenderExhaustion: GARRISON_EXHAUSTION,
         wallMultiplier: wallDefenceMultiplier(cityWallLevel(city)),
+        attackerFactionId: army.factionId,
+        defenderFactionId: city.factionId,
       });
       attackerUnits = result.attackerSurvivors;
       adjustExhaustion(army, EXHAUSTION_PER_BATTLE);
@@ -496,7 +507,7 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     city.factionId = army.factionId;
     // A small occupying garrison remains so the city isn't immediately
     // defenseless against a follow-up attack the same turn.
-    city.garrison = { legionary: 30 };
+    city.garrison = { infantry: 30 };
     city.population = Math.round(city.population * 0.92);
   }
 
@@ -603,7 +614,7 @@ export function recruitUnit(state, cityId, unitKey) {
   if (!city) return { ok: false };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
-  const def = UNIT_TYPES[unitKey];
+  const def = unitDef(city.factionId, unitKey);
   const maxTotal = garrisonCapacity(city, faction);
   if (unitTotalCount(city.garrison) >= maxTotal) return { ok: false, reason: 'full' };
   if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
@@ -631,7 +642,7 @@ export function raiseArmyFromGarrison(state, cityId) {
     if (veterans + recruits > 0) {
       existing.experience = ((existing.experience || 0) * veterans) / (veterans + recruits);
     }
-    for (const key of UNIT_ORDER) existing.units[key] = (existing.units[key] || 0) + (city.garrison[key] || 0);
+    for (const key of UNIT_ROLES) existing.units[key] = (existing.units[key] || 0) + (city.garrison[key] || 0);
     city.garrison = {};
     logMsg(state, `${faction.name}: Verstärkung aus ${city.name} schließt sich der Armee an.`);
     return { ok: true, armyId: existing.id };
@@ -661,7 +672,7 @@ export function disbandArmyIntoCity(state, armyId) {
 
   const joined = unitTotalCount(army.units);
   if (joined <= 0) return { ok: false, reason: 'empty' };
-  for (const key of UNIT_ORDER) {
+  for (const key of UNIT_ROLES) {
     if (army.units[key]) city.garrison[key] = (city.garrison[key] || 0) + army.units[key];
   }
   removeArmy(state, army.id);
@@ -699,6 +710,153 @@ export function advanceWallConstruction(state) {
     city.wallBuilding = null;
     finished.push(city);
     logMsg(state, `${wallLevelInfo(city.wallLevel).name} von ${city.name} fertiggestellt.`);
+  }
+  return finished;
+}
+
+// --- Straßenbau ----------------------------------------------------------
+// Straßen verbinden die eigenen Orte. Gebaut wird eine Verbindung als Ganzes:
+// bezahlt wird nach Länge, gepflastert wird erst, wenn sie fertig ist.
+
+function roadKey(col, row) {
+  return `${col},${row}`;
+}
+
+// Das Straßennetz, das von diesem Feld aus zusammenhängt - alle Felder, die
+// man erreicht, ohne die Pflasterung zu verlassen.
+export function roadNetworkFrom(state, tile) {
+  const roads = state.roads || {};
+  const start = roadKey(tile.col, tile.row);
+  const seen = new Set();
+  if (!roads[start]) return seen;
+  seen.add(start);
+  const queue = [{ col: tile.col, row: tile.row }];
+  while (queue.length) {
+    const current = queue.shift();
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const col = current.col + dc;
+      const row = current.row + dr;
+      const k = roadKey(col, row);
+      if (seen.has(k) || !roads[k]) continue;
+      seen.add(k);
+      queue.push({ col, row });
+    }
+  }
+  return seen;
+}
+
+// Läuft schon ein durchgehender Weg von hier nach dort? Wandert über die
+// gepflasterten Felder, nicht über die Luftlinie.
+export function roadConnected(state, from, to) {
+  const roads = state.roads || {};
+  if (!roads[roadKey(from.col, from.row)] || !roads[roadKey(to.col, to.row)]) return false;
+  return roadNetworkFrom(state, from).has(roadKey(to.col, to.row));
+}
+
+export function roadProjectOf(state, cityId) {
+  return (state.roadProjects || []).find((p) => p.fromId === cityId || p.toId === cityId) || null;
+}
+
+function tilesToPave(state, route) {
+  const roads = state.roads || {};
+  return route.filter((tile) => !roads[roadKey(tile.col, tile.row)]).length;
+}
+
+// Die nächstgelegenen eigenen Orte, zu denen noch keine Straße führt. Die
+// Vorauswahl nach Luftlinie hält die Wegsuche kurz.
+export function roadTargets(state, city) {
+  if (!city || city.factionId === 'neutral') return [];
+  const own = state.cities.filter((c) => c.factionId === city.factionId && c.id !== city.id);
+  const busy = new Set();
+  for (const project of state.roadProjects || []) {
+    busy.add(project.fromId);
+    busy.add(project.toId);
+  }
+  if (busy.has(city.id)) return [];
+
+  const candidates = own
+    .filter((c) => !busy.has(c.id))
+    .filter((c) => state.map.landmass[c.row * state.map.cols + c.col]
+      === state.map.landmass[city.row * state.map.cols + city.col])
+    .filter((c) => !roadConnected(state, city, c))
+    .map((c) => ({ city: c, air: Math.abs(c.col - city.col) + Math.abs(c.row - city.row) }))
+    .sort((a, b) => a.air - b.air)
+    .slice(0, ROAD_TARGET_CHOICES * 2);
+
+  const targets = [];
+  for (const candidate of candidates) {
+    const route = landRoute(state.map, city, candidate.city, state.roads);
+    if (!route) continue;
+    const length = tilesToPave(state, route);
+    if (length === 0) continue;
+    targets.push({
+      cityId: candidate.city.id,
+      name: candidate.city.name,
+      length,
+      cost: roadCost(length),
+      turns: roadTurns(length),
+      route,
+    });
+  }
+  targets.sort((a, b) => a.length - b.length);
+  return targets.slice(0, ROAD_TARGET_CHOICES);
+}
+
+export function buyRoad(state, cityId, targetCityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  const target = state.cities.find((c) => c.id === targetCityId);
+  if (!city || !target || city.id === target.id) return { ok: false };
+  if (city.factionId !== target.factionId) return { ok: false, reason: 'fremd' };
+  if (roadProjectOf(state, city.id) || roadProjectOf(state, target.id)) {
+    return { ok: false, reason: 'building' };
+  }
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+
+  const route = landRoute(state.map, city, target, state.roads);
+  if (!route) return { ok: false, reason: 'weglos' };
+  const length = tilesToPave(state, route);
+  if (length === 0) return { ok: false, reason: 'connected' };
+  const cost = roadCost(length);
+  if (faction.gold < cost) return { ok: false, reason: 'gold' };
+
+  faction.gold -= cost;
+  const turns = roadTurns(length);
+  state.roadProjects.push({
+    fromId: city.id,
+    toId: target.id,
+    fromName: city.name,
+    toName: target.name,
+    factionId: city.factionId,
+    route: route.map((t) => ({ col: t.col, row: t.row })),
+    length,
+    turnsLeft: turns,
+    turns,
+  });
+  logMsg(state, `${faction.name} beginnt die Straße ${city.name} – ${target.name} (${length} Felder, ${turns} Runden, ${cost} Gold).`);
+  return { ok: true, cost, turns, length };
+}
+
+export function advanceRoadConstruction(state) {
+  const finished = [];
+  const projects = state.roadProjects || [];
+  for (let i = projects.length - 1; i >= 0; i--) {
+    const project = projects[i];
+    // Fällt einer der beiden Orte an den Feind, ist der Bau verloren.
+    const from = state.cities.find((c) => c.id === project.fromId);
+    const to = state.cities.find((c) => c.id === project.toId);
+    if (!from || !to || from.factionId !== project.factionId || to.factionId !== project.factionId) {
+      projects.splice(i, 1);
+      logMsg(state, `Der Straßenbau ${project.fromName} – ${project.toName} wird abgebrochen.`);
+      continue;
+    }
+    project.turnsLeft -= 1;
+    if (project.turnsLeft > 0) continue;
+    for (const tile of project.route) state.roads[roadKey(tile.col, tile.row)] = true;
+    state.roadVersion = (state.roadVersion || 0) + 1;
+    projects.splice(i, 1);
+    finished.push(project);
+    logMsg(state, `🛣️ Die Straße ${project.fromName} – ${project.toName} ist fertig.`);
   }
   return finished;
 }
@@ -765,7 +923,9 @@ export function collectIncome(state) {
     income += ownCities.reduce((s, c) => s + Math.floor(c.population / 200), 0);
     const upkeep = state.armies
       .filter((a) => a.factionId === faction.id)
-      .reduce((s, a) => s + UNIT_ORDER.reduce((s2, k) => s2 + (a.units[k] || 0) * UNIT_TYPES[k].upkeep, 0), 0);
+      .reduce((s, a) => s + UNIT_ROLES.reduce(
+        (s2, k) => s2 + (a.units[k] || 0) * unitDef(faction.id, k).upkeep, 0
+      ), 0);
     faction.gold = Math.max(0, Math.round(faction.gold + income - upkeep));
   }
 }
@@ -776,7 +936,7 @@ export function regenerateGarrisons(state) {
     const current = unitTotalCount(city.garrison);
     if (current < maxTotal && Math.random() < 0.5) {
       const grow = Math.min(GARRISON_REGEN_BATCH, maxTotal - current);
-      city.garrison.legionary = (city.garrison.legionary || 0) + grow;
+      city.garrison.infantry = (city.garrison.infantry || 0) + grow;
     }
   }
 }

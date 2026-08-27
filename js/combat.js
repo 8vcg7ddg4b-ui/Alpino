@@ -1,20 +1,22 @@
-import { UNIT_TYPES, UNIT_ORDER, TILE_TYPES, BATTLE_PREVIEW_SAMPLES } from './data.js';
+import { unitDefs, UNIT_ROLES, TILE_TYPES, BATTLE_PREVIEW_SAMPLES } from './data.js';
 import { mulberry32 } from './prng.js';
 
 let battleSeed = 42;
 
 function cloneUnits(units) {
   const out = {};
-  for (const key of UNIT_ORDER) out[key] = units[key] || 0;
+  for (const key of UNIT_ROLES) out[key] = units[key] || 0;
   return out;
 }
 
-function totalStrength(units) {
-  return UNIT_ORDER.reduce((sum, key) => sum + (units[key] || 0) * UNIT_TYPES[key].hp, 0);
+// How much punishment a force can take, which depends on whose men they are:
+// a Roman legionary and a Dacian falx-man do not stand up to the same beating.
+function totalStrength(units, defs) {
+  return UNIT_ROLES.reduce((sum, key) => sum + (units[key] || 0) * defs[key].hp, 0);
 }
 
 function totalCount(units) {
-  return UNIT_ORDER.reduce((sum, key) => sum + (units[key] || 0), 0);
+  return UNIT_ROLES.reduce((sum, key) => sum + (units[key] || 0), 0);
 }
 
 // Fresh, confident troops hit harder; worn-out ones falter. Both inputs are
@@ -38,7 +40,13 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     // Veterans hit harder, and the report has to be able to say by how much -
     // so this is its own multiplier rather than folded into another.
     attackerVeterancy = 1, defenderVeterancy = 1,
+    // Each side fights with its own arms. Without this every faction would be
+    // Rome with a different colour.
+    attackerFactionId = 'neutral', defenderFactionId = 'neutral',
   } = modifiers;
+
+  const attackerDefs = unitDefs(attackerFactionId);
+  const defenderDefs = unitDefs(defenderFactionId);
 
   // A forecast passes its own seed and must not touch the campaign's battle
   // sequence: previewing a fight may never change how that fight turns out.
@@ -49,8 +57,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
   const attackerCondition = conditionFactor(attackerMorale, attackerExhaustion);
   const defenderCondition = conditionFactor(defenderMorale, defenderExhaustion);
 
-  const startAtkStrength = totalStrength(attacker);
-  const startDefStrength = totalStrength(defender);
+  const startAtkStrength = totalStrength(attacker, attackerDefs);
+  const startDefStrength = totalStrength(defender, defenderDefs);
   const rounds = [];
   const maxRounds = 12;
 
@@ -64,13 +72,14 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
 
     let atkPower = 0;
     let defPower = 0;
-    for (const key of UNIT_ORDER) {
-      const def = UNIT_TYPES[key];
-      const rangedBonus = ranged && def.ranged ? 1.6 : 1;
+    for (const key of UNIT_ROLES) {
+      const atkDef = attackerDefs[key];
+      const defDef = defenderDefs[key];
       const conditions = (unitScale && unitScale[key]) || 1;
-      atkPower += (attacker[key] || 0) * def.attack * rangedBonus * conditions;
-      defPower += (defender[key] || 0) * def.defense * (1 + terrainBonus * 0.15)
-        * (ranged && def.ranged ? 1.4 : 1) * conditions;
+      atkPower += (attacker[key] || 0) * atkDef.attack
+        * (ranged && atkDef.ranged ? 1.6 : 1) * conditions;
+      defPower += (defender[key] || 0) * defDef.defense * (1 + terrainBonus * 0.15)
+        * (ranged && defDef.ranged ? 1.4 : 1) * conditions;
     }
     const volley = ranged;
     ranged = false;
@@ -84,8 +93,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
 
     const attackerBefore = totalCount(attacker);
     const defenderBefore = totalCount(defender);
-    applyDamage(defender, dmgToDefender);
-    applyDamage(attacker, dmgToAttacker);
+    applyDamage(defender, dmgToDefender, defenderDefs);
+    applyDamage(attacker, dmgToAttacker, attackerDefs);
 
     rounds.push({
       round,
@@ -96,8 +105,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
       defenderLost: defenderBefore - totalCount(defender),
     });
 
-    const atkRemainRatio = totalStrength(attacker) / Math.max(1, startAtkStrength);
-    const defRemainRatio = totalStrength(defender) / Math.max(1, startDefStrength);
+    const atkRemainRatio = totalStrength(attacker, attackerDefs) / Math.max(1, startAtkStrength);
+    const defRemainRatio = totalStrength(defender, defenderDefs) / Math.max(1, startDefStrength);
     if (atkRemainRatio < 0.35 && atkRemainRatio < defRemainRatio && rng() < 0.35) {
       outcome = 'defender';
       endedBy = 'Moral gebrochen';
@@ -111,8 +120,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
   }
 
   if (!outcome) {
-    const atkRatio = totalStrength(attacker) / Math.max(1, startAtkStrength);
-    const defRatio = totalStrength(defender) / Math.max(1, startDefStrength);
+    const atkRatio = totalStrength(attacker, attackerDefs) / Math.max(1, startAtkStrength);
+    const defRatio = totalStrength(defender, defenderDefs) / Math.max(1, startDefStrength);
     // Ties (including stalemates with no casualties at all) favor the defender.
     outcome = atkRatio > defRatio + 0.0001 ? 'attacker' : 'defender';
   }
@@ -145,14 +154,14 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
   };
 }
 
-function applyDamage(units, dmg) {
-  const strength = totalStrength(units);
+function applyDamage(units, dmg, defs) {
+  const strength = totalStrength(units, defs);
   if (strength <= 0 || dmg <= 0) return;
-  for (const key of UNIT_ORDER) {
+  for (const key of UNIT_ROLES) {
     const count = units[key] || 0;
     if (count <= 0) continue;
-    const share = (count * UNIT_TYPES[key].hp) / strength;
-    const casualties = Math.round((dmg * share) / UNIT_TYPES[key].hp);
+    const share = (count * defs[key].hp) / strength;
+    const casualties = Math.round((dmg * share) / defs[key].hp);
     units[key] = Math.max(0, count - casualties);
   }
 }
@@ -166,7 +175,7 @@ function situationSeed(attacker, defender, terrainType, modifiers) {
     h ^= Math.round(value * 1000) | 0;
     h = Math.imul(h, 16777619);
   };
-  for (const key of UNIT_ORDER) {
+  for (const key of UNIT_ROLES) {
     mix(attacker[key] || 0);
     mix(defender[key] || 0);
   }
@@ -181,7 +190,9 @@ function situationSeed(attacker, defender, terrainType, modifiers) {
   mix(modifiers.openingVolley === false ? 7 : 3);
   mix(modifiers.attackerVeterancy ?? 1);
   mix(modifiers.defenderVeterancy ?? 1);
-  for (const key of UNIT_ORDER) mix((modifiers.unitScale && modifiers.unitScale[key]) ?? 1);
+  mix(String(modifiers.attackerFactionId || '').length);
+  mix(String(modifiers.defenderFactionId || '').length);
+  for (const key of UNIT_ROLES) mix((modifiers.unitScale && modifiers.unitScale[key]) ?? 1);
   return h >>> 0;
 }
 
@@ -199,7 +210,7 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
   let defenderWipes = 0;
   const attackerSurvivors = {};
   const defenderSurvivors = {};
-  for (const key of UNIT_ORDER) {
+  for (const key of UNIT_ROLES) {
     attackerSurvivors[key] = 0;
     defenderSurvivors[key] = 0;
   }
@@ -215,14 +226,14 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     defenderLoss += result.defenderLossesPct;
     if (totalCount(result.attackerSurvivors) === 0) attackerWipes++;
     if (totalCount(result.defenderSurvivors) === 0) defenderWipes++;
-    for (const key of UNIT_ORDER) {
+    for (const key of UNIT_ROLES) {
       attackerSurvivors[key] += result.attackerSurvivors[key] || 0;
       defenderSurvivors[key] += result.defenderSurvivors[key] || 0;
     }
     if (i === 0) sample = result;
   }
 
-  for (const key of UNIT_ORDER) {
+  for (const key of UNIT_ROLES) {
     attackerSurvivors[key] = Math.round(attackerSurvivors[key] / samples);
     defenderSurvivors[key] = Math.round(defenderSurvivors[key] / samples);
   }
@@ -247,6 +258,8 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     openingVolley: modifiers.openingVolley !== false,
     attackerVeterancy: modifiers.attackerVeterancy ?? 1,
     defenderVeterancy: modifiers.defenderVeterancy ?? 1,
+    attackerFactionId: modifiers.attackerFactionId,
+    defenderFactionId: modifiers.defenderFactionId,
     attackerMorale: modifiers.attackerMorale ?? 100,
     attackerExhaustion: modifiers.attackerExhaustion ?? 0,
     defenderMorale: modifiers.defenderMorale ?? 100,

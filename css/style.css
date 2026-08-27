@@ -297,6 +297,30 @@ html, body {
 .wall-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
 .wall-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+.road-head {
+  font-size: 0.82rem;
+  margin: 10px 0 4px;
+}
+.road-head .muted { font-size: 0.72rem; }
+.road-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+.road-btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-align: left;
+}
+.road-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
+.road-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.road-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
 .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .icon-btn.unavailable { opacity: 0.45; border-style: dashed; }
 .over-strength { color: var(--gold); }

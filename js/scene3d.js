@@ -423,86 +423,62 @@ export function buildMap(state) {
   scene.add(waterMesh);
 
   buildProps(props);
-  buildRoads(state);
+  buildRoadNetwork(state);
+  roadVersionDrawn = state.roadVersion || 0;
 }
 
-// A road follows the ground: a least-cost path over passable land, so it winds
-// round the sea and through the passes instead of ruling a straight line
-// across the Adriatic.
-function landRoute(state, from, to) {
-  const { cols, rows, tiles } = state.map;
-  const key = (col, row) => row * cols + col;
-  // Step costs are small integers, so the frontier is a row of buckets keyed
-  // by cost - no sorting, and the whole search stays linear.
-  const start = key(from.col, from.row);
-  const goal = key(to.col, to.row);
-  const cost = new Int32Array(cols * rows).fill(-1);
-  const prev = new Int32Array(cols * rows).fill(-1);
-  const buckets = [[start]];
-  cost[start] = 0;
+// Das Straßennetz als ein einziges Gitter: für jedes Straßenfeld ein Plättchen
+// und je ein halber Balken zu jedem Straßennachbarn. Beide Hälften treffen
+// sich in der Mitte, damit Kurven und Kreuzungen von selbst zusammenpassen.
+let roadVersionDrawn = -1;
 
-  for (let level = 0; level < buckets.length; level++) {
-    const bucket = buckets[level];
-    if (!bucket) continue;
-    for (const currentKey of bucket) {
-      if (cost[currentKey] !== level) continue;
-      if (currentKey === goal) { level = buckets.length; break; }
-      const col = currentKey % cols;
-      const row = (currentKey - col) / cols;
-      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nc = col + dc;
-        const nr = row + dr;
-        if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
-        const def = TILE_TYPES[tiles[nr][nc].type];
-        if (def.impassable) continue;
-        const next = level + def.cost;
-        const nextKey = key(nc, nr);
-        if (cost[nextKey] !== -1 && cost[nextKey] <= next) continue;
-        cost[nextKey] = next;
-        prev[nextKey] = currentKey;
-        (buckets[next] || (buckets[next] = [])).push(nextKey);
-      }
+function pushQuad(positions, ax, az, bx, bz, halfWidth) {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const length = Math.hypot(dx, dz) || 1;
+  const nx = (-dz / length) * halfWidth;
+  const nz = (dx / length) * halfWidth;
+  const corners = [
+    [ax + nx, az + nz], [bx + nx, bz + nz], [bx - nx, bz - nz], [ax - nx, az - nz],
+  ];
+  for (const [i, j, k] of [[0, 1, 2], [0, 2, 3]]) {
+    for (const corner of [corners[i], corners[j], corners[k]]) {
+      positions.push(corner[0], surfaceY(colFromWorldX(corner[0]), rowFromWorldZ(corner[1])) + 0.18, corner[1]);
     }
   }
-
-  if (cost[goal] === -1) return null;
-  const path = [];
-  for (let k = goal; k !== -1; k = prev[k]) {
-    path.push({ col: k % cols, row: (k - (k % cols)) / cols });
-    if (k === start) break;
-  }
-  return path.reverse();
 }
 
-function buildRoad(state, route) {
-  const points = route.map((tile) => new THREE.Vector3(
-    worldX(tile.col), surfaceY(tile.col, tile.row) + 0.16, worldZ(tile.row)
-  ));
-  if (points.length < 2) return;
-  const curve = new THREE.CatmullRomCurve3(points);
-  const segments = Math.min(600, points.length * 4);
-  const geometry = new THREE.TubeGeometry(curve, segments, 0.34, 5, false);
-  const material = new THREE.MeshStandardMaterial({ color: '#a9895c', roughness: 1 });
-  roadsGroup.add(new THREE.Mesh(geometry, material));
-}
-
-// Each faction's roads run from its capital out to its own settlements. An
-// island holding gets none: there is no road to build.
-function buildRoads(state) {
-  const byFaction = new Map();
-  for (const city of state.cities) {
-    if (!byFaction.has(city.factionId)) byFaction.set(city.factionId, []);
-    byFaction.get(city.factionId).push(city);
+function buildRoadNetwork(state) {
+  while (roadsGroup.children.length) {
+    const child = roadsGroup.children.pop();
+    child.geometry.dispose();
+    child.material.dispose();
   }
-  for (const [factionId, cities] of byFaction) {
-    if (factionId === 'neutral' || cities.length < 2) continue;
-    const capital = cities.find((c) => c.capital) || cities[0];
-    for (const city of cities) {
-      if (city === capital) continue;
-      const route = landRoute(state, capital, city);
-      if (route) buildRoad(state, route);
+  const roads = state.roads || {};
+  const positions = [];
+  const half = TILE_SIZE * 0.17;
+
+  for (const key of Object.keys(roads)) {
+    const [col, row] = key.split(',').map(Number);
+    const x = worldX(col);
+    const z = worldZ(row);
+    pushQuad(positions, x - half, z, x + half, z, half);
+    pushQuad(positions, x, z - half, x, z + half, half);
+    for (const [dc, dr] of [[1, 0], [0, 1]]) {
+      if (!roads[`${col + dc},${row + dr}`]) continue;
+      pushQuad(positions, x, z, worldX(col + dc), worldZ(row + dr), half);
     }
   }
+  if (!positions.length) return;
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+    color: '#a9895c', roughness: 1, side: THREE.DoubleSide,
+  }));
+  mesh.frustumCulled = false;
+  roadsGroup.add(mesh);
 }
 
 // One ring of fortification. `span` is the same for all three so a settlement
@@ -978,6 +954,13 @@ export function syncEntities(state) {
       scene.remove(entry.group);
       armyGroups.delete(id);
     }
+  }
+
+  // Roads change rarely; the whole network is rebuilt only when one is
+  // finished rather than on every state change.
+  if (roadsGroup && (state.roadVersion || 0) !== roadVersionDrawn) {
+    buildRoadNetwork(state);
+    roadVersionDrawn = state.roadVersion || 0;
   }
 
   if (mapMode === 'tactical') refreshTacticalColors(state);

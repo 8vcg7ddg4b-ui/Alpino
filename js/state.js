@@ -5,7 +5,7 @@ import {
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
-import { generateMap } from './mapgen.js';
+import { generateMap, landRoute } from './mapgen.js';
 
 let nextId = 1;
 export function makeId(prefix) {
@@ -56,7 +56,7 @@ export function createInitialState() {
   });
 
   const armies = [];
-  const DEFAULT_ARMY = { legionary: 300, cavalry: 120, archer: 120 };
+  const DEFAULT_ARMY = { infantry: 300, cavalry: 120, ranged: 120 };
   for (const faction of factions) {
     if (faction.isNeutral) continue;
     const capital = cities.find((c) => c.factionId === faction.id && c.capital);
@@ -102,9 +102,35 @@ export function createInitialState() {
   // spell of rain rather than rolling a new one.
   const weatherSeed = Math.floor(Math.random() * 1e9);
 
+  // Jede Fraktion beginnt mit Straßen von ihrer Hauptstadt zu den eigenen
+  // Städten - das Netz, das sie über die Jahre schon gebaut hat. Die Dörfer
+  // hängen noch nicht daran: dorthin ist die erste Straße Sache des Spielers.
+  const roads = {};
+  const markRoute = (route) => {
+    for (const tile of route) roads[`${tile.col},${tile.row}`] = true;
+  };
+  const byFaction = new Map();
+  for (const city of cities) {
+    if (city.factionId === 'neutral') continue;
+    if (!byFaction.has(city.factionId)) byFaction.set(city.factionId, []);
+    byFaction.get(city.factionId).push(city);
+  }
+  for (const own of byFaction.values()) {
+    const capital = own.find((c) => c.capital) || own[0];
+    for (const city of own) {
+      if (city === capital || city.size === 'village') continue;
+      const route = landRoute(map, capital, city, roads);
+      if (route) markRoute(route);
+    }
+  }
+
   return {
     turn: 1,
     weatherSeed,
+    roads,
+    roadProjects: [],
+    // Bumped whenever the network changes, so the scene knows to redraw it.
+    roadVersion: 0,
     weather: rollWeather(1, null, weatherSeed),
     map,
     factions,

@@ -388,3 +388,54 @@ export function generateMap(seed = 1337) {
     landmass: labelLandmasses(tiles),
   };
 }
+
+
+// Eine Route über Land: der günstigste Weg zwischen zwei Feldern, damit eine
+// Straße dem Gelände folgt und nicht quer durch die Adria gezogen wird.
+// Braucht nur die Karte, deshalb steht sie hier und nicht bei den Regeln.
+// Ein bereits gepflastertes Feld ist als Wegstück fast geschenkt: neue
+// Straßen legen sich deshalb gerne an das bestehende Netz an.
+export function landRoute(map, from, to, roads = null) {
+  const { cols, rows, tiles } = map;
+  const key = (col, row) => row * cols + col;
+  const start = key(from.col, from.row);
+  const goal = key(to.col, to.row);
+  // Step costs are small integers, so the frontier is a row of buckets keyed
+  // by cost - no sorting, and the whole search stays linear.
+  const cost = new Int32Array(cols * rows).fill(-1);
+  const prev = new Int32Array(cols * rows).fill(-1);
+  const buckets = [[start]];
+  cost[start] = 0;
+
+  for (let level = 0; level < buckets.length; level++) {
+    const bucket = buckets[level];
+    if (!bucket) continue;
+    for (const currentKey of bucket) {
+      if (cost[currentKey] !== level) continue;
+      if (currentKey === goal) { level = buckets.length; break; }
+      const col = currentKey % cols;
+      const row = (currentKey - col) / cols;
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nc = col + dc;
+        const nr = row + dr;
+        if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
+        const def = TILE_TYPES[tiles[nr][nc].type];
+        if (def.impassable) continue;
+        const next = level + (roads && roads[`${nc},${nr}`] ? 1 : def.cost);
+        const nextKey = key(nc, nr);
+        if (cost[nextKey] !== -1 && cost[nextKey] <= next) continue;
+        cost[nextKey] = next;
+        prev[nextKey] = currentKey;
+        (buckets[next] || (buckets[next] = [])).push(nextKey);
+      }
+    }
+  }
+
+  if (cost[goal] === -1) return null;
+  const path = [];
+  for (let k = goal; k !== -1; k = prev[k]) {
+    path.push({ col: k % cols, row: (k - (k % cols)) / cols });
+    if (k === start) break;
+  }
+  return path.reverse();
+}

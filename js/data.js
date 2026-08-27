@@ -15,22 +15,77 @@ export const TILE_TYPES = {
   water: { name: 'Meer', cost: 99, defense: 0, elevation: -0.4, color: '#3f6fa8', deco: null, impassable: true },
 };
 
-export const UNIT_TYPES = {
-  legionary: {
-    key: 'legionary', name: 'Legionär', icon: '⚔️',
-    attack: 6, defense: 9, hp: 100, cost: 100, upkeep: 0.05,
+// Drei Waffengattungen, überall dieselben - damit bleiben die Regeln ein
+// einziger Satz. Was sich unterscheidet, ist, wer sie füllt: die römische
+// Legion ist nicht der dakische Falxträger, auch wenn beide "Fußvolk" sind.
+export const UNIT_ROLES = ['infantry', 'cavalry', 'ranged'];
+
+export const ROLE_LABELS = {
+  infantry: 'Fußvolk',
+  cavalry: 'Reiterei',
+  ranged: 'Fernkampf',
+};
+
+// attack   Angriffskraft je Mann
+// defense  Verteidigungskraft je Mann
+// hp       wie viel ein Mann aushält
+// cost     Rekrutierungskosten je Trupp
+// upkeep   Sold je Mann und Runde
+export const FACTION_UNITS = {
+  rom: {
+    infantry: { name: 'Legionär', icon: '⚔️', attack: 6, defense: 10, hp: 105, cost: 110, upkeep: 0.055 },
+    cavalry: { name: 'Equites', icon: '🐎', attack: 9, defense: 4, hp: 90, cost: 150, upkeep: 0.09 },
+    ranged: { name: 'Veliten', icon: '🏹', attack: 5, defense: 3, hp: 70, cost: 115, upkeep: 0.06, ranged: true },
   },
-  cavalry: {
-    key: 'cavalry', name: 'Kavallerie', icon: '🐎',
-    attack: 10, defense: 4, hp: 90, cost: 150, upkeep: 0.09,
+  karthago: {
+    infantry: { name: 'Libysche Speerträger', icon: '⚔️', attack: 6, defense: 9, hp: 100, cost: 100, upkeep: 0.05 },
+    cavalry: { name: 'Numidische Reiter', icon: '🐎', attack: 11, defense: 3, hp: 85, cost: 145, upkeep: 0.09 },
+    ranged: { name: 'Balearische Schleuderer', icon: '🪨', attack: 6, defense: 3, hp: 70, cost: 125, upkeep: 0.065, ranged: true },
   },
-  archer: {
-    key: 'archer', name: 'Bogenschütze', icon: '🏹',
-    attack: 5, defense: 3, hp: 70, cost: 120, upkeep: 0.06, ranged: true,
+  gallier: {
+    infantry: { name: 'Schwertkämpfer', icon: '🗡️', attack: 8, defense: 7, hp: 105, cost: 105, upkeep: 0.055 },
+    cavalry: { name: 'Edle Reiter', icon: '🐎', attack: 10, defense: 4, hp: 90, cost: 150, upkeep: 0.09 },
+    ranged: { name: 'Bogenschützen', icon: '🏹', attack: 4, defense: 3, hp: 70, cost: 105, upkeep: 0.05, ranged: true },
+  },
+  griechen: {
+    infantry: { name: 'Hopliten', icon: '🛡️', attack: 5, defense: 12, hp: 100, cost: 115, upkeep: 0.06 },
+    cavalry: { name: 'Thessalische Reiter', icon: '🐎', attack: 9, defense: 5, hp: 90, cost: 150, upkeep: 0.09 },
+    ranged: { name: 'Peltasten', icon: '🏹', attack: 5, defense: 4, hp: 75, cost: 120, upkeep: 0.06, ranged: true },
+  },
+  germanen: {
+    infantry: { name: 'Speerträger', icon: '⚔️', attack: 7, defense: 8, hp: 105, cost: 95, upkeep: 0.05 },
+    cavalry: { name: 'Gefolgschaftsreiter', icon: '🐎', attack: 9, defense: 4, hp: 90, cost: 145, upkeep: 0.085 },
+    ranged: { name: 'Wurfspeerträger', icon: '🎯', attack: 5, defense: 3, hp: 70, cost: 105, upkeep: 0.05, ranged: true },
+  },
+  britannier: {
+    infantry: { name: 'Keltenkrieger', icon: '⚔️', attack: 7, defense: 8, hp: 100, cost: 100, upkeep: 0.05 },
+    cavalry: { name: 'Streitwagen', icon: '🛞', attack: 12, defense: 4, hp: 95, cost: 165, upkeep: 0.1 },
+    ranged: { name: 'Schleuderer', icon: '🪨', attack: 5, defense: 3, hp: 70, cost: 110, upkeep: 0.055, ranged: true },
+  },
+  iberer: {
+    infantry: { name: 'Scutarii', icon: '⚔️', attack: 6, defense: 9, hp: 100, cost: 100, upkeep: 0.05 },
+    cavalry: { name: 'Iberische Reiter', icon: '🐎', attack: 10, defense: 4, hp: 90, cost: 150, upkeep: 0.09 },
+    ranged: { name: 'Caetrati', icon: '🎯', attack: 6, defense: 4, hp: 72, cost: 125, upkeep: 0.065, ranged: true },
+  },
+  daker: {
+    infantry: { name: 'Falxträger', icon: '🪓', attack: 9, defense: 6, hp: 100, cost: 110, upkeep: 0.06 },
+    cavalry: { name: 'Sarmatische Panzerreiter', icon: '🐎', attack: 10, defense: 6, hp: 95, cost: 165, upkeep: 0.095 },
+    ranged: { name: 'Dakische Bogenschützen', icon: '🏹', attack: 5, defense: 3, hp: 70, cost: 110, upkeep: 0.055, ranged: true },
+  },
+  neutral: {
+    infantry: { name: 'Stadtmiliz', icon: '⚔️', attack: 5, defense: 8, hp: 95, cost: 90, upkeep: 0.045 },
+    cavalry: { name: 'Berittene Wache', icon: '🐎', attack: 8, defense: 4, hp: 85, cost: 140, upkeep: 0.085 },
+    ranged: { name: 'Schleuderer', icon: '🪨', attack: 4, defense: 3, hp: 68, cost: 105, upkeep: 0.05, ranged: true },
   },
 };
 
-export const UNIT_ORDER = ['legionary', 'cavalry', 'archer'];
+export function unitDefs(factionId) {
+  return FACTION_UNITS[factionId] || FACTION_UNITS.neutral;
+}
+
+export function unitDef(factionId, role) {
+  return unitDefs(factionId)[role] || FACTION_UNITS.neutral[role];
+}
 
 export const FACTIONS = [
   { id: 'rom', name: 'Rom', color: '#c0392b', isPlayer: true },
@@ -39,7 +94,7 @@ export const FACTIONS = [
   // Schwert - viel Infanterie, wenig anderes.
   {
     id: 'gallier', name: 'Gallier', color: '#27632a', isPlayer: false,
-    startingArmy: { legionary: 380, cavalry: 110, archer: 50 },
+    startingArmy: { infantry: 380, cavalry: 110, ranged: 50 },
     armyLabel: 'Heerbann',
   },
   { id: 'griechen', name: 'Griechen', color: '#7a4fae', isPlayer: false },
@@ -49,22 +104,28 @@ export const FACTIONS = [
     id: 'germanen', name: 'Germanen', color: '#1c8f93', isPlayer: false,
     // Same manpower as anyone else, arranged the tribal way: a great mass of
     // foot, with horse and bows as an afterthought.
-    startingArmy: { legionary: 360, cavalry: 100, archer: 80 },
+    startingArmy: { infantry: 360, cavalry: 100, ranged: 80 },
     armyLabel: 'Heerhaufen',
   },
   // Auf der Insel, also von Anfang an auf Schiffe angewiesen. Ihre Stärke ist
   // der Streitwagen - im Spiel die Reiterei.
   {
     id: 'britannier', name: 'Britannier', color: '#d97b2e', isPlayer: false,
-    startingArmy: { legionary: 300, cavalry: 150, archer: 90 },
+    startingArmy: { infantry: 300, cavalry: 150, ranged: 90 },
     armyLabel: 'Kriegsschar',
   },
   // Die iberischen Stämme kämpfen aus der Ferne: Schleuderer und Speerwerfer
   // statt geschlossener Linie.
   {
     id: 'iberer', name: 'Iberer', color: '#b5397f', isPlayer: false,
-    startingArmy: { legionary: 250, cavalry: 100, archer: 190 },
+    startingArmy: { infantry: 250, cavalry: 100, ranged: 190 },
     armyLabel: 'Kriegerbund',
+  },
+  // Hinter den Karpaten, mit der Falx als Waffe und der Draco als Feldzeichen.
+  {
+    id: 'daker', name: 'Daker', color: '#8a9a2b', isPlayer: false,
+    startingArmy: { infantry: 320, cavalry: 130, ranged: 90 },
+    armyLabel: 'Falxheer',
   },
   { id: 'neutral', name: 'Unabhängig', color: '#7f7f7f', isPlayer: false, isNeutral: true },
 ];
@@ -81,9 +142,9 @@ export const SETTLEMENT_TIERS = {
     populationCapital: 6400,
     populationNeutral: 3600,
     modelScale: 1.35,
-    garrison: { legionary: 220, cavalry: 60, archer: 90 },
-    garrisonCapital: { legionary: 250, cavalry: 80, archer: 80 },
-    garrisonNeutral: { legionary: 190, archer: 60 },
+    garrison: { infantry: 220, cavalry: 60, ranged: 90 },
+    garrisonCapital: { infantry: 250, cavalry: 80, ranged: 80 },
+    garrisonNeutral: { infantry: 190, ranged: 60 },
   },
   city: {
     key: 'city',
@@ -93,9 +154,9 @@ export const SETTLEMENT_TIERS = {
     populationCapital: 6000,
     populationNeutral: 2000,
     modelScale: 1,
-    garrison: { legionary: 150, archer: 80 },
-    garrisonCapital: { legionary: 250, cavalry: 80, archer: 80 },
-    garrisonNeutral: { legionary: 120 },
+    garrison: { infantry: 150, ranged: 80 },
+    garrisonCapital: { infantry: 250, cavalry: 80, ranged: 80 },
+    garrisonNeutral: { infantry: 120 },
   },
   village: {
     key: 'village',
@@ -105,9 +166,9 @@ export const SETTLEMENT_TIERS = {
     populationCapital: 2600,
     populationNeutral: 900,
     modelScale: 0.68,
-    garrison: { legionary: 70 },
-    garrisonCapital: { legionary: 140, archer: 40 },
-    garrisonNeutral: { legionary: 45 },
+    garrison: { infantry: 70 },
+    garrisonCapital: { infantry: 140, ranged: 40 },
+    garrisonNeutral: { infantry: 45 },
   },
 };
 
@@ -179,6 +240,11 @@ export const CITY_DEFS = [
   { name: 'Sirmium', lon: 19.61, lat: 44.97, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Vindobona', lon: 16.37, lat: 48.21, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Serdica', lon: 23.32, lat: 42.70, factionId: 'neutral', capital: false, size: 'village' },
+  // --- Daker: nördlich der Donau, in den Karpaten ------------------------
+  { name: 'Sarmizegetusa', lon: 22.79, lat: 45.62, factionId: 'daker', capital: true, size: 'large' },
+  { name: 'Napoca', lon: 23.60, lat: 46.77, factionId: 'daker', capital: false, size: 'city' },
+  { name: 'Sucidava', lon: 24.26, lat: 43.78, factionId: 'daker', capital: false, size: 'village' },
+  { name: 'Piroboridava', lon: 27.40, lat: 46.00, factionId: 'daker', capital: false, size: 'village' },
   // --- Unabhängig: Makedonien, Thrakien, Osten ---------------------------
   { name: 'Thessalonike', lon: 22.94, lat: 40.64, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Byzantion', lon: 28.98, lat: 41.01, factionId: 'neutral', capital: false, size: 'city' },
@@ -288,6 +354,25 @@ export function starTitle(experience) {
 export function starMarks(experience) {
   const stars = experienceStars(experience);
   return '★'.repeat(stars) + '☆'.repeat(MAX_STARS - stars);
+}
+
+// --- Straßenbau ----------------------------------------------------------
+// Eine Straße macht jedes Feld, über das sie führt, so leicht begehbar wie
+// offene Ebene - durch Wald, Hügel und Wüste ist das die halbe Mühe. Gebaut
+// wird von Ort zu Ort, bezahlt nach Länge.
+export const ROAD_MOVE_COST = 1;
+export const ROAD_COST_PER_TILE = 30;
+export const ROAD_TURNS_PER_TILE = 0.4;
+export const ROAD_MIN_TURNS = 2;
+// Wie viele Bauziele einer Stadt zur Auswahl gestellt werden.
+export const ROAD_TARGET_CHOICES = 3;
+
+export function roadCost(length) {
+  return Math.round(length * ROAD_COST_PER_TILE);
+}
+
+export function roadTurns(length) {
+  return Math.max(ROAD_MIN_TURNS, Math.round(length * ROAD_TURNS_PER_TILE));
 }
 
 export const MAX_MOVEMENT = 9;

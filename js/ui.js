@@ -1,14 +1,16 @@
 import {
-  UNIT_ORDER, UNIT_TYPES, settlementTier, garrisonCapacity, TILE_TYPES,
+  UNIT_ROLES, unitDef, ROLE_LABELS, settlementTier, garrisonCapacity, TILE_TYPES,
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
-  SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST,
+  SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST,
 } from './data.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
   isWaterTile, isCoastalCity,
 } from './state.js';
-import { embarkStatus, cityWallLevel, nextWallLevel } from './actions.js';
+import {
+  embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf,
+} from './actions.js';
 import { calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName } from './weather.js';
 
 const TERRAIN_NAMES = {
@@ -25,12 +27,13 @@ function escapeHTML(text) {
 // marched in, how many walked away, and the shortfall between the two.
 function sideHTML(state, factionId, label, engaged, survivors, lossPct, won) {
   const faction = factionById(state, factionId);
-  const rows = UNIT_ORDER.filter((k) => (engaged[k] || 0) > 0).map((k) => {
+  const rows = UNIT_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => {
     const before = engaged[k] || 0;
     const after = survivors[k] || 0;
     const lost = before - after;
+    const def = unitDef(factionId, k);
     return `<tr>
-      <td class="u-name">${UNIT_TYPES[k].icon} ${UNIT_TYPES[k].name}</td>
+      <td class="u-name">${def.icon} ${escapeHTML(def.name)}</td>
       <td class="u-num">${before.toLocaleString('de-DE')}</td>
       <td class="u-num">${after.toLocaleString('de-DE')}</td>
       <td class="u-num u-loss">${lost > 0 ? '−' + lost.toLocaleString('de-DE') : '0'}</td>
@@ -142,7 +145,7 @@ function modifierNotesHTML(info) {
   }
   const sky = info.weather || (info.weatherKey ? weatherInfo(info.weatherKey) : null);
   const scaled = Object.entries(info.unitScale || sky?.unitScale || {})
-    .map(([unit, scale]) => `${UNIT_TYPES[unit].name} ${Math.round((scale - 1) * 100)}%`);
+    .map(([unit, scale]) => `${ROLE_LABELS[unit]} ${Math.round((scale - 1) * 100)}%`);
   const noVolley = info.openingVolley === false || sky?.volley === false;
   if (sky && (scaled.length || noVolley)) {
     notes.push(`<span class="mod-note mod-weather">${sky.icon} ${escapeHTML(sky.name)}: ${
@@ -184,9 +187,14 @@ export function battleReportHTML(state, report) {
     ${roundsHTML(report.rounds)}`;
 }
 
-function unitBreakdownHTML(units) {
-  return UNIT_ORDER.filter((k) => units[k] > 0)
-    .map((k) => `<span class="unit-chip">${UNIT_TYPES[k].icon} ${units[k]} <em>${UNIT_TYPES[k].name}</em></span>`)
+function unitBreakdownHTML(units, factionId) {
+  return UNIT_ROLES.filter((k) => units[k] > 0)
+    .map((k) => {
+      const def = unitDef(factionId, k);
+      return `<span class="unit-chip" title="${escapeHTML(ROLE_LABELS[k])} · Angriff ${
+        def.attack}, Verteidigung ${def.defense}">${def.icon} ${units[k]} <em>${
+        escapeHTML(def.name)}</em></span>`;
+    })
     .join('') || '<span class="unit-chip empty">keine Truppen</span>';
 }
 
@@ -269,7 +277,7 @@ function renderSelectedArmy(state, army) {
       ${conditionBarHTML('Moral', army.morale ?? 100, MORALE_SCALE, 'morale')}
       ${conditionBarHTML('Erschöpfung', army.exhaustion ?? 0, EXHAUSTION_SCALE, 'fatigue')}
     </div>
-    <div class="unit-list">${unitBreakdownHTML(army.units)}</div>
+    <div class="unit-list">${unitBreakdownHTML(army.units, army.factionId)}</div>
     ${canDisband
       ? `<button class="disband-btn" data-army="${army.id}">🏰 In ${escapeHTML(city.name)} auflösen – Garnison verstärken
           ${experienceStars(army.experience)
@@ -299,8 +307,8 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
   if (isMine) {
     recruitHTML = `
       <div class="recruit-row">
-        ${UNIT_ORDER.map((k) => {
-          const def = UNIT_TYPES[k];
+        ${UNIT_ROLES.map((k) => {
+          const def = unitDef(city.factionId, k);
           const disabled = current >= maxTotal || player.gold < def.cost;
           return `<button class="recruit-btn" data-unit="${k}" ${disabled ? 'disabled' : ''}>
             ${def.icon} ${def.name}<br><small>${def.cost} Gold</small>
@@ -320,7 +328,8 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
         ? `<span class="over-strength">über Sollstärke (${maxTotal.toLocaleString('de-DE')})</span>`
         : `/ ${maxTotal.toLocaleString('de-DE')}`}</p>
     ${wallHTML(city, isMine, player)}
-    <div class="unit-list">${unitBreakdownHTML(city.garrison)}</div>
+    ${roadHTML(state, city, isMine, player)}
+    <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>
     ${recruitHTML}
   `;
 }
@@ -361,6 +370,40 @@ function wallHTML(city, isMine, player) {
     <p class="wall-note">${escapeHTML(stage.note)}</p>`;
 }
 
+// --- Straßenbau ----------------------------------------------------------
+// Die Stadt bietet an, wohin sie als Nächstes eine Straße legen kann: die
+// nächsten eigenen Orte ohne Anschluss, mit Preis und Bauzeit.
+function roadHTML(state, city, isMine, player) {
+  const project = roadProjectOf(state, city.id);
+  if (project) {
+    const done = project.turns - project.turnsLeft;
+    const other = project.fromId === city.id ? project.toName : project.fromName;
+    return `<p class="wall-line wall-building">🛣️ Straße nach ${escapeHTML(other)} im Bau –
+      noch ${project.turnsLeft} ${project.turnsLeft === 1 ? 'Runde' : 'Runden'}
+      <span class="wall-track"><span class="wall-fill" style="width:${(done / project.turns) * 100}%"></span></span>
+    </p>`;
+  }
+  if (!isMine) return '';
+
+  const targets = roadTargets(state, city);
+  if (!targets.length) {
+    return '<p class="wall-line muted">🛣️ Alle nahen Orte sind an das Straßennetz angeschlossen.</p>';
+  }
+  return `
+    <p class="road-head">🛣️ Straßenbau <span class="muted">· ein Feld Straße kostet nur
+      ${ROAD_MOVE_COST} Bewegungspunkt</span></p>
+    <div class="road-row">
+      ${targets.map((t) => {
+        const tooPoor = player.gold < t.cost;
+        return `<button class="road-btn" data-target="${t.cityId}" ${tooPoor ? 'disabled' : ''}>
+          nach ${escapeHTML(t.name)}
+          <small>${t.cost} Gold · ${t.length} Felder · ${t.turns} Runden${
+  tooPoor ? ' · zu wenig Gold' : ''}</small>
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
 const TERRAIN_ICONS = {
   plains: '🌾', forest: '🌲', hills: '⛰️', desert: '🏜️', mountain: '🏔️', water: '🌊',
 };
@@ -377,9 +420,13 @@ function terrainFactsHTML(state, col, row) {
   if (tile.type === 'water') {
     facts.push(['Bewegung', `zur See ${SEA_MOVE_COST} Punkt je Feld · für Landarmeen unpassierbar`]);
   } else {
+    const paved = !!(state.roads && state.roads[`${col},${row}`]);
     facts.push(['Bewegungskosten', def.impassable
       ? 'unpassierbar'
-      : `${def.cost} ${def.cost === 1 ? 'Punkt' : 'Punkte'} je Feld`]);
+      : paved
+        ? `🛣️ Straße: ${ROAD_MOVE_COST} ${ROAD_MOVE_COST === 1 ? 'Punkt' : 'Punkte'} je Feld
+           (statt ${def.cost})`
+        : `${def.cost} ${def.cost === 1 ? 'Punkt' : 'Punkte'} je Feld`]);
     facts.push(['Verteidigung', def.defense > 0
       ? `+${Math.round(def.defense * 15)}% für den Verteidiger`
       : 'kein Geländevorteil']);
@@ -394,7 +441,7 @@ function terrainFactsHTML(state, col, row) {
   if (weather.spirit) consequences.push(`Moral ${weather.spirit} je Runde`);
   if (weather.volley === false) consequences.push('kein Fernkampf-Auftakt');
   for (const [unit, scale] of Object.entries(weather.unitScale || {})) {
-    consequences.push(`${UNIT_TYPES[unit].name} ${Math.round((scale - 1) * 100)}%`);
+    consequences.push(`${ROLE_LABELS[unit]} ${Math.round((scale - 1) * 100)}%`);
   }
   facts.push([`${weather.icon} ${weather.name}`,
     consequences.length ? consequences.join(' · ') : 'ohne Auswirkung']);
@@ -508,6 +555,9 @@ export function renderUI(state, handlers) {
       if (raiseBtn) raiseBtn.addEventListener('click', () => handlers.onRaise(city.id));
       const wallBtn = panel.querySelector('.wall-btn');
       if (wallBtn) wallBtn.addEventListener('click', () => handlers.onBuyWalls(city.id));
+      panel.querySelectorAll('.road-btn').forEach((btn) => {
+        btn.addEventListener('click', () => handlers.onBuildRoad(city.id, btn.dataset.target));
+      });
     }
   } else {
     panel.innerHTML = '';
@@ -571,8 +621,8 @@ function oddsVerdict(chance) {
 // One side of the forecast: what marches in and what is expected to walk away.
 function forecastSideHTML(state, factionId, label, engaged, survivors, lossPct) {
   const faction = factionById(state, factionId);
-  const rows = UNIT_ORDER.filter((k) => (engaged[k] || 0) > 0).map((k) => `<tr>
-      <td class="u-name">${UNIT_TYPES[k].icon} ${UNIT_TYPES[k].name}</td>
+  const rows = UNIT_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => `<tr>
+      <td class="u-name">${unitDef(factionId, k).icon} ${escapeHTML(unitDef(factionId, k).name)}</td>
       <td class="u-num">${(engaged[k] || 0).toLocaleString('de-DE')}</td>
       <td class="u-num">${(survivors[k] || 0).toLocaleString('de-DE')}</td>
     </tr>`).join('');

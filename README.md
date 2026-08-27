@@ -137,8 +137,10 @@ den Punkten durchblättern.
   zoomt, Verdrehen dreht die Karte. Am Rechner: Mausrad zoomt, Umschalt+Mausrad
   bzw. **Q**/**E** dreht. Die Knöpfe ↺ ↻ drehen, ⌂ setzt die Ansicht zurück.
   Nach dem Drehen bleiben Steuerkreuz und Pfeiltasten bildschirmbezogen.
-- **Städte**: anklicken, um Einheiten zu rekrutieren (Legionäre, Kavallerie,
-  Bogenschützen) und Garnisonen zu Feldarmeen auszuheben.
+- **Städte**: anklicken, um Einheiten zu rekrutieren und Garnisonen zu
+  Feldarmeen auszuheben. Welche drei Einheiten zur Wahl stehen, hängt von der
+  Fraktion ab, der die Stadt gehört – Rom hebt Legionäre aus, ein dakisches
+  Dorf Falxträger.
 - **Erfahrung**: Jede Armee sammelt im Feld Erfahrung – ein Stern nach etwa
   zwei Schlachten, drei Sterne nach rund sieben. Jeder Stern bringt **+12 %
   Kampfkraft**, und die Sterne stehen im Armee-Panel, auf der Karte am
@@ -158,8 +160,16 @@ den Punkten durchblättern.
   Großen Holzpalisade – die Steinmauer bleibt auch ihnen zu bauen. Jede Stufe
   sieht anders aus: angespitzte Stämme, hölzerner Wehrgang mit Türmen,
   Quadermauer mit Rundtürmen.
+- **Straßenbau**: Jede eigene Stadt bietet die nächstgelegenen eigenen Orte
+  an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
+  Bauzeit. Auf fertiger Straße kostet jedes Feld nur **einen** Bewegungspunkt,
+  egal ob Wald, Hügel oder Wüste darunter liegt; das Wetter kostet weiter
+  extra. Gebaut wird eine Verbindung als Ganzes und immer nur eine je Stadt;
+  neue Straßen legen sich an das bestehende Netz an. Zu Spielbeginn hängen die
+  Städte jeder Fraktion an ihrer Hauptstadt, die Dörfer noch nicht. Fällt einer
+  der beiden Orte an den Feind, wird der Bau abgebrochen.
 - **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
-  Rekrutierung, Mauerkauf, Auflösen oder ganzen Rundenwechsel.
+  Rekrutierung, Mauer- oder Straßenkauf, Auflösen oder ganzen Rundenwechsel.
 - **Ton**: 🔊 schaltet die Klänge um (Marsch, Schlacht, Rekrutierung, Mauerbau,
   Rundenwechsel …). Alle Geräusche werden zur Laufzeit synthetisiert – keine
   Audiodateien, funktioniert offline.
@@ -176,23 +186,42 @@ den Punkten durchblättern.
 
 ## Spielprinzip
 
-- Du spielst **Rom** gegen sechs KI-Fraktionen: **Karthago**, die **Gallier**,
-  die **Griechen**, die **Germanen**, die **Britannier** und die **Iberer** –
-  verteilt über Europa, das Mittelmeer und Nordafrika.
-- Jede Fraktion stellt ihr Heer anders auf: Gallier und Germanen setzen auf die
-  Masse des Fußvolks, die Britannier auf den Streitwagen (Reiterei), die Iberer
-  auf Schleuderer und Speerwerfer (Fernkampf). Rom, Karthago und die Griechen
-  kämpfen ausgewogen.
+- Du spielst **Rom** gegen sieben KI-Fraktionen: **Karthago**, die **Gallier**,
+  die **Griechen**, die **Germanen**, die **Britannier**, die **Iberer** und die
+  **Daker** – verteilt über Europa, das Mittelmeer und Nordafrika.
+- **Jede Fraktion hat ihre eigenen Einheiten.** Drei Waffengattungen gibt es
+  überall – Fußvolk, Reiterei, Fernkampf –, aber jede Fraktion füllt sie anders
+  aus, mit eigenem Namen, eigenen Werten und eigenem Preis:
+
+  | Fraktion | Fußvolk | Reiterei | Fernkampf |
+  | --- | --- | --- | --- |
+  | Rom | Legionär (Schild und Gladius, sehr zäh) | Equites | Veliten |
+  | Karthago | Libysche Speerträger | Numidische Reiter (schnellste Reiterei) | Balearische Schleuderer |
+  | Gallier | Schwertkämpfer (harter Angriff) | Edle Reiter | Bogenschützen |
+  | Griechen | Hopliten (beste Verteidigung) | Thessalische Reiter | Peltasten |
+  | Germanen | Speerträger | Gefolgschaftsreiter | Wurfspeerträger |
+  | Britannier | Keltenkrieger | Streitwagen (härtester Angriff) | Schleuderer |
+  | Iberer | Scutarii | Iberische Reiter | Caetrati |
+  | Daker | Falxträger (Sichelschwert, roher Angriff) | Sarmatische Panzerreiter | Dakische Bogenschützen |
+
+  Im Kampf rechnet jede Seite mit ihren eigenen Werten – ein Legionär hält
+  anders stand als ein Falxträger, auch wenn beide „Fußvolk" heißen.
+- Jede Fraktion stellt ihr Heer auch anders auf: Gallier und Germanen setzen auf
+  die Masse des Fußvolks, die Britannier auf den Streitwagen, die Iberer auf
+  Schleuderer und Speerwerfer, die Daker auf Falx und Panzerreiter. Rom,
+  Karthago und die Griechen kämpfen ausgewogen.
 - Die **Britannier** sitzen auf ihrer Insel und kommen ohne Schiffe nirgendwo
   hin – ihre erste Landung an der gallischen Küste fällt meist in die ersten
   Spielrunden.
 - Die **Germanen** sitzen zwischen Rhein, Nordsee und Elbe im Herkynischen
   Wald, der jeden Vormarsch verlangsamt. Sie führen keine stehende Armee,
   sondern einen fußlastigen Heerhaufen.
-- **62 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
+- Die **Daker** halten die Karpaten um Sarmizegetusa – Bergland, das sich gut
+  verteidigen lässt, mit der Donau als Sprungbrett nach Süden.
+- **66 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
   Garnison, 1,7-faches Grundeinkommen), **Stadt** (Normalmaß) und **Dorf**
   (klein, halbes Grundeinkommen – leicht zu nehmen und gute Sprungbretter).
-  27 davon gehören niemandem und sind frei zu erobern – von Olisipo bis
+  29 davon gehören niemandem und sind frei zu erobern – von Olisipo bis
   Chersonesos. Sizilien, Sardinien, Kreta, Zypern, Rhodos, die Balearen und
   Britannien sind nur mit Schiffen erreichbar.
 - **Gelände**: Ebene, Wald und Hügel wie bisher, dazu die **Wüste** – die
