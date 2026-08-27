@@ -193,10 +193,19 @@ den Punkten durchblättern.
 
 ## Spielprinzip
 
-- Du spielst **Rom** gegen neun KI-Fraktionen: **Karthago**, die **Gallier**,
-  die **Griechen**, die **Germanen**, die **Britannier**, die **Iberer**, die
-  **Daker**, die **Seleukiden** und die **Ptolemäer** – verteilt über Europa,
-  das Mittelmeer, Nordafrika und den Vorderen Orient.
+- **Alle zehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
+  eigener Auswahlbildschirm: links die Fraktionen mit ihrer Schwierigkeit,
+  rechts Hauptstadt, Siedlungen, Startheer, die drei eigenen Einheiten sowie
+  Stärke und Schwäche – und im Hintergrund ein Bild, das mit der Auswahl
+  wechselt: der Tempel und der Adler für Rom, die Hafenmauer mit Elefant für
+  Karthago, der Herkynische Wald für die Germanen, Pyramiden und Palmen für die
+  Ptolemäer. Wer nicht gewählt wird, wird von der KI geführt.
+- Zur Wahl stehen **Rom**, **Karthago**, die **Gallier**, die **Griechen**, die
+  **Germanen**, die **Britannier**, die **Iberer**, die **Daker**, die
+  **Seleukiden** und die **Ptolemäer** – verteilt über Europa, das Mittelmeer,
+  Nordafrika und den Vorderen Orient. Alle beginnen mit demselben Startgold und
+  (bis auf die zwei Heere der Seleukiden) demselben Heer: der Unterschied liegt
+  in der Lage, den Nachbarn und den eigenen Einheiten.
 - **Jede Fraktion hat ihre eigenen Einheiten.** Drei Waffengattungen gibt es
   überall – Fußvolk, Reiterei, Fernkampf –, aber jede Fraktion füllt sie anders
   aus, mit eigenem Namen, eigenen Werten und eigenem Preis:
@@ -245,15 +254,16 @@ den Punkten durchblättern.
   Krieg in Afrika an der Küste.
 - Die KI rechnet vor jedem Angriff dieselbe Vorschau wie du und lässt sich auf
   einen Kampf nur ein, wenn sie ihn voraussichtlich gewinnt.
-- Sieg: alle gegnerischen Fraktionen ausschalten. Niederlage: Rom verliert
-  alle Städte und Armeen.
+- Sieg: alle gegnerischen Fraktionen ausschalten. Niederlage: die eigene
+  Fraktion verliert alle Städte und Armeen.
 
 ## Struktur
 
 - `js/geodata.js` – die Geografie in Grad: Küstenlinien, Inseln, Binnenmeere,
   Meerengen, Gebirgsrücken und Wälder, dazu die Umrechnung Grad ↔ Feld
-- `js/data.js` – Einheiten-, Gelände- und Fraktionsdefinitionen, Siedlungen
-  mit ihren echten Koordinaten
+- `js/data.js` – Einheiten-, Gelände- und Fraktionsdefinitionen samt
+  Fraktionsprofilen für die Auswahl, Siedlungen mit ihren echten Koordinaten
+- `js/factionart.js` – die SVG-Bilder des Auswahlbildschirms, eines je Fraktion
 - `js/mapgen.js` / `js/state.js` – Rasterung der Geografie zu Gelände,
   Spielzustand
 - `js/pathfind.js` – Bewegungsreichweite (Dijkstra) inkl. Kampf-Zielfeldern

@@ -6,11 +6,11 @@
 // Himmelsverlauf - eine Bildsprache, die in reinem SVG glaubwürdig aussieht,
 // wo gezeichnete Figuren roh wirken würden.
 
-const SCENE_W = 1600;
-const SCENE_H = 900;
+export const SCENE_W = 1600;
+export const SCENE_H = 900;
 
 // Ein fester Zufall je Szene: dieselbe Bergkette, dieselbe Menge, jedes Mal.
-function seeded(seed) {
+export function seeded(seed) {
   let s = seed;
   return () => {
     s = (s * 1103515245 + 12345) & 0x7fffffff;
@@ -18,7 +18,7 @@ function seeded(seed) {
   };
 }
 
-function sky(stops, id) {
+export function sky(stops, id) {
   const marks = stops
     .map(([offset, color]) => `<stop offset="${offset}" stop-color="${color}"/>`)
     .join('');
@@ -26,14 +26,14 @@ function sky(stops, id) {
     <rect width="${SCENE_W}" height="${SCENE_H}" fill="url(#${id})"/>`;
 }
 
-function sun(x, y, r, color, glow = 0.22) {
+export function sun(x, y, r, color, glow = 0.22) {
   return `<circle cx="${x}" cy="${y}" r="${r * 3.4}" fill="${color}" opacity="${glow * 0.35}"/>
     <circle cx="${x}" cy="${y}" r="${r * 1.9}" fill="${color}" opacity="${glow * 0.6}"/>
     <circle cx="${x}" cy="${y}" r="${r}" fill="${color}"/>`;
 }
 
 // Eine weiche SCENE_Hügelkette als geschlossener Pfad bis zum unteren Bildrand.
-function hills(baseY, amplitude, rng, color, opacity = 1, step = 110) {
+export function hills(baseY, amplitude, rng, color, opacity = 1, step = 110) {
   let d = `M -40 ${SCENE_H} L -40 ${baseY}`;
   for (let x = -40; x <= SCENE_W + 40; x += step) {
     const y = baseY - Math.sin(x / 260) * amplitude * 0.6 - rng() * amplitude;
@@ -44,7 +44,7 @@ function hills(baseY, amplitude, rng, color, opacity = 1, step = 110) {
 }
 
 // Eine zackige Bergkette - dieselbe Form, die auch auf der Spielkarte steht.
-function peaks(baseY, height, rng, color, opacity = 1, count = 9) {
+export function peaks(baseY, height, rng, color, opacity = 1, count = 9) {
   let d = `M -40 ${SCENE_H} L -40 ${baseY}`;
   const step = (SCENE_W + 80) / count;
   for (let i = 0; i <= count; i++) {
@@ -58,7 +58,7 @@ function peaks(baseY, height, rng, color, opacity = 1, count = 9) {
 }
 
 // Ein Tempel in Frontalansicht: Stufen, Säulen, Gebälk, Giebel.
-function temple(cx, baseY, width, height, color) {
+export function temple(cx, baseY, width, height, color) {
   const half = width / 2;
   const columns = 8;
   const colW = width / (columns * 2.1);
@@ -79,7 +79,7 @@ function temple(cx, baseY, width, height, color) {
 }
 
 // Eine Reihe erhobener Speere mit Köpfen darunter: eine Menge, eine Schlachtreihe.
-function spears(baseY, count, height, rng, color, x0 = -40, x1 = SCENE_W + 40) {
+export function spears(baseY, count, height, rng, color, x0 = -40, x1 = SCENE_W + 40) {
   let out = '';
   for (let i = 0; i < count; i++) {
     const x = x0 + ((x1 - x0) / count) * (i + rng() * 0.6);
@@ -96,7 +96,7 @@ function spears(baseY, count, height, rng, color, x0 = -40, x1 = SCENE_W + 40) {
 }
 
 // Flammen als aufsteigende Zungen.
-function flames(x0, x1, baseY, height, rng, colors) {
+export function flames(x0, x1, baseY, height, rng, colors) {
   let out = '';
   for (let i = 0; i < 26; i++) {
     const x = x0 + (x1 - x0) * rng();
@@ -111,7 +111,7 @@ function flames(x0, x1, baseY, height, rng, colors) {
 }
 
 // Ein Kriegsschiff von der Seite: Rumpf, Rammsporn, Ruderreihe, Mast.
-function warship(x, y, scale, color, sail = null) {
+export function warship(x, y, scale, color, sail = null) {
   const s = scale;
   const oars = Array.from({ length: 9 }, (_, i) =>
     `<path d="M ${x - 60 * s + i * 15 * s} ${y} l -6 ${16 * s}" stroke="${color}"
@@ -146,7 +146,7 @@ function aqueduct(y, height, color, spanCount = 7, x0 = 380) {
 }
 
 // Palisade und Türme - dieselbe Befestigung, die im Spiel gebaut wird.
-function palisadeLine(y, x0, x1, height, color, towerEvery = 5) {
+export function palisadeLine(y, x0, x1, height, color, towerEvery = 5) {
   let out = '';
   const stakes = Math.round((x1 - x0) / 22);
   for (let i = 0; i < stakes; i++) {
@@ -163,7 +163,7 @@ function palisadeLine(y, x0, x1, height, color, towerEvery = 5) {
   return out;
 }
 
-function elephant(x, y, s, color) {
+export function elephant(x, y, s, color) {
   return `<g fill="${color}">
     <ellipse cx="${x}" cy="${y - 34 * s}" rx="${46 * s}" ry="${28 * s}"/>
     <circle cx="${x + 46 * s} " cy="${y - 44 * s}" r="${20 * s}"/>
@@ -180,7 +180,7 @@ function elephant(x, y, s, color) {
 }
 
 // Pferd und Reiter von der Seite.
-function horseman(x, y, s, color) {
+export function horseman(x, y, s, color) {
   return `<g fill="${color}">
     <ellipse cx="${x}" cy="${y - 26 * s}" rx="${30 * s}" ry="${13 * s}"/>
     <path d="M ${x + 24 * s} ${y - 32 * s} l ${12 * s} ${-20 * s} l ${9 * s} ${3 * s}
@@ -198,7 +198,7 @@ function horseman(x, y, s, color) {
   </g>`;
 }
 
-function figures(baseY, count, rng, color, x0, x1, s = 1) {
+export function figures(baseY, count, rng, color, x0, x1, s = 1) {
   let out = '';
   for (let i = 0; i < count; i++) {
     const x = x0 + ((x1 - x0) / count) * (i + rng() * 0.5);

@@ -1281,3 +1281,202 @@ html, body {
   color: var(--muted);
   margin-top: 3px;
 }
+
+/* --- Fraktionswahl -------------------------------------------------------
+   Ein eigener Bildschirm zwischen Menü und Karte. Das Bild dahinter gehört
+   zur ausgewählten Fraktion und wird beim Wechsel übergeblendet - dieselbe
+   Technik wie die Chronik, mit zwei Ebenen, die sich abwechseln. */
+#factionScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0d0a07;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#factionArt {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.fa-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+  /* Etwas größer als der Bildschirm und leicht nach oben geschoben: so
+     verschwindet der untere Bildrand nicht hinter dem Startknopf. */
+  transform: scale(1.07) translateY(-2.5%);
+}
+.fa-layer.visible { opacity: 1; }
+.fa-layer svg { width: 100%; height: 100%; display: block; }
+.fa-veil {
+  position: absolute;
+  inset: 0;
+  /* Nur so viel Abdunklung, wie die Schrift braucht: links, wo die Liste und
+     die Tafel stehen, und unten unter dem Knopf. Der Himmel bleibt Himmel. */
+  background:
+    linear-gradient(90deg, rgba(8, 5, 3, 0.82) 0%, rgba(8, 5, 3, 0.42) 46%, rgba(8, 5, 3, 0) 76%),
+    linear-gradient(180deg, rgba(8, 5, 3, 0.3), transparent 18%, transparent 62%, rgba(8, 5, 3, 0.72));
+}
+
+.faction-head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px 6px;
+}
+.faction-head h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.faction-back {
+  background: rgba(20, 14, 9, 0.7);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.faction-back:hover { border-color: var(--gold); color: var(--gold); }
+
+.faction-body {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  gap: 22px;
+  padding: 8px 24px 12px;
+  min-height: 0;
+}
+
+.faction-choices {
+  width: 260px;
+  flex: none;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+.faction-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(24, 17, 11, 0.72);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--dot, #7f7f7f);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 9px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.faction-choice:hover { border-color: var(--gold); }
+.faction-choice.active {
+  background: rgba(60, 44, 24, 0.9);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.faction-choice .fc-diff {
+  margin-left: auto;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.faction-choice.active .fc-diff { color: var(--gold); }
+
+.faction-detail {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  align-self: flex-start;
+  max-width: 560px;
+  background: rgba(16, 11, 7, 0.82);
+  backdrop-filter: blur(2px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 22px;
+}
+.faction-detail h3 {
+  margin: 0 0 2px;
+  font-size: 1.8rem;
+  letter-spacing: 0.05em;
+}
+.fd-motto {
+  margin: 0 0 12px;
+  color: var(--gold);
+  font-style: italic;
+  font-size: 0.95rem;
+}
+.fd-blurb { margin: 0 0 14px; line-height: 1.5; }
+.fd-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px 14px;
+  margin-bottom: 14px;
+}
+.fd-fact {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  padding-top: 5px;
+}
+.fd-fact span { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.fd-fact strong { font-size: 0.95rem; font-weight: 600; }
+.fd-units { display: grid; gap: 6px; margin-bottom: 14px; }
+.fd-unit {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.88rem;
+  border-left: 2px solid var(--border);
+  padding-left: 9px;
+}
+.fd-unit em { font-style: normal; color: var(--muted); font-size: 0.78rem; margin-left: auto; }
+.fd-line { margin: 4px 0; font-size: 0.88rem; }
+.fd-line b { color: var(--gold); font-weight: 600; }
+
+.faction-foot {
+  position: relative;
+  z-index: 2;
+  padding: 0 24px 22px;
+  display: flex;
+  justify-content: flex-start;
+}
+.faction-foot .start-btn { min-width: 260px; }
+
+@media (max-width: 860px), (max-height: 560px) {
+  /* Auf schmalen Schirmen deckt die Tafel ohnehin die halbe Breite ab - der
+     seitliche Schleier kann weg, sonst bleibt vom Bild nichts übrig. */
+  .fa-veil {
+    background: linear-gradient(180deg, rgba(8, 5, 3, 0.55), rgba(8, 5, 3, 0.15) 30%,
+      rgba(8, 5, 3, 0.2) 62%, rgba(8, 5, 3, 0.8));
+  }
+  .faction-detail { background: rgba(16, 11, 7, 0.88); }
+  .faction-body { flex-direction: column; gap: 10px; overflow-y: auto; }
+  .faction-choices {
+    width: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .faction-choice { flex: none; }
+  .faction-choice .fc-diff { display: none; }
+  .faction-detail { max-width: none; }
+  .faction-head h2 { font-size: 1.1rem; }
+}

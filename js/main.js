@@ -1,4 +1,8 @@
-import { createInitialState, playerFaction } from './state.js';
+import { createInitialState, playerFaction, unitTotalCount } from './state.js';
+import {
+  playableFactions, factionProfile, unitDefs, UNIT_ROLES, ROLE_LABELS,
+  CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION,
+} from './data.js';
 import { renderUI, battleReportHTML, battlePreviewHTML } from './ui.js';
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
@@ -17,6 +21,7 @@ import {
 } from './scene3d.js';
 import { sfx, unlockAudio, toggleMuted, isMuted, stopMarch } from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
+import { factionArt, factionArtSVG } from './factionart.js';
 import {
   loadSettings, getSetting, setSetting, resetSettings, settingsHTML,
   MARCH_SPEED_FACTORS, AI_STANCE_THRESHOLDS,
@@ -588,16 +593,146 @@ function showGraphicsError() {
   box.prepend(note);
 }
 
-function startNewGame() {
+// --- Fraktionswahl -------------------------------------------------------
+// Alle Fraktionen außer den Unabhängigen sind spielbar. Der Bildschirm zeigt
+// zu jeder ihr eigenes Bild, ihre Startlage und ihre drei Einheiten - was man
+// braucht, um die Wahl zu treffen, bevor die Karte steht.
+
+let chosenFaction = DEFAULT_PLAYER_FACTION;
+let factionArtSlot = 0;
+
+function factionFacts(faction) {
+  const own = CITY_DEFS.filter((c) => c.factionId === faction.id);
+  const capital = own.find((c) => c.capital);
+  const sizes = { large: 0, city: 0, village: 0 };
+  for (const c of own) sizes[c.size || 'city'] += 1;
+  const rosters = faction.startingArmies || [faction.startingArmy
+    || { infantry: 300, cavalry: 120, ranged: 120 }];
+  const men = rosters.reduce((sum, r) => sum + unitTotalCount(r), 0);
+  return {
+    capital: capital ? capital.name : '—',
+    settlements: own.length,
+    sizes,
+    armies: rosters.length,
+    men,
+  };
+}
+
+function factionDetailHTML(faction) {
+  const profile = factionProfile(faction.id) || {};
+  const art = factionArt(faction.id);
+  const facts = factionFacts(faction);
+  const defs = unitDefs(faction.id);
+  const tiers = [
+    facts.sizes.large ? `${facts.sizes.large}× Große Stadt` : '',
+    facts.sizes.city ? `${facts.sizes.city}× Stadt` : '',
+    facts.sizes.village ? `${facts.sizes.village}× Dorf` : '',
+  ].filter(Boolean).join(' · ');
+
+  return `
+    <h3><span class="dot" style="background:${faction.color}"></span>${faction.name}</h3>
+    <p class="fd-motto">„${art.motto}"</p>
+    <p class="fd-blurb">${profile.blurb || ''}</p>
+    <div class="fd-facts">
+      <div class="fd-fact"><span>Hauptstadt</span><strong>${facts.capital}</strong></div>
+      <div class="fd-fact"><span>Siedlungen</span><strong>${facts.settlements}</strong></div>
+      <div class="fd-fact"><span>Startheer</span><strong>${facts.men} Mann${
+  facts.armies > 1 ? ` in ${facts.armies} Heeren` : ''}</strong></div>
+      <div class="fd-fact"><span>Startgold</span><strong>${STARTING_GOLD}</strong></div>
+    </div>
+    <p class="fd-line"><b>Orte:</b> ${tiers}</p>
+    <div class="fd-units">
+      ${UNIT_ROLES.map((role) => `<div class="fd-unit">${defs[role].icon}
+        <strong>${defs[role].name}</strong>
+        <em>${ROLE_LABELS[role]} · ${defs[role].attack}/${defs[role].defense} · ${defs[role].cost} Gold</em>
+      </div>`).join('')}
+    </div>
+    <p class="fd-line"><b>Stärke:</b> ${profile.strength || ''}</p>
+    <p class="fd-line"><b>Schwäche:</b> ${profile.weakness || ''}</p>
+    <p class="fd-line"><b>Schwierigkeit:</b> ${profile.difficulty || 'mittel'}</p>`;
+}
+
+// Das Bild wird übergeblendet statt ausgetauscht: zwei Ebenen, abwechselnd.
+function paintFactionArt(factionId) {
+  const stage = document.getElementById('factionArt');
+  if (!stage) return;
+  const layers = stage.querySelectorAll('.fa-layer');
+  const next = layers[factionArtSlot % layers.length];
+  const previous = layers[(factionArtSlot + 1) % layers.length];
+  next.innerHTML = factionArtSVG(factionId);
+  next.classList.add('visible');
+  if (previous !== next) previous.classList.remove('visible');
+  factionArtSlot += 1;
+}
+
+function selectFaction(factionId) {
+  chosenFaction = factionId;
+  const faction = playableFactions().find((f) => f.id === factionId);
+  if (!faction) return;
+  document.querySelectorAll('.faction-choice').forEach((button) => {
+    button.classList.toggle('active', button.dataset.faction === factionId);
+    button.setAttribute('aria-selected', button.dataset.faction === factionId ? 'true' : 'false');
+  });
+  document.getElementById('factionDetail').innerHTML = factionDetailHTML(faction);
+  paintFactionArt(factionId);
+  const startBtn = document.getElementById('factionStartBtn');
+  if (startBtn) startBtn.textContent = `Als ${faction.name} beginnen ▶`;
+}
+
+function buildFactionChoices() {
+  const list = document.getElementById('factionChoices');
+  if (!list) return;
+  list.innerHTML = playableFactions().map((faction) => {
+    const profile = factionProfile(faction.id) || {};
+    return `<button class="faction-choice" data-faction="${faction.id}" role="option"
+      aria-selected="false" style="--dot:${faction.color}">
+      <span class="dot" style="background:${faction.color}"></span>
+      ${faction.name}
+      <span class="fc-diff">${profile.difficulty || ''}</span>
+    </button>`;
+  }).join('');
+  list.querySelectorAll('.faction-choice').forEach((button) => {
+    button.addEventListener('click', () => {
+      sfx.select();
+      selectFaction(button.dataset.faction);
+    });
+  });
+}
+
+function showFactionScreen() {
+  unlockAudio();
+  // Der Klick auf "Neues Spiel" ist die Geste, die der Browser für Vollbild
+  // verlangt - also hier schon danach fragen, nicht erst auf der Karte.
+  wantsFullscreen = true;
+  requestAppFullscreen({ explain: true });
+  stopChronicle();
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('factionScreen').classList.remove('hidden');
+  buildFactionChoices();
+  selectFaction(chosenFaction);
+}
+
+function hideFactionScreen() {
+  document.getElementById('factionScreen').classList.add('hidden');
+}
+
+function backToMenu() {
+  hideFactionScreen();
+  document.getElementById('startScreen').classList.remove('hidden');
+  startChronicle();
+}
+
+function startNewGame(factionId = chosenFaction) {
   unlockAudio();
   stopChronicle();
   // Starting a game is a click, which is the gesture fullscreen needs.
   wantsFullscreen = true;
   requestAppFullscreen({ explain: true });
   document.getElementById('startScreen').classList.add('hidden');
+  hideFactionScreen();
   appEl.classList.remove('hidden');
 
-  state = createInitialState();
+  state = createInitialState(factionId);
   try {
     initScene(canvas);
     resizeScene();
@@ -684,7 +819,10 @@ if (helpButton) {
 }
 
 startChronicle();
-document.getElementById('startGameBtn').addEventListener('click', startNewGame);
+// Der Weg ins Spiel führt über die Fraktionswahl.
+document.getElementById('startGameBtn').addEventListener('click', showFactionScreen);
+document.getElementById('factionBackBtn').addEventListener('click', backToMenu);
+document.getElementById('factionStartBtn').addEventListener('click', () => startNewGame());
 
 // The boot watchdog in index.html looks for this: reaching it means the whole
 // script parsed and the start button is wired.

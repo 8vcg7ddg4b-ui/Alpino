@@ -99,6 +99,31 @@
     </figure>
   </div>
 
+  <!-- Fraktionswahl: eigener Bildschirm zwischen Menü und Karte. Das Bild im
+       Hintergrund wechselt mit der Auswahl. -->
+  <div id="factionScreen" class="hidden">
+    <div id="factionArt" aria-hidden="true">
+      <div class="fa-layer" data-slot="0"></div>
+      <div class="fa-layer" data-slot="1"></div>
+      <div class="fa-veil"></div>
+    </div>
+
+    <header class="faction-head">
+      <button id="factionBackBtn" class="faction-back">‹ Zurück</button>
+      <h2>Wähle deine Fraktion</h2>
+    </header>
+
+    <div class="faction-body">
+      <div class="faction-choices" id="factionChoices" role="listbox"
+        aria-label="Spielbare Fraktionen"></div>
+      <section class="faction-detail" id="factionDetail"></section>
+    </div>
+
+    <footer class="faction-foot">
+      <button id="factionStartBtn" class="start-btn">Feldzug beginnen ▶</button>
+    </footer>
+  </div>
+
   <div id="app" class="hidden">
     <header id="topbar">
       <div class="brand">🦅 <span>SPQR</span> <small>Rundenstrategie · 3D</small></div>

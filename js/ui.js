@@ -624,11 +624,13 @@ export function renderUI(state, handlers) {
   if (state.gameOver) {
     overlay.classList.remove('hidden');
     overlay.querySelector('.overlay-title').textContent =
-      state.gameOver.result === 'victory' ? '🏆 Sieg für Rom!' : '💀 Rom ist gefallen';
+      state.gameOver.result === 'victory'
+        ? `🏆 Sieg für ${player.name}!`
+        : `💀 ${player.name} ist gefallen`;
     overlay.querySelector('.overlay-text').textContent =
       state.gameOver.result === 'victory'
         ? `Alle feindlichen Fraktionen wurden in Runde ${state.turn} besiegt.`
-        : `Rom hat in Runde ${state.turn} alle Städte und Armeen verloren.`;
+        : `${player.name} hat in Runde ${state.turn} alle Städte und Armeen verloren.`;
   } else {
     overlay.classList.add('hidden');
   }

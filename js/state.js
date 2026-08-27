@@ -1,7 +1,7 @@
 import {
   FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES, factionGarrisonFactor,
-  CAPITAL_WALL_LEVEL,
+  CAPITAL_WALL_LEVEL, DEFAULT_PLAYER_FACTION,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
@@ -12,14 +12,22 @@ export function makeId(prefix) {
   return `${prefix}_${nextId++}`;
 }
 
-export function createInitialState() {
+// Jede Fraktion außer den Unabhängigen ist spielbar; welche es ist, entscheidet
+// der Auswahlbildschirm. Alles andere - Startgold, Garnisonen, Heere - ist für
+// alle gleich, damit die Wahl eine Frage der Lage bleibt und nicht der Zahlen.
+export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   const map = generateMap();
 
+  const chosen = FACTIONS.some((f) => f.id === playerFactionId && !f.isNeutral)
+    ? playerFactionId
+    : DEFAULT_PLAYER_FACTION;
   const factions = FACTIONS.map((f) => ({
     ...f,
+    isPlayer: f.id === chosen,
     gold: f.isNeutral ? 0 : STARTING_GOLD,
     alive: true,
   }));
+  const playerName = factions.find((f) => f.isPlayer).name;
 
   const cities = CITY_DEFS.map((def) => {
     const isNeutral = def.factionId === 'neutral';
@@ -107,8 +115,8 @@ export function createInitialState() {
   for (const army of armies) {
     const home = army.home;
     delete army.home;
-    // Rom blickt nach Norden, alle anderen nach Süden - sonst ist die
-    // Reihenfolge egal, es zählt das erste brauchbare Feld.
+    // Rom blickt nach Norden, alle anderen nach Süden - sonst zählt ohnehin
+    // nur, welches Feld das günstigste ist.
     const order = army.factionId === 'rom'
       ? [[0, -1], [0, 1], [1, 0], [-1, 0]]
       : [[0, 1], [0, -1], [1, 0], [-1, 0]];
@@ -168,7 +176,7 @@ export function createInitialState() {
     // The tile the player last clicked, whose terrain the sidebar reports.
     inspectedTile: null,
     reachable: null,
-    log: [{ text: 'Das Spiel beginnt. Führe Rom zum Sieg!', reportId: null }],
+    log: [{ text: `Das Spiel beginnt. Führe ${playerName} zum Sieg!`, reportId: null }],
     battleReports: [],
     gameOver: null,
     cam: { x: 0, y: 0 },

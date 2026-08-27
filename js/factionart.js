@@ -1,0 +1,277 @@
+// Ein Bild für jede Fraktion, für den Auswahlbildschirm.
+//
+// Dieselbe Bildsprache wie die Chronik: geschichtete Silhouetten vor einem
+// Himmelsverlauf, alles als SVG zur Laufzeit gebaut, damit das Spiel eine
+// einzelne Datei bleiben kann. Die Zeichenhelfer kommen aus chronicle.js;
+// hier stehen nur die, die es dort noch nicht gab.
+
+import {
+  SCENE_W, SCENE_H, seeded, sky, sun, hills, peaks, temple, spears, warship,
+  palisadeLine, elephant, horseman, figures,
+} from './chronicle.js';
+
+// --- Zusätzliche Bausteine ----------------------------------------------
+
+// Nadelwald als gestaffelte Reihe: Germanien und Gallien leben davon.
+function pines(baseY, count, height, rng, color, x0 = -40, x1 = SCENE_W + 40) {
+  let out = '';
+  for (let i = 0; i < count; i++) {
+    const x = x0 + ((x1 - x0) / count) * (i + rng() * 0.7);
+    const h = height * (0.6 + rng() * 0.7);
+    const w = h * 0.34;
+    out += `<path d="M ${x} ${baseY - h} L ${x + w} ${baseY - h * 0.42}
+      L ${x + w * 0.55} ${baseY - h * 0.42} L ${x + w * 0.95} ${baseY}
+      L ${x - w * 0.95} ${baseY} L ${x - w * 0.55} ${baseY - h * 0.42}
+      L ${x - w} ${baseY - h * 0.42} Z" fill="${color}"/>`;
+  }
+  return out;
+}
+
+// Pyramiden von Gizeh: drei Dreiecke, das mittlere das größte.
+function pyramids(baseY, x, scale, color, opacity = 1) {
+  const one = (cx, s) => `<path d="M ${cx - 150 * s} ${baseY} L ${cx} ${baseY - 130 * s}
+    L ${cx + 150 * s} ${baseY} Z" fill="${color}" opacity="${opacity}"/>`;
+  return one(x - 250 * scale, scale * 0.72) + one(x, scale)
+    + one(x + 235 * scale, scale * 0.6);
+}
+
+// Dattelpalme: Stamm mit Wedeln, für Ägypten und Syrien.
+function palm(x, baseY, s, color) {
+  let fronds = '';
+  for (let i = 0; i < 7; i++) {
+    const angle = -Math.PI + (i / 6) * Math.PI;
+    const dx = Math.cos(angle) * 62 * s;
+    const dy = Math.sin(angle) * 34 * s - 18 * s;
+    fronds += `<path d="M ${x} ${baseY - 118 * s} q ${dx * 0.55} ${dy - 16 * s} ${dx} ${dy}
+      q ${-dx * 0.4} ${-dy * 0.25} ${-dx} ${-dy + 12 * s} Z" fill="${color}"/>`;
+  }
+  return `<g><path d="M ${x - 6 * s} ${baseY} q ${4 * s} ${-60 * s} ${-2 * s} ${-120 * s}
+    l ${14 * s} 0 q ${6 * s} ${60 * s} ${2 * s} ${120 * s} Z" fill="${color}"/>${fronds}</g>`;
+}
+
+// Kreidefelsen: eine steile Kante über dem Wasser, Britannien von See aus.
+function cliffs(baseY, x0, x1, height, rng, color) {
+  let d = `M ${x0} ${SCENE_H} L ${x0} ${baseY - height}`;
+  for (let x = x0; x <= x1; x += 120) {
+    d += ` L ${x + 60} ${baseY - height + rng() * 40} L ${x + 120} ${baseY - height * 0.94}`;
+  }
+  d += ` L ${x1} ${baseY} L ${x0} ${baseY} Z`;
+  return `<path d="${d}" fill="${color}"/>`;
+}
+
+// Streitwagen: zwei Pferde, Kasten, Rad - das britannische Wahrzeichen.
+function chariot(x, y, s, color) {
+  const wheel = `<circle cx="${x - 10 * s}" cy="${y - 12 * s}" r="${16 * s}" fill="none"
+    stroke="${color}" stroke-width="${4 * s}"/>`;
+  return `<g fill="${color}">
+    ${horseman(x + 62 * s, y, s * 0.9, color).replace(/<circle cx="[^"]*" cy="[^"]*" r="[^"]*"\/>\s*$/, '')}
+    <path d="M ${x - 30 * s} ${y - 14 * s} l ${44 * s} 0 l 0 ${-26 * s} l ${-44 * s} 0 Z"/>
+    <path d="M ${x + 14 * s} ${y - 26 * s} L ${x + 56 * s} ${y - 30 * s}" stroke="${color}"
+      stroke-width="${4 * s}"/>
+    ${wheel}
+    <circle cx="${x - 6 * s}" cy="${y - 52 * s}" r="${8 * s}"/>
+    <path d="M ${x - 12 * s} ${y - 26 * s} l 0 ${-20 * s} l ${13 * s} 0 l 0 ${20 * s} Z"/>
+  </g>`;
+}
+
+// Der dakische Draco: Wolfskopf auf der Stange, mit wehendem Schlauch.
+function draco(x, baseY, s, color) {
+  return `<g fill="${color}">
+    <rect x="${x - 3 * s}" y="${baseY - 210 * s}" width="${6 * s}" height="${210 * s}"/>
+    <path d="M ${x} ${baseY - 214 * s} l ${34 * s} ${-12 * s} l ${-6 * s} ${20 * s}
+      l ${16 * s} ${6 * s} l ${-44 * s} ${10 * s} Z"/>
+    <path d="M ${x + 12 * s} ${baseY - 190 * s} q ${70 * s} ${10 * s} ${104 * s} ${44 * s}
+      q ${-46 * s} ${-14 * s} ${-72 * s} ${-8 * s} q ${34 * s} ${18 * s} ${52 * s} ${44 * s}
+      q ${-52 * s} ${-30 * s} ${-92 * s} ${-58 * s} Z" opacity="0.85"/>
+  </g>`;
+}
+
+// Ein Feldzeichen mit Adler und Querbalken - das römische Signum.
+function aquila(x, baseY, s, color) {
+  return `<g fill="${color}">
+    <rect x="${x - 3 * s}" y="${baseY - 200 * s}" width="${6 * s}" height="${200 * s}"/>
+    <rect x="${x - 30 * s}" y="${baseY - 168 * s}" width="${60 * s}" height="${9 * s}"/>
+    <rect x="${x - 24 * s}" y="${baseY - 142 * s}" width="${48 * s}" height="${9 * s}"/>
+    <path d="M ${x} ${baseY - 232 * s} q ${26 * s} ${4 * s} ${30 * s} ${26 * s}
+      q ${-18 * s} ${-10 * s} ${-30 * s} ${-4 * s} q ${-12 * s} ${-6 * s} ${-30 * s} ${4 * s}
+      q ${4 * s} ${-22 * s} ${30 * s} ${-26 * s} Z"/>
+    <circle cx="${x}" cy="${baseY - 236 * s}" r="${7 * s}"/>
+  </g>`;
+}
+
+// Eine Stadtmauer mit Zinnen und Torbogen - für die Städte des Ostens.
+function walledCity(x0, x1, baseY, height, color) {
+  let merlons = '';
+  for (let x = x0; x < x1; x += 46) {
+    merlons += `<rect x="${x}" y="${baseY - height - 22}" width="26" height="24"/>`;
+  }
+  const cx = (x0 + x1) / 2;
+  return `<g fill="${color}">
+    <rect x="${x0}" y="${baseY - height}" width="${x1 - x0}" height="${height}"/>
+    ${merlons}
+    <rect x="${x0 - 26}" y="${baseY - height * 1.5}" width="60" height="${height * 1.5}"/>
+    <rect x="${x1 - 34}" y="${baseY - height * 1.5}" width="60" height="${height * 1.5}"/>
+  </g>
+  <path d="M ${cx - 34} ${baseY} l 0 -54 a 34 40 0 0 1 68 0 l 0 54 Z" fill="#000" opacity="0.45"/>`;
+}
+
+// --- Die Szenen ----------------------------------------------------------
+// Jede Fraktion bekommt ihre Landschaft, ihr Licht und ihr Wahrzeichen: das
+// Bild soll noch vor dem Text sagen, wo man beginnt und womit man kämpft.
+
+export const FACTION_ART = {
+  rom: {
+    motto: 'Senat und Volk von Rom',
+    render() {
+      const rng = seeded(101);
+      return `${sky([[0, '#2a3556'], [0.4, '#8d6a63'], [0.75, '#dda264'], [1, '#f6d69c']], 'faRom')}
+        ${sun(1230, 600, 70, '#ffeec2', 0.32)}
+        ${hills(650, 56, rng, '#8a6a55', 0.5)}
+        ${hills(716, 44, rng, '#5d4739', 0.8)}
+        ${temple(470, 700, 360, 262, '#2f2419')}
+        ${temple(1060, 718, 200, 152, '#241c14')}
+        <rect y="744" width="${SCENE_W}" height="${SCENE_H - 744}" fill="#1a140e"/>
+        ${aquila(300, 800, 1, '#0f0b07')}
+        ${aquila(1320, 806, 0.9, '#0f0b07')}
+        ${spears(800, 30, 116, rng, '#120d09')}`;
+    },
+  },
+  karthago: {
+    motto: 'Herrin der Meere',
+    render() {
+      const rng = seeded(202);
+      return `${sky([[0, '#10204a'], [0.42, '#2f5c86'], [0.78, '#7fb0c4'], [1, '#e8d9a8']], 'faKar')}
+        ${sun(360, 560, 62, '#fff0c0', 0.28)}
+        ${hills(640, 40, rng, '#3c5f73', 0.5)}
+        ${walledCity(820, 1380, 706, 120, '#16283f')}
+        ${elephant(560, 706, 1.15, '#16283f')}
+        <rect y="706" width="${SCENE_W}" height="${SCENE_H - 706}" fill="#123050" opacity="0.9"/>
+        ${warship(430, 810, 1.25, '#0a1729', '#20365a')}
+        ${warship(1120, 852, 1.5, '#08111f', '#1a2b4a')}
+        <path d="M -40 ${SCENE_H} L -40 878 Q 420 862 900 884 Q 1300 900 ${SCENE_W + 40} 876
+          L ${SCENE_W + 40} ${SCENE_H} Z" fill="#081020"/>`;
+    },
+  },
+  gallier: {
+    motto: 'Der Heerbann der Stämme',
+    render() {
+      const rng = seeded(303);
+      return `${sky([[0, '#20303a'], [0.44, '#4d6b5c'], [0.8, '#9db884'], [1, '#d8e0b0']], 'faGal')}
+        ${hills(600, 70, rng, '#3f5a48', 0.6)}
+        ${hills(690, 50, rng, '#2c4234', 0.85)}
+        ${palisadeLine(690, 520, 1120, 46, '#1b2a20')}
+        ${pines(742, 26, 150, rng, '#16241b')}
+        <rect y="742" width="${SCENE_W}" height="${SCENE_H - 742}" fill="#101b13"/>
+        ${spears(816, 34, 128, rng, '#0a120c')}`;
+    },
+  },
+  griechen: {
+    motto: 'Die Phalanx der Poleis',
+    render() {
+      const rng = seeded(404);
+      return `${sky([[0, '#1d3f74'], [0.45, '#4f86b8'], [0.8, '#a9d0e0'], [1, '#f0e6c4']], 'faGri')}
+        ${sun(1300, 300, 58, '#fff6d8', 0.26)}
+        ${peaks(640, 190, rng, '#5b6f86', 0.55, 7)}
+        ${hills(706, 40, rng, '#7d8a72', 0.75)}
+        ${temple(540, 700, 400, 280, '#2b2f33')}
+        <rect y="742" width="${SCENE_W}" height="${SCENE_H - 742}" fill="#1b2026"/>
+        ${spears(820, 26, 150, rng, '#0e1216')}
+        ${figures(820, 12, rng, '#0e1216', 980, 1520, 1.4)}`;
+    },
+  },
+  germanen: {
+    motto: 'Der Wald hält uns',
+    render() {
+      const rng = seeded(505);
+      return `${sky([[0, '#1a222c'], [0.46, '#3b4a52'], [0.82, '#7b8a84'], [1, '#c3cbbc']], 'faGer')}
+        ${hills(596, 54, rng, '#33443f', 0.55)}
+        ${pines(660, 22, 170, rng, '#243530', 60, 1560)}
+        ${pines(744, 30, 210, rng, '#16221e')}
+        <rect y="744" width="${SCENE_W}" height="${SCENE_H - 744}" fill="#0f1714"/>
+        ${figures(806, 16, rng, '#080e0b', 120, 1480, 1.6)}
+        ${spears(806, 22, 132, rng, '#080e0b')}`;
+    },
+  },
+  britannier: {
+    motto: 'Jenseits des Meeres',
+    render() {
+      const rng = seeded(606);
+      return `${sky([[0, '#2b3a4a'], [0.45, '#61798a'], [0.8, '#a8bcc4'], [1, '#dfe6e2']], 'faBri')}
+        ${cliffs(700, -40, 760, 210, rng, '#cfd6cf')}
+        ${hills(700, 30, rng, '#5f7358', 0.9)}
+        ${palisadeLine(700, 250, 620, 34, '#2c3a2e')}
+        ${chariot(1080, 760, 1.5, '#1b2620')}
+        <path d="M -40 ${SCENE_H} L -40 790 Q 500 774 1000 796 Q 1350 812 ${SCENE_W + 40} 788
+          L ${SCENE_W + 40} ${SCENE_H} Z" fill="#2b4152" opacity="0.92"/>
+        ${warship(400, 862, 1.2, '#111d26', '#243642')}`;
+    },
+  },
+  iberer: {
+    motto: 'Die Krieger der Meseta',
+    render() {
+      const rng = seeded(707);
+      return `${sky([[0, '#3a2c3e'], [0.42, '#95614f'], [0.78, '#d99b5e'], [1, '#f2d59a']], 'faIbe')}
+        ${sun(300, 620, 66, '#ffe6ae', 0.3)}
+        ${peaks(624, 150, rng, '#6b4a44', 0.5, 8)}
+        ${hills(700, 46, rng, '#8a5f42', 0.8)}
+        ${walledCity(900, 1300, 700, 96, '#3a2620')}
+        <rect y="740" width="${SCENE_W}" height="${SCENE_H - 740}" fill="#2a1a15"/>
+        ${figures(812, 18, rng, '#150d0a', 80, 1520, 1.7)}`;
+    },
+  },
+  daker: {
+    motto: 'Hinter den Karpaten',
+    render() {
+      const rng = seeded(808);
+      return `${sky([[0, '#1b2436'], [0.44, '#46566b'], [0.8, '#8f9bab'], [1, '#d9d5c4']], 'faDak')}
+        ${peaks(600, 240, rng, '#3f4c5e', 0.7, 8)}
+        ${peaks(682, 160, rng, '#2b3646', 0.9, 6)}
+        ${pines(742, 24, 130, rng, '#1b2a26')}
+        <rect y="742" width="${SCENE_W}" height="${SCENE_H - 742}" fill="#141d20"/>
+        ${draco(1160, 810, 1.15, '#0b1114')}
+        ${spears(810, 24, 124, rng, '#0b1114', -40, 1000)}`;
+    },
+  },
+  seleukiden: {
+    motto: 'Das Erbe Alexanders',
+    render() {
+      const rng = seeded(909);
+      return `${sky([[0, '#3a2a4a'], [0.42, '#8c5b52'], [0.76, '#d9a259'], [1, '#f4dda4']], 'faSel')}
+        ${sun(1140, 560, 74, '#ffeab4', 0.32)}
+        ${hills(636, 44, rng, '#7a5b48', 0.55)}
+        ${walledCity(180, 640, 700, 128, '#2c1f1c')}
+        ${palm(760, 704, 1, '#241a16')}
+        ${palm(830, 712, 0.7, '#241a16')}
+        ${elephant(1130, 706, 1.35, '#241a16')}
+        <rect y="706" width="${SCENE_W}" height="${SCENE_H - 706}" fill="#1a1210"/>
+        ${spears(806, 30, 140, rng, '#0d0907')}`;
+    },
+  },
+  ptolemaeer: {
+    motto: 'Das Korn des Nils',
+    render() {
+      const rng = seeded(1010);
+      return `${sky([[0, '#243a6b'], [0.4, '#6f7fa4'], [0.74, '#d9b878'], [1, '#f6e3b0']], 'faPto')}
+        ${sun(430, 590, 78, '#fff1c4', 0.34)}
+        ${pyramids(690, 1090, 1.15, '#2c2419', 0.95)}
+        ${hills(700, 26, rng, '#8a7448', 0.7)}
+        ${palm(300, 700, 1.15, '#1e1a12')}
+        ${palm(400, 706, 0.85, '#1e1a12')}
+        ${palm(700, 702, 0.95, '#1e1a12')}
+        <rect y="700" width="${SCENE_W}" height="${SCENE_H - 700}" fill="#1d2a34" opacity="0.92"/>
+        ${figures(792, 14, rng, '#0d1418', 120, 900, 1.6)}
+        <path d="M -40 ${SCENE_H} L -40 856 Q 500 840 1000 862 Q 1340 876 ${SCENE_W + 40} 852
+          L ${SCENE_W + 40} ${SCENE_H} Z" fill="#122029"/>`;
+    },
+  },
+};
+
+export function factionArt(factionId) {
+  return FACTION_ART[factionId] || FACTION_ART.rom;
+}
+
+// Fertiges SVG-Markup, das jedes Seitenverhältnis füllt.
+export function factionArtSVG(factionId) {
+  return `<svg viewBox="0 0 ${SCENE_W} ${SCENE_H}" preserveAspectRatio="xMidYMid slice"
+    xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${factionArt(factionId).render()}</svg>`;
+}

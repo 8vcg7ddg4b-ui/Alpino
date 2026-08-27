@@ -99,21 +99,25 @@ export function unitDef(factionId, role) {
   return unitDefs(factionId)[role] || FACTION_UNITS.neutral[role];
 }
 
+// Wer gespielt wird, steht nicht in dieser Tabelle: jede Fraktion außer den
+// Unabhängigen ist spielbar, ausgewählt wird sie beim Spielstart.
+export const DEFAULT_PLAYER_FACTION = 'rom';
+
 export const FACTIONS = [
-  { id: 'rom', name: 'Rom', color: '#c0392b', isPlayer: true },
-  { id: 'karthago', name: 'Karthago', color: '#2c3e8c', isPlayer: false },
+  { id: 'rom', name: 'Rom', color: '#c0392b' },
+  { id: 'karthago', name: 'Karthago', color: '#2c3e8c' },
   // Der keltische Ruf gründet auf dem Ansturm des Fußvolks mit dem langen
   // Schwert - viel Infanterie, wenig anderes.
   {
-    id: 'gallier', name: 'Gallier', color: '#27632a', isPlayer: false,
+    id: 'gallier', name: 'Gallier', color: '#27632a',
     startingArmy: { infantry: 380, cavalry: 110, ranged: 50 },
     armyLabel: 'Heerbann',
   },
-  { id: 'griechen', name: 'Griechen', color: '#7a4fae', isPlayer: false },
+  { id: 'griechen', name: 'Griechen', color: '#7a4fae' },
   // The tribes field a great mass of foot: no siege train, few horse and
   // fewer bows, but more men in the line than anyone else brings.
   {
-    id: 'germanen', name: 'Germanen', color: '#1c8f93', isPlayer: false,
+    id: 'germanen', name: 'Germanen', color: '#1c8f93',
     // Same manpower as anyone else, arranged the tribal way: a great mass of
     // foot, with horse and bows as an afterthought.
     startingArmy: { infantry: 360, cavalry: 100, ranged: 80 },
@@ -122,27 +126,27 @@ export const FACTIONS = [
   // Auf der Insel, also von Anfang an auf Schiffe angewiesen. Ihre Stärke ist
   // der Streitwagen - im Spiel die Reiterei.
   {
-    id: 'britannier', name: 'Britannier', color: '#d97b2e', isPlayer: false,
+    id: 'britannier', name: 'Britannier', color: '#d97b2e',
     startingArmy: { infantry: 300, cavalry: 150, ranged: 90 },
     armyLabel: 'Kriegsschar',
   },
   // Die iberischen Stämme kämpfen aus der Ferne: Schleuderer und Speerwerfer
   // statt geschlossener Linie.
   {
-    id: 'iberer', name: 'Iberer', color: '#b5397f', isPlayer: false,
+    id: 'iberer', name: 'Iberer', color: '#b5397f',
     startingArmy: { infantry: 250, cavalry: 100, ranged: 190 },
     armyLabel: 'Kriegerbund',
   },
   // Hinter den Karpaten, mit der Falx als Waffe und der Draco als Feldzeichen.
   {
-    id: 'daker', name: 'Daker', color: '#8a9a2b', isPlayer: false,
+    id: 'daker', name: 'Daker', color: '#8a9a2b',
     startingArmy: { infantry: 320, cavalry: 130, ranged: 90 },
     armyLabel: 'Falxheer',
   },
   // Das Seleukidenreich: die makedonische Phalanx des Ostens, dazu die
   // Kriegselefanten, für die es berühmt ist.
   {
-    id: 'seleukiden', name: 'Seleukiden', color: '#d8b12a', isPlayer: false,
+    id: 'seleukiden', name: 'Seleukiden', color: '#d8b12a',
     // Das größte der Diadochenreiche, und das mit den längsten Grenzen: es
     // stellt zwei Heere auf, weil es an zwei Fronten zugleich steht.
     startingArmies: [
@@ -154,12 +158,87 @@ export const FACTIONS = [
   // Ägypten unter den Ptolemäern: viel Fußvolk aus dem Niltal und die besten
   // Bogenschützen des Spiels, dafür wenig Reiterei.
   {
-    id: 'ptolemaeer', name: 'Ptolemäer', color: '#12b5b0', isPlayer: false,
+    id: 'ptolemaeer', name: 'Ptolemäer', color: '#12b5b0',
     startingArmy: { infantry: 300, cavalry: 90, ranged: 150 },
     armyLabel: 'Nilheer',
   },
-  { id: 'neutral', name: 'Unabhängig', color: '#7f7f7f', isPlayer: false, isNeutral: true },
+  { id: 'neutral', name: 'Unabhängig', color: '#7f7f7f', isNeutral: true },
 ];
+
+// Was auf dem Auswahlbildschirm über eine Fraktion steht: wo sie beginnt,
+// womit sie kämpft und woran sie krankt. Die Einschätzung stammt aus den
+// Testläufen über je 120 Runden, nicht aus dem Bauchgefühl.
+export const FACTION_PROFILES = {
+  rom: {
+    difficulty: 'mittel',
+    blurb: 'Vier Städte in Italien, kein Feind in acht Feldern und drei freie Städte vor der Tür.',
+    strength: 'Legionäre sind das zäheste Fußvolk der Karte.',
+    weakness: 'Ein kleines Reich: alles Weitere muss erobert werden.',
+  },
+  karthago: {
+    difficulty: 'leicht',
+    blurb: 'Sechs Städte an der afrikanischen Küste, jede einzelne am Meer.',
+    strength: 'Numidische Reiter und Häfen ringsum – die See gehört dir.',
+    weakness: 'Eine lange Küste ohne Tiefe: überall Front, nirgends Rückzug.',
+  },
+  gallier: {
+    difficulty: 'schwer',
+    blurb: 'Sechs Städte in Gallien – und als Einzige drei feindliche Nachbarn zugleich.',
+    strength: 'Schwertkämpfer mit dem härtesten Angriff unter dem Fußvolk.',
+    weakness: 'Kein Hafen, wenig freies Land, Feinde an drei Seiten.',
+  },
+  griechen: {
+    difficulty: 'mittel',
+    blurb: 'Athen, Sparta, Pergamon: fünf Städte um die Ägäis, alle am Wasser.',
+    strength: 'Hopliten – die beste Verteidigung im Spiel.',
+    weakness: 'Über das Meer verstreut: jede Stadt steht für sich.',
+  },
+  germanen: {
+    difficulty: 'schwer',
+    blurb: 'Fünf Orte zwischen Rhein, Nordsee und Elbe, mitten im Herkynischen Wald.',
+    strength: 'Der größte Heerhaufen und ein Wald, der jeden Angreifer bremst.',
+    weakness: 'Arm, fast ohne Küste, ohne nennenswerte Reiterei.',
+  },
+  britannier: {
+    difficulty: 'mittel',
+    blurb: 'Die Insel gehört dir allein – niemand kommt ohne Schiffe herüber.',
+    strength: 'Streitwagen: die stärkste Reiterei der Karte, und eine sichere Heimat.',
+    weakness: 'Keine Große Stadt, das niedrigste Einkommen, und jeder Krieg beginnt mit einer Überfahrt.',
+  },
+  iberer: {
+    difficulty: 'leicht',
+    blurb: 'Nur drei Städte, aber ganz Hispanien liegt offen und unbesetzt vor dir.',
+    strength: 'Caetrati und Schleuderer: mehr Fernkampf als jede andere Fraktion.',
+    weakness: 'Zu Beginn wenig Einkommen und nur ein Ort am Meer.',
+  },
+  daker: {
+    difficulty: 'mittel',
+    blurb: 'Sarmizegetusa in den Karpaten, die Donau als Sprungbrett nach Süden.',
+    strength: 'Die Falx schlägt härter zu als jedes andere Fußvolk, das Bergland deckt den Rücken.',
+    weakness: 'Kein einziger Ort am Meer: Schiffe wirst du nie stellen können.',
+  },
+  seleukiden: {
+    difficulty: 'schwer',
+    blurb: 'Das größte Diadochenreich: sechs Städte von Kilikien bis an den Euphrat – und zwei Heere von Anfang an.',
+    strength: 'Kriegselefanten und die Silberschilde-Phalanx.',
+    weakness: 'Die längsten Grenzen der Karte und die Ptolemäer im Süden.',
+  },
+  ptolemaeer: {
+    difficulty: 'leicht',
+    blurb: 'Ägypten, Zypern, Koilesyrien und die Kyrenaika – sechs Städte um das reichste Tal der Welt.',
+    strength: 'Nubische Bogenschützen, die besten der Karte, und billiges Fußvolk in Masse.',
+    weakness: 'Kaum Reiterei, und Zypern hängt allein am Meer.',
+  },
+};
+
+export function factionProfile(factionId) {
+  return FACTION_PROFILES[factionId] || null;
+}
+
+// Alle spielbaren Fraktionen in der Reihenfolge der Tabelle.
+export function playableFactions() {
+  return FACTIONS.filter((f) => !f.isNeutral);
+}
 
 // Three settlement sizes. Everything that scales with a settlement's standing -
 // its people, the garrison it can raise and feed, its income and how large it
