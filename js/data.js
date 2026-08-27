@@ -194,10 +194,45 @@ export const EXHAUSTION_PER_BATTLE = 18;
 export const GARRISON_MORALE = 90;
 export const GARRISON_EXHAUSTION = 0;
 
-export const WALL_COST = 350;
-export const WALL_BUILD_TURNS = 5;
-// Completed walls multiply the defenders' defensive power.
-export const WALL_DEFENCE_MULTIPLIER = 1.6;
+// Fortifications are built up in three stages, each bought only once the one
+// before it stands. Every stage multiplies the defenders' fighting power.
+export const WALL_LEVELS = [
+  {
+    key: 'palisade', name: 'Holzpalisade', icon: '🪵',
+    cost: 200, turns: 3, defence: 1.3,
+    note: 'Ein Ring aus angespitzten Stämmen – schnell errichtet, gegen einen entschlossenen Sturm aber wenig.',
+  },
+  {
+    key: 'greatPalisade', name: 'Große Holzpalisade', icon: '🪓',
+    cost: 450, turns: 4, defence: 1.6,
+    note: 'Doppelte Wand mit Wehrgang und hölzernen Türmen.',
+  },
+  {
+    key: 'stone', name: 'Steinmauer', icon: '🧱',
+    cost: 900, turns: 6, defence: 2.0,
+    note: 'Quadermauer mit Rundtürmen – ohne Belagerung kaum zu nehmen.',
+  },
+];
+
+export const MAX_WALL_LEVEL = WALL_LEVELS.length;
+// Capitals are fortified from the first turn, but not to the last stage:
+// there is still something left for their owner to build.
+export const CAPITAL_WALL_LEVEL = 2;
+
+// Level 0 is an open town; 1..3 index into WALL_LEVELS.
+export function wallLevelInfo(level) {
+  return level >= 1 && level <= WALL_LEVELS.length ? WALL_LEVELS[level - 1] : null;
+}
+
+export function wallLevelName(level) {
+  const info = wallLevelInfo(level);
+  return info ? info.name : 'keine Befestigung';
+}
+
+export function wallDefenceMultiplier(level) {
+  const info = wallLevelInfo(level);
+  return info ? info.defence : 1;
+}
 
 export const MAX_MOVEMENT = 9;
 

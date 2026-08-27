@@ -11,6 +11,7 @@ import {
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
+  setMapMode, getMapMode,
 } from './scene3d.js';
 import { sfx, unlockAudio, toggleMuted, isMuted, stopMarch } from './audio.js';
 
@@ -47,6 +48,29 @@ function setupSidebarToggle() {
     resizeScene();
     render();
   });
+}
+
+// The tactical view is a way of looking at the same map, so the button says
+// which way you are looking at it right now.
+function setupMapModeButton() {
+  const button = document.getElementById('mapModeBtn');
+  if (!button) return;
+  const paint = () => {
+    const tactical = getMapMode() === 'tactical';
+    button.classList.toggle('active', tactical);
+    button.textContent = tactical ? '🏔️' : '🗺';
+    button.title = tactical
+      ? 'Zurück zur Geländekarte'
+      : 'Taktische Sicht: Gebiete nach Fraktionen';
+  };
+  button.addEventListener('click', () => {
+    if (!state) return;
+    setMapMode(getMapMode() === 'tactical' ? 'terrain' : 'tactical', state);
+    paint();
+    sfx.select();
+    render();
+  });
+  paint();
 }
 
 function setupMuteButton() {
@@ -204,7 +228,7 @@ function endTurn() {
   hideBattlePreview();
   pushUndo();
   sfx.endTurn();
-  const wallsBuilding = state.cities.filter((c) => c.walls === 'building').length;
+  const wallsBuilding = state.cities.filter((c) => c.wallBuilding).length;
   // Identify new reports by the previous head, not by length: the list is
   // capped, so once it is full its length stops growing.
   const previousHead = state.battleReports.length ? state.battleReports[0].id : null;
@@ -231,8 +255,7 @@ function endTurn() {
   }
   if (mine && !state.gameOver) showBattleReport(mine);
 
-  if (state.cities.some((c) => c.walls === 'complete') && wallsBuilding
-    && state.cities.filter((c) => c.walls === 'building').length < wallsBuilding) {
+  if (wallsBuilding && state.cities.filter((c) => c.wallBuilding).length < wallsBuilding) {
     sfx.wallDone();
   }
   if (state.gameOver) (state.gameOver.result === 'victory' ? sfx.victory : sfx.defeat)();
@@ -257,6 +280,12 @@ function fullscreenAllowed() {
   return !!document.fullscreenEnabled && !!(root.requestFullscreen || root.webkitRequestFullscreen);
 }
 
+// Fullscreen is the intended way to play, so the game asks for it at the
+// start and treats losing it as something to put right - unless the player
+// was the one who left.
+let wantsFullscreen = true;
+let restoreArmed = false;
+
 function requestAppFullscreen({ explain = false } = {}) {
   if (!fullscreenAllowed()) {
     if (explain) {
@@ -266,6 +295,7 @@ function requestAppFullscreen({ explain = false } = {}) {
     }
     return false;
   }
+  if (document.fullscreenElement) return true;
   const root = document.documentElement;
   const request = root.requestFullscreen || root.webkitRequestFullscreen;
   Promise.resolve(request.call(root)).catch(() => {
@@ -274,17 +304,37 @@ function requestAppFullscreen({ explain = false } = {}) {
   return true;
 }
 
+// A browser only grants fullscreen from inside a user gesture, so a swipe that
+// drops out of it cannot be undone on the spot. The next touch or key press
+// puts it back instead - which is the next thing the player does anyway.
+function armFullscreenRestore() {
+  if (restoreArmed || !fullscreenAllowed()) return;
+  restoreArmed = true;
+  const restore = () => {
+    window.removeEventListener('pointerdown', restore, true);
+    window.removeEventListener('keydown', restore, true);
+    restoreArmed = false;
+    if (wantsFullscreen && !document.fullscreenElement) requestAppFullscreen();
+  };
+  window.addEventListener('pointerdown', restore, true);
+  window.addEventListener('keydown', restore, true);
+}
+
 function setupFullscreenButton(button) {
   button.addEventListener('click', () => {
     if (document.fullscreenElement) {
+      // Leaving by the button is a decision, and it sticks.
+      wantsFullscreen = false;
       document.exitFullscreen();
     } else {
+      wantsFullscreen = true;
       requestAppFullscreen({ explain: true });
     }
   });
   document.addEventListener('fullscreenchange', () => {
     button.classList.toggle('active', !!document.fullscreenElement);
     setTimeout(resizeScene, 60);
+    if (!document.fullscreenElement && wantsFullscreen) armFullscreenRestore();
   });
 }
 
@@ -352,8 +402,9 @@ function showGraphicsError() {
 
 function startNewGame() {
   unlockAudio();
-  // Fullscreen is the player's call and nobody else's: it is entered and left
-  // only through the ⛶ buttons, never on its own when a game starts.
+  // Starting a game is a click, which is the gesture fullscreen needs.
+  wantsFullscreen = true;
+  requestAppFullscreen({ explain: true });
   document.getElementById('startScreen').classList.add('hidden');
   appEl.classList.remove('hidden');
 
@@ -392,6 +443,7 @@ setupFullscreenButton(document.getElementById('menuFullscreenBtn'));
 reflectFullscreenAvailability();
 setupSidebarToggle();
 setupMuteButton();
+setupMapModeButton();
 setupDpad();
 
 document.getElementById('reportClose').addEventListener('click', hideBattleReport);
@@ -408,9 +460,11 @@ previewOverlay.addEventListener('click', (e) => {
 
 window.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  // Escape backs out of the decision without attacking.
+  // Escape backs out of the decision without attacking. With nothing open it
+  // is the browser's own way out of fullscreen, and that is a decision too.
   if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();
-  else hideBattleReport();
+  else if (!reportOverlay.classList.contains('hidden')) hideBattleReport();
+  else if (document.fullscreenElement) wantsFullscreen = false;
 });
 
 document.getElementById('startGameBtn').addEventListener('click', startNewGame);

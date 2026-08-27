@@ -1,6 +1,7 @@
 import {
   FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES, factionGarrisonFactor,
+  CAPITAL_WALL_LEVEL,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { generateMap } from './mapgen.js';
@@ -45,10 +46,10 @@ export function createInitialState() {
       capital: !!def.capital,
       size,
       population,
-      // Capitals are fortified from the outset; every other city has to pay
-      // for its walls and wait out the construction.
-      walls: def.capital ? 'complete' : 'none',
-      wallTurnsLeft: 0,
+      // Capitals are fortified from the outset; every other settlement starts
+      // open and has to buy each stage and wait out its construction.
+      wallLevel: def.capital ? CAPITAL_WALL_LEVEL : 0,
+      wallBuilding: null,
       garrison,
     };
   });

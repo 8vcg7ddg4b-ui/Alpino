@@ -1,4 +1,4 @@
-import { TILE_TYPES, settlementTier } from './data.js';
+import { TILE_TYPES, settlementTier, WALL_LEVELS } from './data.js';
 import { unitTotalCount, factionById } from './state.js';
 
 export const TILE_SIZE = 6;
@@ -22,7 +22,19 @@ const BASE_DISTANCE = 235;
 
 let terrainMesh = null;
 let waterMesh = null;
+let deepSeaMesh = null;
 let currentMap = null;
+let propsGroup = null;
+let roadsGroup = null;
+let ambientLight = null;
+let sunLight = null;
+
+// The map is drawn either as the ground it is or as the political picture the
+// player needs to plan: same relief, same tiles, different question answered.
+let mapMode = 'terrain';
+let terrainColors = null;
+let tacticalColors = null;
+let noiseTexture = null;
 
 // Armies march tile by tile instead of teleporting. While an army is animating
 // it owns its own position, so syncEntities must not snap it to the state's
@@ -110,10 +122,11 @@ export function initScene(canvas) {
 
   camera = new THREE.PerspectiveCamera(40, 1, 0.5, 3000);
 
-  scene.add(new THREE.AmbientLight('#ffffff', 0.65));
-  const sun = new THREE.DirectionalLight('#fff3d2', 1.05);
-  sun.position.set(140, 220, 90);
-  scene.add(sun);
+  ambientLight = new THREE.AmbientLight('#ffffff', 0.65);
+  scene.add(ambientLight);
+  sunLight = new THREE.DirectionalLight('#fff3d2', 1.05);
+  sunLight.position.set(140, 220, 90);
+  scene.add(sunLight);
 }
 
 function cameraDirection() {
@@ -244,7 +257,7 @@ function addInstanced(geometry, material, transforms) {
     mesh.setMatrixAt(i, matrix);
   });
   mesh.instanceMatrix.needsUpdate = true;
-  scene.add(mesh);
+  propsGroup.add(mesh);
   return mesh;
 }
 
@@ -321,6 +334,10 @@ export function buildMap(state) {
   mapRows = state.map.rows;
   currentMap = state.map;
   const props = { trunks: [], leaves: [], rockPeaks: [], snowPeaks: [] };
+  propsGroup = new THREE.Group();
+  roadsGroup = new THREE.Group();
+  scene.add(propsGroup);
+  scene.add(roadsGroup);
   const rng = seededRandomFactory(11);
 
   const positions = new Float32Array(mapCols * mapRows * 3);
@@ -362,14 +379,17 @@ export function buildMap(state) {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  terrainColors = colors;
+  tacticalColors = new Float32Array(colors.length);
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
 
+  noiseTexture = makeNoiseTexture();
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    map: makeNoiseTexture(),
+    map: noiseTexture,
     roughness: 0.95,
   });
   terrainMesh = new THREE.Mesh(geometry, material);
@@ -379,13 +399,13 @@ export function buildMap(state) {
   // An opaque deep-ocean floor under the translucent surface. Without it the
   // sea beyond the edge of the heightmap shows the sky through it and the map
   // ends in a visible pale shelf.
-  const deepSea = new THREE.Mesh(
+  deepSeaMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(seaSize, seaSize),
     new THREE.MeshStandardMaterial({ color: '#1d3f66', roughness: 0.9 })
   );
-  deepSea.rotation.x = -Math.PI / 2;
-  deepSea.position.y = tileTopY(TILE_TYPES.water.elevation) - 0.6;
-  scene.add(deepSea);
+  deepSeaMesh.rotation.x = -Math.PI / 2;
+  deepSeaMesh.position.y = tileTopY(TILE_TYPES.water.elevation) - 0.6;
+  scene.add(deepSeaMesh);
 
   waterMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(seaSize, seaSize),
@@ -456,7 +476,7 @@ function buildRoad(state, route) {
   const segments = Math.min(600, points.length * 4);
   const geometry = new THREE.TubeGeometry(curve, segments, 0.34, 5, false);
   const material = new THREE.MeshStandardMaterial({ color: '#a9895c', roughness: 1 });
-  scene.add(new THREE.Mesh(geometry, material));
+  roadsGroup.add(new THREE.Mesh(geometry, material));
 }
 
 // Each faction's roads run from its capital out to its own settlements. An
@@ -476,6 +496,90 @@ function buildRoads(state) {
       if (route) buildRoad(state, route);
     }
   }
+}
+
+// One ring of fortification. `span` is the same for all three so a settlement
+// keeps its footprint as it is upgraded; what changes is the material, the
+// height and whether there are towers.
+function buildFortification(kind, scale) {
+  const ring = new THREE.Group();
+  const span = 4.4 * scale;
+  const half = span / 2;
+
+  if (kind === 'palisade') {
+    // A row of sharpened stakes: a shaft with a point on top, per stake.
+    const wood = new THREE.MeshStandardMaterial({ color: '#7a5433', roughness: 1 });
+    const height = 1.15 * scale;
+    const perSide = 9;
+    for (let side = 0; side < 4; side++) {
+      const angle = (side * Math.PI) / 2;
+      for (let i = 0; i < perSide; i++) {
+        const t = (i / (perSide - 1) - 0.5) * span;
+        const x = Math.cos(angle) * t + Math.sin(angle) * half;
+        const z = -Math.sin(angle) * t + Math.cos(angle) * half;
+        const stake = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.11 * scale, 0.13 * scale, height, 5),
+          wood
+        );
+        stake.position.set(x, height / 2, z);
+        ring.add(stake);
+        const tip = new THREE.Mesh(
+          new THREE.ConeGeometry(0.13 * scale, 0.26 * scale, 5),
+          wood
+        );
+        tip.position.set(x, height + 0.13 * scale, z);
+        ring.add(tip);
+      }
+    }
+    return ring;
+  }
+
+  const stone = kind === 'stone';
+  const material = new THREE.MeshStandardMaterial({
+    color: stone ? '#b8ab90' : '#8a6134',
+    roughness: stone ? 0.9 : 1,
+  });
+  const height = (stone ? 1.7 : 1.35) * scale;
+  const thickness = (stone ? 0.42 : 0.34) * scale;
+
+  for (let i = 0; i < 4; i++) {
+    const segment = new THREE.Mesh(new THREE.BoxGeometry(span, height, thickness), material);
+    segment.position.y = height / 2;
+    segment.rotation.y = (i * Math.PI) / 2;
+    segment.position.x = Math.sin(segment.rotation.y) * half;
+    segment.position.z = Math.cos(segment.rotation.y) * half;
+    ring.add(segment);
+    // The parapet a defender actually stands behind.
+    const walk = new THREE.Mesh(
+      new THREE.BoxGeometry(span, 0.16 * scale, thickness * 1.9),
+      material
+    );
+    walk.position.copy(segment.position);
+    walk.position.y = height + 0.08 * scale;
+    walk.rotation.y = segment.rotation.y;
+    ring.add(walk);
+  }
+
+  for (let i = 0; i < 4; i++) {
+    const angle = Math.PI / 4 + (i * Math.PI) / 2;
+    const tower = stone
+      ? new THREE.Mesh(
+        new THREE.CylinderGeometry(0.42 * scale, 0.48 * scale, height * 1.45, 8),
+        material
+      )
+      : new THREE.Mesh(
+        new THREE.BoxGeometry(0.72 * scale, height * 1.35, 0.72 * scale),
+        material
+      );
+    tower.position.set(
+      Math.cos(angle) * half * Math.SQRT2,
+      height * (stone ? 0.72 : 0.68),
+      Math.sin(angle) * half * Math.SQRT2
+    );
+    tower.rotation.y = angle;
+    ring.add(tower);
+  }
+  return ring;
 }
 
 function buildCityGroup(city) {
@@ -529,38 +633,15 @@ function buildCityGroup(city) {
   label.position.y = 2.2 * scale + 4.6 * scale;
   group.add(label);
 
-  // A ring of wall segments, hidden until the city is actually fortified.
-  const walls = new THREE.Group();
-  const wallMaterial = new THREE.MeshStandardMaterial({ color: '#b8ab90', roughness: 0.9 });
-  const span = 4.4 * scale;
-  const thickness = 0.42 * scale;
-  const height = 1.5 * scale;
-  for (let i = 0; i < 4; i++) {
-    const segment = new THREE.Mesh(
-      new THREE.BoxGeometry(span, height, thickness),
-      wallMaterial
-    );
-    segment.position.y = height / 2;
-    segment.rotation.y = (i * Math.PI) / 2;
-    segment.position.x = Math.sin(segment.rotation.y) * (span / 2);
-    segment.position.z = Math.cos(segment.rotation.y) * (span / 2);
-    walls.add(segment);
-  }
-  for (let i = 0; i < 4; i++) {
-    const tower = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.42 * scale, 0.48 * scale, height * 1.35, 7),
-      wallMaterial
-    );
-    const angle = Math.PI / 4 + (i * Math.PI) / 2;
-    tower.position.set(
-      Math.cos(angle) * (span / 2) * Math.SQRT2,
-      height * 0.68,
-      Math.sin(angle) * (span / 2) * Math.SQRT2
-    );
-    walls.add(tower);
-  }
-  walls.visible = false;
-  group.add(walls);
+  // Three rings of fortification, one per stage, all built up front and shown
+  // according to how far the settlement has got. A palisade has to read as
+  // stakes and a stone wall as masonry - a recoloured box would not.
+  const walls = WALL_LEVELS.map((stage) => {
+    const ring = buildFortification(stage.key, scale);
+    ring.visible = false;
+    group.add(ring);
+    return ring;
+  });
 
   return { group, roof, flag, label, walls };
 }
@@ -740,7 +821,10 @@ export function syncEntities(state) {
     const faction = factionById(state, city.factionId);
     entry.roof.material.color.set(faction.color);
     entry.flag.material.color.set(faction.color);
-    if (entry.walls) entry.walls.visible = city.walls === 'complete';
+    // Only the highest stage that actually stands is shown.
+    if (entry.walls) {
+      entry.walls.forEach((ring, index) => { ring.visible = (city.wallLevel || 0) === index + 1; });
+    }
   }
 
   const seenArmies = new Set();
@@ -764,6 +848,8 @@ export function syncEntities(state) {
     }
   }
 
+  if (mapMode === 'tactical') refreshTacticalColors(state);
+
   clearHighlights();
   if (state.reachable) {
     for (const [key, info] of state.reachable) {
@@ -774,6 +860,120 @@ export function syncEntities(state) {
       addHighlight(col, row, color);
     }
   }
+}
+
+// --- Taktische Sicht -----------------------------------------------------
+// Who holds which ground: every passable tile takes the colour of the faction
+// whose settlement is nearest by land. That is a sphere of influence rather
+// than a border treaty, but it is the picture a commander plans from.
+function computeTerritory(state) {
+  const { cols, rows, tiles } = state.map;
+  const owner = new Int32Array(cols * rows).fill(-1);
+  const queue = [];
+  const factionIndex = new Map(state.factions.map((f, i) => [f.id, i]));
+
+  for (const city of state.cities) {
+    const index = city.row * cols + city.col;
+    owner[index] = factionIndex.get(city.factionId) ?? -1;
+    queue.push(index);
+  }
+  for (let head = 0; head < queue.length; head++) {
+    const index = queue[head];
+    const col = index % cols;
+    const row = (index - col) / cols;
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const c = col + dc;
+      const r = row + dr;
+      if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
+      const next = r * cols + c;
+      if (owner[next] !== -1) continue;
+      if (TILE_TYPES[tiles[r][c].type].impassable) continue;
+      owner[next] = owner[index];
+      queue.push(next);
+    }
+  }
+  return owner;
+}
+
+const UNCLAIMED_COLOUR = new THREE.Color('#514d45');
+const SEA_COLOUR = new THREE.Color('#243f5e');
+const ROCK_COLOUR = new THREE.Color('#3e3c40');
+
+function refreshTacticalColors(state) {
+  if (!terrainMesh || !tacticalColors) return;
+  const { cols, rows, tiles } = state.map;
+  const owner = computeTerritory(state);
+  const palette = state.factions.map((f) => new THREE.Color(f.color));
+  const colour = new THREE.Color();
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      const tile = tiles[row][col];
+      if (tile.type === 'water') {
+        colour.copy(SEA_COLOUR);
+      } else if (TILE_TYPES[tile.type].impassable) {
+        colour.copy(ROCK_COLOUR);
+      } else {
+        colour.copy(owner[index] >= 0 ? palette[owner[index]] : UNCLAIMED_COLOUR);
+        // A darker seam wherever two spheres of influence meet, so the
+        // frontier is a line the eye follows rather than a colour change.
+        const border = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => {
+          const c = col + dc;
+          const r = row + dr;
+          if (c < 0 || c >= cols || r < 0 || r >= rows) return false;
+          if (TILE_TYPES[tiles[r][c].type].impassable) return false;
+          return owner[r * cols + c] !== owner[index];
+        });
+        // Keep just enough relief shading that the mountains and coasts still
+        // read through the political colour.
+        colour.multiplyScalar((border ? 0.5 : 1) * (0.86 + Math.min(0.4, tile.elevation * 0.12)));
+      }
+      tacticalColors[index * 3] = colour.r;
+      tacticalColors[index * 3 + 1] = colour.g;
+      tacticalColors[index * 3 + 2] = colour.b;
+    }
+  }
+  if (mapMode === 'tactical') applyTerrainColors(tacticalColors);
+}
+
+function applyTerrainColors(source) {
+  const attribute = terrainMesh.geometry.getAttribute('color');
+  attribute.array.set(source);
+  attribute.needsUpdate = true;
+}
+
+export function getMapMode() {
+  return mapMode;
+}
+
+// Switches the whole map between the ground and the political picture: the
+// props and roads that make terrain readable only clutter the tactical view,
+// and flat light keeps the faction colours honest.
+export function setMapMode(mode, state) {
+  mapMode = mode === 'tactical' ? 'tactical' : 'terrain';
+  const tactical = mapMode === 'tactical';
+  if (propsGroup) propsGroup.visible = !tactical;
+  if (roadsGroup) roadsGroup.visible = !tactical;
+  // Daylight adds up to about 1.7 and washes a flat colour out to near white.
+  // The tactical view trades most of the sun for even light, keeping just
+  // enough of it that the relief still shows.
+  if (ambientLight) ambientLight.intensity = tactical ? 0.78 : 0.65;
+  if (sunLight) sunLight.intensity = tactical ? 0.32 : 1.05;
+  if (terrainMesh) {
+    terrainMesh.material.map = tactical ? null : noiseTexture;
+    terrainMesh.material.needsUpdate = true;
+    if (tactical && state) refreshTacticalColors(state);
+    else if (terrainColors) applyTerrainColors(terrainColors);
+  }
+  // In the tactical view the sea is context, not subject: it steps back so
+  // the faction colours are what the eye lands on.
+  if (waterMesh) {
+    waterMesh.material.opacity = tactical ? 0.95 : 0.82;
+    waterMesh.material.color.set(tactical ? '#33506e' : TILE_TYPES.water.color);
+  }
+  if (deepSeaMesh) deepSeaMesh.material.color.set(tactical ? '#2b435c' : '#1d3f66');
+  return mapMode;
 }
 
 export function render() {

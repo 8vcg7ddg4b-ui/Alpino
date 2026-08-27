@@ -5,7 +5,7 @@ import {
   MORALE_REST, MORALE_REST_IN_CITY, EXHAUSTION_PER_MOVE, EXHAUSTION_REST,
   EXHAUSTION_REST_IN_CITY, EXHAUSTION_PER_BATTLE,
   GARRISON_MORALE, GARRISON_EXHAUSTION,
-  WALL_COST, WALL_BUILD_TURNS, WALL_DEFENCE_MULTIPLIER,
+  MAX_WALL_LEVEL, wallLevelInfo, wallDefenceMultiplier,
   SHIP_COST, NAVAL_MOVEMENT, EXHAUSTION_PER_SEA_MOVE,
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_DEFENCE_MULTIPLIER,
 } from './data.js';
@@ -95,8 +95,16 @@ export function adjustExhaustion(army, delta) {
   army.exhaustion = clamp((army.exhaustion ?? 0) + delta, 0, 100);
 }
 
-export function cityHasWalls(city) {
-  return !!city && city.walls === 'complete';
+export function cityWallLevel(city) {
+  return city ? (city.wallLevel || 0) : 0;
+}
+
+// The next stage this settlement could start building, or null once the stone
+// wall stands. Stages are always taken in order.
+export function nextWallLevel(city) {
+  if (!city || city.wallBuilding) return null;
+  const level = cityWallLevel(city) + 1;
+  return level <= MAX_WALL_LEVEL ? level : null;
 }
 
 const NEIGHBOUR_OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -212,7 +220,7 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
 
   const atSea = isWaterTile(state, destCol, destRow);
   const amphibious = !!army.embarked && !atSea;
-  const walled = cityIsEnemy && cityHasWalls(city);
+  const wallLevel = cityIsEnemy ? cityWallLevel(city) : 0;
 
   return {
     city,
@@ -226,7 +234,8 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
     terrainType: state.map.tiles[destRow][destCol].type,
     atSea,
     amphibious,
-    walled,
+    wallLevel,
+    wallName: wallLevel ? wallLevelInfo(wallLevel).name : null,
     kind: garrisonJoins ? 'city' : 'army',
     modifiers: {
       attackerMorale: army.morale,
@@ -234,7 +243,7 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       ...attackerOverrides,
       defenderMorale: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'morale'),
       defenderExhaustion: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'exhaustion'),
-      wallMultiplier: walled ? WALL_DEFENCE_MULTIPLIER : 1,
+      wallMultiplier: wallDefenceMultiplier(wallLevel),
       // Caught on open water there is no line to form and no ground to hold.
       defenderMultiplier: atSea ? SEA_DEFENCE_MULTIPLIER : 1,
       // Storming a shore straight off the ships is the hardest attack there is.
@@ -403,7 +412,7 @@ export function resolveTileCombat(state, army, destCol, destRow) {
         attackerExhaustion: army.exhaustion,
         defenderMorale: GARRISON_MORALE,
         defenderExhaustion: GARRISON_EXHAUSTION,
-        wallMultiplier: cityHasWalls(city) ? WALL_DEFENCE_MULTIPLIER : 1,
+        wallMultiplier: wallDefenceMultiplier(cityWallLevel(city)),
       });
       attackerUnits = result.attackerSurvivors;
       adjustExhaustion(army, EXHAUSTION_PER_BATTLE);
@@ -584,36 +593,37 @@ export function disbandArmyIntoCity(state, armyId) {
   return { ok: true, cityId: city.id, joined };
 }
 
-export function wallCost() {
-  return WALL_COST;
-}
-
-// Walls are paid for up front and then raised over several turns.
+// Each stage is paid for up front and then raised over several turns. Only the
+// next stage in the sequence can be started, and only one at a time.
 export function buyCityWalls(state, cityId) {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city) return { ok: false };
-  if (city.walls !== 'none') return { ok: false, reason: 'exists' };
+  if (city.wallBuilding) return { ok: false, reason: 'building' };
+  const level = nextWallLevel(city);
+  if (!level) return { ok: false, reason: 'complete' };
+  const stage = wallLevelInfo(level);
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
-  if (faction.gold < WALL_COST) return { ok: false, reason: 'gold' };
+  if (faction.gold < stage.cost) return { ok: false, reason: 'gold' };
 
-  faction.gold -= WALL_COST;
-  city.walls = 'building';
-  city.wallTurnsLeft = WALL_BUILD_TURNS;
-  logMsg(state, `${faction.name} beginnt den Bau einer Stadtmauer in ${city.name} (${WALL_BUILD_TURNS} Runden).`);
-  return { ok: true };
+  faction.gold -= stage.cost;
+  city.wallBuilding = { level, turnsLeft: stage.turns };
+  logMsg(state, `${faction.name} beginnt in ${city.name} den Bau der ${stage.name} (${stage.turns} Runden).`);
+  return { ok: true, level };
 }
 
 export function advanceWallConstruction(state) {
+  const finished = [];
   for (const city of state.cities) {
-    if (city.walls !== 'building') continue;
-    city.wallTurnsLeft -= 1;
-    if (city.wallTurnsLeft <= 0) {
-      city.walls = 'complete';
-      city.wallTurnsLeft = 0;
-      logMsg(state, `Die Stadtmauer von ${city.name} ist fertiggestellt.`);
-    }
+    if (!city.wallBuilding) continue;
+    city.wallBuilding.turnsLeft -= 1;
+    if (city.wallBuilding.turnsLeft > 0) continue;
+    city.wallLevel = city.wallBuilding.level;
+    city.wallBuilding = null;
+    finished.push(city);
+    logMsg(state, `${wallLevelInfo(city.wallLevel).name} von ${city.name} fertiggestellt.`);
   }
+  return finished;
 }
 
 // Armies that stayed put regain their edge; a city lets them recover fastest.

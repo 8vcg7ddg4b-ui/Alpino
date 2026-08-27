@@ -19,6 +19,17 @@ html, body {
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
+  /* A swipe on the game must stay in the game. Without this the gesture
+     reaches the page and then the host around it - which on a phone or in an
+     embedded panel scrolls, bounces, or drops out of fullscreen. */
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+#app, #startScreen {
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 #app {
@@ -115,6 +126,9 @@ html, body {
   background: var(--panel);
   border-left: 2px solid var(--gold);
   overflow-y: auto;
+  /* Scrollable, but the scroll stops at its own edge instead of chaining. */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -371,6 +385,8 @@ html, body {
 }
 
 .report-box {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
   position: relative;
   background: var(--panel);
   border: 2px solid var(--gold);
@@ -883,3 +899,21 @@ html, body {
   border-left: 2px solid var(--border);
   padding-left: 8px;
 }
+
+/* --- Ausbaustufen der Befestigung --------------------------------------- */
+.wall-btn small {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--gold);
+  margin-top: 3px;
+  letter-spacing: 0.3px;
+}
+
+.wall-note {
+  margin: 6px 0 0;
+  font-size: 0.74rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.wall-line + .wall-line { margin-top: 4px; }

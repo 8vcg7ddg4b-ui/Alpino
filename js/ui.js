@@ -1,13 +1,13 @@
 import {
   UNIT_ORDER, UNIT_TYPES, settlementTier, garrisonCapacity, TILE_TYPES,
-  WALL_COST, WALL_BUILD_TURNS, WALL_DEFENCE_MULTIPLIER,
+  wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST,
 } from './data.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
   isWaterTile, isCoastalCity,
 } from './state.js';
-import { embarkStatus } from './actions.js';
+import { embarkStatus, cityWallLevel, nextWallLevel } from './actions.js';
 
 const TERRAIN_NAMES = {
   plains: 'Ebene', forest: 'Wald', hills: 'Hügel', mountain: 'Gebirge', water: 'Wasser',
@@ -118,7 +118,8 @@ function aftermathHTML(report) {
 function modifierNotesHTML(info) {
   const notes = [];
   if (info.wallMultiplier > 1) {
-    notes.push(`<span class="mod-note mod-wall">🧱 Stadtmauer: +${
+    notes.push(`<span class="mod-note mod-wall">${
+      escapeHTML(info.wallName || 'Befestigung')}: +${
       Math.round((info.wallMultiplier - 1) * 100)}% Verteidigung</span>`);
   }
   if (info.amphibious || (info.attackerMultiplier ?? 1) < 1) {
@@ -281,25 +282,39 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
 }
 
 function wallHTML(city, isMine, player) {
-  if (city.walls === 'complete') {
-    return `<p class="wall-line wall-done">🧱 Stadtmauer errichtet
-      <span class="muted">· +${Math.round((WALL_DEFENCE_MULTIPLIER - 1) * 100)}% Verteidigung</span></p>`;
+  const level = cityWallLevel(city);
+  const built = level
+    ? `<p class="wall-line wall-done">${wallLevelInfo(level).icon} ${wallLevelName(level)}
+        <span class="muted">· +${Math.round((wallLevelInfo(level).defence - 1) * 100)}% Verteidigung</span></p>`
+    : '<p class="wall-line muted">Keine Befestigung</p>';
+
+  if (city.wallBuilding) {
+    const stage = wallLevelInfo(city.wallBuilding.level);
+    const left = city.wallBuilding.turnsLeft;
+    const done = stage.turns - left;
+    return `${built}
+      <p class="wall-line wall-building">🏗️ ${escapeHTML(stage.name)} im Bau –
+        noch ${left} ${left === 1 ? 'Runde' : 'Runden'}
+        <span class="wall-track"><span class="wall-fill" style="width:${(done / stage.turns) * 100}%"></span></span>
+      </p>`;
   }
-  if (city.walls === 'building') {
-    const left = city.wallTurnsLeft;
-    const done = WALL_BUILD_TURNS - left;
-    return `<p class="wall-line wall-building">🏗️ Stadtmauer im Bau –
-      noch ${left} ${left === 1 ? 'Runde' : 'Runden'}
-      <span class="wall-track"><span class="wall-fill" style="width:${(done / WALL_BUILD_TURNS) * 100}%"></span></span>
-    </p>`;
+
+  const next = nextWallLevel(city);
+  if (!next) {
+    return `${built}<p class="wall-line muted">Höchste Ausbaustufe erreicht.</p>`;
   }
-  if (!isMine) return '<p class="wall-line muted">Keine Stadtmauer</p>';
-  const tooPoor = player.gold < WALL_COST;
-  return `
+  if (!isMine) return built;
+
+  const stage = wallLevelInfo(next);
+  const tooPoor = player.gold < stage.cost;
+  return `${built}
     <button class="wall-btn" ${tooPoor ? 'disabled' : ''}>
-      🧱 Stadtmauer kaufen – ${WALL_COST} Gold
-      <small>${WALL_BUILD_TURNS} Runden Bauzeit</small>
-    </button>`;
+      ${stage.icon} ${escapeHTML(stage.name)} bauen – ${stage.cost} Gold
+      <small>Stufe ${next} von ${MAX_WALL_LEVEL} · ${stage.turns} Runden ·
+        +${Math.round((stage.defence - 1) * 100)}% Verteidigung${
+  tooPoor ? ' · zu wenig Gold' : ''}</small>
+    </button>
+    <p class="wall-note">${escapeHTML(stage.note)}</p>`;
 }
 
 const TERRAIN_ICONS = {
@@ -363,6 +378,7 @@ export function terrainPanelHTML(state, tile) {
     if (shore) notes.push('Küstenfeld – eine Flotte kann hier landen.');
   }
   if (city && isCoastalCity(state, city)) notes.push('Hafen – hier kann eine Armee in See stechen.');
+  if (city && cityWallLevel(city)) notes.push(`Befestigt: ${wallLevelName(cityWallLevel(city))}.`);
   if (type === 'desert') notes.push('Wüste – zäh zu durchqueren und ohne Deckung.');
   if (type === 'mountain') notes.push('Gebirge – für Armeen unpassierbar.');
 

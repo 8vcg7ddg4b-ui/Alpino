@@ -69,6 +69,11 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 - **Schlachtberichte**: Nach jedem Kampf öffnet sich ein Bericht mit Verlusten
   pro Einheitentyp, Geländevorteil und Rundenverlauf. Ältere Kämpfe lassen sich
   jederzeit über die Einträge in der Ereignisliste wieder öffnen (Esc schließt).
+- **Taktische Sicht** (🗺 oben rechts): schaltet die Karte in die Farben der
+  Fraktionen um. Jedes begehbare Feld nimmt die Farbe der Fraktion an, deren
+  Siedlung ihm am nächsten liegt; Gebirge bleiben dunkel, Wälder, Straßen und
+  Requisiten treten zurück, das Relief bleibt. Damit ist auf einen Blick zu
+  sehen, wer wo steht und wo die Grenzen verlaufen.
 - **Gelände ansehen**: Ein Klick auf ein beliebiges Feld zeigt in der
   Seitenleiste Geländeart, Bewegungskosten, Verteidigungsbonus, Höhe über dem
   Meer und die geografische Lage – dazu, was auf dem Feld steht.
@@ -85,16 +90,23 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
   schnellsten in einer eigenen Stadt. Beides steht im Armee-Panel.
 - **Armee auflösen**: Steht eine Armee in einer eigenen Stadt, kann sie sich
   auflösen; ihre Soldaten treten der Garnison bei.
-- **Stadtmauern**: Hauptstädte besitzen von Beginn an eine Mauer. Jede andere
-  eigene Stadt kann eine kaufen; sie wird in 5 Runden errichtet und gibt den
-  Verteidigern danach einen deutlichen Bonus.
+- **Befestigungen in drei Stufen**: **Holzpalisade** (200 Gold, 3 Runden,
+  +30 % Verteidigung), **Große Holzpalisade** (450 Gold, 4 Runden, +60 %) und
+  **Steinmauer** (900 Gold, 6 Runden, +100 %). Gekauft wird immer nur die
+  nächste Stufe, und immer nur eine zur Zeit. Hauptstädte starten mit der
+  Großen Holzpalisade – die Steinmauer bleibt auch ihnen zu bauen. Jede Stufe
+  sieht anders aus: angespitzte Stämme, hölzerner Wehrgang mit Türmen,
+  Quadermauer mit Rundtürmen.
 - **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
   Rekrutierung, Mauerkauf, Auflösen oder ganzen Rundenwechsel.
 - **Ton**: 🔊 schaltet die Klänge um (Marsch, Schlacht, Rekrutierung, Mauerbau,
   Rundenwechsel …). Alle Geräusche werden zur Laufzeit synthetisiert – keine
   Audiodateien, funktioniert offline.
-- **Vollbildmodus**: ausschließlich per Knopf (⛶ oben rechts bzw. auf dem
-  Startbildschirm). Das Spiel wechselt nie von sich aus ins Vollbild.
+- **Vollbildmodus**: ist der Normalfall – das Spiel geht beim Start hinein.
+  Reißt eine Wischgeste oder die umgebende Seite das Vollbild ab, stellt der
+  nächste Klick oder Tastendruck es wieder her (früher geht es nicht: ein
+  Browser gewährt Vollbild nur innerhalb einer Nutzergeste). Wer per ⛶ oder
+  Esc herausgeht, bleibt draußen, bis er ⛶ erneut drückt.
   In einer eingebetteten Ansicht (iframe) verbietet der Browser Vollbild per
   Permissions-Policy; das Spiel sagt das dann und der Knopf ⇥ blendet
   stattdessen die Seitenleiste aus, um der Karte den Platz zu geben.
