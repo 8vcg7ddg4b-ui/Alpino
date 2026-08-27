@@ -215,7 +215,8 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
 
   return `
     <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(city.name)} ${city.capital ? '👑' : ''}</h3>
-    <p class="muted">${escapeHTML(faction.name)} · Bevölkerung: ${city.population.toLocaleString('de-DE')}</p>
+    <p class="muted">${city.capital ? 'Hauptstadt' : city.village ? 'Dorf' : 'Stadt'} ·
+      ${escapeHTML(faction.name)} · Bevölkerung: ${city.population.toLocaleString('de-DE')}</p>
     <p class="muted">Garnison: ${current.toLocaleString('de-DE')}
       ${current > maxTotal
         ? `<span class="over-strength">über Sollstärke (${maxTotal.toLocaleString('de-DE')})</span>`

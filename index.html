@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>SPQR</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦅</text></svg>" />
   <link rel="stylesheet" href="css/style.css" />
@@ -83,7 +83,7 @@
     <main id="layout">
       <div id="mapWrap">
         <canvas id="gameCanvas"></canvas>
-        <div id="mapHint">Ziehen zum Verschieben · Armee anklicken, dann Zielfeld wählen</div>
+        <div id="mapHint">Ziehen zum Verschieben · zwei Finger zum Drehen und Zoomen · Armee antippen, dann Zielfeld wählen</div>
         <div id="toast" class="hidden"></div>
 
         <div id="mapControls">
@@ -94,8 +94,13 @@
             <button class="dpad-btn dpad-down" data-pan="0,1">▼</button>
           </div>
           <div class="zoom-controls">
-            <button class="zoom-btn" data-zoom="1.2">+</button>
-            <button class="zoom-btn" data-zoom="0.83">−</button>
+            <button class="zoom-btn" data-zoom="1.2" title="Vergrößern">+</button>
+            <button class="zoom-btn" data-zoom="0.83" title="Verkleinern">−</button>
+          </div>
+          <div class="zoom-controls">
+            <button class="zoom-btn" data-rotate="-0.26" title="Karte nach links drehen">↺</button>
+            <button class="zoom-btn" data-rotate="0.26" title="Karte nach rechts drehen">↻</button>
+            <button class="zoom-btn" id="resetViewBtn" title="Ansicht zurücksetzen">⌂</button>
           </div>
         </div>
       </div>

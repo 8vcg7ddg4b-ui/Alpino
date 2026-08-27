@@ -19,6 +19,9 @@ export function createInitialState() {
 
   const cities = CITY_DEFS.map((def) => {
     const isNeutral = def.factionId === 'neutral';
+    const population = def.village
+      ? (isNeutral ? 900 : 1400)
+      : def.capital ? 6000 : isNeutral ? 2000 : 3500;
     return {
       id: makeId('city'),
       name: def.name,
@@ -26,12 +29,15 @@ export function createInitialState() {
       row: def.row,
       factionId: def.factionId,
       capital: !!def.capital,
-      population: def.capital ? 6000 : isNeutral ? 2000 : 3500,
+      village: !!def.village,
+      population,
       // Capitals are fortified from the outset; every other city has to pay
       // for its walls and wait out the construction.
       walls: def.capital ? 'complete' : 'none',
       wallTurnsLeft: 0,
-      garrison: def.capital
+      garrison: def.village
+        ? { legionary: isNeutral ? 45 : 70 }
+        : def.capital
         ? { legionary: 250, cavalry: 80, archer: 80 }
         : isNeutral
         ? { legionary: 120 }

@@ -1,6 +1,6 @@
 import {
   UNIT_ORDER, UNIT_TYPES, MAX_MOVEMENT, INCOME_PER_CITY, GARRISON_POP_RATIO,
-  RECRUIT_BATCH, GARRISON_REGEN_BATCH, TILE_TYPES,
+  RECRUIT_BATCH, GARRISON_REGEN_BATCH, TILE_TYPES, VILLAGE_INCOME_FACTOR,
   MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
   MORALE_REST, MORALE_REST_IN_CITY, EXHAUSTION_PER_MOVE, EXHAUSTION_REST,
   EXHAUSTION_REST_IN_CITY, EXHAUSTION_PER_BATTLE,
@@ -463,7 +463,9 @@ export function collectIncome(state) {
   for (const faction of state.factions) {
     if (faction.isNeutral) continue;
     const ownCities = state.cities.filter((c) => c.factionId === faction.id);
-    let income = ownCities.length * INCOME_PER_CITY;
+    let income = ownCities.reduce(
+      (sum, c) => sum + INCOME_PER_CITY * (c.village ? VILLAGE_INCOME_FACTOR : 1), 0
+    );
     income += ownCities.reduce((s, c) => s + Math.floor(c.population / 200), 0);
     const upkeep = state.armies
       .filter((a) => a.factionId === faction.id)

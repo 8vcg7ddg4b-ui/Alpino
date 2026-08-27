@@ -53,8 +53,12 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 - **Schlachtberichte**: Nach jedem Kampf öffnet sich ein Bericht mit Verlusten
   pro Einheitentyp, Geländevorteil und Rundenverlauf. Ältere Kämpfe lassen sich
   jederzeit über die Einträge in der Ereignisliste wieder öffnen (Esc schließt).
-- **Karte verschieben**: Ziehen mit der Maus, Pfeiltasten/WASD, das Steuerkreuz
-  unten links auf der Karte, oder Mausrad zum Zoomen.
+- **Karte verschieben**: Ziehen mit Maus oder einem Finger, Pfeiltasten/WASD,
+  oder das Steuerkreuz unten links.
+- **Drehen und Zoomen**: Auf dem Touchscreen zwei Finger – auseinander/zusammen
+  zoomt, Verdrehen dreht die Karte. Am Rechner: Mausrad zoomt, Umschalt+Mausrad
+  bzw. **Q**/**E** dreht. Die Knöpfe ↺ ↻ drehen, ⌂ setzt die Ansicht zurück.
+  Nach dem Drehen bleiben Steuerkreuz und Pfeiltasten bildschirmbezogen.
 - **Städte**: anklicken, um Einheiten zu rekrutieren (Legionäre, Kavallerie,
   Bogenschützen) und Garnisonen zu Feldarmeen auszuheben.
 - **Moral und Erschöpfung**: Jede Armee führt beide Werte mit; sie gehen direkt
@@ -82,7 +86,10 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 - Du spielst **Rom** gegen die KI-Fraktionen **Karthago**, die **Gallier** und
   die **Griechen**, verteilt über eine stilisierte Europa-/Mittelmeerkarte
   (Iberische Halbinsel, Alpen/Pyrenäen, italienischer Stiefel, Sizilien,
-  Griechenland, Nordafrika) plus mehrere unabhängige Städte.
+  Griechenland, Nordafrika).
+- **24 Siedlungen**: 15 Städte und 9 Dörfer. Dörfer sind klein – wenig
+  Bevölkerung, schwache Garnison, halbes Grundeinkommen – aber leicht zu nehmen
+  und gute Sprungbretter. Neun davon gehören niemandem und sind frei zu erobern.
 - Sieg: alle gegnerischen Fraktionen ausschalten. Niederlage: Rom verliert
   alle Städte und Armeen.
 

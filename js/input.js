@@ -2,7 +2,7 @@ import { computeReachable, tileKey } from './pathfind.js';
 import { armyAt, cityAt, playerFaction } from './state.js';
 import { moveArmy } from './actions.js';
 import {
-  pickTile, groundPointAt, panCameraByWorld, panCamera, zoomCamera,
+  pickTile, groundPointAt, panCameraByWorld, panCameraRelative, zoomCamera, rotateCamera,
   animateArmyPath, playBattleClash, isAnimating,
 } from './scene3d.js';
 import { sfx, startMarch, stopMarch } from './audio.js';
@@ -53,49 +53,118 @@ function toNdc(canvas, clientX, clientY) {
 }
 
 export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction) {
-  let dragging = false;
+  // Pointer events cover mouse, pen and touch in one path. Two simultaneous
+  // pointers mean a pinch: the distance between them zooms, the angle between
+  // them turns the map.
+  const pointers = new Map();
   let dragMoved = false;
   let dragAnchor = null;
+  let pinch = null;
 
-  canvas.addEventListener('mousedown', (e) => {
-    dragging = true;
-    dragMoved = false;
-    const ndc = toNdc(canvas, e.clientX, e.clientY);
-    dragAnchor = groundPointAt(ndc.x, ndc.y);
+  const pointerNdc = (e) => toNdc(canvas, e.clientX, e.clientY);
+
+  function pinchMetrics() {
+    const [a, b] = [...pointers.values()];
+    return {
+      distance: Math.hypot(a.x - b.x, a.y - b.y),
+      angle: Math.atan2(b.y - a.y, b.x - a.x),
+      cx: (a.x + b.x) / 2,
+      cy: (a.y + b.y) / 2,
+    };
+  }
+
+  // Pointer capture throws for an id the browser no longer tracks; losing the
+  // capture is harmless, but letting it throw would kill the whole handler.
+  function capturePointer(id) {
+    try { canvas.setPointerCapture(id); } catch (err) { /* keep going uncaptured */ }
+  }
+  function releasePointer(id) {
+    try { canvas.releasePointerCapture(id); } catch (err) { /* already gone */ }
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    capturePointer(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.size === 1) {
+      dragMoved = false;
+      const ndc = pointerNdc(e);
+      dragAnchor = groundPointAt(ndc.x, ndc.y);
+    } else if (pointers.size === 2) {
+      // A second finger cancels the drag and starts a pinch.
+      dragAnchor = null;
+      pinch = pinchMetrics();
+    }
   });
 
-  window.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    const ndc = toNdc(canvas, e.clientX, e.clientY);
-    const q = groundPointAt(ndc.x, ndc.y);
-    if (dragAnchor && q) {
-      const dx = dragAnchor.x - q.x;
-      const dz = dragAnchor.z - q.z;
-      if (Math.abs(dx) > 0.05 || Math.abs(dz) > 0.05) dragMoved = true;
-      if (dragMoved) {
-        panCameraByWorld(dx, dz);
-        onChange();
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.size >= 2 && pinch) {
+      e.preventDefault();
+      const now = pinchMetrics();
+      if (pinch.distance > 0 && now.distance > 0) {
+        zoomCamera(now.distance / pinch.distance);
       }
+      let turn = now.angle - pinch.angle;
+      // Keep the shortest way round so crossing ±π does not spin the map.
+      if (turn > Math.PI) turn -= Math.PI * 2;
+      if (turn < -Math.PI) turn += Math.PI * 2;
+      rotateCamera(turn);
+      pinch = now;
+      dragMoved = true;
+      onChange();
+      return;
     }
-  });
 
-  window.addEventListener('mouseup', (e) => {
-    if (dragging && !dragMoved) {
-      handleClick(e);
+    if (pointers.size !== 1 || !dragAnchor) return;
+    e.preventDefault();
+    const ndc = pointerNdc(e);
+    const q = groundPointAt(ndc.x, ndc.y);
+    if (!q) return;
+    const dx = dragAnchor.x - q.x;
+    const dz = dragAnchor.z - q.z;
+    if (Math.abs(dx) > 0.05 || Math.abs(dz) > 0.05) dragMoved = true;
+    if (dragMoved) {
+      panCameraByWorld(dx, dz);
+      onChange();
     }
-    dragging = false;
-  });
+  }, { passive: false });
+
+  function endPointer(e) {
+    if (!pointers.has(e.pointerId)) return;
+    const wasSingleTap = pointers.size === 1 && !dragMoved;
+    pointers.delete(e.pointerId);
+    releasePointer(e.pointerId);
+
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 0) {
+      dragAnchor = null;
+      if (wasSingleTap) handleClick(e);
+    }
+  }
+
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    zoomCamera(e.deltaY < 0 ? 1.12 : 0.89);
+    // Shift + wheel turns the map, matching the two-finger twist.
+    if (e.shiftKey) rotateCamera(e.deltaY * 0.004);
+    else zoomCamera(e.deltaY < 0 ? 1.12 : 0.89);
     onChange();
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
+    if (e.key === 'q' || e.key === 'e') {
+      rotateCamera(e.key === 'q' ? -0.18 : 0.18);
+      onChange();
+      return;
+    }
     const delta = PAN_KEYS[e.key];
     if (!delta) return;
-    panCamera(delta[0] * 1.4, delta[1] * 1.4);
+    panCameraRelative(delta[0] * 1.4, delta[1] * 1.4);
     onChange();
   });
 

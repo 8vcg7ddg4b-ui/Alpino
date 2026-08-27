@@ -9,8 +9,15 @@ let canvasEl;
 let mapCols = 0;
 let mapRows = 0;
 
-const cam = { col: 0, row: 0, zoom: 1 };
-const ISO_DIR = new THREE.Vector3(1, 1.05, 1).normalize();
+// The camera orbits its target: azimuth turns it around the map, polar is the
+// tilt above the horizon. The defaults reproduce the original fixed isometric
+// direction (1, 1.05, 1).
+const DEFAULT_AZIMUTH = Math.PI / 4;
+const DEFAULT_POLAR = Math.atan2(1.05, Math.SQRT2);
+const MIN_POLAR = 0.25;
+const MAX_POLAR = 1.35;
+
+const cam = { col: 0, row: 0, zoom: 1, azimuth: DEFAULT_AZIMUTH, polar: DEFAULT_POLAR };
 const BASE_DISTANCE = 130;
 
 let terrainMesh = null;
@@ -94,13 +101,44 @@ export function initScene(canvas) {
   scene.add(sun);
 }
 
+function cameraDirection() {
+  const horizontal = Math.cos(cam.polar);
+  return new THREE.Vector3(
+    Math.cos(cam.azimuth) * horizontal,
+    Math.sin(cam.polar),
+    Math.sin(cam.azimuth) * horizontal
+  );
+}
+
 function applyCamera() {
   const dist = BASE_DISTANCE / cam.zoom;
   const target = new THREE.Vector3(worldX(cam.col), 0, worldZ(cam.row));
-  camera.position.copy(target).addScaledVector(ISO_DIR, dist);
+  camera.position.copy(target).addScaledVector(cameraDirection(), dist);
   camera.lookAt(target);
   camera.up.set(0, 1, 0);
   camera.updateProjectionMatrix();
+}
+
+export function rotateCamera(deltaAzimuth, deltaPolar = 0) {
+  cam.azimuth += deltaAzimuth;
+  cam.polar = Math.max(MIN_POLAR, Math.min(MAX_POLAR, cam.polar + deltaPolar));
+  applyCamera();
+}
+
+export function resetCameraOrientation() {
+  cam.azimuth = DEFAULT_AZIMUTH;
+  cam.polar = DEFAULT_POLAR;
+  applyCamera();
+}
+
+// Screen-relative panning: with a rotated camera, "up" on the D-pad has to
+// mean away from the viewer, not north on the tile grid.
+export function panCameraRelative(right, forward) {
+  const sin = Math.sin(cam.azimuth);
+  const cos = Math.cos(cam.azimuth);
+  cam.col += right * sin + forward * cos;
+  cam.row += -right * cos + forward * sin;
+  applyCamera();
 }
 
 export function resize(width, height) {
@@ -110,11 +148,6 @@ export function resize(width, height) {
   applyCamera();
 }
 
-export function panCamera(dCol, dRow) {
-  cam.col += dCol;
-  cam.row += dRow;
-  applyCamera();
-}
 
 export function panCameraByWorld(dx, dz) {
   cam.col += dx / TILE_SIZE;
@@ -342,7 +375,7 @@ function buildRoads(state) {
 
 function buildCityGroup(city) {
   const group = new THREE.Group();
-  const scale = city.capital ? 1.35 : 1;
+  const scale = city.capital ? 1.35 : city.village ? 0.68 : 1;
 
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(2.6 * scale, 2.2 * scale, 2.6 * scale),

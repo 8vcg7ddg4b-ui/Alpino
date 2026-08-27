@@ -89,6 +89,11 @@ html, body {
   height: 100%;
   display: block;
   cursor: grab;
+  /* Hand every gesture to the game instead of letting the browser scroll or
+     zoom the page - without this a pinch on iPad zooms the whole document. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #mapHint {

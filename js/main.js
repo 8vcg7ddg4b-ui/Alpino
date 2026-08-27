@@ -9,8 +9,8 @@ import {
   advanceWallConstruction, recoverArmies,
 } from './actions.js';
 import {
-  initScene, buildMap, syncEntities, render, resize, centerOn, panCamera, zoomCamera,
-  isAnimating,
+  initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
+  isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
 } from './scene3d.js';
 import { sfx, unlockAudio, toggleMuted, isMuted, stopMarch } from './audio.js';
 
@@ -271,7 +271,9 @@ function setupDpad() {
   document.querySelectorAll('[data-pan]').forEach((btn) => {
     const [dc, dr] = btn.dataset.pan.split(',').map(Number);
     btn.addEventListener('click', () => {
-      panCamera(dc * STEP, dr * STEP);
+      // Screen-relative: once the map is turned, "up" must still mean away
+      // from the viewer rather than north on the tile grid.
+      panCameraRelative(dc * STEP, dr * STEP);
       render();
     });
   });
@@ -282,6 +284,20 @@ function setupDpad() {
       render();
     });
   });
+  document.querySelectorAll('[data-rotate]').forEach((btn) => {
+    const amount = Number(btn.dataset.rotate);
+    btn.addEventListener('click', () => {
+      rotateCamera(amount);
+      render();
+    });
+  });
+  const resetBtn = document.getElementById('resetViewBtn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      resetCameraOrientation();
+      render();
+    });
+  }
 }
 
 // Without a WebGL context three.js throws while constructing the renderer.

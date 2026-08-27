@@ -34,20 +34,39 @@ export const FACTIONS = [
   { id: 'neutral', name: 'Unabhängig', color: '#7f7f7f', isPlayer: false, isNeutral: true },
 ];
 
-// Coordinates are hand-placed on the Europe/Mediterranean landmass built by mapgen.js.
+// Coordinates are hand-placed on the Europe/Mediterranean landmass built by
+// mapgen.js. Villages are small settlements: less population, a token
+// garrison and half the base income of a proper city.
 export const CITY_DEFS = [
   { name: 'Roma', col: 22, row: 17, factionId: 'rom', capital: true },
   { name: 'Capua', col: 21, row: 20, factionId: 'rom', capital: false },
+  { name: 'Arretium', col: 24, row: 15, factionId: 'rom', capital: false },
   { name: 'Karthago', col: 16, row: 25, factionId: 'karthago', capital: true },
   { name: 'Utica', col: 13, row: 24, factionId: 'karthago', capital: false },
+  { name: 'Tingis', col: 6, row: 25, factionId: 'karthago', capital: false },
+  { name: 'Leptis Magna', col: 25, row: 25, factionId: 'karthago', capital: false, village: true },
   { name: 'Alesia', col: 10, row: 3, factionId: 'gallier', capital: true },
   { name: 'Bibracte', col: 10, row: 6, factionId: 'gallier', capital: false },
+  { name: 'Lutetia', col: 6, row: 1, factionId: 'gallier', capital: false },
+  { name: 'Tolosa', col: 6, row: 7, factionId: 'gallier', capital: false, village: true },
   { name: 'Athen', col: 33, row: 19, factionId: 'griechen', capital: true },
   { name: 'Sparta', col: 34, row: 15, factionId: 'griechen', capital: false },
+  { name: 'Pergamon', col: 36, row: 13, factionId: 'griechen', capital: false },
+  // On the mainland, not the real island: the game has no ships, so an island
+  // settlement could never be taken and its owner never eliminated.
+  { name: 'Ephesos', col: 38, row: 11, factionId: 'griechen', capital: false, village: true },
   { name: 'Massilia', col: 19, row: 9, factionId: 'neutral', capital: false },
   { name: 'Syrakus', col: 22, row: 24, factionId: 'neutral', capital: false },
   { name: 'Numantia', col: 8, row: 15, factionId: 'neutral', capital: false },
+  { name: 'Corduba', col: 10, row: 17, factionId: 'neutral', capital: false, village: true },
+  { name: 'Gades', col: 7, row: 19, factionId: 'neutral', capital: false, village: true },
+  { name: 'Vindobona', col: 17, row: 1, factionId: 'neutral', capital: false, village: true },
+  { name: 'Argentorate', col: 14, row: 4, factionId: 'neutral', capital: false, village: true },
+  { name: 'Carnuntum', col: 27, row: 1, factionId: 'neutral', capital: false, village: true },
+  { name: 'Kyrene', col: 30, row: 25, factionId: 'neutral', capital: false, village: true },
 ];
+
+export const VILLAGE_INCOME_FACTOR = 0.5;
 
 // Morale and exhaustion scale a force's fighting power. Both are 0-100 and
 // recover when an army rests, fastest inside a friendly city.
