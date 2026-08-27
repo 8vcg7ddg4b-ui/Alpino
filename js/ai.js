@@ -1,8 +1,9 @@
-import { UNIT_ROLES, SHIP_COST, roadCost } from './data.js';
+import { UNIT_ROLES, SHIP_COST, HARBOUR_COST, roadCost } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
   moveArmy, recruitUnit, raiseArmyFromGarrison, embarkArmy, embarkStatus,
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
+  buyHarbour, canBuildHarbour,
 } from './actions.js';
 import { unitTotalCount, factionById, isCoastalCity, sameLandmass } from './state.js';
 
@@ -216,6 +217,8 @@ function threatenedCity(state, faction) {
 // economy knows to stop spending.
 function aiMilitary(state, faction) {
   let savingForFleet = false;
+  // Die Küstenstadt, in der eine Armee auf einen Hafen wartet.
+  let harbourWanted = null;
   const armies = state.armies.filter((a) => a.factionId === faction.id);
 
   // Sending every army at the nearest enemy leaves nothing behind, and a
@@ -262,33 +265,65 @@ function aiMilitary(state, faction) {
       // enough to keep an island faction at home for the whole game.
       if (status.city) {
         if (status.can || status.reason === 'gold') savingForFleet = true;
-        continue;
+        // Am Meer, aber ohne Hafen: dann ist der Hafen die nächste Ausgabe.
+        if (status.reason === 'noHarbour') harbourWanted = status.city;
+        if (status.reason !== 'noHarbour') continue;
       }
       // Otherwise make for the nearest own harbour rather than standing still
       // on the wrong side of the water.
       const port = nearestOwnPort(state, army, walkable);
       if (port && (port.col !== army.col || port.row !== army.row)) {
         stepArmyTowards(state, army, port);
+        if (!port.city.harbour) harbourWanted = port.city;
+        continue;
+      }
+      if (port && !port.city.harbour) {
+        harbourWanted = port.city;
         continue;
       }
     }
     stepArmyTowards(state, army, target);
   }
-  return savingForFleet;
+  return { savingForFleet, harbourWanted };
 }
 
-// The closest own harbour this army could actually walk to.
+// Ein Hafen wird gebaut, sobald eine Armee auf ihn wartet - und sonst nur,
+// wenn eine Fraktion gar keinen hat und ihre Küste ungenutzt liegt.
+function aiHarbours(state, faction, harbourWanted) {
+  if ((state.cities || []).some((c) => c.factionId === faction.id && c.harbourBuilding)) return false;
+  let target = harbourWanted && harbourWanted.factionId === faction.id
+    && canBuildHarbour(state, harbourWanted) ? harbourWanted : null;
+  if (!target) {
+    const own = state.cities.filter((c) => c.factionId === faction.id);
+    if (own.some((c) => c.harbour)) return false;
+    // Der größte Küstenort ohne Hafen - dort lohnt die Werft am ehesten.
+    const rank = { large: 0, city: 1, village: 2 };
+    target = own.filter((c) => canBuildHarbour(state, c))
+      .sort((a, b) => (rank[a.size] ?? 3) - (rank[b.size] ?? 3))[0] || null;
+  }
+  if (!target) return false;
+  if (faction.gold >= HARBOUR_COST + AI_TREASURY_FLOOR) {
+    buyHarbour(state, target.id);
+    return false;
+  }
+  return true;
+}
+
+// The closest own harbour this army could actually walk to. A town with a
+// finished harbour always beats one that would first have to build one, however
+// close it is - otherwise the army camps in a fishing village for ever.
 function nearestOwnPort(state, army, walkable) {
   let best = null;
-  let bestDist = Infinity;
+  let bestRank = Infinity;
   for (const city of state.cities) {
     if (city.factionId !== army.factionId) continue;
     if (!isCoastalCity(state, city)) continue;
     if (walkable && !walkable(city.col, city.row)) continue;
     const dist = Math.abs(city.col - army.col) + Math.abs(city.row - army.row);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = { col: city.col, row: city.row };
+    const rank = city.harbour ? dist : dist + 1000;
+    if (rank < bestRank) {
+      bestRank = rank;
+      best = { col: city.col, row: city.row, city };
     }
   }
   return best;
@@ -297,9 +332,11 @@ function nearestOwnPort(state, army, walkable) {
 export function aiTakeTurn(state, faction) {
   // Movement first: a fleet that is needed this turn should not find the
   // treasury already spent on another batch of recruits.
-  const savingForFleet = aiMilitary(state, faction);
-  const savingForRoad = aiRoads(state, faction, savingForFleet);
-  aiEconomy(state, faction, savingForFleet, savingForRoad);
+  const { savingForFleet, harbourWanted } = aiMilitary(state, faction);
+  // Ein Hafen geht der Flotte voraus: ohne ihn nützt das Schiffsgeld nichts.
+  const savingForHarbour = aiHarbours(state, faction, harbourWanted);
+  const savingForRoad = !savingForHarbour && aiRoads(state, faction, savingForFleet);
+  aiEconomy(state, faction, savingForFleet, savingForRoad || savingForHarbour);
 }
 
 export function aiTakeAllTurns(state) {

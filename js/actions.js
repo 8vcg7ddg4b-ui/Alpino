@@ -11,6 +11,7 @@ import {
   SHIP_COST, NAVAL_MOVEMENT, EXHAUSTION_PER_SEA_MOVE,
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_DEFENCE_MULTIPLIER,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
+  HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
 } from './data.js';
 import { landRoute } from './mapgen.js';
 import { computeReachable, tileKey } from './pathfind.js';
@@ -571,6 +572,8 @@ export function embarkArmy(state, armyId) {
   const city = cityAt(state, army.col, army.row);
   if (!city || city.factionId !== army.factionId) return { ok: false, reason: 'noCity' };
   if (!isCoastalCity(state, city)) return { ok: false, reason: 'noPort' };
+  // Ein Kai, eine Werft, Vorräte: ohne Hafen legt kein Schiff ab.
+  if (!city.harbour) return { ok: false, reason: 'noHarbour' };
   const faction = factionById(state, army.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
   if (faction.gold < SHIP_COST) return { ok: false, reason: 'gold' };
@@ -599,6 +602,7 @@ export function embarkStatus(state, army) {
   const city = cityAt(state, army.col, army.row);
   if (!city || city.factionId !== army.factionId) return { can: false, reason: 'noCity' };
   if (!isCoastalCity(state, city)) return { can: false, reason: 'noPort', city };
+  if (!city.harbour) return { can: false, reason: 'noHarbour', city };
   const faction = factionById(state, army.factionId);
   if (!faction || faction.gold < SHIP_COST) return { can: false, reason: 'gold', city };
   const berth = harbourTile(state, city, true);
@@ -857,6 +861,46 @@ export function advanceRoadConstruction(state) {
     projects.splice(i, 1);
     finished.push(project);
     logMsg(state, `🛣️ Die Straße ${project.fromName} – ${project.toName} ist fertig.`);
+  }
+  return finished;
+}
+
+// --- Hafenbau ------------------------------------------------------------
+// Ein Hafen ist die Bedingung fürs Einschiffen, nicht der Kaufpreis der
+// Flotte: gebaut wird er einmal, die Schiffe kosten weiter je Fahrt.
+
+export function canBuildHarbour(state, city) {
+  if (!city || city.factionId === 'neutral') return false;
+  if (city.harbour || city.harbourBuilding) return false;
+  return isCoastalCity(state, city);
+}
+
+export function buyHarbour(state, cityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false };
+  if (city.harbour) return { ok: false, reason: 'done' };
+  if (city.harbourBuilding) return { ok: false, reason: 'building' };
+  if (!isCoastalCity(state, city)) return { ok: false, reason: 'inland' };
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  if (faction.gold < HARBOUR_COST) return { ok: false, reason: 'gold' };
+
+  faction.gold -= HARBOUR_COST;
+  city.harbourBuilding = { turnsLeft: HARBOUR_TURNS };
+  logMsg(state, `${faction.name} beginnt in ${city.name} den Bau eines ${HARBOUR_NAME}s (${HARBOUR_TURNS} Runden).`);
+  return { ok: true };
+}
+
+export function advanceHarbourConstruction(state) {
+  const finished = [];
+  for (const city of state.cities) {
+    if (!city.harbourBuilding) continue;
+    city.harbourBuilding.turnsLeft -= 1;
+    if (city.harbourBuilding.turnsLeft > 0) continue;
+    city.harbour = true;
+    city.harbourBuilding = null;
+    finished.push(city);
+    logMsg(state, `⚓ Der ${HARBOUR_NAME} von ${city.name} ist fertig.`);
   }
   return finished;
 }

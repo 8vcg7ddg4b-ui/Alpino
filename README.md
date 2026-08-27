@@ -115,8 +115,9 @@ den Punkten durchblättern.
   Stadtmauer, Landung vom Meer). „Abbrechen" lässt die Armee unverändert
   stehen. Die Schätzung entsteht aus 60 durchgerechneten Schlachten und
   verändert den späteren echten Kampf nicht.
-- **Schiffe**: In einer eigenen Hafenstadt kann eine Armee für 250 Gold
-  **in See stechen**. Auf dem Wasser hat sie 10 Bewegungspunkte statt 6; gelb
+- **Schiffe**: In einer eigenen Stadt **mit Hafen** kann eine Armee für 250 Gold
+  **in See stechen** – ohne Hafen geht sie nirgends an Bord, auch nicht in
+  einer Stadt direkt am Wasser. Auf dem Wasser hat sie 15 Bewegungspunkte; gelb
   markierte Felder sind Landungen und beenden die Fahrt. Angriffe direkt vom
   Schiff kosten 30 % Angriffskraft, auf offener See verteidigt es sich 25 %
   schlechter. Nur so sind die Inseln (Caralis, Rhodos, Knossos) zu erreichen.
@@ -160,6 +161,12 @@ den Punkten durchblättern.
   Großen Holzpalisade – die Steinmauer bleibt auch ihnen zu bauen. Jede Stufe
   sieht anders aus: angespitzte Stämme, hölzerner Wehrgang mit Türmen,
   Quadermauer mit Rundtürmen.
+- **Hafenbau**: Ohne Hafen kann in einer Stadt keine Armee an Bord gehen –
+  am Meer zu liegen genügt nicht. Der Hafen kostet **300 Gold** und **3
+  Runden**; Hauptstädte und Große Städte am Meer bringen ihn mit, jede andere
+  Küstenstadt muss ihn bauen. Erobert man eine Stadt, übernimmt man ihren
+  Hafen. Am Ufer steht dann ein Steg mit vertäutem Boot, damit man von weitem
+  sieht, wo eine Flotte auslaufen kann.
 - **Straßenbau**: Jede eigene Stadt bietet die nächstgelegenen eigenen Orte
   an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
   Bauzeit. Auf fertiger Straße kostet jedes Feld nur **einen** Bewegungspunkt,
@@ -186,9 +193,10 @@ den Punkten durchblättern.
 
 ## Spielprinzip
 
-- Du spielst **Rom** gegen sieben KI-Fraktionen: **Karthago**, die **Gallier**,
-  die **Griechen**, die **Germanen**, die **Britannier**, die **Iberer** und die
-  **Daker** – verteilt über Europa, das Mittelmeer und Nordafrika.
+- Du spielst **Rom** gegen neun KI-Fraktionen: **Karthago**, die **Gallier**,
+  die **Griechen**, die **Germanen**, die **Britannier**, die **Iberer**, die
+  **Daker**, die **Seleukiden** und die **Ptolemäer** – verteilt über Europa,
+  das Mittelmeer, Nordafrika und den Vorderen Orient.
 - **Jede Fraktion hat ihre eigenen Einheiten.** Drei Waffengattungen gibt es
   überall – Fußvolk, Reiterei, Fernkampf –, aber jede Fraktion füllt sie anders
   aus, mit eigenem Namen, eigenen Werten und eigenem Preis:
@@ -203,6 +211,8 @@ den Punkten durchblättern.
   | Britannier | Keltenkrieger | Streitwagen (härtester Angriff) | Schleuderer |
   | Iberer | Scutarii | Iberische Reiter | Caetrati |
   | Daker | Falxträger (Sichelschwert, roher Angriff) | Sarmatische Panzerreiter | Dakische Bogenschützen |
+  | Seleukiden | Silberschilde (Phalanx) | Kriegselefanten (statt Reiterei) | Kretische Bogenschützen |
+  | Ptolemäer | Machimoi (billige Masse) | Ptolemäische Reiter | Nubische Bogenschützen (beste Bogen) |
 
   Im Kampf rechnet jede Seite mit ihren eigenen Werten – ein Legionär hält
   anders stand als ein Falxträger, auch wenn beide „Fußvolk" heißen.
@@ -216,12 +226,18 @@ den Punkten durchblättern.
 - Die **Germanen** sitzen zwischen Rhein, Nordsee und Elbe im Herkynischen
   Wald, der jeden Vormarsch verlangsamt. Sie führen keine stehende Armee,
   sondern einen fußlastigen Heerhaufen.
+- Die **Seleukiden** halten Syrien, Kilikien und das Zweistromland um
+  Antiochia. Als größtes Diadochenreich stellen sie zwei Heere auf – sie
+  brauchen beide, denn sie stehen zwischen Griechen und Ptolemäern.
+- Die **Ptolemäer** sitzen auf Ägypten, Zypern, Koilesyrien und der Kyrenaika.
+  Das Niltal trägt viel Fußvolk, ihre nubischen Bogen sind die besten der
+  Karte, an Reiterei fehlt es ihnen.
 - Die **Daker** halten die Karpaten um Sarmizegetusa – Bergland, das sich gut
   verteidigen lässt, mit der Donau als Sprungbrett nach Süden.
-- **66 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
+- **71 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
   Garnison, 1,7-faches Grundeinkommen), **Stadt** (Normalmaß) und **Dorf**
   (klein, halbes Grundeinkommen – leicht zu nehmen und gute Sprungbretter).
-  29 davon gehören niemandem und sind frei zu erobern – von Olisipo bis
+  22 davon gehören niemandem und sind frei zu erobern – von Olisipo bis
   Chersonesos. Sizilien, Sardinien, Kreta, Zypern, Rhodos, die Balearen und
   Britannien sind nur mit Schiffen erreichbar.
 - **Gelände**: Ebene, Wald und Hügel wie bisher, dazu die **Wüste** – die

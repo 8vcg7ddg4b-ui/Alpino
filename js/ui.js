@@ -3,6 +3,7 @@ import {
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST,
+  HARBOUR_COST, HARBOUR_TURNS,
 } from './data.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
@@ -245,6 +246,7 @@ function veterancyHTML(army) {
 const EMBARK_REASONS = {
   noCity: 'Nur in einer eigenen Hafenstadt kann eine Armee an Bord gehen.',
   noPort: 'Diese Stadt liegt nicht am Meer.',
+  noHarbour: `Diese Stadt hat keinen Hafen – erst einen bauen (${HARBOUR_COST} Gold).`,
   gold: `Zu wenig Gold – eine Flotte kostet ${SHIP_COST}.`,
   blocked: 'Der Hafen ist belegt.',
 };
@@ -328,6 +330,7 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
         ? `<span class="over-strength">über Sollstärke (${maxTotal.toLocaleString('de-DE')})</span>`
         : `/ ${maxTotal.toLocaleString('de-DE')}`}</p>
     ${wallHTML(city, isMine, player)}
+    ${harbourHTML(state, city, isMine, player)}
     ${roadHTML(state, city, isMine, player)}
     <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>
     ${recruitHTML}
@@ -368,6 +371,35 @@ function wallHTML(city, isMine, player) {
   tooPoor ? ' · zu wenig Gold' : ''}</small>
     </button>
     <p class="wall-note">${escapeHTML(stage.note)}</p>`;
+}
+
+// --- Hafen ---------------------------------------------------------------
+// Der Hafen entscheidet, ob hier überhaupt eine Armee an Bord gehen kann -
+// die Zeile steht deshalb auch bei fremden Städten, damit man sieht, wo eine
+// Flotte auslaufen könnte.
+function harbourHTML(state, city, isMine, player) {
+  if (city.harbour) {
+    return `<p class="wall-line wall-done">⚓ Hafen
+      <span class="muted">· hier können Armeen in See stechen</span></p>`;
+  }
+  if (city.harbourBuilding) {
+    const left = city.harbourBuilding.turnsLeft;
+    const done = HARBOUR_TURNS - left;
+    return `<p class="wall-line wall-building">🏗️ Hafen im Bau –
+      noch ${left} ${left === 1 ? 'Runde' : 'Runden'}
+      <span class="wall-track"><span class="wall-fill" style="width:${(done / HARBOUR_TURNS) * 100}%"></span></span>
+    </p>`;
+  }
+  if (!isCoastalCity(state, city)) {
+    return '<p class="wall-line muted">⚓ Kein Hafen – die Stadt liegt nicht am Meer.</p>';
+  }
+  if (!isMine) return '<p class="wall-line muted">⚓ Kein Hafen</p>';
+  const tooPoor = player.gold < HARBOUR_COST;
+  return `<button class="harbour-btn" ${tooPoor ? 'disabled' : ''}>
+      ⚓ Hafen bauen – ${HARBOUR_COST} Gold
+      <small>${HARBOUR_TURNS} Runden · ohne Hafen kann hier keine Armee in See stechen${
+  tooPoor ? ' · zu wenig Gold' : ''}</small>
+    </button>`;
 }
 
 // --- Straßenbau ----------------------------------------------------------
@@ -555,6 +587,8 @@ export function renderUI(state, handlers) {
       if (raiseBtn) raiseBtn.addEventListener('click', () => handlers.onRaise(city.id));
       const wallBtn = panel.querySelector('.wall-btn');
       if (wallBtn) wallBtn.addEventListener('click', () => handlers.onBuyWalls(city.id));
+      const harbourBtn = panel.querySelector('.harbour-btn:not([disabled])');
+      if (harbourBtn) harbourBtn.addEventListener('click', () => handlers.onBuyHarbour(city.id));
       panel.querySelectorAll('.road-btn').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onBuildRoad(city.id, btn.dataset.target));
       });

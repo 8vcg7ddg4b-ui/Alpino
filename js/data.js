@@ -72,6 +72,18 @@ export const FACTION_UNITS = {
     cavalry: { name: 'Sarmatische Panzerreiter', icon: '🐎', attack: 10, defense: 6, hp: 95, cost: 165, upkeep: 0.095 },
     ranged: { name: 'Dakische Bogenschützen', icon: '🏹', attack: 5, defense: 3, hp: 70, cost: 110, upkeep: 0.055, ranged: true },
   },
+  seleukiden: {
+    infantry: { name: 'Silberschilde', icon: '🛡️', attack: 6, defense: 11, hp: 102, cost: 115, upkeep: 0.06 },
+    // Die Elefanten stehen an der Stelle der Reiterei: wenige, teure, schwer
+    // aufzuhaltende Tiere.
+    cavalry: { name: 'Kriegselefanten', icon: '🐘', attack: 13, defense: 6, hp: 126, cost: 195, upkeep: 0.105 },
+    ranged: { name: 'Kretische Bogenschützen', icon: '🏹', attack: 6, defense: 3, hp: 72, cost: 115, upkeep: 0.06, ranged: true },
+  },
+  ptolemaeer: {
+    infantry: { name: 'Machimoi', icon: '⚔️', attack: 5, defense: 10, hp: 98, cost: 105, upkeep: 0.05 },
+    cavalry: { name: 'Ptolemäische Reiter', icon: '🐎', attack: 9, defense: 5, hp: 92, cost: 150, upkeep: 0.09 },
+    ranged: { name: 'Nubische Bogenschützen', icon: '🏹', attack: 7, defense: 3, hp: 70, cost: 120, upkeep: 0.062, ranged: true },
+  },
   neutral: {
     infantry: { name: 'Stadtmiliz', icon: '⚔️', attack: 5, defense: 8, hp: 95, cost: 90, upkeep: 0.045 },
     cavalry: { name: 'Berittene Wache', icon: '🐎', attack: 8, defense: 4, hp: 85, cost: 140, upkeep: 0.085 },
@@ -126,6 +138,25 @@ export const FACTIONS = [
     id: 'daker', name: 'Daker', color: '#8a9a2b', isPlayer: false,
     startingArmy: { infantry: 320, cavalry: 130, ranged: 90 },
     armyLabel: 'Falxheer',
+  },
+  // Das Seleukidenreich: die makedonische Phalanx des Ostens, dazu die
+  // Kriegselefanten, für die es berühmt ist.
+  {
+    id: 'seleukiden', name: 'Seleukiden', color: '#d8b12a', isPlayer: false,
+    // Das größte der Diadochenreiche, und das mit den längsten Grenzen: es
+    // stellt zwei Heere auf, weil es an zwei Fronten zugleich steht.
+    startingArmies: [
+      { infantry: 230, cavalry: 90, ranged: 70 },
+      { infantry: 190, cavalry: 60, ranged: 60 },
+    ],
+    armyLabel: 'Königsheer',
+  },
+  // Ägypten unter den Ptolemäern: viel Fußvolk aus dem Niltal und die besten
+  // Bogenschützen des Spiels, dafür wenig Reiterei.
+  {
+    id: 'ptolemaeer', name: 'Ptolemäer', color: '#12b5b0', isPlayer: false,
+    startingArmy: { infantry: 300, cavalry: 90, ranged: 160 },
+    armyLabel: 'Nilheer',
   },
   { id: 'neutral', name: 'Unabhängig', color: '#7f7f7f', isPlayer: false, isNeutral: true },
 ];
@@ -234,7 +265,7 @@ export const CITY_DEFS = [
   { name: 'Aleria', lon: 9.52, lat: 42.10, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Palma', lon: 2.65, lat: 39.57, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Knossos', lon: 25.16, lat: 35.30, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Salamis', lon: 33.90, lat: 35.18, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Salamis', lon: 33.90, lat: 35.18, factionId: 'ptolemaeer', capital: false, size: 'village' },
   // --- Unabhängig: Illyrien und die Donau --------------------------------
   { name: 'Salona', lon: 16.44, lat: 43.51, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Sirmium', lon: 19.61, lat: 44.97, factionId: 'neutral', capital: false, size: 'village' },
@@ -248,13 +279,20 @@ export const CITY_DEFS = [
   // --- Unabhängig: Makedonien, Thrakien, Osten ---------------------------
   { name: 'Thessalonike', lon: 22.94, lat: 40.64, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Byzantion', lon: 28.98, lat: 41.01, factionId: 'neutral', capital: false, size: 'city' },
-  { name: 'Ankyra', lon: 32.86, lat: 39.93, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Antiochia', lon: 36.16, lat: 36.20, factionId: 'neutral', capital: false, size: 'city' },
-  { name: 'Tyrus', lon: 35.20, lat: 33.27, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Hierosolyma', lon: 35.22, lat: 31.78, factionId: 'neutral', capital: false, size: 'city' },
-  // --- Unabhängig: Ägypten, Kyrenaika, Schwarzes Meer --------------------
-  { name: 'Kyrene', lon: 21.86, lat: 32.82, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Alexandria', lon: 29.92, lat: 31.20, factionId: 'neutral', capital: false, size: 'large' },
+
+  // --- Seleukiden: Syrien, Kilikien und das Zweistromland ----------------
+  { name: 'Antiochia', lon: 36.16, lat: 36.20, factionId: 'seleukiden', capital: true, size: 'large' },
+  { name: 'Tarsos', lon: 34.90, lat: 36.92, factionId: 'seleukiden', capital: false, size: 'city' },
+  { name: 'Ankyra', lon: 32.86, lat: 39.93, factionId: 'seleukiden', capital: false, size: 'village' },
+  { name: 'Damaskus', lon: 36.30, lat: 33.51, factionId: 'seleukiden', capital: false, size: 'city' },
+  { name: 'Edessa', lon: 38.79, lat: 37.15, factionId: 'seleukiden', capital: false, size: 'village' },
+  { name: 'Dura Europos', lon: 40.73, lat: 34.75, factionId: 'seleukiden', capital: false, size: 'village' },
+  // --- Ptolemäer: Ägypten, Zypern, Koilesyrien und die Kyrenaika ---------
+  { name: 'Alexandria', lon: 29.92, lat: 31.20, factionId: 'ptolemaeer', capital: true, size: 'large' },
+  { name: 'Memphis', lon: 31.25, lat: 29.85, factionId: 'ptolemaeer', capital: false, size: 'city' },
+  { name: 'Hierosolyma', lon: 35.22, lat: 31.78, factionId: 'ptolemaeer', capital: false, size: 'city' },
+  { name: 'Tyrus', lon: 35.20, lat: 33.27, factionId: 'ptolemaeer', capital: false, size: 'village' },
+  { name: 'Kyrene', lon: 21.86, lat: 32.82, factionId: 'ptolemaeer', capital: false, size: 'village' },
   { name: 'Olbia', lon: 31.90, lat: 46.63, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Chersonesos', lon: 33.49, lat: 44.61, factionId: 'neutral', capital: false, size: 'village' },
   // --- Unabhängig: Britannien --------------------------------------------
@@ -355,6 +393,14 @@ export function starMarks(experience) {
   const stars = experienceStars(experience);
   return '★'.repeat(stars) + '☆'.repeat(MAX_STARS - stars);
 }
+
+// --- Hafenbau ------------------------------------------------------------
+// Ohne Hafen kein Schiff: eine Armee geht nur dort an Bord, wo Kais, Werft
+// und Vorräte stehen. Hauptstädte und Große Städte am Meer bringen ihren
+// Hafen mit, jede andere Küstenstadt muss ihn bauen.
+export const HARBOUR_COST = 300;
+export const HARBOUR_TURNS = 3;
+export const HARBOUR_NAME = 'Hafen';
 
 // --- Straßenbau ----------------------------------------------------------
 // Eine Straße macht jedes Feld, über das sie führt, so leicht begehbar wie

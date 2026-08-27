@@ -51,6 +51,11 @@ export function createInitialState() {
       // open and has to buy each stage and wait out its construction.
       wallLevel: def.capital ? CAPITAL_WALL_LEVEL : 0,
       wallBuilding: null,
+      // Wer am Meer liegt, kann einen Hafen haben - Hauptstädte und Große
+      // Städte haben ihn von Anfang an, alle anderen müssen ihn bauen.
+      harbour: coastalOnMap(map, colOfLon(def.lon), rowOfLat(def.lat))
+        && (!!def.capital || size === 'large'),
+      harbourBuilding: null,
       garrison,
     };
   });
@@ -214,8 +219,22 @@ export function harbourTile(state, city, requireFree = false) {
   return best;
 }
 
+// Ob offenes Wasser in Hafenreichweite liegt - die Karte allein genügt dafür,
+// weshalb die Prüfung schon beim Aufbau des Spielstands möglich ist.
+export function coastalOnMap(map, col, row) {
+  for (let dr = -PORT_RANGE; dr <= PORT_RANGE; dr++) {
+    for (let dc = -PORT_RANGE; dc <= PORT_RANGE; dc++) {
+      const distance = Math.abs(dc) + Math.abs(dr);
+      if (distance === 0 || distance > PORT_RANGE) continue;
+      const tile = map.tiles[row + dr] && map.tiles[row + dr][col + dc];
+      if (tile && tile.type === 'water') return true;
+    }
+  }
+  return false;
+}
+
 export function isCoastalCity(state, city) {
-  return harbourTile(state, city) !== null;
+  return coastalOnMap(state.map, city.col, city.row);
 }
 
 export function unitTotalCount(units) {

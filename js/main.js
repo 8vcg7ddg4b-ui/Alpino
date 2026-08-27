@@ -7,7 +7,7 @@ import {
   recruitUnit, raiseArmyFromGarrison, collectIncome, regenerateGarrisons,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
-  buyRoad, advanceRoadConstruction,
+  buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction,
 } from './actions.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
@@ -376,6 +376,12 @@ function refresh() {
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
+    onBuyHarbour: (cityId) => {
+      pushUndo();
+      const ok = buyHarbour(state, cityId).ok;
+      (ok ? sfx.wallBuy : sfx.denied)();
+      refresh();
+    },
     onBuildRoad: (cityId, targetId) => {
       pushUndo();
       const ok = buyRoad(state, cityId, targetId).ok;
@@ -411,6 +417,7 @@ function endTurn() {
   regenerateGarrisons(state);
   advanceWallConstruction(state);
   const roadsDone = advanceRoadConstruction(state);
+  const harboursDone = advanceHarbourConstruction(state);
   // The season that just passed is what wore the armies down; the next one is
   // rolled once the turn has actually turned.
   applyWeather(state);
@@ -435,7 +442,7 @@ function endTurn() {
   }
   if (mine && !state.gameOver) showBattleReport(mine);
 
-  if (roadsDone.length
+  if (roadsDone.length || harboursDone.length
     || (wallsBuilding && state.cities.filter((c) => c.wallBuilding).length < wallsBuilding)) {
     sfx.wallDone();
   }

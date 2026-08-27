@@ -1,5 +1,5 @@
 import { TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars } from './data.js';
-import { unitTotalCount, factionById } from './state.js';
+import { unitTotalCount, factionById, harbourTile } from './state.js';
 
 export const TILE_SIZE = 6;
 const ELEV_SCALE = 2.9;
@@ -386,7 +386,11 @@ export function buildMap(state) {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  terrainColors = colors;
+  // A copy, not the array itself: the attribute below keeps the original, and
+  // the tactical view writes straight into it. Sharing them would mean the
+  // first switch to the political map overwrites the ground colours, and the
+  // way back would restore the tactical ones.
+  terrainColors = Float32Array.from(colors);
   tacticalColors = new Float32Array(colors.length);
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
@@ -736,8 +740,61 @@ function buildCityGroup(city) {
   // Die Befestigungen entstehen erst, wenn sie gebaut sind: die meisten Orte
   // haben keine, und jedes ungenutzte Modell kostet Zeichenaufrufe.
   return {
-    group, label, tinted, scale, walls: [null, null, null],
+    group, label, tinted, scale, walls: [null, null, null], harbour: null,
   };
+}
+
+// Ein Hafen: Steg, Poller und ein vertäutes Boot. Er steht nicht in der
+// Stadt, sondern am Wasser daneben - der Steg zeigt vom Ufer aufs Meer hinaus.
+// Damit ist die Regel zu sehen: nur wo dieser Steg steht, geht eine Armee an
+// Bord.
+function buildHarbour(scale) {
+  const harbour = new THREE.Group();
+  const length = 3.4 * scale;
+
+  const deck = new THREE.Mesh(
+    new THREE.BoxGeometry(length, 0.2 * scale, 1.1 * scale),
+    CITY_MATERIALS.wood
+  );
+  deck.position.set(length / 2, 0.35 * scale, 0);
+  harbour.add(deck);
+
+  for (let i = 0; i < 4; i++) {
+    const post = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12 * scale, 0.14 * scale, 1.1 * scale, 6),
+      CITY_MATERIALS.timber
+    );
+    post.position.set((0.35 + i * 0.95) * scale, 0.05 * scale, (i % 2 ? 0.5 : -0.5) * scale);
+    harbour.add(post);
+  }
+
+  // Das Boot liegt am Kopf des Stegs, längs vertäut.
+  const hull = new THREE.Mesh(
+    new THREE.BoxGeometry(0.6 * scale, 0.4 * scale, 1.7 * scale),
+    CITY_MATERIALS.timber
+  );
+  hull.position.set(length + 0.45 * scale, 0.25 * scale, 0);
+  harbour.add(hull);
+  const mast = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06 * scale, 0.06 * scale, 1.6 * scale, 5),
+    CITY_MATERIALS.wood
+  );
+  mast.position.set(length + 0.45 * scale, 1.2 * scale, 0);
+  harbour.add(mast);
+  return harbour;
+}
+
+// Setzt den Steg ans Ufer zwischen Stadt und offenem Wasser, mit dem Kopf zum
+// Meer. Alles in lokalen Koordinaten der Stadtgruppe.
+function placeHarbour(harbour, city, sea, cityY) {
+  const dx = sea.col - city.col;
+  const dz = sea.row - city.row;
+  const distance = Math.max(1, Math.abs(dx) + Math.abs(dz));
+  // Am Ufer beginnen: ein halbes Feld vor dem Wasserfeld.
+  const startX = (dx / distance) * TILE_SIZE * (distance - 0.5);
+  const startZ = (dz / distance) * TILE_SIZE * (distance - 0.5);
+  harbour.position.set(startX, SEA_LEVEL_Y - cityY, startZ);
+  harbour.rotation.y = Math.atan2(-dz, dx);
 }
 
 function tierForCount(count) {
@@ -923,6 +980,17 @@ export function syncEntities(state) {
     // Roofs, pediments and banners all carry the owner's colour; the walls and
     // the stonework stay stone.
     for (const part of entry.tinted) part.material.color.set(faction.color);
+
+    // Der Steg entsteht erst mit dem Hafen - die meisten Orte haben keinen.
+    if (city.harbour && !entry.harbour) {
+      const sea = harbourTile(state, city);
+      if (sea) {
+        entry.harbour = buildHarbour(entry.scale);
+        placeHarbour(entry.harbour, city, sea, surfaceY(city.col, city.row));
+        entry.group.add(entry.harbour);
+      }
+    }
+    if (entry.harbour) entry.harbour.visible = !!city.harbour;
 
     // Only the stage that actually stands is built, and only when it is built.
     const level = city.wallLevel || 0;

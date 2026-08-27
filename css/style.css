@@ -297,6 +297,22 @@ html, body {
 .wall-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
 .wall-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+.harbour-btn {
+  margin-top: 8px;
+  width: 100%;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  text-align: left;
+}
+.harbour-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
+.harbour-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.harbour-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
 .road-head {
   font-size: 0.82rem;
   margin: 10px 0 4px;
