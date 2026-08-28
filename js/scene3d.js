@@ -1248,36 +1248,12 @@ function buildRivers(state) {
 // entlang der eigenen x-Achse und danach quer zum Fluss gedreht; die Höhe an
 // beiden Enden kommt vom Gelände, damit sie an den Ufern aufsitzt und nicht
 // darüber schwebt.
-// Wie viele Bögen eine Brücke trägt, und aus wie vielen Keilsteinen einer
-// besteht. Mehr Steine wären glatter, aber aus der Feldherrnperspektive
-// verschwimmen sie ohnehin - sieben lesen sich am klarsten als Bogen.
-const BRIDGE_ARCHES = 2;
-const ARCH_SEGMENTS = 7;
+// Eine gerade Holzbrücke: ein flacher Bohlenbelag von Ufer zu Ufer, ein
+// Geländer auf jeder Seite, Pfähle ins Flussbett gerammt. Kein Bogen, keine
+// Wölbung - was ein Trupp Pioniere an einem Tag hinbekommt, und aus der
+// Feldherrnperspektive auf Anhieb als Brücke zu lesen.
+const BRIDGE_PILES = 3;
 
-// Ein Bogen aus Keilsteinen: der Halbkreis wird in Steine zerlegt, jeder für
-// sich gesetzt und in die Tangente gedreht.
-function buildArch(group, centreX, springY, radius, depth) {
-  const thickness = radius * 0.34;
-  const ring = radius + thickness / 2;
-  const step = (Math.PI / ARCH_SEGMENTS) * ring * 1.2;
-  for (let i = 0; i < ARCH_SEGMENTS; i++) {
-    const angle = Math.PI * ((i + 0.5) / ARCH_SEGMENTS);
-    const stone = new THREE.Mesh(
-      new THREE.BoxGeometry(step, thickness, depth), BRIDGE_STONE
-    );
-    stone.position.set(centreX - Math.cos(angle) * ring, springY + Math.sin(angle) * ring, 0);
-    // Die Tangente an der Stelle (-cos a, sin a) zeigt in Richtung
-    // (sin a, cos a) - der Winkel dazu ist pi/2 - a.
-    stone.rotation.z = Math.PI / 2 - angle;
-    group.add(stone);
-  }
-}
-
-// Eine steinerne Bogenbrücke: eine durchgehende Fahrbahnplatte auf zwei
-// gemauerten Bögen, Brüstung an beiden Seiten, Mittelpfeiler mit Eisbrecher,
-// Widerlager an den Ufern. Die Fahrbahn ist bewusst eine einzige Platte -
-// aus einzelnen, gegeneinander gekippten Stücken wurde aus der Ferne ein
-// Haufen Schutt statt einer Brücke.
 function buildBridge(parent, bridge) {
   const { mx, mz, alongX } = bridge;
   const dirX = alongX ? 1 : 0;
@@ -1288,72 +1264,83 @@ function buildBridge(parent, bridge) {
   const bankB = bandY(mx + dirX * half, mz + dirZ * half);
   const base = Math.max(bankA, bankB);
   const width = TILE_SIZE * 0.34;
-  // Oberkante der Fahrbahn über dem höheren Ufer. Hoch genug, dass die Bögen
-  // darunter Platz haben und über dem Wasser zu sehen sind.
-  const deck = 1.05;
+  // Knapp über dem Wasser: eine Holzbrücke steigt nicht an.
+  const deck = 0.46;
 
   const group = new THREE.Group();
 
-  const road = new THREE.Mesh(new THREE.BoxGeometry(span, 0.3, width), BRIDGE_STONE);
-  road.position.y = deck - 0.15;
+  // Der Belag - eine durchgehende Platte. Einzelne, gegeneinander gekippte
+  // Bohlen lasen sich aus der Ferne als Schutthaufen und nicht als Brücke.
+  const road = new THREE.Mesh(new THREE.BoxGeometry(span, 0.2, width), BRIDGE_TIMBER);
+  road.position.y = deck - 0.1;
   group.add(road);
 
+  // Zwei Querbalken unter dem Belag, auf denen er aufliegt.
   for (const side of [-1, 1]) {
-    const parapet = new THREE.Mesh(
-      new THREE.BoxGeometry(span, 0.34, 0.16), BRIDGE_STONE
+    const beam = new THREE.Mesh(
+      new THREE.BoxGeometry(span, 0.16, 0.16), BRIDGE_TIMBER_DARK
     );
-    parapet.position.set(0, deck + 0.17, side * width * 0.42);
-    group.add(parapet);
+    beam.position.set(0, deck - 0.26, side * width * 0.34);
+    group.add(beam);
   }
 
-  // Die Bögen. Der Kämpfer liegt unter der Wasserlinie - zu sehen ist, wie
-  // bei einer echten Brücke, der obere Teil des Bogens.
-  const archSpan = span / BRIDGE_ARCHES;
-  const springY = Math.min(bankA, bankB) - base - 0.55;
-  const radius = Math.min(archSpan * 0.46, (deck - 0.36 - springY) / 1.34);
-  for (let i = 0; i < BRIDGE_ARCHES; i++) {
-    buildArch(group, -half + archSpan * (i + 0.5), springY, radius, width * 0.94);
-  }
-
-  // Mittelpfeiler mit Eisbrecher gegen die Strömung.
-  for (let i = 1; i < BRIDGE_ARCHES; i++) {
-    const x = -half + archSpan * i;
-    const height = deck - springY + 0.8;
-    const pier = new THREE.Mesh(
-      new THREE.BoxGeometry(archSpan * 0.2, height, width * 0.92), BRIDGE_STONE
+  // Geländer: eine Latte auf Pfosten, auf beiden Seiten.
+  for (const side of [-1, 1]) {
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(span, 0.09, 0.09), BRIDGE_TIMBER
     );
-    pier.position.set(x, deck - height / 2, 0);
-    group.add(pier);
-    for (const side of [-1, 1]) {
-      const cutwater = new THREE.Mesh(
-        new THREE.CylinderGeometry(width * 0.2, width * 0.24, height * 0.55, 3), BRIDGE_STONE
+    rail.position.set(0, deck + 0.44, side * width * 0.44);
+    group.add(rail);
+    for (let i = 0; i <= BRIDGE_PILES + 1; i++) {
+      const post = new THREE.Mesh(
+        new THREE.BoxGeometry(0.11, 0.5, 0.11), BRIDGE_TIMBER_DARK
       );
-      cutwater.position.set(x, deck - height * 0.72, side * width * 0.46);
-      cutwater.rotation.y = side > 0 ? 0 : Math.PI;
-      group.add(cutwater);
+      post.position.set(-half + (span / (BRIDGE_PILES + 1)) * i, deck + 0.2, side * width * 0.44);
+      group.add(post);
     }
   }
 
-  // Widerlager: von der Uferhöhe bis unter die Fahrbahn, damit die Platte
-  // nicht in der Luft endet.
-  for (const [t, bank] of [[-1, bankA], [1, bankB]]) {
-    const foot = bank - base - 0.5;
-    const height = deck - 0.3 - foot;
-    const abutment = new THREE.Mesh(
-      new THREE.BoxGeometry(0.8, height, width * 1.1), BRIDGE_STONE
+  // Die Pfähle stehen im Wasser und tragen die Querbalken. Sie reichen unter
+  // die Wasserlinie, damit sie nicht auf ihr aufzusitzen scheinen.
+  const foot = Math.min(bankA, bankB) - base - 1.0;
+  for (let i = 1; i <= BRIDGE_PILES; i++) {
+    const x = -half + (span / (BRIDGE_PILES + 1)) * i;
+    for (const side of [-1, 1]) {
+      const height = deck - 0.26 - foot;
+      const pile = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.12, height, 6), BRIDGE_TIMBER_DARK
+      );
+      pile.position.set(x, foot + height / 2, side * width * 0.34);
+      group.add(pile);
+    }
+    // Eine Strebe quer, damit das Gerüst nicht wie aufgestellte Stäbe wirkt.
+    const brace = new THREE.Mesh(
+      new THREE.BoxGeometry(0.09, 0.09, width * 0.72), BRIDGE_TIMBER_DARK
     );
-    abutment.position.set(t * (half - 0.4), foot + height / 2, 0);
-    group.add(abutment);
+    brace.position.set(x, deck - 0.62, 0);
+    group.add(brace);
+  }
+
+  // Die Auflager an den Ufern: ein Holzkasten, der den Belag abfängt.
+  for (const [t, bank] of [[-1, bankA], [1, bankB]]) {
+    const ground = bank - base - 0.4;
+    const height = deck - 0.2 - ground;
+    const sill = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, height, width * 1.06), BRIDGE_TIMBER_DARK
+    );
+    sill.position.set(t * (half - 0.25), ground + height / 2, 0);
+    group.add(sill);
   }
 
   group.position.set(mx, base, mz);
-  // Der Steg liegt quer zum Fluss: läuft der Fluss in z-Richtung, führt die
-  // Brücke in x-Richtung darüber.
+  // Die Brücke liegt quer zum Fluss: läuft der Fluss in z-Richtung, führt sie
+  // in x-Richtung darüber.
   group.rotation.y = alongX ? 0 : Math.PI / 2;
   parent.add(group);
 }
 
-const BRIDGE_STONE = new THREE.MeshStandardMaterial({ color: '#c2b7a0', roughness: 0.85 });
+const BRIDGE_TIMBER = new THREE.MeshStandardMaterial({ color: '#a97c46', roughness: 0.95 });
+const BRIDGE_TIMBER_DARK = new THREE.MeshStandardMaterial({ color: '#6f4d29', roughness: 1 });
 
 function buildRoadNetwork(state) {
   while (roadsGroup.children.length) {

@@ -298,9 +298,9 @@ den Punkten durchblättern.
   Eine **Brücke** entsteht dort, wo eine Straße über den Fluss führt: liegt auf
   beiden Ufern Pflaster, steht dort eine Brücke, und das Übersetzen kostet
   nichts mehr. Bezahlt wird sie mit der Straße, gebaut wird sie mit ihr, und auf
-  der Karte steht sie als **steinerne Bogenbrücke**: eine durchgehende
-  Fahrbahnplatte mit Brüstung, darunter zwei gemauerte Bögen aus Keilsteinen,
-  ein Mittelpfeiler mit Eisbrechern und Widerlager an beiden Ufern. Zu Spielbeginn tragen die
+  der Karte steht sie als **gerade Holzbrücke**: ein flacher Bohlenbelag auf
+  zwei Querbalken, Geländer mit Pfosten auf beiden Seiten, Pfähle ins Flussbett
+  gerammt – was ein Trupp Pioniere an einem Tag hinbekommt. Zu Spielbeginn tragen die
   Startstraßen acht solcher Übergänge. Ein Rechtsklick sagt für jedes Feld, auf
   welchen Seiten ein Fluss liegt und wo eine Brücke hinüberführt.
 - **Einnahmen jedes Orts** stehen in seiner Anzeige, aufgeschlüsselt nach dem,
