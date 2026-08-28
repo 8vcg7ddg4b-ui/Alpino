@@ -1,7 +1,7 @@
 import {
   FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
-  DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES, factionGarrisonFactor,
-  CAPITAL_WALL_LEVEL, DEFAULT_PLAYER_FACTION,
+  DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES,
+  CAPITAL_WALL_LEVEL, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
@@ -33,15 +33,14 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     const isNeutral = def.factionId === 'neutral';
     const size = def.size || DEFAULT_SETTLEMENT_SIZE;
     const tier = settlementTier(size);
-    // A settlement's people and garrison come from its tier; being a capital
-    // or being independent shifts it within that tier rather than across it.
+    // A settlement's people come from its tier; being a capital or being
+    // independent shifts it within that tier rather than across it.
     const population = def.capital ? tier.populationCapital
       : isNeutral ? tier.populationNeutral : tier.population;
-    const base = def.capital ? tier.garrisonCapital
-      : isNeutral ? tier.garrisonNeutral : tier.garrison;
-    const levy = factionGarrisonFactor(FACTIONS.find((f) => f.id === def.factionId));
-    const garrison = {};
-    for (const [key, count] of Object.entries(base)) garrison[key] = Math.round(count * levy);
+    // Jede Siedlung beginnt mit ihrer Stadtwache und sonst nichts. Alles
+    // andere in der Garnison ist ausgehoben und kann wieder ausrücken.
+    const faction = FACTIONS.find((f) => f.id === def.factionId);
+    const garrison = { [WATCH_ROLE]: watchTarget({ population }, faction) };
     return {
       id: makeId('city'),
       name: def.name,

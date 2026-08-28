@@ -47,13 +47,6 @@ export const SETTINGS = [
     fallback: true,
   },
   {
-    key: 'waterMotion',
-    label: 'Bewegtes Meer',
-    help: 'Die Dünung läuft über die Wasserfläche. Auf schwachen Geräten schont das Abschalten den Akku.',
-    type: 'toggle',
-    fallback: true,
-  },
-  {
     key: 'chronicle',
     label: 'Bilder im Startbildschirm wechseln',
     help: 'Die Chronik der Republik läuft von selbst weiter; sonst blättert man mit ‹ ›.',

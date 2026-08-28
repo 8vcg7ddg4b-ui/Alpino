@@ -8,7 +8,7 @@ import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
 import { aiTakeAllTurns } from './ai.js';
 import {
-  recruitUnit, raiseArmyFromGarrison, collectIncome, regenerateGarrisons,
+  recruitUnit, raiseArmyFromGarrison, reinforceArmy, collectIncome, regenerateGarrisons,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction,
@@ -17,7 +17,7 @@ import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
   setMapMode, getMapMode, setMarchSpeed,
-  setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled, setWaterAnimated,
+  setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled,
 } from './scene3d.js';
 import { sfx, unlockAudio, toggleMuted, isMuted, stopMarch } from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
@@ -41,7 +41,6 @@ function applySettings() {
   setMarchSpeed(MARCH_SPEED_FACTORS[getSetting('marchSpeed')] ?? 1);
   setAiStance(AI_STANCE_THRESHOLDS[getSetting('aiStance')] ?? 0.5);
   setWeatherVisualsEnabled(getSetting('weatherEffects'));
-  setWaterAnimated(getSetting('waterMotion'));
 }
 applySettings();
 
@@ -418,6 +417,12 @@ function refresh() {
       pushUndo();
       const ok = raiseArmyFromGarrison(state, cityId).ok;
       (ok ? sfx.raise : sfx.denied)();
+      refresh();
+    },
+    onReinforce: (armyId, unitKey) => {
+      pushUndo();
+      const ok = reinforceArmy(state, armyId, unitKey).ok;
+      (ok ? sfx.recruit : sfx.denied)();
       refresh();
     },
     onDisband: (armyId) => {

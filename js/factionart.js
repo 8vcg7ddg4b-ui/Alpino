@@ -115,6 +115,14 @@ function walledCity(x0, x1, baseY, height, color) {
   <path d="M ${cx - 34} ${baseY} l 0 -54 a 34 40 0 0 1 68 0 l 0 54 Z" fill="#000" opacity="0.45"/>`;
 }
 
+// Ein Kurgan: der Grabhügel, der in der Steppe alles ist, was von weitem zu
+// sehen ist.
+function kurgan(x, baseY, width, color, opacity = 1) {
+  const h = width * 0.42;
+  return `<path d="M ${x - width} ${baseY} q ${width * 0.35} ${-h * 1.5} ${width} ${-h}
+    q ${width * 0.65} ${-h * 0.5} ${width} ${h} Z" fill="${color}" opacity="${opacity}"/>`;
+}
+
 // --- Die Szenen ----------------------------------------------------------
 // Jede Fraktion bekommt ihre Landschaft, ihr Licht und ihr Wahrzeichen: das
 // Bild soll noch vor dem Text sagen, wo man beginnt und womit man kämpft.
@@ -262,6 +270,49 @@ export const FACTION_ART = {
         ${figures(792, 14, rng, '#0d1418', 120, 900, 1.6)}
         <path d="M -40 ${SCENE_H} L -40 856 Q 500 840 1000 862 Q 1340 876 ${SCENE_W + 40} 852
           L ${SCENE_W + 40} ${SCENE_H} Z" fill="#122029"/>`;
+    },
+  },
+  illyrer: {
+    motto: 'Die Ruder der Adria',
+    render() {
+      const rng = seeded(1111);
+      return `${sky([[0, '#17324f'], [0.42, '#3f6f8f'], [0.78, '#93b6b8'], [1, '#e8d8ae']], 'faIll')}
+        ${sun(1240, 300, 54, '#ffeec6', 0.28)}
+        ${peaks(596, 190, rng, '#3d4f5c', 0.6, 7)}
+        ${peaks(660, 120, rng, '#2b3a45', 0.9, 5)}
+        ${palisadeLine(662, 180, 540, 32, '#1d2830')}
+        ${figures(662, 9, rng, '#141d24', 200, 520, 1.3)}
+        <path d="M -40 ${SCENE_H} L -40 678 Q 420 664 880 686 Q 1260 700 ${SCENE_W + 40} 676
+          L ${SCENE_W + 40} ${SCENE_H} Z" fill="#1d4258" opacity="0.95"/>
+        ${warship(430, 760, 0.95, '#0d1b24', '#2a5266')}
+        ${warship(1010, 812, 1.2, '#0a151c', '#20404f')}
+        ${warship(1440, 866, 1.35, '#080f14', '#1a3543')}`;
+    },
+  },
+  sarmaten: {
+    motto: 'Die Steppe hat kein Ende',
+    render() {
+      const rng = seeded(1212);
+      // Ein Reitervolk ohne Städte: was in der Steppe von weitem auffällt,
+      // sind die Grabhügel und der Staub eines Reiterzugs.
+      const riders = (baseY, count, scale, colour, x0, x1) => {
+        let out = '';
+        for (let i = 0; i < count; i++) {
+          const x = x0 + ((x1 - x0) / count) * (i + rng() * 0.5);
+          out += horseman(x, baseY + rng() * 10, scale * (0.85 + rng() * 0.3), colour);
+        }
+        return out;
+      };
+      return `${sky([[0, '#2c3550'], [0.4, '#7c7a86'], [0.74, '#c9a86a'], [1, '#f0dcae']], 'faSar')}
+        ${sun(1080, 560, 76, '#ffeec0', 0.34)}
+        ${hills(618, 26, rng, '#8a7a52', 0.45)}
+        ${kurgan(320, 660, 130, '#40391f', 0.75)}
+        ${kurgan(560, 668, 84, '#3a3320', 0.75)}
+        ${hills(690, 18, rng, '#5f5530', 0.9)}
+        ${riders(700, 7, 0.8, '#2a2415', 120, 1520)}
+        <rect y="712" width="${SCENE_W}" height="${SCENE_H - 712}" fill="#241f13"/>
+        ${riders(790, 5, 1.5, '#100d08', 120, 1500)}
+        ${spears(772, 10, 96, rng, '#171208', -20, 620)}`;
     },
   },
 };

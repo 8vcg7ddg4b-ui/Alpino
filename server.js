@@ -43,6 +43,6 @@ const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === thi
 if (invokedDirectly) {
   const port = process.env.PORT || 8080;
   createGameServer(path.dirname(thisFile)).listen(port, () => {
-    console.log(`SPQR läuft auf http://localhost:${port}`);
+    console.log(`Pax Aeterna läuft auf http://localhost:${port}`);
   });
 }

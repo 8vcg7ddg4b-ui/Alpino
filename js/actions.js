@@ -1,6 +1,7 @@
 import {
-  UNIT_ROLES, unitDef, MAX_MOVEMENT, INCOME_PER_CITY,
-  RECRUIT_BATCH, GARRISON_REGEN_BATCH, TILE_TYPES, settlementTier, garrisonCapacity,
+  UNIT_ROLES, GARRISON_ROLES, WATCH_ROLE, watchTarget, watchGrowth,
+  unitDef, MAX_MOVEMENT, INCOME_PER_CITY,
+  RECRUIT_BATCH, TILE_TYPES, settlementTier, garrisonCapacity,
   MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
   MORALE_REST, MORALE_REST_IN_CITY, EXHAUSTION_PER_MOVE, EXHAUSTION_REST,
   EXHAUSTION_REST_IN_CITY, EXHAUSTION_PER_BATTLE,
@@ -628,12 +629,38 @@ export function recruitUnit(state, cityId, unitKey) {
   return { ok: true };
 }
 
+// Eine Armee, die in einer eigenen Stadt steht, kann dort frische Truppen
+// kaufen. Sie treten unmittelbar in die Armee ein statt den Umweg über die
+// Garnison zu nehmen - und verdünnen wie jede Aushebung die Erfahrung.
+export function reinforceArmy(state, armyId, unitKey) {
+  const army = state.armies.find((a) => a.id === armyId);
+  if (!army) return { ok: false };
+  if (army.embarked) return { ok: false, reason: 'atSea' };
+  if (!UNIT_ROLES.includes(unitKey)) return { ok: false, reason: 'role' };
+  const city = cityAt(state, army.col, army.row);
+  if (!city || city.factionId !== army.factionId) return { ok: false, reason: 'noCity' };
+  const faction = factionById(state, army.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  const def = unitDef(city.factionId, unitKey);
+  if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
+
+  faction.gold -= def.cost;
+  const veterans = unitTotalCount(army.units);
+  army.experience = ((army.experience || 0) * veterans) / (veterans + RECRUIT_BATCH);
+  army.units[unitKey] = (army.units[unitKey] || 0) + RECRUIT_BATCH;
+  logOwn(state, faction.id, `${RECRUIT_BATCH} ${def.name} verstärken ${army.name} in ${city.name}.`);
+  return { ok: true };
+}
+
 export function raiseArmyFromGarrison(state, cityId) {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city) return { ok: false };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
-  if (unitTotalCount(city.garrison) === 0) return { ok: false, reason: 'empty' };
+  // Die Wache bleibt, wo sie hingehört: auf der Mauer. Ausrücken kann nur,
+  // was ausgehoben wurde.
+  const field = UNIT_ROLES.reduce((sum, key) => sum + (city.garrison[key] || 0), 0);
+  if (field === 0) return { ok: false, reason: 'empty' };
 
   const existing = state.armies.find(
     (a) => a.factionId === city.factionId && a.col === city.col && a.row === city.row
@@ -642,26 +669,31 @@ export function raiseArmyFromGarrison(state, cityId) {
     // Recruits dilute veterans: the army that takes them in is less practised
     // than it was, in proportion to how many green men joined it.
     const veterans = unitTotalCount(existing.units);
-    const recruits = unitTotalCount(city.garrison);
-    if (veterans + recruits > 0) {
-      existing.experience = ((existing.experience || 0) * veterans) / (veterans + recruits);
+    if (veterans + field > 0) {
+      existing.experience = ((existing.experience || 0) * veterans) / (veterans + field);
     }
-    for (const key of UNIT_ROLES) existing.units[key] = (existing.units[key] || 0) + (city.garrison[key] || 0);
-    city.garrison = {};
+    for (const key of UNIT_ROLES) {
+      existing.units[key] = (existing.units[key] || 0) + (city.garrison[key] || 0);
+      delete city.garrison[key];
+    }
     logOwn(state, faction.id, `Verstärkung aus ${city.name} schließt sich der Armee an.`);
     return { ok: true, armyId: existing.id };
   }
 
+  const marching = {};
+  for (const key of UNIT_ROLES) {
+    if (city.garrison[key]) marching[key] = city.garrison[key];
+    delete city.garrison[key];
+  }
   const newArmy = {
     id: makeId('army'), factionId: city.factionId, col: city.col, row: city.row,
-    movement: 0, maxMovement: MAX_MOVEMENT, units: { ...city.garrison },
+    movement: 0, maxMovement: MAX_MOVEMENT, units: marching,
     // Fresh out of the barracks: rested, steady from having been paid, and
     // with nothing at all behind them.
     morale: GARRISON_MORALE, exhaustion: 0, experience: 0,
     name: `${faction.name} Armee`,
   };
   state.armies.push(newArmy);
-  city.garrison = {};
   logOwn(state, faction.id, `Neue Armee in ${city.name} aufgestellt.`);
   return { ok: true, armyId: newArmy.id };
 }
@@ -976,14 +1008,16 @@ export function collectIncome(state) {
   }
 }
 
+// Die Stadtwache stellt sich aus der Bevölkerung nach - Runde für Runde ein
+// Stück, bis sie ihre Sollstärke wieder hat. Wer eine Stadt stürmt, hält sie
+// deshalb eine Weile, bevor sie sich selbst wieder verteidigt.
 export function regenerateGarrisons(state) {
   for (const city of state.cities) {
-    const maxTotal = garrisonCapacity(city, factionById(state, city.factionId));
-    const current = unitTotalCount(city.garrison);
-    if (current < maxTotal && Math.random() < 0.5) {
-      const grow = Math.min(GARRISON_REGEN_BATCH, maxTotal - current);
-      city.garrison.infantry = (city.garrison.infantry || 0) + grow;
-    }
+    const faction = factionById(state, city.factionId);
+    const target = watchTarget(city, faction);
+    const watch = city.garrison[WATCH_ROLE] || 0;
+    if (watch >= target) continue;
+    city.garrison[WATCH_ROLE] = Math.min(target, watch + watchGrowth(target));
   }
 }
 

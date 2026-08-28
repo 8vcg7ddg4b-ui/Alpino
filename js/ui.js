@@ -1,8 +1,9 @@
 import {
-  UNIT_ROLES, unitDef, ROLE_LABELS, settlementTier, garrisonCapacity, TILE_TYPES,
+  UNIT_ROLES, GARRISON_ROLES, WATCH_ROLE, watchTarget,
+  unitDef, ROLE_LABELS, settlementTier, garrisonCapacity, TILE_TYPES,
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
-  SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST,
+  SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
   HARBOUR_COST, HARBOUR_TURNS,
 } from './data.js';
 import {
@@ -189,7 +190,7 @@ export function battleReportHTML(state, report) {
 }
 
 function unitBreakdownHTML(units, factionId) {
-  return UNIT_ROLES.filter((k) => units[k] > 0)
+  return GARRISON_ROLES.filter((k) => units[k] > 0)
     .map((k) => {
       const def = unitDef(factionId, k);
       return `<span class="unit-chip" title="${escapeHTML(ROLE_LABELS[k])} · Angriff ${
@@ -266,6 +267,28 @@ function embarkHTML(state, army) {
     <small>${escapeHTML(EMBARK_REASONS[status.reason] || '')}</small></button>`;
 }
 
+// Steht die Armee in einer eigenen Stadt, kann sie dort frische Truppen
+// kaufen: schneller als der Umweg über die Garnison, und man sieht sofort,
+// was es kostet.
+function reinforceHTML(state, army, city) {
+  const player = playerFaction(state);
+  if (army.embarked) return '';
+  if (!city || city.factionId !== army.factionId || army.factionId !== player.id) return '';
+  return `
+    <p class="road-head">⚔️ Verstärkung kaufen <span class="muted">· je ${RECRUIT_BATCH} Mann,
+      tritt sofort in die Armee ein</span></p>
+    <div class="recruit-row">
+      ${UNIT_ROLES.map((k) => {
+    const def = unitDef(city.factionId, k);
+    const tooPoor = player.gold < def.cost;
+    return `<button class="reinforce-btn" data-unit="${k}" data-army="${army.id}"
+        ${tooPoor ? 'disabled' : ''}>
+        ${def.icon} ${escapeHTML(def.name)}<br><small>${def.cost} Gold</small>
+      </button>`;
+  }).join('')}
+    </div>`;
+}
+
 function renderSelectedArmy(state, army) {
   const faction = factionById(state, army.factionId);
   const city = state.cities.find((c) => c.col === army.col && c.row === army.row);
@@ -280,6 +303,7 @@ function renderSelectedArmy(state, army) {
       ${conditionBarHTML('Erschöpfung', army.exhaustion ?? 0, EXHAUSTION_SCALE, 'fatigue')}
     </div>
     <div class="unit-list">${unitBreakdownHTML(army.units, army.factionId)}</div>
+    ${reinforceHTML(state, army, city)}
     ${canDisband
       ? `<button class="disband-btn" data-army="${army.id}">🏰 In ${escapeHTML(city.name)} auflösen – Garnison verstärken
           ${experienceStars(army.experience)
@@ -304,6 +328,10 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
   const isMine = city.factionId === player.id;
   const maxTotal = garrisonCapacity(city, faction);
   const current = unitTotalCount(city.garrison);
+  // Was ausrücken kann, und was auf der Mauer bleibt.
+  const field = UNIT_ROLES.reduce((sum, k) => sum + (city.garrison[k] || 0), 0);
+  const watch = city.garrison[WATCH_ROLE] || 0;
+  const watchGoal = watchTarget(city, faction);
 
   let recruitHTML = '';
   if (isMine) {
@@ -317,7 +345,10 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
           </button>`;
         }).join('')}
       </div>
-      <button class="raise-btn" ${current === 0 ? 'disabled' : ''}>🚩 Armee ausheben / verstärken</button>
+      <button class="raise-btn" ${field === 0 ? 'disabled' : ''}>🚩 Armee ausheben / verstärken
+        <small>${field === 0
+    ? 'Erst Truppen ausheben – die Stadtwache rückt nicht aus.'
+    : `${field.toLocaleString('de-DE')} Mann marschbereit`}</small></button>
     `;
   }
 
@@ -329,6 +360,11 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
       ${current > maxTotal
         ? `<span class="over-strength">über Sollstärke (${maxTotal.toLocaleString('de-DE')})</span>`
         : `/ ${maxTotal.toLocaleString('de-DE')}`}</p>
+    <p class="wall-line ${watch >= watchGoal ? 'wall-done' : ''}">🛡️ Stadtwache
+      ${watch.toLocaleString('de-DE')} / ${watchGoal.toLocaleString('de-DE')}
+      <span class="muted">· ${watch >= watchGoal
+    ? 'vollzählig; sie verteidigt die Stadt, rückt aber nie aus'
+    : 'stellt sich aus der Bevölkerung nach'}</span></p>
     ${wallHTML(city, isMine, player)}
     ${harbourHTML(state, city, isMine, player)}
     ${roadHTML(state, city, isMine, player)}
@@ -587,6 +623,9 @@ export function renderUI(state, handlers) {
     if (embarkBtn) {
       embarkBtn.addEventListener('click', () => handlers.onEmbark(embarkBtn.dataset.army));
     }
+    panel.querySelectorAll('.reinforce-btn:not([disabled])').forEach((btn) => {
+      btn.addEventListener('click', () => handlers.onReinforce(btn.dataset.army, btn.dataset.unit));
+    });
   } else if (state.selectedCityId) {
     const city = state.cities.find((c) => c.id === state.selectedCityId);
     if (city) {

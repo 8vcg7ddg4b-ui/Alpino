@@ -350,6 +350,20 @@ html, body {
 .wall-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
 .wall-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+.reinforce-btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 4px;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+.reinforce-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
+.reinforce-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.reinforce-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.raise-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; font-weight: normal; }
+
 .harbour-btn {
   margin-top: 8px;
   width: 100%;

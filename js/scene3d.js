@@ -462,7 +462,7 @@ export function buildMap(state) {
   scene.add(deepSeaMesh);
 
   waterMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(seaSize, seaSize, WATER_SEGMENTS, WATER_SEGMENTS),
+    new THREE.PlaneGeometry(seaSize, seaSize),
     new THREE.MeshStandardMaterial({
       color: TILE_TYPES.water.color, transparent: true, opacity: 0.82, roughness: 0.25,
     })
@@ -470,13 +470,9 @@ export function buildMap(state) {
   waterMesh.rotation.x = -Math.PI / 2;
   waterMesh.position.y = SEA_LEVEL_Y;
   scene.add(waterMesh);
-  waterRest = Float32Array.from(waterMesh.geometry.getAttribute('position').array);
-  shapeWater(0);
 
   buildProps(props);
   buildRoadNetwork(state);
-  // Die Dünung hält die Bildschleife am Laufen, sobald die Karte steht.
-  startAnimationLoop();
   roadVersionDrawn = state.roadVersion || 0;
 }
 
@@ -1459,49 +1455,6 @@ function advanceWeatherPoints(dt) {
   return true;
 }
 
-// --- Wellengang ----------------------------------------------------------
-// Das Meer ist kein Blech: über die Wasserfläche laufen zwei gekreuzte
-// Dünungen, langsam genug, dass es ruhig wirkt, und flach genug, dass keine
-// Welle über die Küste schwappt (zwischen Wasserspiegel und dem niedrigsten
-// Land liegen 0,86 Einheiten - die Wellen bleiben deutlich darunter).
-const WATER_SEGMENTS = 84;
-const WAVE_HEIGHT = 0.22;
-let waterRest = null;
-let waterTime = 0;
-let waterAnimated = true;
-
-// Die Fläche liegt vor der Drehung in der XY-Ebene: die Auslenkung geht
-// deshalb in Z, nicht in Y.
-function shapeWater(time) {
-  if (!waterMesh || !waterRest) return;
-  const attribute = waterMesh.geometry.getAttribute('position');
-  const array = attribute.array;
-  for (let i = 0; i < array.length; i += 3) {
-    const x = waterRest[i];
-    const y = waterRest[i + 1];
-    array[i + 2] = Math.sin(x * 0.09 + time * 1.1) * WAVE_HEIGHT
-      + Math.sin((x * 0.035 + y * 0.045) + time * 0.7) * WAVE_HEIGHT * 0.75
-      + Math.sin(y * 0.13 - time * 1.5) * WAVE_HEIGHT * 0.45;
-  }
-  attribute.needsUpdate = true;
-  waterMesh.geometry.computeVertexNormals();
-}
-
-function advanceWater(dt) {
-  if (!waterMesh || !waterAnimated) return false;
-  waterTime += dt;
-  shapeWater(waterTime);
-  return true;
-}
-
-// Wer die Wettereffekte abschaltet, will Ruhe auf dem Bildschirm - dann steht
-// auch das Meer still, und die Bildschleife darf enden.
-export function setWaterAnimated(enabled) {
-  waterAnimated = !!enabled;
-  if (!waterAnimated) shapeWater(0);
-  else startAnimationLoop();
-}
-
 export function render() {
   if (renderer) renderer.render(scene, camera);
 }
@@ -1586,11 +1539,8 @@ function startAnimationLoop() {
     const marching = advanceAnimations(dt);
     const effecting = advanceEffects(dt);
     const raining = advanceWeatherPoints(dt);
-    // Das Meer bewegt sich immer - es hält die Schleife am Laufen, solange das
-    // Fenster sichtbar ist.
-    const swell = advanceWater(dt) && !document.hidden;
     render();
-    if (marching || effecting || raining || swell) {
+    if (marching || effecting || raining) {
       animationFrameId = requestAnimationFrame(step);
       return;
     }
@@ -1600,14 +1550,6 @@ function startAnimationLoop() {
     for (const done of completionQueue.splice(0)) if (done) done();
   };
   animationFrameId = requestAnimationFrame(step);
-}
-
-// Ein verstecktes Fenster zeichnet nichts; kommt es zurück, läuft die Schleife
-// wieder an, sonst stünde das Meer still.
-if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) startAnimationLoop();
-  });
 }
 
 export function isAnimating() {

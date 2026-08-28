@@ -24,7 +24,37 @@ export const ROLE_LABELS = {
   infantry: 'Fußvolk',
   cavalry: 'Reiterei',
   ranged: 'Fernkampf',
+  watch: 'Stadtwache',
 };
+
+// Die Stadtwache ist keine Feldtruppe: sie wird nicht ausgehoben, sie zieht
+// nicht mit, sie steht. Jede Siedlung hat sie von sich aus, und sie wächst
+// mit der Bevölkerung nach. Deshalb steht sie neben den drei Waffengattungen
+// und nicht unter ihnen.
+export const WATCH_ROLE = 'watch';
+export const GARRISON_ROLES = [...UNIT_ROLES, WATCH_ROLE];
+
+// Auf der Mauer taugt sie, im offenen Feld wäre sie nichts - was sie nie ist.
+export const WATCH_UNIT = {
+  name: 'Stadtwache', icon: '🛡️', attack: 3, defense: 8, hp: 88, cost: 0, upkeep: 0,
+};
+
+// Ein Wächter je so vielen Einwohnern - die Sollstärke, auf die eine Wache
+// nachwächst.
+export const WATCH_POP_RATIO = 16;
+// So viele Mann stellt eine Stadt je Runde nach: langsam genug, dass eine
+// gestürmte Stadt nicht in zwei Runden wieder voll ist.
+export const WATCH_GROWTH_MIN = 4;
+export const WATCH_GROWTH_SHARE = 0.05;
+
+export function watchTarget(city, faction) {
+  const levy = factionGarrisonFactor(faction);
+  return Math.round((city.population / WATCH_POP_RATIO) * levy);
+}
+
+export function watchGrowth(target) {
+  return Math.max(WATCH_GROWTH_MIN, Math.round(target * WATCH_GROWTH_SHARE));
+}
 
 // attack   Angriffskraft je Mann
 // defense  Verteidigungskraft je Mann
@@ -69,20 +99,34 @@ export const FACTION_UNITS = {
   },
   daker: {
     infantry: { name: 'Falxträger', icon: '🪓', attack: 9, defense: 6, hp: 100, cost: 110, upkeep: 0.06 },
-    cavalry: { name: 'Sarmatische Panzerreiter', icon: '🐎', attack: 10, defense: 6, hp: 95, cost: 165, upkeep: 0.095 },
+    cavalry: { name: 'Dakische Adelsreiter', icon: '🐎', attack: 10, defense: 6, hp: 95, cost: 165, upkeep: 0.095 },
     ranged: { name: 'Dakische Bogenschützen', icon: '🏹', attack: 5, defense: 3, hp: 70, cost: 110, upkeep: 0.055, ranged: true },
   },
   seleukiden: {
-    infantry: { name: 'Silberschilde', icon: '🛡️', attack: 6, defense: 11, hp: 102, cost: 115, upkeep: 0.06 },
+    infantry: { name: 'Silberschilde', icon: '🛡️', attack: 6, defense: 11, hp: 102, cost: 110, upkeep: 0.055 },
     // Die Elefanten stehen an der Stelle der Reiterei: wenige, teure, schwer
     // aufzuhaltende Tiere.
-    cavalry: { name: 'Kriegselefanten', icon: '🐘', attack: 13, defense: 6, hp: 126, cost: 195, upkeep: 0.105 },
+    cavalry: { name: 'Kriegselefanten', icon: '🐘', attack: 13, defense: 6, hp: 126, cost: 175, upkeep: 0.09 },
     ranged: { name: 'Kretische Bogenschützen', icon: '🏹', attack: 6, defense: 3, hp: 72, cost: 115, upkeep: 0.06, ranged: true },
   },
   ptolemaeer: {
     infantry: { name: 'Machimoi', icon: '⚔️', attack: 5, defense: 10, hp: 98, cost: 105, upkeep: 0.05 },
     cavalry: { name: 'Ptolemäische Reiter', icon: '🐎', attack: 9, defense: 5, hp: 92, cost: 150, upkeep: 0.09 },
     ranged: { name: 'Nubische Bogenschützen', icon: '🏹', attack: 7, defense: 3, hp: 70, cost: 120, upkeep: 0.062, ranged: true },
+  },
+  illyrer: {
+    // Die Sica, das gekrümmte Messer der illyrischen Räuber: billig
+    // aufzustellen und im Angriff gefährlich, in der Linie dünn.
+    infantry: { name: 'Sicaträger', icon: '🗡️', attack: 8, defense: 6, hp: 96, cost: 95, upkeep: 0.05 },
+    cavalry: { name: 'Illyrische Reiter', icon: '🐎', attack: 9, defense: 4, hp: 88, cost: 140, upkeep: 0.085 },
+    ranged: { name: 'Illyrische Schleuderer', icon: '🪨', attack: 6, defense: 3, hp: 70, cost: 105, upkeep: 0.05, ranged: true },
+  },
+  sarmaten: {
+    // Ein Reitervolk: das Fußvolk ist Beiwerk, die gepanzerte Lanzenreiterei
+    // ist das Beste, was auf der Karte zu Pferde sitzt - und kostet danach.
+    infantry: { name: 'Fußgefolge', icon: '⚔️', attack: 5, defense: 7, hp: 92, cost: 85, upkeep: 0.045 },
+    cavalry: { name: 'Kataphrakten', icon: '🐎', attack: 11, defense: 7, hp: 102, cost: 190, upkeep: 0.12 },
+    ranged: { name: 'Berittene Bogenschützen', icon: '🏹', attack: 7, defense: 3, hp: 76, cost: 140, upkeep: 0.08, ranged: true },
   },
   neutral: {
     infantry: { name: 'Stadtmiliz', icon: '⚔️', attack: 5, defense: 8, hp: 95, cost: 90, upkeep: 0.045 },
@@ -91,8 +135,10 @@ export const FACTION_UNITS = {
   },
 };
 
+// Die Wache ist überall dieselbe: sie kommt aus der Stadt, nicht aus dem Heer.
 export function unitDefs(factionId) {
-  return FACTION_UNITS[factionId] || FACTION_UNITS.neutral;
+  const defs = FACTION_UNITS[factionId] || FACTION_UNITS.neutral;
+  return defs[WATCH_ROLE] ? defs : Object.assign(defs, { [WATCH_ROLE]: WATCH_UNIT });
 }
 
 export function unitDef(factionId, role) {
@@ -168,6 +214,19 @@ export const FACTIONS = [
     startingArmy: { infantry: 300, cavalry: 90, ranged: 150 },
     armyLabel: 'Nilheer',
   },
+  // Die Stämme der Adriaküste, berüchtigt für ihre Kaperfahrten: billige,
+  // angriffslustige Kriegerscharen und lauter Häfen.
+  {
+    id: 'illyrer', name: 'Illyrer', color: '#3aa0d6',
+    startingArmy: { infantry: 320, cavalry: 90, ranged: 130 },
+    armyLabel: 'Seeschar',
+  },
+  // Ein Reitervolk der Steppe nördlich des Schwarzen Meeres.
+  {
+    id: 'sarmaten', name: 'Sarmaten', color: '#a3672e',
+    startingArmy: { infantry: 120, cavalry: 320, ranged: 100 },
+    armyLabel: 'Reiterschwarm',
+  },
   { id: 'neutral', name: 'Unabhängig', color: '#7f7f7f', isNeutral: true },
 ];
 
@@ -235,6 +294,18 @@ export const FACTION_PROFILES = {
     strength: 'Nubische Bogenschützen, die besten der Karte, und billiges Fußvolk in Masse.',
     weakness: 'Kaum Reiterei, und Zypern hängt allein am Meer.',
   },
+  illyrer: {
+    difficulty: 'schwer',
+    blurb: 'Vier Orte an der Adria, zwischen den Bergen und dem Meer eingeklemmt.',
+    strength: 'Billige, angriffslustige Sicaträger – und jeder Ort liegt am Wasser.',
+    weakness: 'Wenig Land, wenig Einkommen, und Rom, Griechen und Daker als Nachbarn.',
+  },
+  sarmaten: {
+    difficulty: 'mittel',
+    blurb: 'Die Steppe nördlich des Schwarzen Meeres: vier Orte, weite Wege und kaum ein Nachbar in Reichweite.',
+    strength: 'Kataphrakten – die stärkste Reiterei der Karte – und berittene Bogenschützen dazu.',
+    weakness: 'Teure Reiterei, schwaches Fußvolk und ein Land, das kaum etwas einbringt.',
+  },
 };
 
 export function factionProfile(factionId) {
@@ -249,6 +320,7 @@ export function playableFactions() {
 // Three settlement sizes. Everything that scales with a settlement's standing -
 // its people, the garrison it can raise and feed, its income and how large it
 // is drawn on the map - comes from this table, so the tiers stay consistent.
+// Die Stärke der Wache steht nicht hier: sie folgt der Bevölkerung.
 export const SETTLEMENT_TIERS = {
   large: {
     key: 'large',
@@ -258,9 +330,6 @@ export const SETTLEMENT_TIERS = {
     populationCapital: 6400,
     populationNeutral: 3600,
     modelScale: 1.35,
-    garrison: { infantry: 220, cavalry: 60, ranged: 90 },
-    garrisonCapital: { infantry: 250, cavalry: 80, ranged: 80 },
-    garrisonNeutral: { infantry: 190, ranged: 60 },
   },
   city: {
     key: 'city',
@@ -270,9 +339,6 @@ export const SETTLEMENT_TIERS = {
     populationCapital: 6000,
     populationNeutral: 2000,
     modelScale: 1,
-    garrison: { infantry: 150, ranged: 80 },
-    garrisonCapital: { infantry: 250, cavalry: 80, ranged: 80 },
-    garrisonNeutral: { infantry: 120 },
   },
   village: {
     key: 'village',
@@ -282,9 +348,6 @@ export const SETTLEMENT_TIERS = {
     populationCapital: 2600,
     populationNeutral: 900,
     modelScale: 0.68,
-    garrison: { infantry: 70 },
-    garrisonCapital: { infantry: 140, ranged: 40 },
-    garrisonNeutral: { infantry: 45 },
   },
 };
 
@@ -352,10 +415,19 @@ export const CITY_DEFS = [
   { name: 'Knossos', lon: 25.16, lat: 35.30, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Salamis', lon: 33.90, lat: 35.18, factionId: 'ptolemaeer', capital: false, size: 'village' },
   // --- Unabhängig: Illyrien und die Donau --------------------------------
-  { name: 'Salona', lon: 16.44, lat: 43.51, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Sirmium', lon: 19.61, lat: 44.97, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Vindobona', lon: 16.37, lat: 48.21, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Serdica', lon: 23.32, lat: 42.70, factionId: 'neutral', capital: false, size: 'village' },
+  // --- Illyrer: die Adriaküste zwischen Bergen und Meer -------------------
+  { name: 'Scodra', lon: 19.51, lat: 42.07, factionId: 'illyrer', capital: true, size: 'city' },
+  { name: 'Salona', lon: 16.44, lat: 43.51, factionId: 'illyrer', capital: false, size: 'city' },
+  { name: 'Epidamnos', lon: 19.45, lat: 41.32, factionId: 'illyrer', capital: false, size: 'village' },
+  { name: 'Narona', lon: 17.62, lat: 43.05, factionId: 'illyrer', capital: false, size: 'village' },
+  // --- Sarmaten: die Steppe nördlich des Schwarzen Meeres ----------------
+  { name: 'Tanais', lon: 39.28, lat: 47.21, factionId: 'sarmaten', capital: true, size: 'city' },
+  { name: 'Olbia', lon: 31.90, lat: 46.63, factionId: 'sarmaten', capital: false, size: 'village' },
+  { name: 'Gelonos', lon: 34.50, lat: 49.70, factionId: 'sarmaten', capital: false, size: 'village' },
+  { name: 'Amadoka', lon: 34.50, lat: 48.00, factionId: 'sarmaten', capital: false, size: 'village' },
   // --- Daker: nördlich der Donau, in den Karpaten ------------------------
   { name: 'Sarmizegetusa', lon: 22.79, lat: 45.62, factionId: 'daker', capital: true, size: 'large' },
   { name: 'Napoca', lon: 23.60, lat: 46.77, factionId: 'daker', capital: false, size: 'city' },
@@ -378,7 +450,6 @@ export const CITY_DEFS = [
   { name: 'Hierosolyma', lon: 35.22, lat: 31.78, factionId: 'ptolemaeer', capital: false, size: 'city' },
   { name: 'Tyrus', lon: 35.20, lat: 33.27, factionId: 'ptolemaeer', capital: false, size: 'village' },
   { name: 'Kyrene', lon: 21.86, lat: 32.82, factionId: 'ptolemaeer', capital: false, size: 'village' },
-  { name: 'Olbia', lon: 31.90, lat: 46.63, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Chersonesos', lon: 33.49, lat: 44.61, factionId: 'neutral', capital: false, size: 'village' },
   // --- Unabhängig: Britannien --------------------------------------------
   { name: 'Camulodunum', lon: 0.90, lat: 51.89, factionId: 'britannier', capital: true, size: 'city' },

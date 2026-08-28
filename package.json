@@ -1,5 +1,5 @@
 {
-  "name": "spqr",
+  "name": "pax-aeterna",
   "version": "1.0.0",
   "description": "Rundenbasiertes 3D-Strategiespiel im Stil von Total War: Rome. Züge und Kämpfe finden direkt auf der Kampagnenkarte statt. Läuft im Browser und als Desktop-Anwendung.",
   "type": "module",
@@ -18,8 +18,8 @@
     "electron-builder": "^26.0.0"
   },
   "build": {
-    "appId": "de.spqr.game",
-    "productName": "SPQR",
+    "appId": "de.paxaeterna.game",
+    "productName": "Pax Aeterna",
     "files": [
       "index.html",
       "css/**/*",

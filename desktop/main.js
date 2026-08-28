@@ -25,7 +25,7 @@ function createWindow(port) {
     height: 900,
     minWidth: 1024,
     minHeight: 640,
-    title: 'SPQR',
+    title: 'Pax Aeterna',
     backgroundColor: '#1c1712',
     autoHideMenuBar: true,
     show: false,

@@ -1,4 +1,4 @@
-# SPQR – Rundenstrategie in 3D
+# Pax Aeterna – Rundenstrategie in 3D
 
 Ein rundenbasiertes Strategiespiel im Stil von *Total War: Rome*. Die Kampagnenkarte
 umfasst Europa, das Mittelmeer und Nordafrika und wird in echtem 3D (Three.js/WebGL)
@@ -18,7 +18,7 @@ Das Spiel läuft wahlweise **im Browser** oder als **eigenständige Desktop-Anwe
 
 ```bash
 npm install      # einmalig: lädt Electron
-npm run desktop  # startet SPQR als Desktop-App
+npm run desktop  # startet Pax Aeterna als Desktop-App
 ```
 
 ### Installationsdatei bauen
@@ -27,9 +27,9 @@ Erzeugt ein weitergebbares Installationspaket im Ordner `dist/`. Gebaut wird imm
 für das System, auf dem der Befehl läuft – für eine `.exe` also unter Windows:
 
 ```bash
-npm run dist:win     # Windows: SPQR Setup.exe (NSIS-Installer)
-npm run dist:mac     # macOS:   SPQR.dmg
-npm run dist:linux   # Linux:   SPQR.AppImage
+npm run dist:win     # Windows: Pax Aeterna Setup.exe (NSIS-Installer)
+npm run dist:mac     # macOS:   Pax Aeterna.dmg
+npm run dist:linux   # Linux:   Pax Aeterna.AppImage
 ```
 
 Tastatur in der Desktop-Version: **F11** Vollbild, **Strg/Cmd + N** neues Spiel.
@@ -153,6 +153,17 @@ den Punkten durchblättern.
   Feldarmeen auszuheben. Welche drei Einheiten zur Wahl stehen, hängt von der
   Fraktion ab, der die Stadt gehört – Rom hebt Legionäre aus, ein dakisches
   Dorf Falxträger.
+- **Stadtwache**: Jede Siedlung hat von sich aus eine Wache – die
+  Standardgarnison, die niemand aushebt und die nie ausrückt. Ihre Sollstärke
+  ist ein Sechzehntel der Bevölkerung (Roma 400 Mann, ein Dorf 88), und sie
+  stellt sich nach jedem Sturm langsam wieder her: etwa 5 % der Sollstärke je
+  Runde. Auf der Mauer taugt sie (Verteidigung 8), im Angriff wäre sie nichts –
+  weshalb sie auch nicht mitmarschieren kann. Wer ein Heer aufstellen will,
+  hebt dafür Truppen aus; die Wache bleibt.
+- **Armeen in der Stadt verstärken**: Steht eine eigene Armee in einer eigenen
+  Stadt, kann sie dort direkt Truppen kaufen – je 100 Mann, die sofort in die
+  Armee eintreten, statt den Umweg über die Garnison zu nehmen. Wie bei jeder
+  Aushebung verdünnen die Neuen die Erfahrung der Armee.
 - **Erfahrung**: Jede Armee sammelt im Feld Erfahrung – ein Stern nach etwa
   zwei Schlachten, drei Sterne nach rund sieben. Jeder Stern bringt **+12 %
   Kampfkraft**, und die Sterne stehen im Armee-Panel, auf der Karte am
@@ -188,8 +199,6 @@ den Punkten durchblättern.
   der beiden Orte an den Feind, wird der Bau abgebrochen.
 - **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
   Rekrutierung, Mauer- oder Straßenkauf, Auflösen oder ganzen Rundenwechsel.
-- **Bewegtes Meer**: Über die Wasserfläche läuft eine Dünung. In den
-  Einstellungen abschaltbar, wenn das Gerät die Bilder lieber spart.
 - **Ton**: 🔊 schaltet die Klänge um (Marsch, Schlacht, Rekrutierung, Mauerbau,
   Rundenwechsel …). Alle Geräusche werden zur Laufzeit synthetisiert – keine
   Audiodateien, funktioniert offline.
@@ -206,7 +215,7 @@ den Punkten durchblättern.
 
 ## Spielprinzip
 
-- **Alle zehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
+- **Alle zwölf Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
   eigener Auswahlbildschirm: links die Fraktionen mit ihrer Schwierigkeit,
   rechts Hauptstadt, Siedlungen, Startheer, die drei eigenen Einheiten sowie
   Stärke und Schwäche – und im Hintergrund ein Bild, das mit der Auswahl
@@ -215,8 +224,9 @@ den Punkten durchblättern.
   Ptolemäer. Wer nicht gewählt wird, wird von der KI geführt.
 - Zur Wahl stehen **Rom**, **Karthago**, die **Gallier**, die **Griechen**, die
   **Germanen**, die **Britannier**, die **Iberer**, die **Daker**, die
-  **Seleukiden** und die **Ptolemäer** – verteilt über Europa, das Mittelmeer,
-  Nordafrika und den Vorderen Orient. Alle beginnen mit demselben Startgold und
+  **Seleukiden**, die **Ptolemäer**, die **Illyrer** und die **Sarmaten** –
+  verteilt über Europa, das Mittelmeer, Nordafrika, den Vorderen Orient und die
+  Steppe nördlich des Schwarzen Meeres. Alle beginnen mit demselben Startgold und
   (bis auf die zwei Heere der Seleukiden) demselben Heer: der Unterschied liegt
   in der Lage, den Nachbarn und den eigenen Einheiten.
 - **Jede Fraktion hat ihre eigenen Einheiten.** Drei Waffengattungen gibt es
@@ -235,6 +245,8 @@ den Punkten durchblättern.
   | Daker | Falxträger (Sichelschwert, roher Angriff) | Sarmatische Panzerreiter | Dakische Bogenschützen |
   | Seleukiden | Silberschilde (Phalanx) | Kriegselefanten (statt Reiterei) | Kretische Bogenschützen |
   | Ptolemäer | Machimoi (billige Masse) | Ptolemäische Reiter | Nubische Bogenschützen (beste Bogen) |
+  | Illyrer | Sicaträger (billige Räuber) | Illyrische Reiter | Illyrische Schleuderer |
+  | Sarmaten | Fußgefolge (Beiwerk) | Kataphrakten (beste Reiterei) | Berittene Bogenschützen |
 
   Im Kampf rechnet jede Seite mit ihren eigenen Werten – ein Legionär hält
   anders stand als ein Falxträger, auch wenn beide „Fußvolk" heißen.
@@ -257,12 +269,16 @@ den Punkten durchblättern.
 - Die **Ptolemäer** sitzen auf Ägypten, Zypern, Koilesyrien und der Kyrenaika.
   Das Niltal trägt viel Fußvolk, ihre nubischen Bogen sind die besten der
   Karte, an Reiterei fehlt es ihnen.
+- Die **Illyrer** sitzen mit vier Orten an der Adria, eingeklemmt zwischen den
+  Dinariden und dem Meer – wenig Land, aber lauter Häfen.
+- Die **Sarmaten** ziehen mit ihren Kataphrakten durch die Steppe nördlich des
+  Schwarzen Meeres. Weite Wege, kaum Nachbarn, kaum Einkommen.
 - Die **Daker** halten die Karpaten um Sarmizegetusa – Bergland, das sich gut
   verteidigen lässt, mit der Donau als Sprungbrett nach Süden.
-- **71 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
+- **77 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
   Garnison, 1,7-faches Grundeinkommen), **Stadt** (Normalmaß) und **Dorf**
   (klein, halbes Grundeinkommen – leicht zu nehmen und gute Sprungbretter).
-  22 davon gehören niemandem und sind frei zu erobern – von Olisipo bis
+  20 davon gehören niemandem und sind frei zu erobern – von Olisipo bis
   Chersonesos. Sizilien, Sardinien, Kreta, Zypern, Rhodos, die Balearen und
   Britannien sind nur mit Schiffen erreichbar.
 - **Gelände**: Ebene, Wald und Hügel wie bisher, dazu die **Wüste** – die

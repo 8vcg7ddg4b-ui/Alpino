@@ -133,11 +133,13 @@ function aiEconomy(state, faction, savingForFleet, savingForRoad = false) {
     const unitKey = UNIT_ROLES[Math.floor(Math.random() * UNIT_ROLES.length)];
     recruitUnit(state, city.id, unitKey);
 
-    const garrisonStrength = unitTotalCount(city.garrison);
+    // Die Stadtwache zählt nicht mit: sie rückt nie aus, und eine Stadt, die
+    // nur ihre Wache hat, stellt kein Heer auf.
+    const marchable = UNIT_ROLES.reduce((sum, key) => sum + (city.garrison[key] || 0), 0);
     const hasFieldArmyHere = state.armies.some(
       (a) => a.factionId === faction.id && a.col === city.col && a.row === city.row
     );
-    if (garrisonStrength >= 300 && (!hasFieldArmyHere || garrisonStrength >= 500)) {
+    if (marchable >= 200 && (!hasFieldArmyHere || marchable >= 400)) {
       raiseArmyFromGarrison(state, city.id);
     }
   }
