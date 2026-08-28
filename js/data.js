@@ -101,6 +101,7 @@ export const FACTION_SHIP_TYPE = {
   numidien: 'lembos',
   parther: 'lembos',
   armenien: 'lembos',
+  pontus: 'quinquereme',
   gallier: 'keltenschiff',
   britannier: 'keltenschiff',
   germanen: 'keltenschiff',
@@ -171,6 +172,13 @@ export const FACTION_UNITS = {
     infantry: { name: 'Armenische Speerträger', icon: '⚔️', attack: 6, defense: 9, hp: 100, cost: 105, upkeep: 0.055 },
     cavalry: { name: 'Armenische Kataphrakten', icon: '🐎', attack: 12, defense: 9, hp: 100, cost: 195, upkeep: 0.12 },
     ranged: { name: 'Armenische Bogenschützen', icon: '🏹', attack: 6, defense: 4, hp: 75, cost: 110, upkeep: 0.055, ranged: true },
+  },
+  // Pontus: hellenistische Phalanx im Zentrum, dazu Reiter aus dem Hinterland
+  // und die Bogenschützen der Chalyber vom Schwarzen Meer.
+  pontus: {
+    infantry: { name: 'Pontische Phalangiten', icon: '🛡️', attack: 6, defense: 11, hp: 100, cost: 118, upkeep: 0.06 },
+    cavalry: { name: 'Pontische Reiter', icon: '🐎', attack: 10, defense: 5, hp: 90, cost: 150, upkeep: 0.09 },
+    ranged: { name: 'Chalybische Bogenschützen', icon: '🏹', attack: 7, defense: 3, hp: 70, cost: 120, upkeep: 0.06, ranged: true },
   },
   gallier: {
     infantry: { name: 'Schwertkämpfer', icon: '🗡️', attack: 8, defense: 7, hp: 105, cost: 105, upkeep: 0.055 },
@@ -289,6 +297,9 @@ export const FACTIONS = [
   // Armenien im Hochland zwischen Schwarzem und Kaspischem Meer: Panzerreiter
   // aus dem Bergadel, dazwischen ein Fußvolk, das die Pässe hält.
   { id: 'armenien', name: 'Armenien', color: '#3f8c72', armyLabel: 'Königsheer' },
+  // Pontus am Südufer des Schwarzen Meeres: ein hellenistisches Königreich
+  // mit den Häfen der Küste im Rücken und den Bergen des Hinterlands davor.
+  { id: 'pontus', name: 'Pontus', color: '#6b6fc9' },
   { id: 'griechen', name: 'Griechen', color: '#7a4fae' },
   // The tribes field a great mass of foot: no siege train, few horse and
   // fewer bows, but more men in the line than anyone else brings.
@@ -387,6 +398,12 @@ export const FACTION_PROFILES = {
     blurb: 'Fünf Orte im Hochland um den Ararat – Artaxata als Sitz, Berge nach allen Seiten.',
     strength: 'Kataphrakten und ein Fußvolk, das die Pässe wirklich halten kann.',
     weakness: 'Kein Meer, kein Hafen – und Seleukiden wie Parther als Nachbarn.',
+  },
+  pontus: {
+    difficulty: 'mittel',
+    blurb: 'Fünf Orte an der Südküste des Schwarzen Meeres – Amaseia im Bergland, Sinope und Amisos am Wasser.',
+    strength: 'Phalangiten mit der zweitbesten Verteidigung und Quinqueremen im Schwarzen Meer.',
+    weakness: 'Eine schmale Küste zwischen Bergen und Meer, Armenien und Seleukiden als Nachbarn.',
   },
   gallier: {
     difficulty: 'schwer',
@@ -531,6 +548,12 @@ export const CITY_DEFS = [
   { name: 'Rhagae', lon: 51.43, lat: 35.59, factionId: 'parther', capital: false, size: 'city' },
   { name: 'Ktesiphon', lon: 44.58, lat: 33.09, factionId: 'parther', capital: false, size: 'village' },
   { name: 'Arbela', lon: 44.01, lat: 36.19, factionId: 'parther', capital: false, size: 'village' },
+  // --- Pontus: die Südküste des Schwarzen Meeres -------------------------
+  { name: 'Amaseia', lon: 35.83, lat: 40.65, factionId: 'pontus', capital: true, size: 'large' },
+  { name: 'Sinope', lon: 35.15, lat: 42.03, factionId: 'pontus', capital: false, size: 'city' },
+  { name: 'Amisos', lon: 36.33, lat: 41.52, factionId: 'pontus', capital: false, size: 'city' },
+  { name: 'Trapezus', lon: 39.72, lat: 41.38, factionId: 'pontus', capital: false, size: 'village' },
+  { name: 'Kabeira', lon: 36.96, lat: 40.32, factionId: 'pontus', capital: false, size: 'village' },
   // --- Armenien: das Hochland zwischen den Meeren ------------------------
   { name: 'Artaxata', lon: 44.55, lat: 39.93, factionId: 'armenien', capital: true, size: 'large' },
   { name: 'Tigranokerta', lon: 40.95, lat: 37.85, factionId: 'armenien', capital: false, size: 'city' },

@@ -90,6 +90,9 @@ const EMBLEMS = {
   armenien: `<path d="M6 82 L34 30 L48 54 L58 38 L94 82 Z"/>
     <path d="M26 48 L34 30 L43 46 L37 44 L32 50 Z" fill="#1a1208" opacity="0.45"/>
     <path d="M52 46 L58 38 L65 48 L60 46 L56 50 Z" fill="#1a1208" opacity="0.45"/>`,
+  // Pontus: Stern und Mondsichel, das Zeichen des pontischen Königshauses.
+  pontus: `<path d="M62 14 a38 38 0 1 0 0 72 a30 30 0 1 1 0 -72 Z"/>
+    <path d="M74 30 l6 15 16 1 -12 11 4 16 -14 -9 -14 9 4 -16 -12 -11 16 -1 Z"/>`,
   neutral: `<circle cx="50" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="8"/>
     <circle cx="50" cy="50" r="7"/>`,
 };

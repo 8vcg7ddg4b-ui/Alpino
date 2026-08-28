@@ -1033,9 +1033,13 @@ export function renderUI(state, handlers) {
 
   // The terrain read-out sits under whatever is selected, and stands alone
   // when the player clicked open ground.
+  // Im Reiter "Bauen" bleibt die Geländeauskunft aus: dort geht es darum, was
+  // man tun kann, und die Bauknöpfe sollen nicht unter einer Wand aus
+  // Höhenangaben verschwinden.
   const terrainPanel = document.getElementById('terrainPanel');
+  const buildingHere = state.selectedCityId && cityTab === 'build';
   if (terrainPanel) {
-    terrainPanel.innerHTML = state.inspectedTile
+    terrainPanel.innerHTML = state.inspectedTile && !buildingHere
       ? terrainPanelHTML(state, state.inspectedTile)
       : '';
   }

@@ -131,6 +131,7 @@ const HERALD_TITLES = {
   numidien: 'Dein Reiterfürst',
   parther: 'Dein Satrap',
   armenien: 'Dein Nacharar',
+  pontus: 'Dein Stratege',
 };
 
 const heraldOverlay = document.getElementById('heraldOverlay');

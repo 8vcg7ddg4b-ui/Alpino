@@ -252,6 +252,25 @@ export const FACTION_ART = {
         ${spears(806, 11, 92, rng, '#141009', -20, 660)}`;
     },
   },
+  pontus: {
+    motto: 'Stern und Sichel über dem Meer',
+    render() {
+      const rng = seeded(1616);
+      // Die pontische Küste: das Schwarze Meer, dahinter die Kette des
+      // Pontischen Gebirges, davor die Häfen und ihre Schiffe.
+      return `${sky([[0, '#161f3e'], [0.38, '#3c4a72'], [0.72, '#8f8fae'], [1, '#e0d6c4']], 'faPon')}
+        ${sun(360, 470, 62, '#fff2d0', 0.3)}
+        ${peaks(560, 210, rng, '#39415e', 0.62, 8)}
+        ${peaks(636, 140, rng, '#272d45', 0.9, 6)}
+        ${walledCity(760, 1180, 646, 78, '#1c2133')}
+        ${figures(650, 10, rng, '#161b2a', 220, 700, 1.2)}
+        <path d="M -40 ${SCENE_H} L -40 668 Q 460 654 940 676 Q 1300 690 ${SCENE_W + 40} 666
+          L ${SCENE_W + 40} ${SCENE_H} Z" fill="#1b3350" opacity="0.96"/>
+        ${warship(360, 748, 1.0, '#0b1520', '#27435f')}
+        ${warship(980, 800, 1.25, '#08111a', '#1e3750')}
+        ${warship(1420, 858, 1.4, '#060d14', '#182c40')}`;
+    },
+  },
   griechen: {
     motto: 'Die Phalanx der Poleis',
     render() {

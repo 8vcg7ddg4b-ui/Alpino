@@ -686,7 +686,7 @@ const THRONE_STYLE = {
   rom: 'curule', griechen: 'stone', seleukiden: 'stone', ptolemaeer: 'stone',
   karthago: 'stone', gallier: 'wood', germanen: 'wood', britannier: 'wood',
   iberer: 'wood', daker: 'wood', illyrer: 'wood', sarmaten: 'wood',
-  numidien: 'wood', parther: 'stone', armenien: 'stone',
+  numidien: 'wood', parther: 'stone', armenien: 'stone', pontus: 'stone',
 };
 
 // Zwei Stücke Ausstattung je Fraktion.
@@ -706,6 +706,7 @@ const TENT_FURNISHINGS = {
   numidien: ['spears', 'palm'],
   parther: ['brazier', 'pelts'],
   armenien: ['shields', 'brazier'],
+  pontus: ['amphorae', 'shields'],
 };
 
 function buildThrone(style, colour) {
@@ -1183,6 +1184,11 @@ function pushQuad(positions, ax, az, bx, bz, halfWidth, lift = 0.18) {
 // ist genau die Stelle, an der ein Heer trockenen Fußes über den Fluss kommt.
 
 let riversGroup = null;
+// In so viele Stücke wird ein Uferstück zerlegt, und so hoch liegt es über
+// dem Boden - hoch genug, dass ein Knick im Gelände es nicht verschluckt,
+// flach genug, dass es nicht über der Landschaft schwebt.
+const RIVER_PIECES = 5;
+const RIVER_LIFT = 0.2;
 
 // Die beiden Feldmitten einer Kante und der Punkt dazwischen.
 function riverEdgeTiles(key, cols) {
@@ -1220,8 +1226,18 @@ function buildRivers(state) {
     const reach = half + width;
     const from = alongX ? [mx, mz - reach] : [mx - reach, mz];
     const to = alongX ? [mx, mz + reach] : [mx + reach, mz];
-    // Etwas tiefer als die Straße: die Brücke soll darüber liegen, nicht darin.
-    pushQuad(positions, from[0], from[1], to[0], to[1], width, 0.1);
+    // In Stücke zerlegt, damit das Band dem Gelände folgt. Ein Uferstück ist
+    // ein ganzes Feld lang und läuft dabei über ein Dreiecksfeld des Geländes
+    // hinweg; als eine einzige Fläche zwischen zwei Endpunkten schnitt es in
+    // hügeligem Land in den Boden, und der Fluss wirkte unterbrochen.
+    for (let piece = 0; piece < RIVER_PIECES; piece++) {
+      const t0 = piece / RIVER_PIECES;
+      const t1 = (piece + 1) / RIVER_PIECES;
+      pushQuad(positions,
+        from[0] + (to[0] - from[0]) * t0, from[1] + (to[1] - from[1]) * t0,
+        from[0] + (to[0] - from[0]) * t1, from[1] + (to[1] - from[1]) * t1,
+        width, RIVER_LIFT);
+    }
 
     const roads = state.roads || {};
     if (roads[`${a.col},${a.row}`] && roads[`${b.col},${b.row}`]) {
@@ -2514,13 +2530,16 @@ export function getMapMode() {
 }
 
 // Switches the whole map between the ground and the political picture: the
-// props and roads that make terrain readable only clutter the tactical view,
-// and flat light keeps the faction colours honest.
+// props that make terrain readable only clutter the tactical view, and flat
+// light keeps the faction colours honest. Die Straßen bleiben, weil sie zum
+// politischen Bild gehören - sie sagen, wie schnell wo ein Heer steht.
 export function setMapMode(mode, state) {
   mapMode = mode === 'tactical' ? 'tactical' : 'terrain';
   const tactical = mapMode === 'tactical';
   if (propsGroup) propsGroup.visible = !tactical;
-  if (roadsGroup) roadsGroup.visible = !tactical;
+  // Straßen bleiben auch in der taktischen Sicht stehen: wer Grenzen liest,
+  // will wissen, wo die Heere schnell hinkommen.
+  if (roadsGroup) roadsGroup.visible = true;
   if (riversGroup) riversGroup.visible = !tactical;
   // Daylight adds up to about 1.7 and washes a flat colour out to near white.
   // The tactical view trades most of the sun for even light, keeping just

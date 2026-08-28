@@ -196,8 +196,9 @@ den Punkten durchblättern.
   jederzeit über die Einträge in der Ereignisliste wieder öffnen (Esc schließt).
 - **Taktische Sicht** (🗺 oben rechts): schaltet die Karte in die Farben der
   Fraktionen um. Jedes begehbare Feld nimmt die Farbe der Fraktion an, deren
-  Siedlung ihm am nächsten liegt; Gebirge bleiben dunkel, Wälder, Straßen und
-  Requisiten treten zurück, das Relief bleibt. Damit ist auf einen Blick zu
+  Siedlung ihm am nächsten liegt; Gebirge bleiben dunkel, Wälder und Requisiten
+  treten zurück, das Relief bleibt. **Die Straßen bleiben sichtbar** – sie
+  gehören zum politischen Bild, denn sie sagen, wie schnell wo ein Heer steht. Damit ist auf einen Blick zu
   sehen, wer wo steht und wo die Grenzen verlaufen.
 - **Gelände ansehen**: Ein Klick auf ein beliebiges Feld zeigt in der
   Seitenleiste Geländeart, Bewegungskosten, Verteidigungsbonus, Höhe über dem
@@ -311,7 +312,10 @@ den Punkten durchblättern.
   Stadt wert ist.
 - **Das Stadtfenster hat zwei Reiter**: **Infos** – Rang, Bevölkerung,
   Einnahmen, Stadtwache, Bauwerke, Befestigung, Garnison – und **Bauen**:
-  Mauern, Hafen, Flotte, Straßen, Rekrutierung und Aushebung. Ungetrennt stand
+  Mauern, Hafen, Flotte, Straßen, Rekrutierung und Aushebung. Im Reiter
+  **Bauen** bleibt die Geländeauskunft aus – dort geht es darum, was man tun
+  kann, und die Bauknöpfe sollen nicht unter einer Wand aus Höhenangaben
+  verschwinden. Ungetrennt stand
   der Mauerbau zwischen Bevölkerung und Garnison, und wer nur nachsehen wollte,
   was ein Ort trägt, scrollte an drei Bauknöpfen vorbei. Die Wahl bleibt
   stehen: wer baut, baut meist mehrmals hintereinander.
@@ -377,7 +381,7 @@ den Punkten durchblättern.
 
 ## Spielprinzip
 
-- **Alle fünfzehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
+- **Alle sechzehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
   eigener Auswahlbildschirm: links die Fraktionen mit ihrer Schwierigkeit,
   rechts Hauptstadt, Siedlungen, Startheer, die drei eigenen Einheiten sowie
   Stärke und Schwäche – und im Hintergrund ein Bild, das mit der Auswahl
@@ -385,8 +389,8 @@ den Punkten durchblättern.
   Karthago, der Herkynische Wald für die Germanen, Pyramiden und Palmen für die
   Ptolemäer. Wer nicht gewählt wird, wird von der KI geführt.
 - Zur Wahl stehen **Rom**, **Karthago**, die **Gallier**, **Numidien**, die
-  **Parther**, **Armenien**, die **Griechen**, die **Germanen**, die
-  **Britannier**, die **Iberer**, die **Daker**, die **Seleukiden**, die
+  **Parther**, **Armenien**, **Pontus**, die **Griechen**, die **Germanen**,
+  die **Britannier**, die **Iberer**, die **Daker**, die **Seleukiden**, die
   **Ptolemäer**, die **Illyrer** und die **Sarmaten** –
   verteilt über Europa, das Mittelmeer, Nordafrika, den Vorderen Orient und die
   Steppe nördlich des Schwarzen Meeres. Alle beginnen mit demselben Startgold und
@@ -403,6 +407,7 @@ den Punkten durchblättern.
   | Numidien | Numidische Speerträger (leicht, billig) | Numidische Reiter (beste leichte Reiterei) | Numidische Speerwerfer |
   | Parther | Persisches Fußvolk (hält nur) | Kataphrakten (Panzerreiter, härteste Reiterei) | Berittene Bogenschützen |
   | Armenien | Armenische Speerträger (zäh in den Pässen) | Armenische Kataphrakten | Armenische Bogenschützen |
+  | Pontus | Pontische Phalangiten (zweitbeste Verteidigung) | Pontische Reiter | Chalybische Bogenschützen |
   | Gallier | Schwertkämpfer (harter Angriff) | Edle Reiter | Bogenschützen |
   | Griechen | Hopliten (beste Verteidigung) | Thessalische Reiter | Peltasten |
   | Germanen | Speerträger | Gefolgschaftsreiter | Wurfspeerträger |
@@ -439,6 +444,13 @@ den Punkten durchblättern.
   Susa, Rhagae, Ktesiphon und Arbela, der Zagros als Wall nach Westen. Ihr
   Fußvolk hält nur die Linie – die Entscheidung fällt zwischen Kataphrakten und
   berittenen Bogenschützen, dem besten Reiterheer der Karte. Teuer ist es auch.
+- **Pontus** liegt an der Südküste des Schwarzen Meeres: Amaseia im Bergland,
+  dazu die Häfen Sinope, Amisos und Trapezus sowie Kabeira. Phalangiten mit der
+  zweitbesten Verteidigung im Spiel und Quinqueremen im Schwarzen Meer – aber
+  eine schmale Küste zwischen Bergen und Wasser. Für Pontus hat auch die
+  Geografie nachgebessert: die Südküste des Schwarzen Meeres folgt jetzt der
+  wirklichen Linie Anatoliens, vorher schnitt der Umriss von Paphlagonien
+  gleich zur Krim durch.
 - **Armenien** hält das Hochland um den Ararat: Artaxata als Sitz, dazu
   Tigranokerta, Tushpa, Arsamosata und Naxuana. Anders als bei den Parthern
   hält sein Fußvolk die Pässe wirklich – dafür hat es kein Meer, keinen Hafen
