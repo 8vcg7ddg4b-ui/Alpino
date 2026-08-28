@@ -1,7 +1,8 @@
 import { TILE_TYPES, CITY_DEFS } from './data.js';
 import {
-  MAP_COLS, MAP_ROWS, MAP_BOUNDS, RIDGES, FORESTS, STRAITS,
+  MAP_COLS, MAP_ROWS, MAP_BOUNDS, RIDGES, FORESTS, STRAITS, RIVERS,
   isLandAt, lonOfCol, latOfRow, colOfLon, rowOfLat, kmPerDegreeLon,
+  colOfLonExact, rowOfLatExact,
 } from './geodata.js';
 import { mulberry32 } from './prng.js';
 
@@ -328,6 +329,90 @@ function labelLandmasses(tiles) {
   return label;
 }
 
+// --- Flüsse ---------------------------------------------------------------
+// Ein Fluss besetzt kein Feld, er trennt zwei. Der Linienzug aus geodata.js
+// wird deshalb nicht in Felder, sondern in Feldgrenzen übersetzt: wo der Lauf
+// von einem Feld ins nächste wechselt, entsteht eine Kante. Über eine solche
+// Kante zu ziehen kostet extra - es sei denn, eine Straße führt hinüber, denn
+// wer eine Straße baut, baut auch die Brücke.
+
+// Der Schlüssel einer Kante: die beiden Feldnummern, immer in derselben
+// Reihenfolge, damit sie von beiden Seiten gleich heißt.
+export function riverEdgeKey(colA, rowA, colB, rowB) {
+  const a = rowA * MAP_COLS + colA;
+  const b = rowB * MAP_COLS + colB;
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+// Der Lauf folgt den Ecken des Rasters, nicht den Feldmitten: ein Fluss liegt
+// zwischen zwei Feldern. Der Linienzug wird fein abgetastet, jede Abtastung
+// auf die nächste Rasterecke gezogen, und je zwei aufeinanderfolgende Ecken
+// ergeben ein Stück Ufer - also die Grenze zwischen genau den beiden Feldern,
+// die links und rechts davon liegen.
+//
+// Ecke (i, j) sitzt bei den Feldkoordinaten (i - 0,5 | j - 0,5). Ein
+// waagerechtes Stück von (i, j) nach (i+1, j) trennt die Felder (i, j-1) und
+// (i, j); ein senkrechtes von (i, j) nach (i, j+1) trennt (i-1, j) und (i, j).
+function traceRiver(tiles, course) {
+  const edges = [];
+  const passable = (col, row) => inBounds(col, row) && tiles[row][col].type !== 'water';
+  const add = (colA, rowA, colB, rowB) => {
+    if (!passable(colA, rowA) || !passable(colB, rowB)) return;
+    edges.push(riverEdgeKey(colA, rowA, colB, rowB));
+  };
+  const segment = (from, to) => {
+    if (from.i === to.i) {
+      // senkrechtes Ufer: trennt links und rechts
+      const j = Math.min(from.j, to.j);
+      add(from.i - 1, j, from.i, j);
+    } else {
+      // waagerechtes Ufer: trennt oben und unten
+      const i = Math.min(from.i, to.i);
+      add(i, from.j - 1, i, from.j);
+    }
+  };
+
+  let previous = null;
+  for (let k = 0; k < course.length - 1; k++) {
+    const [lon1, lat1] = course[k];
+    const [lon2, lat2] = course[k + 1];
+    // Sechs Abtastungen je Feldbreite: enger, als das Raster auflösen kann.
+    const steps = Math.max(2, Math.ceil(
+      (Math.abs(lon2 - lon1) / DEG_LON + Math.abs(lat2 - lat1) / DEG_LAT) * 6
+    ));
+    for (let step = 0; step <= steps; step++) {
+      const t = step / steps;
+      const current = {
+        i: Math.round(colOfLonExact(lon1 + (lon2 - lon1) * t) + 0.5),
+        j: Math.round(rowOfLatExact(lat1 + (lat2 - lat1) * t) + 0.5),
+      };
+      if (previous && (previous.i !== current.i || previous.j !== current.j)) {
+        const di = current.i - previous.i;
+        const dj = current.j - previous.j;
+        if (Math.abs(di) + Math.abs(dj) === 1) {
+          segment(previous, current);
+        } else if (Math.abs(di) === 1 && Math.abs(dj) === 1) {
+          // Über Eck: erst waagerecht, dann senkrecht - der Lauf bleibt eine
+          // zusammenhängende Kette.
+          const corner = { i: current.i, j: previous.j };
+          segment(previous, corner);
+          segment(corner, current);
+        }
+      }
+      previous = current;
+    }
+  }
+  return edges;
+}
+
+function traceRivers(tiles) {
+  const edges = new Set();
+  for (const river of RIVERS) {
+    for (const key of traceRiver(tiles, river.course)) edges.add(key);
+  }
+  return edges;
+}
+
 export function generateMap(seed = 1337) {
   const rng = mulberry32(seed);
   const tiles = [];
@@ -386,6 +471,8 @@ export function generateMap(seed = 1337) {
     rows: MAP_ROWS,
     tiles,
     landmass: labelLandmasses(tiles),
+    // Die Flüsse entstehen zuletzt: erst muss feststehen, wo Land ist.
+    rivers: traceRivers(tiles),
   };
 }
 

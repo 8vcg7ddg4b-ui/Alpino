@@ -5,11 +5,12 @@ import {
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
+  RIVER_CROSSING_COST,
   HARBOUR_COST, HARBOUR_TURNS,
 } from './data.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
-  isWaterTile, isCoastalCity, isFleet,
+  isWaterTile, isCoastalCity, isFleet, riverSidesOf,
 } from './state.js';
 import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, cityIncome,
@@ -343,6 +344,15 @@ function settlementLabel(city) {
   return city.capital ? `Hauptstadt · ${tier}` : tier;
 }
 
+// Welcher Reiter im Stadtfenster offen liegt. Die Wahl bleibt stehen: wer
+// baut, baut meist mehrmals hintereinander.
+let cityTab = 'info';
+
+export function setCityTab(tab) {
+  cityTab = tab === 'build' ? 'build' : 'info';
+  return cityTab;
+}
+
 // Was der Ort einbringt. Aufgeschlüsselt, weil sonst niemand nachvollziehen
 // kann, warum eine Große Stadt mehr wert ist als zwei Dörfer.
 function incomeLineHTML(state, city) {
@@ -449,14 +459,17 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
     `;
   }
 
-  return `
-    <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(city.name)} ${city.capital ? '👑' : ''}</h3>
+  // Zwei Ansichten auf denselben Ort: was er ist, und was sich an ihm tun
+  // lässt. Ungetrennt stand der Mauerbau zwischen Bevölkerung und Garnison,
+  // und wer nur nachsehen wollte, was ein Ort trägt, scrollte an drei
+  // Bauknöpfen vorbei.
+  const infoHTML = `
     <p class="muted">${settlementLabel(city)} ·
       ${escapeHTML(faction.name)} · Bevölkerung: ${city.population.toLocaleString('de-DE')}</p>
     <p class="muted">Garnison: ${current.toLocaleString('de-DE')}
       ${current > maxTotal
-        ? `<span class="over-strength">über Sollstärke (${maxTotal.toLocaleString('de-DE')})</span>`
-        : `/ ${maxTotal.toLocaleString('de-DE')}`}</p>
+    ? `<span class="over-strength">über Sollstärke (${maxTotal.toLocaleString('de-DE')})</span>`
+    : `/ ${maxTotal.toLocaleString('de-DE')}`}</p>
     ${incomeLineHTML(state, city)}
     <p class="wall-line ${watch >= watchGoal ? 'wall-done' : ''}">🛡️ Stadtwache
       ${watch.toLocaleString('de-DE')} / ${watchGoal.toLocaleString('de-DE')}
@@ -466,12 +479,28 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
     ${wondersOfCity(state, city.id).map((w) => `
       <p class="wall-line wall-done">${w.wonder ? '🏛️' : '🗿'} ${escapeHTML(w.name)}
         <span class="muted">· ${w.wonder ? 'Weltwunder' : 'Wahrzeichen'}, +${w.income} Gold je Runde</span></p>`).join('')}
+    <p class="wall-line ${cityWallLevel(city) ? 'wall-done' : 'muted'}">
+      ${cityWallLevel(city)
+    ? `${wallLevelInfo(cityWallLevel(city)).icon} ${wallLevelName(cityWallLevel(city))}`
+    : 'Keine Befestigung'} · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}</p>
+    <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>`;
+
+  const buildHTML = `
     ${wallHTML(city, isMine, player)}
     ${harbourHTML(state, city, isMine, player)}
     ${fleetHTML(city, isMine, player)}
     ${roadHTML(state, city, isMine, player)}
-    <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>
-    ${recruitHTML}
+    ${recruitHTML}`;
+
+  return `
+    <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(city.name)} ${city.capital ? '👑' : ''}</h3>
+    <div class="city-tabs" role="tablist">
+      <button data-citytab="info" class="${cityTab === 'info' ? 'active' : ''}"
+        role="tab" aria-selected="${cityTab === 'info'}">Infos</button>
+      <button data-citytab="build" class="${cityTab === 'build' ? 'active' : ''}"
+        role="tab" aria-selected="${cityTab === 'build'}">Bauen</button>
+    </div>
+    ${cityTab === 'build' ? buildHTML : infoHTML}
   `;
 }
 
@@ -790,6 +819,21 @@ export function terrainPanelHTML(state, tile, opts = {}) {
     notes.push(`${landmark.wonder ? '🏛️ Weltwunder' : '🗿 Wahrzeichen'}: ${landmark.name} `
       + `– ${landmark.income} Gold je Runde für den, der den nächsten Ort hält.`);
   }
+  const rivers = riverSidesOf(state, col, row);
+  if (rivers.length) {
+    const offen = rivers.filter((r) => !r.bridged).map((r) => r.name);
+    const bruecken = rivers.filter((r) => r.bridged).map((r) => r.name);
+    const teile = [];
+    if (offen.length) {
+      teile.push(`im ${offen.join(' und ')} ein Fluss – hinüberzuziehen kostet `
+        + `${RIVER_CROSSING_COST} Bewegungspunkte zusätzlich`);
+    }
+    if (bruecken.length) {
+      teile.push(`im ${bruecken.join(' und ')} führt eine Straßenbrücke hinüber – `
+        + 'das kostet nichts');
+    }
+    notes.push(`🌉 ${teile.join('; ')}.`);
+  }
   if (type === 'desert') notes.push('Wüste – zäh zu durchqueren und ohne Deckung.');
   const sky = weatherAt(state, col, row);
   if (sky.note && sky.effect) notes.push(`${zoneName(zoneOf(row, type === 'water'))}: ${sky.note}`);
@@ -978,6 +1022,12 @@ export function renderUI(state, handlers) {
       if (fleetBtn) fleetBtn.addEventListener('click', () => handlers.onBuildFleet(city.id));
       panel.querySelectorAll('.road-btn').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onBuildRoad(city.id, btn.dataset.target));
+      });
+      panel.querySelectorAll('[data-citytab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          setCityTab(btn.dataset.citytab);
+          if (handlers.onRefresh) handlers.onRefresh();
+        });
       });
     }
   } else {

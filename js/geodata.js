@@ -25,6 +25,18 @@ export function latOfRow(row) {
   return north - ((row + 0.5) / MAP_ROWS) * (north - south);
 }
 
+// Die Bruchteile dazu: für Läufe, die zwischen den Feldern liegen - ein Fluss
+// folgt den Ecken des Rasters, nicht den Feldmitten.
+export function colOfLonExact(lon) {
+  const { west, east } = MAP_BOUNDS;
+  return ((lon - west) / (east - west)) * MAP_COLS - 0.5;
+}
+
+export function rowOfLatExact(lat) {
+  const { south, north } = MAP_BOUNDS;
+  return ((north - lat) / (north - south)) * MAP_ROWS - 0.5;
+}
+
 export function colOfLon(lon) {
   const { west, east } = MAP_BOUNDS;
   const col = Math.floor(((lon - west) / (east - west)) * MAP_COLS);
@@ -236,6 +248,84 @@ export const FORESTS = [
 // A tile is 54 km across; the Strait of Gibraltar is 14 km, the Bosporus less
 // than two. At this resolution the narrows that decided ancient naval strategy
 // would silt up into land, so they are cut open by name.
+// Die großen Ströme, in Grad wie alles andere. Ein Fluss ist im Spiel keine
+// Fläche, sondern eine Kette von Feldgrenzen: er trennt zwei Felder, statt
+// eines zu besetzen. Deshalb steht er hier als Linienzug, den die Karte in
+// Kanten zwischen benachbarten Feldern übersetzt.
+//
+// Aufgenommen sind die Ströme, die in der Antike Grenzen und Wege zugleich
+// waren - Rhein und Donau als Reichsgrenze, Rhône, Po und Tiber als
+// Verkehrsadern, der Nil als Lebensader Ägyptens.
+export const RIVERS = [
+  {
+    name: 'Rhenus (Rhein)',
+    course: [[9.5, 46.9], [8.6, 47.6], [7.6, 48.6], [8.3, 49.9], [7.6, 50.4],
+      [6.9, 51.0], [6.1, 51.6], [4.9, 51.9], [4.2, 51.95]],
+  },
+  {
+    name: 'Danuvius (Donau)',
+    course: [[8.3, 48.0], [10.9, 48.5], [12.1, 48.8], [13.4, 48.6], [15.6, 48.2],
+      [17.1, 47.9], [18.9, 47.5], [19.1, 46.2], [20.3, 45.2], [22.4, 44.6],
+      [24.0, 43.9], [26.0, 44.0], [27.9, 44.1], [28.7, 45.2]],
+  },
+  {
+    name: 'Rhodanus (Rhône)',
+    course: [[6.9, 46.4], [5.9, 45.8], [4.8, 45.3], [4.8, 44.3], [4.7, 43.7], [4.8, 43.35]],
+  },
+  {
+    name: 'Padus (Po)',
+    course: [[7.4, 44.9], [8.6, 45.1], [9.9, 45.1], [11.3, 45.05], [12.1, 44.9], [12.5, 44.95]],
+  },
+  {
+    name: 'Tiberis (Tiber)',
+    course: [[12.1, 43.4], [12.4, 42.7], [12.5, 42.1], [12.25, 41.75]],
+  },
+  {
+    name: 'Sequana (Seine)',
+    course: [[4.6, 47.9], [3.5, 48.4], [2.4, 48.85], [1.4, 49.1], [0.6, 49.3], [0.2, 49.43]],
+  },
+  {
+    name: 'Liger (Loire)',
+    course: [[4.1, 44.9], [3.5, 46.0], [2.9, 46.9], [1.9, 47.5], [0.7, 47.4],
+      [-0.6, 47.35], [-1.6, 47.25], [-2.1, 47.28]],
+  },
+  {
+    name: 'Iberus (Ebro)',
+    course: [[-4.0, 42.9], [-2.5, 42.6], [-1.0, 42.6], [0.0, 41.6], [0.6, 41.2], [0.87, 40.72]],
+  },
+  {
+    name: 'Tagus (Tejo)',
+    course: [[-2.2, 40.3], [-4.0, 39.9], [-5.7, 39.8], [-7.5, 39.5], [-8.6, 39.0], [-9.2, 38.7]],
+  },
+  {
+    name: 'Baetis (Guadalquivir)',
+    course: [[-3.2, 38.0], [-4.6, 37.7], [-5.6, 37.5], [-6.1, 37.0], [-6.35, 36.8]],
+  },
+  {
+    name: 'Albis (Elbe)',
+    course: [[14.4, 50.6], [13.8, 51.1], [12.4, 51.9], [11.6, 52.4], [10.6, 53.0],
+      [9.7, 53.5], [8.9, 53.9]],
+  },
+  {
+    name: 'Visula (Weichsel)',
+    course: [[19.0, 49.7], [19.9, 50.1], [21.3, 51.0], [21.0, 52.2], [19.5, 53.2],
+      [18.9, 54.2]],
+  },
+  {
+    name: 'Hebrus (Mariza)',
+    course: [[23.5, 42.4], [24.7, 42.1], [25.7, 41.7], [26.3, 41.2], [26.2, 40.8]],
+  },
+  {
+    name: 'Nilus (Nil)',
+    course: [[32.9, 29.6], [32.0, 30.2], [31.4, 30.6], [31.2, 31.0], [30.9, 31.4]],
+  },
+  {
+    name: 'Euphrates (oberer Lauf)',
+    course: [[38.9, 39.3], [38.4, 38.6], [38.2, 37.7], [39.0, 36.9], [40.2, 36.1],
+      [41.2, 35.2], [42.4, 34.4]],
+  },
+];
+
 export const STRAITS = [
   { name: 'Straße von Gibraltar', lon: -5.30, lat: 36.10 },
   { name: 'Straße von Messina', lon: 15.60, lat: 38.20 },

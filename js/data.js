@@ -663,6 +663,11 @@ export function roadTurns(length) {
   return Math.max(ROAD_MIN_TURNS, Math.round(length * ROAD_TURNS_PER_TILE));
 }
 
+// Was es kostet, einen Fluss zu überschreiten - Furt suchen, Wagen entladen,
+// Pferde schwimmen lassen. Zwei Felder Ebene, jedes Mal. Wo eine Straße
+// hinüberführt, steht eine Brücke, und dann kostet es nichts.
+export const RIVER_CROSSING_COST = 6;
+
 export const MAX_MOVEMENT = 18;
 
 // What it costs to push into ground an enemy army holds. Together with the

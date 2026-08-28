@@ -1,5 +1,5 @@
 import { TILE_TYPES, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST } from './data.js';
-import { armyAt, cityAt, isFleet } from './state.js';
+import { armyAt, cityAt, isFleet, riverCrossingCost } from './state.js';
 import { weatherMoveCost } from './weather.js';
 
 const NEIGHBORS = [
@@ -124,7 +124,11 @@ export function computeReachable(state, army) {
       const heldFrom = zoc.has(ck);
       const heldTo = zoc.has(nk);
       if (heldFrom && heldTo && !info.combat) continue;
-      const newCost = current.cost + info.cost + (heldTo && !info.combat ? ZOC_EXTRA_COST : 0);
+      // Ein Fluss liegt zwischen den Feldern, nicht auf einem - sein Aufschlag
+      // gehört deshalb an den Schritt und nicht ins Feld.
+      const crossing = riverCrossingCost(state, current.col, current.row, ncol, nrow);
+      const newCost = current.cost + info.cost + crossing
+        + (heldTo && !info.combat ? ZOC_EXTRA_COST : 0);
       if (newCost > army.movement) continue;
 
       // Combat tiles - and shores a fleet lands on - are valid destinations

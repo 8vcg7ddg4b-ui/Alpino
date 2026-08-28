@@ -776,18 +776,40 @@ function requestAppFullscreen({ explain = false } = {}) {
 // A browser only grants fullscreen from inside a user gesture, so a swipe that
 // drops out of it cannot be undone on the spot. The next touch or key press
 // puts it back instead - which is the next thing the player does anyway.
+//
+// Gehört wird auf alles, was als Geste zählt: touchstart kommt auf dem Handy
+// vor pointerdown, und manche Browser rechnen erst das Loslassen als
+// Bestätigung. Wer den Vollbildmodus über den Knopf verlässt, hat entschieden -
+// dann ist wantsFullscreen aus und hier passiert nichts.
+const RESTORE_EVENTS = ['touchstart', 'pointerdown', 'pointerup', 'keydown'];
+
 function armFullscreenRestore() {
   if (restoreArmed || !fullscreenAllowed()) return;
   restoreArmed = true;
   const restore = () => {
-    window.removeEventListener('pointerdown', restore, true);
-    window.removeEventListener('keydown', restore, true);
+    for (const type of RESTORE_EVENTS) window.removeEventListener(type, restore, true);
     restoreArmed = false;
     if (wantsFullscreen && !document.fullscreenElement) requestAppFullscreen();
   };
-  window.addEventListener('pointerdown', restore, true);
-  window.addEventListener('keydown', restore, true);
+  for (const type of RESTORE_EVENTS) window.addEventListener(type, restore, true);
 }
+
+// Ein Wisch nach unten soll die Karte bewegen und nicht die Seite. Alles, was
+// nicht in einer scrollbaren Leiste beginnt, wird deshalb hier abgefangen -
+// sonst zieht die Geste am Browserfenster, und das wirft das Spiel aus dem
+// Vollbild. Was der Browser selbst vom Bildschirmrand aus abfängt, kann eine
+// Seite nicht verhindern; dafür gibt es das Wiederherstellen oben.
+const SCROLLABLE = '#sidebar, .report-box, #settingsBody, #tileInfo, .empire-box, .start-box, #startHelp, #factionScreen';
+
+function blockPageGestures() {
+  document.addEventListener('touchmove', (event) => {
+    if (event.touches.length > 1) return;
+    const target = event.target;
+    if (target && target.closest && target.closest(SCROLLABLE)) return;
+    if (event.cancelable) event.preventDefault();
+  }, { passive: false });
+}
+blockPageGestures();
 
 function setupFullscreenButton(button) {
   button.addEventListener('click', () => {
@@ -804,6 +826,12 @@ function setupFullscreenButton(button) {
     button.classList.toggle('active', !!document.fullscreenElement);
     setTimeout(resizeScene, 60);
     if (!document.fullscreenElement && wantsFullscreen) armFullscreenRestore();
+  });
+  // Auch wer die Seite kurz verlässt, findet sie im Vollbild wieder vor.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && wantsFullscreen && !document.fullscreenElement) {
+      armFullscreenRestore();
+    }
   });
 }
 

@@ -285,12 +285,31 @@ den Punkten durchblättern.
   3, gebrochenes Gelände – Wald, Hügel, Wüste – das Doppelte, eine gepflasterte
   Straße 1, und ein Heer hat 18 Punkte je Runde. Das sind sechs Felder Ebene,
   drei Felder Wald – und achtzehn Felder Straße.
+- **Flüsse und Brücken**: Fünfzehn große Ströme liegen auf der Karte, in echten
+  Koordinaten wie alles Geografische – Rhein und Donau, Rhône, Po und Tiber,
+  Seine und Loire, Ebro, Tejo und Guadalquivir, Elbe und Weichsel, Mariza, Nil
+  und der obere Euphrat. Ein Fluss besetzt kein Feld, er **trennt zwei**: er
+  folgt den Grenzen des Rasters, und wer hinüberzieht, zahlt
+  **6 Bewegungspunkte zusätzlich** – zwei Felder Ebene, jedes Mal.
+
+  Eine **Brücke** entsteht dort, wo eine Straße über den Fluss führt: liegt auf
+  beiden Ufern Pflaster, steht dort eine Brücke, und das Übersetzen kostet
+  nichts mehr. Bezahlt wird sie mit der Straße, gebaut wird sie mit ihr, und auf
+  der Karte ist sie als Steg mit Geländern zu sehen. Zu Spielbeginn tragen die
+  Startstraßen acht solcher Übergänge. Ein Rechtsklick sagt für jedes Feld, auf
+  welchen Seiten ein Fluss liegt und wo eine Brücke hinüberführt.
 - **Einnahmen jedes Orts** stehen in seiner Anzeige, aufgeschlüsselt nach dem,
   was die Siedlung selbst abwirft (40 Gold, mal 1,7 für eine Große Stadt, mal
   0,5 für ein Dorf), was ihre Einwohner darüber hinaus tragen (je 200 Einwohner
   ein Gold) und was ein Weltwunder vor ihren Toren einbringt. Dieselbe Rechnung
   läuft in der Rundenabrechnung – es gibt nur eine Wahrheit darüber, was eine
   Stadt wert ist.
+- **Das Stadtfenster hat zwei Reiter**: **Infos** – Rang, Bevölkerung,
+  Einnahmen, Stadtwache, Bauwerke, Befestigung, Garnison – und **Bauen**:
+  Mauern, Hafen, Flotte, Straßen, Rekrutierung und Aushebung. Ungetrennt stand
+  der Mauerbau zwischen Bevölkerung und Garnison, und wer nur nachsehen wollte,
+  was ein Ort trägt, scrollte an drei Bauknöpfen vorbei. Die Wahl bleibt
+  stehen: wer baut, baut meist mehrmals hintereinander.
 - **Reichsübersicht** (🏛 in der Kopfzeile): ein Fenster über den ganzen
   Besitz – Schatz, Einnahmen, Sold und Bilanz, dazu Orte, Heere, Flotten und
   Stadtwachen, und darunter jeder eigene Ort mit seinen Einnahmen einzeln
@@ -326,10 +345,15 @@ den Punkten durchblättern.
   wäre ein Piepser eine Belästigung. Die Titelmusik lässt sich in den
   Einstellungen getrennt abschalten.
 - **Vollbildmodus**: ist der Normalfall – das Spiel geht beim Start hinein.
-  Reißt eine Wischgeste oder die umgebende Seite das Vollbild ab, stellt der
-  nächste Klick oder Tastendruck es wieder her (früher geht es nicht: ein
-  Browser gewährt Vollbild nur innerhalb einer Nutzergeste). Wer per ⛶ oder
-  Esc herausgeht, bleibt draußen, bis er ⛶ erneut drückt.
+  Ein Wisch über die Karte zieht nicht mehr am Browserfenster: alles, was nicht
+  in einer scrollbaren Leiste beginnt, wird abgefangen, damit ein Streichen nach
+  unten die Karte bewegt und nicht die Seite. Was der Browser vom Bildschirmrand
+  aus selbst abfängt, kann eine Seite nicht verhindern – reißt eine solche Geste
+  oder die umgebende Seite das Vollbild ab, stellt die nächste Berührung, der
+  nächste Klick oder Tastendruck es wieder her, und auch die Rückkehr aus dem
+  Hintergrund. Früher geht es nicht: ein Browser gewährt Vollbild nur innerhalb
+  einer Nutzergeste. Wer per ⛶ oder Esc herausgeht, bleibt draußen, bis er ⛶
+  erneut drückt.
   In einer eingebetteten Ansicht (iframe) verbietet der Browser Vollbild per
   Permissions-Policy; das Spiel sagt das dann und der Knopf ⇥ blendet
   stattdessen die Seitenleiste aus, um der Karte den Platz zu geben.
@@ -431,7 +455,8 @@ den Punkten durchblättern.
 ## Struktur
 
 - `js/geodata.js` – die Geografie in Grad: Küstenlinien, Inseln, Binnenmeere,
-  Meerengen, Gebirgsrücken und Wälder, dazu die Umrechnung Grad ↔ Feld
+  Meerengen, Gebirgsrücken, Wälder und Flussläufe, dazu die Umrechnung
+  Grad ↔ Feld
 - `js/data.js` – Einheiten-, Gelände- und Fraktionsdefinitionen samt
   Fraktionsprofilen für die Auswahl, Siedlungen mit ihren echten Koordinaten
 - `js/factionart.js` – die SVG-Bilder des Auswahlbildschirms, eines je Fraktion

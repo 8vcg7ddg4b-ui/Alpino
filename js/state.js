@@ -2,11 +2,11 @@ import {
   FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES,
   CAPITAL_WALL_LEVEL, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
-  UNIT_ROLES, SHIP_ROLE,
+  UNIT_ROLES, SHIP_ROLE, RIVER_CROSSING_COST,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
-import { generateMap, landRoute } from './mapgen.js';
+import { generateMap, landRoute, riverEdgeKey } from './mapgen.js';
 import { placeWonders } from './wonders.js';
 
 let nextId = 1;
@@ -230,6 +230,39 @@ export function isWaterTile(state, col, row) {
 // A tile is 54 km across, and the great ancient ports sat up an estuary:
 // Hamburg, Bordeaux and London are all seaports without touching open water.
 // So a settlement is a port when the sea is within this many tiles.
+// --- Flüsse und Brücken ----------------------------------------------------
+// Ein Fluss liegt zwischen zwei Feldern, nicht auf einem. Ob zwei Felder durch
+// Wasser getrennt sind, ist deshalb eine Frage an die Kante zwischen ihnen.
+
+export function riverBetween(state, colA, rowA, colB, rowB) {
+  const rivers = state.map && state.map.rivers;
+  return !!rivers && rivers.has(riverEdgeKey(colA, rowA, colB, rowB));
+}
+
+// Wer eine Straße über den Fluss legt, baut die Brücke mit: liegt auf beiden
+// Ufern Pflaster, steht dort eine Brücke. Das braucht keinen eigenen Bau und
+// keinen eigenen Zustand - die Brücke ist das, was die Straße dort tut.
+export function bridgeBetween(state, colA, rowA, colB, rowB) {
+  const roads = state.roads;
+  if (!roads) return false;
+  return !!roads[`${colA},${rowA}`] && !!roads[`${colB},${rowB}`];
+}
+
+export function riverCrossingCost(state, colA, rowA, colB, rowB) {
+  if (!riverBetween(state, colA, rowA, colB, rowB)) return 0;
+  return bridgeBetween(state, colA, rowA, colB, rowB) ? 0 : RIVER_CROSSING_COST;
+}
+
+// Die Flussseiten eines Felds, für die Geländeauskunft.
+export function riverSidesOf(state, col, row) {
+  const sides = [];
+  for (const [dc, dr, name] of [[0, -1, 'Norden'], [1, 0, 'Osten'], [0, 1, 'Süden'], [-1, 0, 'Westen']]) {
+    if (!riverBetween(state, col, row, col + dc, row + dr)) continue;
+    sides.push({ name, bridged: bridgeBetween(state, col, row, col + dc, row + dr) });
+  }
+  return sides;
+}
+
 export const PORT_RANGE = 2;
 
 // The open water a fleet raised in this settlement would actually lie in -

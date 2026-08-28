@@ -549,6 +549,7 @@ export function buildMap(state) {
   buildProps(props);
   buildWonders(state);
   buildRoadNetwork(state);
+  buildRivers(state);
   roadVersionDrawn = state.roadVersion || 0;
 }
 
@@ -1160,6 +1161,98 @@ function pushQuad(positions, ax, az, bx, bz, halfWidth) {
     }
   }
 }
+
+// --- Flüsse und Brücken ----------------------------------------------------
+// Der Fluss läuft auf der Feldgrenze, nicht durch ein Feld: für jede Kante ein
+// schmales Band entlang der gemeinsamen Kante, alle zu einer Geometrie
+// verschmolzen. Wo eine Straße hinüberführt, liegt eine Brücke darüber - das
+// ist genau die Stelle, an der ein Heer trockenen Fußes über den Fluss kommt.
+
+let riversGroup = null;
+
+// Die beiden Feldmitten einer Kante und der Punkt dazwischen.
+function riverEdgeTiles(key, cols) {
+  const [a, b] = key.split('|').map(Number);
+  const ac = a % cols;
+  const bc = b % cols;
+  return {
+    a: { col: ac, row: (a - ac) / cols },
+    b: { col: bc, row: (b - bc) / cols },
+  };
+}
+
+function buildRivers(state) {
+  if (riversGroup) scene.remove(riversGroup);
+  riversGroup = new THREE.Group();
+  scene.add(riversGroup);
+  const rivers = state.map.rivers;
+  if (!rivers || !rivers.size) return;
+
+  const positions = [];
+  const bridges = [];
+  const half = TILE_SIZE / 2;
+
+  for (const key of rivers) {
+    const { a, b } = riverEdgeTiles(key, state.map.cols);
+    // Die gemeinsame Kante liegt quer zur Verbindung der beiden Feldmitten.
+    const mx = (worldX(a.col) + worldX(b.col)) / 2;
+    const mz = (worldZ(a.row) + worldZ(b.row)) / 2;
+    const alongX = a.row === b.row;
+    const from = alongX ? [mx, mz - half] : [mx - half, mz];
+    const to = alongX ? [mx, mz + half] : [mx + half, mz];
+    pushQuad(positions, from[0], from[1], to[0], to[1], TILE_SIZE * 0.11);
+
+    const roads = state.roads || {};
+    if (roads[`${a.col},${a.row}`] && roads[`${b.col},${b.row}`]) {
+      bridges.push({ mx, mz, alongX });
+    }
+  }
+
+  if (positions.length) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+      color: '#3f7fb8', roughness: 0.35, side: THREE.DoubleSide,
+    }));
+    mesh.frustumCulled = false;
+    riversGroup.add(mesh);
+  }
+
+  for (const bridge of bridges) {
+    const group = new THREE.Group();
+    const y = surfaceY(colFromWorldX(bridge.mx), rowFromWorldZ(bridge.mz));
+    // Ein Steg quer über den Lauf, dazu zwei Geländer - genug, dass eine
+    // Brücke auch aus der Feldherrnperspektive als Brücke zu erkennen ist.
+    const deck = new THREE.Mesh(
+      new THREE.BoxGeometry(TILE_SIZE * 0.62, 0.22, TILE_SIZE * 0.34),
+      BRIDGE_TIMBER
+    );
+    deck.position.set(0, 0.42, 0);
+    group.add(deck);
+    for (const side of [-1, 1]) {
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(TILE_SIZE * 0.62, 0.34, 0.12), BRIDGE_TIMBER
+      );
+      rail.position.set(0, 0.7, side * TILE_SIZE * 0.16);
+      group.add(rail);
+    }
+    for (const side of [-1, 1]) {
+      const pier = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.13, 0.16, 0.9, 6), BRIDGE_TIMBER
+      );
+      pier.position.set(side * TILE_SIZE * 0.22, 0.05, 0);
+      group.add(pier);
+    }
+    group.position.set(bridge.mx, y + 0.12, bridge.mz);
+    // Der Steg liegt quer zum Fluss: läuft der Fluss in x-Richtung, führt die
+    // Brücke in z-Richtung darüber.
+    group.rotation.y = bridge.alongX ? 0 : Math.PI / 2;
+    riversGroup.add(group);
+  }
+}
+
+const BRIDGE_TIMBER = new THREE.MeshStandardMaterial({ color: '#7b5a33', roughness: 0.95 });
 
 function buildRoadNetwork(state) {
   while (roadsGroup.children.length) {
@@ -2188,6 +2281,9 @@ export function syncEntities(state) {
   // finished rather than on every state change.
   if (roadsGroup && (state.roadVersion || 0) !== roadVersionDrawn) {
     buildRoadNetwork(state);
+    // Eine neue Straße kann eine neue Brücke bedeuten - die Flüsse werden
+    // deshalb im selben Zug neu gezeichnet.
+    buildRivers(state);
     roadVersionDrawn = state.roadVersion || 0;
   }
 
@@ -2302,6 +2398,7 @@ export function setMapMode(mode, state) {
   const tactical = mapMode === 'tactical';
   if (propsGroup) propsGroup.visible = !tactical;
   if (roadsGroup) roadsGroup.visible = !tactical;
+  if (riversGroup) riversGroup.visible = !tactical;
   // Daylight adds up to about 1.7 and washes a flat colour out to near white.
   // The tactical view trades most of the sun for even light, keeping just
   // enough of it that the relief still shows.

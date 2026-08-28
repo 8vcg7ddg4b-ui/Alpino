@@ -1820,3 +1820,28 @@ html, body {
   .emp-table th:nth-child(2),
   .emp-table td:nth-child(2) { display: none; }
 }
+
+/* Zwei Reiter im Stadtfenster: was der Ort ist, und was sich an ihm tun lässt. */
+.city-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+.city-tabs button {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+}
+.city-tabs button:hover { color: #f4e9d2; }
+.city-tabs button.active {
+  color: #f4e9d2;
+  border-color: var(--gold);
+  background: rgba(217, 180, 81, 0.14);
+}
