@@ -132,8 +132,19 @@ den Punkten durchblättern.
 - **Gelände ansehen**: Ein Klick auf ein beliebiges Feld zeigt in der
   Seitenleiste Geländeart, Bewegungskosten, Verteidigungsbonus, Höhe über dem
   Meer und die geografische Lage – dazu, was auf dem Feld steht.
-- **Karte verschieben**: Ziehen mit Maus oder einem Finger, Pfeiltasten/WASD,
-  oder das Steuerkreuz unten links.
+- **Seitenleiste**: drei Reiter – **Auswahl**, **Fraktionen**, **Ereignisse**.
+  Es liegt immer nur einer offen; wer etwas anklickt, landet von selbst auf der
+  Auswahl, und neue Ereignisse melden sich mit einer Zahl am Reiter. Das
+  Protokoll führt Schlachten, Eroberungen und Jahreszeiten aller Fraktionen,
+  aber Rekrutierung, Straßen und Häfen nur für die eigene – sonst geht die
+  eigene Schlacht in der Buchhaltung von neun KI-Fraktionen unter.
+- **Armeen sind an ihrer Größe zu erkennen**: das Lager wächst mit der Stärke,
+  von einem einzelnen Zelt bei einer Handvoll Männern bis zum Zeltring mit
+  Führungszelt bei einem vollen Heer.
+- **Karte verschieben**: Ziehen mit Maus oder einem Finger, **Mausrad gedrückt
+  halten** und die Sicht frei bewegen (das geht auch dort, wo unter dem Zeiger
+  kein Boden liegt), Pfeiltasten/WASD oder das Steuerkreuz unten links.
+  **Umschalt + Mausrad gedrückt** dreht und neigt die Kamera.
 - **Drehen und Zoomen**: Auf dem Touchscreen zwei Finger – auseinander/zusammen
   zoomt, Verdrehen dreht die Karte. Am Rechner: Mausrad zoomt, Umschalt+Mausrad
   bzw. **Q**/**E** dreht. Die Knöpfe ↺ ↻ drehen, ⌂ setzt die Ansicht zurück.
@@ -177,6 +188,8 @@ den Punkten durchblättern.
   der beiden Orte an den Feind, wird der Bau abgebrochen.
 - **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
   Rekrutierung, Mauer- oder Straßenkauf, Auflösen oder ganzen Rundenwechsel.
+- **Bewegtes Meer**: Über die Wasserfläche läuft eine Dünung. In den
+  Einstellungen abschaltbar, wenn das Gerät die Bilder lieber spart.
 - **Ton**: 🔊 schaltet die Klänge um (Marsch, Schlacht, Rekrutierung, Mauerbau,
   Rundenwechsel …). Alle Geräusche werden zur Laufzeit synthetisiert – keine
   Audiodateien, funktioniert offline.
@@ -225,6 +238,9 @@ den Punkten durchblättern.
 
   Im Kampf rechnet jede Seite mit ihren eigenen Werten – ein Legionär hält
   anders stand als ein Falxträger, auch wenn beide „Fußvolk" heißen.
+- **Gallien und die Seleukiden beginnen mit zwei Heeren** statt einem: beide
+  stehen zwischen mehreren Nachbarn, und ein einziges Heer kann nur an einer
+  Front stehen. Alle anderen führen ein Heer von 540 Mann.
 - Jede Fraktion stellt ihr Heer auch anders auf: Gallier und Germanen setzen auf
   die Masse des Fußvolks, die Britannier auf den Streitwagen, die Iberer auf
   Schleuderer und Speerwerfer, die Daker auf Falx und Panzerreiter. Rom,

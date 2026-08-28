@@ -125,15 +125,65 @@ html, body {
   flex-shrink: 0;
   background: var(--panel);
   border-left: 2px solid var(--gold);
-  overflow-y: auto;
-  /* Scrollable, but the scroll stops at its own edge instead of chaining. */
+  /* Die Reiterleiste bleibt stehen, gescrollt wird im offenen Abschnitt. */
+  overflow: hidden;
   touch-action: pan-y;
   overscroll-behavior: contain;
-  padding: 14px;
+  padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
+
+/* --- Reiter --------------------------------------------------------------
+   Fraktionsübersicht, Auswahl und Protokoll standen früher untereinander;
+   zusammen waren das über hundert Zeilen, durch die man scrollen musste, um
+   die eigene Stadt zu sehen. Jetzt liegt immer nur einer davon offen. */
+#sidebarTabs {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.tab-btn {
+  flex: 1;
+  position: relative;
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px 6px 0 0;
+  border-bottom: 2px solid transparent;
+  padding: 7px 4px;
+  font-family: inherit;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+  background: var(--panel);
+}
+.tab-badge {
+  display: inline-block;
+  min-width: 16px;
+  margin-left: 5px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--gold);
+  color: #2a2119;
+  font-size: 0.66rem;
+  line-height: 15px;
+  vertical-align: 1px;
+}
+#sidebar > section {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#sidebar > section[hidden] { display: none; }
 
 #sidebar h2 {
   font-size: 0.85rem;
@@ -150,11 +200,14 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 4px;
-  font-size: 0.9rem;
+  padding: 5px 4px;
+  font-size: 0.86rem;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-#factionList li .muted { margin-left: auto; font-size: 0.8rem; }
+#factionList li .muted { margin-left: auto; font-size: 0.78rem; white-space: nowrap; }
+/* Die eigene Fraktion steht in der Übersicht hervorgehoben und ganz oben. */
+#factionList li.faction-self { color: var(--gold); }
+#factionList li.faction-self::after { content: 'du'; font-size: 0.66rem; letter-spacing: 0.1em; }
 #factionList li.faction-dead { opacity: 0.4; text-decoration: line-through; }
 
 .dot {
@@ -390,8 +443,7 @@ html, body {
 }
 .report-walls { color: var(--gold); }
 
-#logSection { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-#logPanel { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+#logPanel { display: flex; flex-direction: column; gap: 6px; }
 .log-line {
   font-size: 0.78rem;
   color: var(--muted);
@@ -1480,3 +1532,6 @@ html, body {
   .faction-detail { max-width: none; }
   .faction-head h2 { font-size: 1.1rem; }
 }
+
+/* Mit gedrücktem Mausrad wird die Sicht frei bewegt. */
+#gameCanvas.free-look { cursor: all-scroll; }

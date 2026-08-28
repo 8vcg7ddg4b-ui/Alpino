@@ -17,7 +17,7 @@ import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
   setMapMode, getMapMode, setMarchSpeed,
-  setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled,
+  setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled, setWaterAnimated,
 } from './scene3d.js';
 import { sfx, unlockAudio, toggleMuted, isMuted, stopMarch } from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
@@ -41,6 +41,7 @@ function applySettings() {
   setMarchSpeed(MARCH_SPEED_FACTORS[getSetting('marchSpeed')] ?? 1);
   setAiStance(AI_STANCE_THRESHOLDS[getSetting('aiStance')] ?? 0.5);
   setWeatherVisualsEnabled(getSetting('weatherEffects'));
+  setWaterAnimated(getSetting('waterMotion'));
 }
 applySettings();
 
@@ -99,6 +100,46 @@ function observeMapSize() {
     render();
   });
   observer.observe(canvas.parentElement);
+}
+
+// --- Reiter in der Seitenleiste -----------------------------------------
+// Auswahl, Fraktionen und Protokoll teilen sich denselben Platz. Wer etwas
+// anklickt, will die Auswahl sehen - dorthin springt die Leiste von selbst;
+// neue Ereignisse melden sich stattdessen mit einer Zahl am Reiter.
+
+let activeTab = 'selection';
+let seenLogLength = 0;
+
+function showSidebarTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('#sidebarTabs .tab-btn').forEach((button) => {
+    button.classList.toggle('active', button.dataset.tab === tab);
+  });
+  document.querySelectorAll('#sidebar > section').forEach((section) => {
+    section.hidden = section.dataset.panel !== tab;
+  });
+  if (tab === 'log' && state) {
+    seenLogLength = state.log.length;
+    paintLogBadge();
+  }
+}
+
+function paintLogBadge() {
+  const badge = document.querySelector('#sidebarTabs .tab-badge');
+  if (!badge || !state) return;
+  const unseen = activeTab === 'log' ? 0 : Math.max(0, state.log.length - seenLogLength);
+  badge.textContent = unseen > 9 ? '9+' : String(unseen);
+  badge.classList.toggle('hidden', unseen === 0);
+}
+
+function setupSidebarTabs() {
+  document.querySelectorAll('#sidebarTabs .tab-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      sfx.select();
+      showSidebarTab(button.dataset.tab);
+    });
+  });
+  showSidebarTab('selection');
 }
 
 function setupSidebarToggle() {
@@ -350,9 +391,20 @@ function confirmPendingAttack() {
   if (run) run();
 }
 
+// Was zuletzt angewählt war - wechselt es, springt die Leiste auf die Auswahl.
+let lastSelectionKey = '';
+
 function refresh() {
   if (!state) return;
   syncSelection();
+  const selectionKey = [state.selectedArmyId, state.selectedCityId,
+    state.inspectedTile && `${state.inspectedTile.col},${state.inspectedTile.row}`].join('|');
+  if (selectionKey !== lastSelectionKey) {
+    lastSelectionKey = selectionKey;
+    if (state.selectedArmyId || state.selectedCityId || state.inspectedTile) {
+      showSidebarTab('selection');
+    }
+  }
   syncEntities(state);
   render();
   renderUI(state, {
@@ -403,6 +455,7 @@ function refresh() {
   });
 
   undoBtn.disabled = undoStack.length === 0;
+  paintLogBadge();
 }
 
 function endTurn() {
@@ -774,6 +827,7 @@ setupFullscreenButton(document.getElementById('fullscreenBtn'));
 setupFullscreenButton(document.getElementById('menuFullscreenBtn'));
 reflectFullscreenAvailability();
 setupSidebarToggle();
+setupSidebarTabs();
 setupMuteButton();
 setupMapModeButton();
 setupDpad();

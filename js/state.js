@@ -273,6 +273,16 @@ export function unitTotalCount(units) {
 
 // Log entries carry an optional battle-report id so the sidebar can turn them
 // into links back into the full report.
+// Wirtschaftsmeldungen fremder Fraktionen sind Rauschen: über zehn Fraktionen
+// hinweg füllen Rekrutierung, Straßen und Häfen das Protokoll so schnell, dass
+// die eigene Schlacht darin untergeht. Solche Zeilen erscheinen deshalb nur für
+// die eigene Fraktion - Schlachten, Eroberungen und Jahreszeiten für alle.
+export function logOwn(state, factionId, msg, reportId = null) {
+  const faction = state.factions.find((f) => f.id === factionId);
+  if (!faction || !faction.isPlayer) return;
+  logMsg(state, msg, reportId);
+}
+
 export function logMsg(state, msg, reportId = null) {
   state.log.unshift({ text: msg, reportId });
   if (state.log.length > 60) state.log.length = 60;

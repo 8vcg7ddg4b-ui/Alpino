@@ -110,7 +110,13 @@ export const FACTIONS = [
   // Schwert - viel Infanterie, wenig anderes.
   {
     id: 'gallier', name: 'Gallier', color: '#27632a',
-    startingArmy: { infantry: 380, cavalry: 110, ranged: 50 },
+    // Gallien liegt am Kreuzweg: Germanen im Osten, Iberer im Süden,
+    // Britannier über dem Kanal. Ein einziges Heer kann nur an einer Front
+    // stehen - deshalb hebt der Heerbann zwei aus.
+    startingArmies: [
+      { infantry: 300, cavalry: 80, ranged: 40 },
+      { infantry: 260, cavalry: 70, ranged: 30 },
+    ],
     armyLabel: 'Heerbann',
   },
   { id: 'griechen', name: 'Griechen', color: '#7a4fae' },
@@ -183,8 +189,8 @@ export const FACTION_PROFILES = {
   },
   gallier: {
     difficulty: 'schwer',
-    blurb: 'Sechs Städte in Gallien – und als Einzige drei feindliche Nachbarn zugleich.',
-    strength: 'Schwertkämpfer mit dem härtesten Angriff unter dem Fußvolk.',
+    blurb: 'Sechs Städte in Gallien – und als Einzige drei feindliche Nachbarn zugleich. Dafür hebt der Heerbann zwei Heere aus.',
+    strength: 'Schwertkämpfer mit dem härtesten Angriff unter dem Fußvolk – und zwei Heere, um an zwei Fronten zu stehen.',
     weakness: 'Kein Hafen, wenig freies Land, Feinde an drei Seiten.',
   },
   griechen: {

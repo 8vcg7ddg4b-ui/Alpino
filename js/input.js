@@ -2,7 +2,8 @@ import { computeReachable, tileKey } from './pathfind.js';
 import { armyAt, cityAt, playerFaction } from './state.js';
 import { moveArmy, previewTileCombat } from './actions.js';
 import {
-  pickTile, groundPointAt, panCameraByWorld, panCameraRelative, zoomCamera, rotateCamera,
+  pickTile, groundPointAt, panCameraByWorld, panCameraRelative, panCameraByScreen,
+  zoomCamera, rotateCamera,
   animateArmyPath, playBattleClash, isAnimating,
 } from './scene3d.js';
 import { sfx, startMarch, stopMarch } from './audio.js';
@@ -60,6 +61,10 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
   let dragMoved = false;
   let dragAnchor = null;
   let pinch = null;
+  // Mit gedrücktem Mausrad wird die Sicht frei bewegt - unabhängig davon, ob
+  // unter dem Zeiger Boden oder Himmel liegt. Mit Umschalt dazu wird gedreht
+  // und geneigt.
+  let freeLook = null;
 
   const pointerNdc = (e) => toNdc(canvas, e.clientX, e.clientY);
 
@@ -83,6 +88,15 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
   }
 
   canvas.addEventListener('pointerdown', (e) => {
+    // Mausrad gedrückt: freies Bewegen, ohne Auswahl und ohne die
+    // Bildlauf-Automatik des Browsers.
+    if (e.button === 1) {
+      e.preventDefault();
+      capturePointer(e.pointerId);
+      freeLook = { id: e.pointerId, x: e.clientX, y: e.clientY, turn: e.shiftKey };
+      canvas.classList.add('free-look');
+      return;
+    }
     capturePointer(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -98,6 +112,17 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
   });
 
   canvas.addEventListener('pointermove', (e) => {
+    if (freeLook && e.pointerId === freeLook.id) {
+      e.preventDefault();
+      const dx = e.clientX - freeLook.x;
+      const dy = e.clientY - freeLook.y;
+      freeLook.x = e.clientX;
+      freeLook.y = e.clientY;
+      if (freeLook.turn) rotateCamera(dx * 0.006, -dy * 0.004);
+      else panCameraByScreen(dx, dy, canvas.clientHeight);
+      onChange();
+      return;
+    }
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -133,6 +158,12 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
   }, { passive: false });
 
   function endPointer(e) {
+    if (freeLook && e.pointerId === freeLook.id) {
+      freeLook = null;
+      releasePointer(e.pointerId);
+      canvas.classList.remove('free-look');
+      return;
+    }
     if (!pointers.has(e.pointerId)) return;
     const wasSingleTap = pointers.size === 1 && !dragMoved;
     pointers.delete(e.pointerId);
@@ -147,6 +178,10 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
 
   canvas.addEventListener('pointerup', endPointer);
   canvas.addEventListener('pointercancel', endPointer);
+  // Ohne das öffnet der Mittelklick in manchen Browsern die Bildlauf-Automatik
+  // oder einen Link im neuen Tab.
+  canvas.addEventListener('auxclick', (e) => { if (e.button === 1) e.preventDefault(); });
+  canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();

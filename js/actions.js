@@ -17,7 +17,7 @@ import { landRoute } from './mapgen.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import { resolveBattle, forecastBattle } from './combat.js';
 import {
-  makeId, factionById, cityAt, armyAt, unitTotalCount, logMsg, playerFaction,
+  makeId, factionById, cityAt, armyAt, unitTotalCount, logMsg, logOwn, playerFaction,
   isWaterTile, isCoastalCity, harbourTile,
 } from './state.js';
 import {
@@ -516,7 +516,7 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   // here on.
   for (const promoted of promotions) {
     if (!state.armies.includes(promoted)) continue;
-    logMsg(state, `${starMarks(promoted.experience)} ${promoted.name} steigt auf: `
+    logOwn(state, promoted.factionId, `${starMarks(promoted.experience)} ${promoted.name} steigt auf: `
       + `${starTitle(promoted.experience)}.`);
   }
 
@@ -552,7 +552,7 @@ export function moveArmy(state, armyId, destCol, destRow) {
     army.row = destRow;
     const landed = comeAshore(state, army);
     if (landed) {
-      logMsg(state, `${factionById(state, army.factionId).name}: ${army.name} geht an Land.`);
+      logOwn(state, army.factionId, `${army.name} geht an Land.`);
     }
     return { ok: true, combat: false, landed, reports: [] };
   }
@@ -590,7 +590,7 @@ export function embarkArmy(state, armyId) {
   army.embarked = true;
   army.maxMovement = NAVAL_MOVEMENT;
   army.movement = 0;
-  logMsg(state, `${faction.name}: ${army.name} sticht in ${city.name} in See (${SHIP_COST} Gold).`);
+  logOwn(state, faction.id, `${army.name} sticht in ${city.name} in See (${SHIP_COST} Gold).`);
   return { ok: true };
 }
 
@@ -624,7 +624,7 @@ export function recruitUnit(state, cityId, unitKey) {
   if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
   faction.gold -= def.cost;
   city.garrison[unitKey] = (city.garrison[unitKey] || 0) + RECRUIT_BATCH;
-  logMsg(state, `${faction.name} rekrutiert ${RECRUIT_BATCH} ${def.name} in ${city.name}.`);
+  logOwn(state, faction.id, `${RECRUIT_BATCH} ${def.name} in ${city.name} ausgehoben.`);
   return { ok: true };
 }
 
@@ -648,7 +648,7 @@ export function raiseArmyFromGarrison(state, cityId) {
     }
     for (const key of UNIT_ROLES) existing.units[key] = (existing.units[key] || 0) + (city.garrison[key] || 0);
     city.garrison = {};
-    logMsg(state, `${faction.name}: Verstärkung aus ${city.name} schließt sich der Armee an.`);
+    logOwn(state, faction.id, `Verstärkung aus ${city.name} schließt sich der Armee an.`);
     return { ok: true, armyId: existing.id };
   }
 
@@ -662,7 +662,7 @@ export function raiseArmyFromGarrison(state, cityId) {
   };
   state.armies.push(newArmy);
   city.garrison = {};
-  logMsg(state, `${faction.name} stellt in ${city.name} eine neue Armee auf.`);
+  logOwn(state, faction.id, `Neue Armee in ${city.name} aufgestellt.`);
   return { ok: true, armyId: newArmy.id };
 }
 
@@ -681,7 +681,7 @@ export function disbandArmyIntoCity(state, armyId) {
   }
   removeArmy(state, army.id);
   const faction = factionById(state, city.factionId);
-  logMsg(state, `${faction.name}: ${joined.toLocaleString('de-DE')} Mann treten in ${city.name} der Garnison bei.`);
+  logOwn(state, faction.id, `${joined.toLocaleString('de-DE')} Mann treten in ${city.name} der Garnison bei.`);
   return { ok: true, cityId: city.id, joined };
 }
 
@@ -700,7 +700,7 @@ export function buyCityWalls(state, cityId) {
 
   faction.gold -= stage.cost;
   city.wallBuilding = { level, turnsLeft: stage.turns };
-  logMsg(state, `${faction.name} beginnt in ${city.name} den Bau der ${stage.name} (${stage.turns} Runden).`);
+  logOwn(state, faction.id, `${city.name}: Bau der ${stage.name} begonnen (${stage.turns} Runden).`);
   return { ok: true, level };
 }
 
@@ -713,7 +713,7 @@ export function advanceWallConstruction(state) {
     city.wallLevel = city.wallBuilding.level;
     city.wallBuilding = null;
     finished.push(city);
-    logMsg(state, `${wallLevelInfo(city.wallLevel).name} von ${city.name} fertiggestellt.`);
+    logOwn(state, city.factionId, `${wallLevelInfo(city.wallLevel).name} von ${city.name} fertiggestellt.`);
   }
   return finished;
 }
@@ -837,7 +837,7 @@ export function buyRoad(state, cityId, targetCityId) {
     turnsLeft: turns,
     turns,
   });
-  logMsg(state, `${faction.name} beginnt die Straße ${city.name} – ${target.name} (${length} Felder, ${turns} Runden, ${cost} Gold).`);
+  logOwn(state, faction.id, `Straßenbau ${city.name} – ${target.name} begonnen (${length} Felder, ${turns} Runden, ${cost} Gold).`);
   return { ok: true, cost, turns, length };
 }
 
@@ -851,7 +851,7 @@ export function advanceRoadConstruction(state) {
     const to = state.cities.find((c) => c.id === project.toId);
     if (!from || !to || from.factionId !== project.factionId || to.factionId !== project.factionId) {
       projects.splice(i, 1);
-      logMsg(state, `Der Straßenbau ${project.fromName} – ${project.toName} wird abgebrochen.`);
+      logOwn(state, project.factionId, `Der Straßenbau ${project.fromName} – ${project.toName} wird abgebrochen.`);
       continue;
     }
     project.turnsLeft -= 1;
@@ -860,7 +860,7 @@ export function advanceRoadConstruction(state) {
     state.roadVersion = (state.roadVersion || 0) + 1;
     projects.splice(i, 1);
     finished.push(project);
-    logMsg(state, `🛣️ Die Straße ${project.fromName} – ${project.toName} ist fertig.`);
+    logOwn(state, project.factionId, `🛣️ Die Straße ${project.fromName} – ${project.toName} ist fertig.`);
   }
   return finished;
 }
@@ -887,7 +887,7 @@ export function buyHarbour(state, cityId) {
 
   faction.gold -= HARBOUR_COST;
   city.harbourBuilding = { turnsLeft: HARBOUR_TURNS };
-  logMsg(state, `${faction.name} beginnt in ${city.name} den Bau eines ${HARBOUR_NAME}s (${HARBOUR_TURNS} Runden).`);
+  logOwn(state, faction.id, `${city.name}: Bau eines ${HARBOUR_NAME}s begonnen (${HARBOUR_TURNS} Runden).`);
   return { ok: true };
 }
 
@@ -900,7 +900,7 @@ export function advanceHarbourConstruction(state) {
     city.harbour = true;
     city.harbourBuilding = null;
     finished.push(city);
-    logMsg(state, `⚓ Der ${HARBOUR_NAME} von ${city.name} ist fertig.`);
+    logOwn(state, city.factionId, `⚓ Der ${HARBOUR_NAME} von ${city.name} ist fertig.`);
   }
   return finished;
 }
@@ -923,7 +923,9 @@ export function applyWeather(state) {
   }
   // Only the player's own hardship is worth a line in the log.
   for (const [weather, count] of suffering) {
-    const subject = count === 1 ? 'Eine Armee Roms leidet' : `${count} Armeen Roms leiden`;
+    const subject = count === 1
+      ? `Eine Armee ${player.name}s leidet`
+      : `${count} Armeen ${player.name}s leiden`;
     logMsg(state, `${weather.icon} ${subject} unter ${weather.name}.`);
   }
 }

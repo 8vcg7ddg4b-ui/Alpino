@@ -453,12 +453,11 @@ function terrainFactsHTML(state, col, row) {
     facts.push(['Bewegung', `zur See ${SEA_MOVE_COST} Punkt je Feld · für Landarmeen unpassierbar`]);
   } else {
     const paved = !!(state.roads && state.roads[`${col},${row}`]);
+    const stride = paved ? Math.min(ROAD_MOVE_COST, def.cost) : def.cost;
+    const saved = paved && def.cost > ROAD_MOVE_COST ? ` (Straße statt ${def.cost})` : '';
     facts.push(['Bewegungskosten', def.impassable
       ? 'unpassierbar'
-      : paved
-        ? `🛣️ Straße: ${ROAD_MOVE_COST} ${ROAD_MOVE_COST === 1 ? 'Punkt' : 'Punkte'} je Feld
-           (statt ${def.cost})`
-        : `${def.cost} ${def.cost === 1 ? 'Punkt' : 'Punkte'} je Feld`]);
+      : `${paved ? '🛣️ ' : ''}${stride} ${stride === 1 ? 'Punkt' : 'Punkte'} je Feld${saved}`]);
     facts.push(['Verteidigung', def.defense > 0
       ? `+${Math.round(def.defense * 15)}% für den Verteidiger`
       : 'kein Geländevorteil']);
@@ -494,12 +493,14 @@ export function terrainPanelHTML(state, tile) {
   const city = cityAt(state, col, row);
   const army = armyAt(state, col, row);
   const occupants = [];
-  if (city) {
+  // Was oben schon als Auswahl steht, wird hier nicht wiederholt.
+  const shownAbove = new Set([state.selectedCityId, state.selectedArmyId].filter(Boolean));
+  if (city && !shownAbove.has(city.id)) {
     const owner = factionById(state, city.factionId);
     occupants.push(`<span class="dot" style="background:${owner.color}"></span>
       ${escapeHTML(city.name)} <em>${settlementLabel(city)}, ${escapeHTML(owner.name)}</em>`);
   }
-  if (army) {
+  if (army && !shownAbove.has(army.id)) {
     const owner = factionById(state, army.factionId);
     occupants.push(`<span class="dot" style="background:${owner.color}"></span>
       ${escapeHTML(army.name)} <span class="vet-stars">${starMarks(army.experience)}</span>
@@ -513,8 +514,10 @@ export function terrainPanelHTML(state, tile) {
       .some(([dc, dr]) => isWaterTile(state, col + dc, row + dr));
     if (shore) notes.push('Küstenfeld – eine Flotte kann hier landen.');
   }
-  if (city && isCoastalCity(state, city)) notes.push('Hafen – hier kann eine Armee in See stechen.');
-  if (city && cityWallLevel(city)) notes.push(`Befestigt: ${wallLevelName(cityWallLevel(city))}.`);
+  if (city && !shownAbove.has(city.id)) {
+    if (city.harbour) notes.push('Hafen – hier kann eine Armee in See stechen.');
+    if (cityWallLevel(city)) notes.push(`Befestigt: ${wallLevelName(cityWallLevel(city))}.`);
+  }
 
   // Whose ground this is in the sense that matters for movement. Only hostile
   // control is worth saying - your own army holding the ground next to your
@@ -552,17 +555,25 @@ export function renderUI(state, handlers) {
   const player = playerFaction(state);
   document.getElementById('goldLabel').textContent = `💰 ${player.gold} Gold`;
 
+  // Die eigene Fraktion zuerst, danach die lebenden nach Größe - wer vorne
+  // steht, ist die Frage, die den Spieler betrifft.
   const factionList = document.getElementById('factionList');
-  factionList.innerHTML = state.factions
+  const rows = state.factions
     .filter((f) => !f.isNeutral)
-    .map((f) => {
-      const cities = state.cities.filter((c) => c.factionId === f.id).length;
-      const armies = state.armies.filter((a) => a.factionId === f.id).length;
-      const dead = !f.alive ? ' faction-dead' : '';
-      return `<li class="${dead}"><span class="dot" style="background:${f.color}"></span>${f.name}
-        <span class="muted">🏛️${cities} · ⚔️${armies}</span></li>`;
-    })
-    .join('');
+    .map((f) => ({
+      faction: f,
+      cities: state.cities.filter((c) => c.factionId === f.id).length,
+      armies: state.armies.filter((a) => a.factionId === f.id).length,
+    }))
+    .sort((a, b) => (b.faction.isPlayer ? 1 : 0) - (a.faction.isPlayer ? 1 : 0)
+      || b.cities - a.cities || b.armies - a.armies);
+  factionList.innerHTML = rows.map(({ faction, cities, armies }) => {
+    const classes = [!faction.alive ? 'faction-dead' : '', faction.isPlayer ? 'faction-self' : '']
+      .filter(Boolean).join(' ');
+    return `<li class="${classes}"><span class="dot" style="background:${faction.color}"></span>${
+      escapeHTML(faction.name)}
+      <span class="muted">🏛️${cities} · ⚔️${armies}</span></li>`;
+  }).join('');
 
   const panel = document.getElementById('selectedPanel');
   if (state.selectedArmyId) {

@@ -143,7 +143,7 @@
       <div id="mapWrap">
         <canvas id="gameCanvas"></canvas>
         <div id="weatherVeil" data-effect="clear" aria-hidden="true"></div>
-        <div id="mapHint">Ziehen zum Verschieben · zwei Finger zum Drehen und Zoomen · Armee antippen, dann Zielfeld wählen</div>
+        <div id="mapHint">Ziehen oder Mausrad gedrückt halten zum Verschieben · Umschalt dazu dreht · zwei Finger zum Drehen und Zoomen · Armee antippen, dann Zielfeld wählen</div>
         <div id="toast" class="hidden"></div>
 
         <div id="mapControls">
@@ -165,18 +165,22 @@
         </div>
       </div>
 
+      <!-- Drei Reiter statt drei untereinander gestapelter Blöcke: die
+           Seitenleiste zeigt immer nur das, wonach gefragt wurde. -->
       <aside id="sidebar">
-        <section>
-          <h2>Fraktionen</h2>
-          <ul id="factionList"></ul>
-        </section>
-        <section id="selectedSection">
-          <h2>Auswahl</h2>
+        <nav id="sidebarTabs">
+          <button class="tab-btn active" data-tab="selection">Auswahl</button>
+          <button class="tab-btn" data-tab="factions">Fraktionen</button>
+          <button class="tab-btn" data-tab="log">Ereignisse<span class="tab-badge hidden"></span></button>
+        </nav>
+        <section id="selectedSection" data-panel="selection">
           <div id="selectedPanel"><p class="muted">Klicke auf ein Feld, eine Armee oder eine Stadt.</p></div>
           <div id="terrainPanel"></div>
         </section>
-        <section id="logSection">
-          <h2>Ereignisse</h2>
+        <section id="factionSection" data-panel="factions" hidden>
+          <ul id="factionList"></ul>
+        </section>
+        <section id="logSection" data-panel="log" hidden>
           <div id="logPanel"></div>
         </section>
       </aside>

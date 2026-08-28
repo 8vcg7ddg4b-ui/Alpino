@@ -77,15 +77,37 @@ function tileTopY(elevation) {
 // anything afloat has to sit on that plane rather than on the sea bed.
 const SEA_LEVEL_Y = TILE_TYPES.water.elevation * ELEV_SCALE + 0.3;
 
+// Die Höhe des Geländes an einer beliebigen Stelle - auch zwischen zwei
+// Feldmitten. Das Gelände ist ein Netz aus Dreiecken, und genau dieselbe
+// Dreiecksteilung wird hier nachgerechnet: sonst schwebt oder versinkt alles,
+// was nicht genau auf einer Feldmitte steht - Bäume, Berge, eine marschierende
+// Armee zwischen zwei Feldern.
+function groundY(colF, rowF) {
+  if (!currentMap) return 0;
+  const { cols, rows, tiles } = currentMap;
+  const c = Math.max(0, Math.min(cols - 2, Math.floor(colF)));
+  const r = Math.max(0, Math.min(rows - 2, Math.floor(rowF)));
+  const u = Math.max(0, Math.min(1, colF - c));
+  const v = Math.max(0, Math.min(1, rowF - r));
+  const h = (dc, dr) => tileTopY(tiles[r + dr][c + dc].elevation);
+  // Die Quads sind entlang der Diagonale von (1,0) nach (0,1) geteilt.
+  if (u + v <= 1) {
+    const a = h(0, 0);
+    return a + (h(1, 0) - a) * u + (h(0, 1) - a) * v;
+  }
+  const d = h(1, 1);
+  return d + (h(1, 0) - d) * (1 - v) + (h(0, 1) - d) * (1 - u);
+}
+
 // The height an army, fleet or town actually stands at on a given tile.
 // Waypoints may sit between tile centres (a repelled army lunges partway into
-// the defender's tile), so the lookup rounds to the nearest tile.
+// the defender's tile), which is why the ground is sampled, not looked up.
 function surfaceY(col, row) {
   if (!currentMap) return 0;
   const c = Math.max(0, Math.min(currentMap.cols - 1, Math.round(col)));
   const r = Math.max(0, Math.min(currentMap.rows - 1, Math.round(row)));
-  const tile = currentMap.tiles[r][c];
-  return tile.type === 'water' ? SEA_LEVEL_Y : tileTopY(tile.elevation);
+  if (currentMap.tiles[r][c].type === 'water') return SEA_LEVEL_Y;
+  return groundY(col, row);
 }
 
 function makeLabelSprite(text, opts = {}) {
@@ -176,6 +198,22 @@ export function panCameraRelative(right, forward) {
   applyCamera();
 }
 
+// Freies Verschieben mit gedrücktem Mausrad: Pixel werden in Weltmaß
+// umgerechnet, damit die Karte unter dem Zeiger bleibt - nah herangezoomt
+// bewegt derselbe Weg entsprechend weniger.
+export function panCameraByScreen(dxPixels, dyPixels, viewHeightPx) {
+  if (!camera || !viewHeightPx) return;
+  const dist = BASE_DISTANCE / cam.zoom;
+  const worldPerPixel = (2 * dist * Math.tan((camera.fov * Math.PI) / 360)) / viewHeightPx;
+  // Die Kamera blickt schräg von oben: was am Bildschirm senkrecht ist, liegt
+  // am Boden flacher, je flacher der Blickwinkel.
+  const forwardScale = 1 / Math.max(0.35, Math.sin(cam.polar));
+  panCameraRelative(
+    (-dxPixels * worldPerPixel) / TILE_SIZE,
+    (dyPixels * worldPerPixel * forwardScale) / TILE_SIZE
+  );
+}
+
 export function resize(width, height) {
   if (!renderer) return;
   renderer.setSize(width, height, false);
@@ -214,34 +252,39 @@ export function zoomCamera(factor) {
 // Props are collected as plain transforms first and drawn as instanced meshes
 // afterwards. On a map this size there are thousands of them, and one draw
 // call per tree would cost more than everything else on screen put together.
-function collectTree(props, col, row, topY, rng) {
-  const jx = (rng() - 0.5) * TILE_SIZE * 0.4;
-  const jz = (rng() - 0.5) * TILE_SIZE * 0.4;
+function collectTree(props, col, row, rng) {
+  const jx = (rng() - 0.5) * 0.4;
+  const jz = (rng() - 0.5) * 0.4;
   const scale = 0.8 + rng() * 0.5;
-  props.trunks.push({ x: worldX(col) + jx, y: topY + 0.55 * scale, z: worldZ(row) + jz, s: scale, r: 0 });
-  props.leaves.push({
-    x: worldX(col) + jx, y: topY + 1.9 * scale, z: worldZ(row) + jz,
-    s: scale, r: rng() * Math.PI,
-  });
+  // Auf dem Boden dort, wo der Baum wirklich steht - nicht auf der Höhe der
+  // Feldmitte, die am Hang mehrere Meter daneben liegt.
+  const topY = groundY(col + jx, row + jz) - 0.1;
+  const x = worldX(col) + jx * TILE_SIZE;
+  const z = worldZ(row) + jz * TILE_SIZE;
+  props.trunks.push({ x, y: topY + 0.55 * scale, z, s: scale, r: 0 });
+  props.leaves.push({ x, y: topY + 1.9 * scale, z, s: scale, r: rng() * Math.PI });
 }
 
 // Peaks scale with how high the underlying crest already is, so a tile on the
 // spine grows a tall cluster while a saddle only gets low rocks - the range
 // then reads as a varied silhouette rather than a row of identical cones.
 function collectPeak(props, col, row, elevation, rng) {
-  const topY = tileTopY(elevation);
   const prominence = Math.min(1, Math.max(0, (elevation - 1.2) / 1.9));
   const count = 1 + Math.floor(rng() * 2 + prominence * 1.6);
 
   for (let i = 0; i < count; i++) {
-    const jx = (rng() - 0.5) * TILE_SIZE * 0.75;
-    const jz = (rng() - 0.5) * TILE_SIZE * 0.75;
+    const jx = (rng() - 0.5) * 0.75;
+    const jz = (rng() - 0.5) * 0.75;
     const height = (1.1 + prominence * 3.4) * (0.55 + rng() * 0.75);
     const snowy = prominence > 0.55 && rng() < 0.55 + prominence * 0.4;
+    // Der Fuß des Kegels steckt ein Stück im Hang: am Rand eines Gebirgsfelds
+    // fällt das Gelände steil ab, und ein Kegel auf der Höhe der Feldmitte
+    // stünde dort in der Luft.
+    const base = groundY(col + jx, row + jz) - height * 0.18;
     (snowy ? props.snowPeaks : props.rockPeaks).push({
-      x: worldX(col) + jx,
-      y: topY + height / 2 - 0.25,
-      z: worldZ(row) + jz,
+      x: worldX(col) + jx * TILE_SIZE,
+      y: base + height / 2,
+      z: worldZ(row) + jz * TILE_SIZE,
       s: height,
       r: rng() * Math.PI * 2,
     });
@@ -367,7 +410,7 @@ export function buildMap(state) {
       uvs[i * 2 + 1] = row / 3;
 
       if (tile.type !== 'water') {
-        if (TILE_TYPES[tile.type].deco === 'tree' && rng() < 0.85) collectTree(props, col, row, tileTopY(tile.elevation), rng);
+        if (TILE_TYPES[tile.type].deco === 'tree' && rng() < 0.85) collectTree(props, col, row, rng);
         if (TILE_TYPES[tile.type].deco === 'peak') collectPeak(props, col, row, tile.elevation, rng);
       }
     }
@@ -419,15 +462,21 @@ export function buildMap(state) {
   scene.add(deepSeaMesh);
 
   waterMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(seaSize, seaSize),
-    new THREE.MeshStandardMaterial({ color: TILE_TYPES.water.color, transparent: true, opacity: 0.82, roughness: 0.25 })
+    new THREE.PlaneGeometry(seaSize, seaSize, WATER_SEGMENTS, WATER_SEGMENTS),
+    new THREE.MeshStandardMaterial({
+      color: TILE_TYPES.water.color, transparent: true, opacity: 0.82, roughness: 0.25,
+    })
   );
   waterMesh.rotation.x = -Math.PI / 2;
   waterMesh.position.y = SEA_LEVEL_Y;
   scene.add(waterMesh);
+  waterRest = Float32Array.from(waterMesh.geometry.getAttribute('position').array);
+  shapeWater(0);
 
   buildProps(props);
   buildRoadNetwork(state);
+  // Die Dünung hält die Bildschleife am Laufen, sobald die Karte steht.
+  startAnimationLoop();
   roadVersionDrawn = state.roadVersion || 0;
 }
 
@@ -797,12 +846,23 @@ function placeHarbour(harbour, city, sea, cityY) {
   harbour.rotation.y = Math.atan2(-dz, dx);
 }
 
+// Wie groß ein Heer auf der Karte erscheint. Ein Trupp von 80 Mann und ein
+// Heer von 900 sollen sich schon von weitem unterscheiden - deshalb wächst
+// beides: die Zahl der Zelte und die Größe des ganzen Lagers.
 function tierForCount(count) {
-  if (count >= 700) return 5;
-  if (count >= 500) return 4;
-  if (count >= 300) return 3;
-  if (count >= 100) return 2;
+  if (count >= 900) return 8;
+  if (count >= 700) return 7;
+  if (count >= 520) return 6;
+  if (count >= 380) return 5;
+  if (count >= 260) return 4;
+  if (count >= 160) return 3;
+  if (count >= 80) return 2;
   return 1;
+}
+
+// 0,68 für eine Handvoll Männer bis 1,45 für ein volles Heer.
+function armyScale(count) {
+  return 0.68 + Math.min(1, count / 850) * 0.77;
 }
 
 // A single ship: hull, mast and sail. The whole fleet is drawn as one vessel
@@ -914,16 +974,26 @@ function syncArmyGroup(state, army, entry) {
   if (group.userData.pole) group.userData.pole.visible = !afloat;
   group.userData.banner.visible = !afloat;
 
-  const tierCount = tierForCount(unitTotalCount(army.units));
+  const strength = unitTotalCount(army.units);
+  const tierCount = tierForCount(strength);
+  const scale = armyScale(strength);
   const tents = group.userData.tents;
   while (tents.children.length < tierCount) {
+    const idx = tents.children.length;
+    // Das erste Zelt ist das Führungszelt in der Mitte, die übrigen stehen im
+    // Ring darum - und je mehr es werden, desto weiter wird der Ring.
+    const big = idx === 0;
     const tent = new THREE.Mesh(
-      new THREE.ConeGeometry(0.55, 1.1, 6),
+      new THREE.ConeGeometry(big ? 0.72 : 0.5, big ? 1.5 : 1, 6),
       new THREE.MeshStandardMaterial({ color: faction.color })
     );
-    const idx = tents.children.length;
-    const angle = (idx / 6) * Math.PI * 2;
-    tent.position.set(Math.cos(angle) * 1.1, 0.55, Math.sin(angle) * 1.1);
+    const angle = ((idx - 1) / 7) * Math.PI * 2 + 0.4;
+    const radius = idx > 4 ? 1.85 : 1.15;
+    tent.position.set(
+      big ? 0 : Math.cos(angle) * radius,
+      big ? 0.75 : 0.5,
+      big ? 0 : Math.sin(angle) * radius
+    );
     tents.add(tent);
   }
   while (tents.children.length > tierCount) {
@@ -931,6 +1001,17 @@ function syncArmyGroup(state, army, entry) {
   }
   tents.children.forEach((tent) => { tent.material.color.set(faction.color); });
   group.userData.banner.material.color.set(faction.color);
+
+  // Das ganze Lager - Zelte, Stange, Banner, Schiff - wächst mit der Stärke.
+  tents.scale.setScalar(scale);
+  if (ship) ship.scale.setScalar(0.8 + (scale - 0.68) * 0.55);
+  if (group.userData.pole) {
+    group.userData.pole.scale.set(1, scale, 1);
+    group.userData.pole.position.y = 1.6 * scale;
+  }
+  group.userData.banner.scale.setScalar(scale);
+  group.userData.banner.position.set(0.7 * scale, 2.6 * scale, 0);
+  group.userData.ring.scale.setScalar(Math.max(1, scale));
 
   if (group.userData.label) group.remove(group.userData.label);
   // Strength, and the stars it has earned - both belong on the counter itself.
@@ -941,7 +1022,7 @@ function syncArmyGroup(state, army, entry) {
   const label = makeLabelSprite(caption, {
     fontSize: 40, scale: 0.85, color: stars ? '#ffe9a8' : '#ffffff',
   });
-  label.position.y = afloat ? 4.2 : 3.6;
+  label.position.y = (afloat ? 4.0 : 3.4) * scale + 0.5;
   group.add(label);
   group.userData.label = label;
 
@@ -1378,6 +1459,49 @@ function advanceWeatherPoints(dt) {
   return true;
 }
 
+// --- Wellengang ----------------------------------------------------------
+// Das Meer ist kein Blech: über die Wasserfläche laufen zwei gekreuzte
+// Dünungen, langsam genug, dass es ruhig wirkt, und flach genug, dass keine
+// Welle über die Küste schwappt (zwischen Wasserspiegel und dem niedrigsten
+// Land liegen 0,86 Einheiten - die Wellen bleiben deutlich darunter).
+const WATER_SEGMENTS = 84;
+const WAVE_HEIGHT = 0.22;
+let waterRest = null;
+let waterTime = 0;
+let waterAnimated = true;
+
+// Die Fläche liegt vor der Drehung in der XY-Ebene: die Auslenkung geht
+// deshalb in Z, nicht in Y.
+function shapeWater(time) {
+  if (!waterMesh || !waterRest) return;
+  const attribute = waterMesh.geometry.getAttribute('position');
+  const array = attribute.array;
+  for (let i = 0; i < array.length; i += 3) {
+    const x = waterRest[i];
+    const y = waterRest[i + 1];
+    array[i + 2] = Math.sin(x * 0.09 + time * 1.1) * WAVE_HEIGHT
+      + Math.sin((x * 0.035 + y * 0.045) + time * 0.7) * WAVE_HEIGHT * 0.75
+      + Math.sin(y * 0.13 - time * 1.5) * WAVE_HEIGHT * 0.45;
+  }
+  attribute.needsUpdate = true;
+  waterMesh.geometry.computeVertexNormals();
+}
+
+function advanceWater(dt) {
+  if (!waterMesh || !waterAnimated) return false;
+  waterTime += dt;
+  shapeWater(waterTime);
+  return true;
+}
+
+// Wer die Wettereffekte abschaltet, will Ruhe auf dem Bildschirm - dann steht
+// auch das Meer still, und die Bildschleife darf enden.
+export function setWaterAnimated(enabled) {
+  waterAnimated = !!enabled;
+  if (!waterAnimated) shapeWater(0);
+  else startAnimationLoop();
+}
+
 export function render() {
   if (renderer) renderer.render(scene, camera);
 }
@@ -1462,8 +1586,11 @@ function startAnimationLoop() {
     const marching = advanceAnimations(dt);
     const effecting = advanceEffects(dt);
     const raining = advanceWeatherPoints(dt);
+    // Das Meer bewegt sich immer - es hält die Schleife am Laufen, solange das
+    // Fenster sichtbar ist.
+    const swell = advanceWater(dt) && !document.hidden;
     render();
-    if (marching || effecting || raining) {
+    if (marching || effecting || raining || swell) {
       animationFrameId = requestAnimationFrame(step);
       return;
     }
@@ -1473,6 +1600,14 @@ function startAnimationLoop() {
     for (const done of completionQueue.splice(0)) if (done) done();
   };
   animationFrameId = requestAnimationFrame(step);
+}
+
+// Ein verstecktes Fenster zeichnet nichts; kommt es zurück, läuft die Schleife
+// wieder an, sonst stünde das Meer still.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) startAnimationLoop();
+  });
 }
 
 export function isAnimating() {

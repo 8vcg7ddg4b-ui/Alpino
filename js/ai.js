@@ -192,7 +192,7 @@ function aiRoads(state, faction, savingForFleet) {
 }
 
 // How close an enemy army has to be before a settlement counts as threatened.
-const HOME_GUARD_RANGE = 8;
+const HOME_GUARD_RANGE = 12;
 
 // The own settlement with an enemy army nearest to it, if one is close enough
 // to be a real danger.
