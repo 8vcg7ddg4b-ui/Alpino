@@ -1,5 +1,8 @@
-import { TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars } from './data.js';
+import {
+  TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars, shipTypeOf,
+} from './data.js';
 import { unitTotalCount, factionById, harbourTile } from './state.js';
+import { emblemSVG } from './emblems.js';
 
 export const TILE_SIZE = 6;
 const ELEV_SCALE = 2.9;
@@ -551,6 +554,40 @@ function tentFabric(color) {
   return texture;
 }
 
+// Das Zeichen einer Fraktion als Textur: ein Tuch in ihrer Farbe, darauf das
+// Wappen. Gezeichnet wird das SVG einmal in eine Leinwand - danach kostet es
+// nichts mehr.
+const emblemTextures = new Map();
+
+function emblemTexture(factionId, colour) {
+  const key = `${factionId}|${colour}`;
+  if (emblemTextures.has(key)) return emblemTextures.get(key);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 208;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = colour;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Ein Saum oben und unten, damit das Tuch nicht wie ein Farbfeld wirkt.
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+  ctx.fillRect(0, 0, canvas.width, 10);
+  ctx.fillRect(0, canvas.height - 16, canvas.width, 16);
+  const texture = new THREE.CanvasTexture(canvas);
+  emblemTextures.set(key, texture);
+
+  // Das Wappen kommt aus einem SVG und ist deshalb erst nach dem Laden da.
+  const image = new Image();
+  const svg = emblemSVG(factionId, { size: 116, color: '#f6ecd2' });
+  image.onload = () => {
+    ctx.drawImage(image, 6, 44, 116, 116);
+    texture.needsUpdate = true;
+    render();
+  };
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  return texture;
+}
+
 function buildTent(state) {
   if (tentGroup) scene.remove(tentGroup);
   tentGroup = new THREE.Group();
@@ -589,13 +626,17 @@ function buildTent(state) {
   wall.position.y = floor.position.y + TENT_WALL / 2;
   tentGroup.add(wall);
 
-  // Fahnen an den Zeltbahnen: sie sagen auf einen Blick, wessen Zelt das ist.
+  // Fahnen an den Zeltbahnen: sie sagen auf einen Blick, wessen Zelt das ist -
+  // in der Farbe der Fraktion und mit ihrem Zeichen darauf.
+  const bannerMaterial = new THREE.MeshStandardMaterial({
+    map: emblemTexture(player ? player.id : 'neutral', colour),
+    side: THREE.DoubleSide,
+    roughness: 1,
+    transparent: true,
+  });
   for (let i = 0; i < 6; i++) {
     const angle = (i / 6) * Math.PI * 2;
-    const banner = new THREE.Mesh(
-      new THREE.PlaneGeometry(58, 96),
-      new THREE.MeshStandardMaterial({ color: colour, side: THREE.DoubleSide, roughness: 1 })
-    );
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(58, 96), bannerMaterial);
     banner.position.set(
       Math.cos(angle) * (radius - 10), floor.position.y + TENT_WALL * 0.62, Math.sin(angle) * (radius - 10)
     );
@@ -792,6 +833,39 @@ const CITY_MATERIALS = {
 
 // Ein Haus mit Walmdach. Das Dach trägt die Fraktionsfarbe - es ist das, was
 // aus der Vogelperspektive zu sehen ist.
+// Ein Satteldach, das genau auf sein Haus passt. Vorher war es ein
+// vierseitiger Kegel, um 45 Grad gedreht und danach entlang einer Achse
+// gestaucht - die Stauchachse lag nach der Drehung schief zum Haus, und das
+// Dach saß verkantet darauf. Hier wird die Form direkt aus den Maßen des
+// Hauses gebaut: First entlang der langen Seite, Traufe mit etwas Überstand.
+function makeGableRoof(width, depth, height) {
+  const hw = (width / 2) * 1.12;
+  const hd = (depth / 2) * 1.12;
+  const alongX = width >= depth;
+  const ridge = (alongX ? hw : hd) * 0.42;
+  const v = alongX
+    ? [
+      [-hw, 0, -hd], [hw, 0, -hd], [hw, 0, hd], [-hw, 0, hd],
+      [-ridge, height, 0], [ridge, height, 0],
+    ]
+    : [
+      [-hw, 0, -hd], [hw, 0, -hd], [hw, 0, hd], [-hw, 0, hd],
+      [0, height, -ridge], [0, height, ridge],
+    ];
+  // 0..3 Traufe im Uhrzeigersinn, 4/5 die Firstpunkte.
+  const faces = alongX
+    ? [[0, 1, 5], [0, 5, 4], [2, 3, 4], [2, 4, 5], [1, 2, 5], [3, 0, 4]]
+    : [[1, 2, 5], [1, 5, 4], [3, 0, 4], [3, 4, 5], [2, 3, 5], [0, 1, 4]];
+  const positions = [];
+  for (const [a, b, c] of faces) {
+    positions.push(...v[a], ...v[b], ...v[c]);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 function addHouse(group, tinted, x, z, width, depth, height, rotation) {
   const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), CITY_MATERIALS.plaster);
   body.position.set(x, height / 2, z);
@@ -799,14 +873,15 @@ function addHouse(group, tinted, x, z, width, depth, height, rotation) {
   group.add(body);
 
   const roof = new THREE.Mesh(
-    new THREE.ConeGeometry(Math.max(width, depth) * 0.78, height * 0.62, 4),
+    makeGableRoof(width, depth, height * 0.55),
     // Each roof gets its own material: they are tinted per faction, and a
     // shared one would repaint every city on the map at once.
-    new THREE.MeshStandardMaterial({ color: '#b5432f', roughness: 0.6 })
+    new THREE.MeshStandardMaterial({
+      color: '#b5432f', roughness: 0.6, side: THREE.DoubleSide,
+    })
   );
-  roof.position.set(x, height + height * 0.31, z);
-  roof.rotation.y = rotation + Math.PI / 4;
-  roof.scale.set(1, 1, Math.min(1, depth / Math.max(0.001, width)) * 1.1);
+  roof.position.set(x, height, z);
+  roof.rotation.y = rotation;
   group.add(roof);
   tinted.push(roof);
   return roof;
@@ -859,15 +934,15 @@ function addTemple(group, tinted, x, z, width, rotation) {
   entablature.position.y = width * 0.14 + columnHeight + width * 0.05;
   temple.add(entablature);
 
-  // Der Giebel: eine vierseitige Spitze, auf einer Achse flachgedrückt, damit
-  // sie als Dreiecksgiebel und nicht als Zeltdach liest.
+  // Das Tempeldach: derselbe Satteldachschnitt wie über einem Haus, nur
+  // breiter und flacher - der First läuft über die lange Seite.
   const pediment = new THREE.Mesh(
-    new THREE.ConeGeometry(width * 0.55, width * 0.3, 4),
-    new THREE.MeshStandardMaterial({ color: '#c65a41', roughness: 0.6 })
+    makeGableRoof(width * 0.98, depth * 0.92, width * 0.26),
+    new THREE.MeshStandardMaterial({
+      color: '#c65a41', roughness: 0.6, side: THREE.DoubleSide,
+    })
   );
-  pediment.position.y = width * 0.14 + columnHeight + width * 0.25;
-  pediment.rotation.y = Math.PI / 4;
-  pediment.scale.set(1, 1, depth / width * 1.15);
+  pediment.position.y = width * 0.14 + columnHeight + width * 0.1;
   temple.add(pediment);
   tinted.push(pediment);
 
@@ -1059,37 +1134,105 @@ function armyScale(count) {
 
 // A single ship: hull, mast and sail. The whole fleet is drawn as one vessel
 // with the army's banner on it, the same way a camp stands in for an army.
-function buildShip(color) {
+// Drei Bauarten, wie sie das Spiel unterscheidet: die schwere Quinquereme mit
+// Turm und Enterbrücke, der leichte Ruderer der Ägäis und der Adria, und das
+// hochbordige Segelschiff des Nordens. Was eine Fraktion fährt, sagt data.js.
+const SHIP_TIMBER = new THREE.MeshStandardMaterial({
+  color: '#6b4423', roughness: 0.85, side: THREE.DoubleSide,
+});
+const SHIP_DECK = new THREE.MeshStandardMaterial({ color: '#8a5c2e', roughness: 0.9 });
+const SHIP_MAST = new THREE.MeshStandardMaterial({ color: '#4a3520' });
+
+function buildShip(color, kind = 'lembos') {
   const ship = new THREE.Group();
+  const heavy = kind === 'quinquereme';
+  const sailer = kind === 'keltenschiff';
+  const length = heavy ? 4.2 : sailer ? 3.3 : 3.6;
+  const beam = heavy ? 0.78 : sailer ? 0.86 : 0.58;
 
   const hull = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.62, 0.34, 3.4, 8, 1, false, 0, Math.PI),
-    new THREE.MeshStandardMaterial({ color: '#6b4423', roughness: 0.85, side: THREE.DoubleSide })
+    new THREE.CylinderGeometry(beam, beam * 0.55, length, 8, 1, false, 0, Math.PI),
+    SHIP_TIMBER
   );
   hull.rotation.z = Math.PI / 2;
   hull.rotation.y = Math.PI / 2;
-  hull.position.y = 0.42;
+  hull.position.y = beam * 0.68;
   ship.add(hull);
 
   const deck = new THREE.Mesh(
-    new THREE.BoxGeometry(1.15, 0.16, 3.2),
-    new THREE.MeshStandardMaterial({ color: '#8a5c2e', roughness: 0.9 })
+    new THREE.BoxGeometry(beam * 1.85, 0.16, length * 0.94),
+    SHIP_DECK
   );
-  deck.position.y = 0.62;
+  deck.position.y = beam + 0.06;
   ship.add(deck);
 
+  if (sailer) {
+    // Der Kelten-Segler: hohe Bordwände, keine Ruder, ein breites Ledersegel.
+    for (const side of [-1, 1]) {
+      const board = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.62, length * 0.9),
+        SHIP_TIMBER
+      );
+      board.position.set(side * beam * 0.9, beam + 0.36, 0);
+      ship.add(board);
+    }
+    const stem = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.1, 0.3), SHIP_TIMBER);
+    stem.position.set(0, beam + 0.6, -length * 0.46);
+    ship.add(stem);
+  } else {
+    // Ruderer: eine Reihe Riemen je Seite, bei der Quinquereme zwei.
+    const banks = heavy ? 2 : 1;
+    for (let bank = 0; bank < banks; bank++) {
+      for (const side of [-1, 1]) {
+        for (let i = 0; i < 7; i++) {
+          const oar = new THREE.Mesh(
+            new THREE.BoxGeometry(0.06, 0.05, 0.95),
+            SHIP_MAST
+          );
+          oar.position.set(
+            side * (beam + 0.28), beam - 0.06 - bank * 0.2,
+            -length * 0.34 + (i / 6) * length * 0.68
+          );
+          oar.rotation.y = side * 1.15;
+          ship.add(oar);
+        }
+      }
+    }
+    // Der Rammsporn am Bug.
+    const ram = new THREE.Mesh(
+      new THREE.ConeGeometry(0.2, 0.9, 6),
+      new THREE.MeshStandardMaterial({ color: '#7c6a4a', roughness: 0.6, metalness: 0.3 })
+    );
+    ram.rotation.x = -Math.PI / 2;
+    ram.position.set(0, beam * 0.5, -length * 0.6);
+    ship.add(ram);
+  }
+
+  if (heavy) {
+    // Turm und Enterbrücke - was die römische Flotte aus einer Seeschlacht
+    // eine Landschlacht machen ließ.
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), SHIP_DECK);
+    tower.position.set(0, beam + 0.55, length * 0.22);
+    ship.add(tower);
+    const corvus = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 1.7), SHIP_TIMBER);
+    corvus.position.set(0, beam + 0.28, -length * 0.42);
+    corvus.rotation.x = 0.22;
+    ship.add(corvus);
+  }
+
+  const mastHeight = sailer ? 2.9 : 2.4;
   const mast = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.07, 0.09, 2.6, 6),
-    new THREE.MeshStandardMaterial({ color: '#4a3520' })
+    new THREE.CylinderGeometry(0.07, 0.09, mastHeight, 6),
+    SHIP_MAST
   );
-  mast.position.y = 1.9;
+  mast.position.y = mastHeight / 2 + beam;
   ship.add(mast);
 
   const sail = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.7, 1.5),
+    new THREE.PlaneGeometry(sailer ? 2.3 : 1.7, sailer ? 1.9 : 1.4),
     new THREE.MeshStandardMaterial({ color, roughness: 0.75, side: THREE.DoubleSide })
   );
-  sail.position.set(0, 2.1, 0);
+  sail.position.set(0, beam + mastHeight * 0.66, 0);
   sail.rotation.y = Math.PI / 2;
   ship.add(sail);
   ship.userData.sail = sail;
@@ -1106,6 +1249,7 @@ function buildShip(color) {
   wake.position.y = 0.06;
   ship.add(wake);
 
+  ship.userData.kind = kind;
   return ship;
 }
 
@@ -1115,10 +1259,9 @@ function buildArmyGroup() {
   group.add(tents);
   group.userData.tents = tents;
 
-  const ship = buildShip('#999999');
-  ship.visible = false;
-  group.add(ship);
-  group.userData.ship = ship;
+  // Welche Bauart gefahren wird, steht erst fest, wenn die Armee bekannt ist -
+  // das Modell entsteht deshalb beim ersten Auslaufen.
+  group.userData.ship = null;
 
   const pole = new THREE.Mesh(
     new THREE.CylinderGeometry(0.08, 0.08, 3.2, 5),
@@ -1161,7 +1304,14 @@ function syncArmyGroup(state, army, entry) {
 
   // At sea the army is its fleet: the camp strikes its tents and boards.
   const afloat = !!army.embarked;
-  const ship = group.userData.ship;
+  const kind = shipTypeOf(army.factionId).key;
+  let ship = group.userData.ship;
+  if (afloat && (!ship || ship.userData.kind !== kind)) {
+    if (ship) group.remove(ship);
+    ship = buildShip(faction.color, kind);
+    group.add(ship);
+    group.userData.ship = ship;
+  }
   if (ship) {
     ship.visible = afloat;
     ship.userData.sail.material.color.set(faction.color);

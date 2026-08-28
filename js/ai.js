@@ -1,4 +1,6 @@
-import { UNIT_ROLES, SHIP_COST, HARBOUR_COST, WARSHIP_COST, roadCost } from './data.js';
+import {
+  UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost,
+} from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
   moveArmy, recruitUnit, raiseArmyFromGarrison, embarkArmy, embarkStatus,
@@ -236,7 +238,7 @@ function nearestSeaTarget(state, fleet) {
 // Gebaut wird vor der Aushebung, sonst ist die Kasse jede Runde leer, bevor
 // die Werft an die Reihe kommt.
 function aiNavy(state, faction) {
-  if (faction.gold < WARSHIP_COST + AI_TREASURY_FLOOR) return;
+  if (faction.gold < unitDef(faction.id, SHIP_ROLE).cost + AI_TREASURY_FLOOR) return;
   const harbours = state.cities.filter((c) => c.factionId === faction.id && c.harbour);
   if (!harbours.length) return;
   const fleets = state.armies.filter((a) => a.factionId === faction.id && isFleet(a)).length;

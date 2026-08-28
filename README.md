@@ -8,7 +8,10 @@ separaten Schlachtbildschirm.
 
 Die Kampagne spielt auf einer Karte, die **auf dem Tisch im eigenen Feldherrnzelt
 liegt**: Holzrahmen ringsum, Zeltbahnen darüber, Fahnen in den Farben der
-gewählten Fraktion an den Wänden. Wer die Kamera tief stellt, sieht das Zelt,
+gewählten Fraktion an den Wänden – mit ihrem **Wappen** darauf: der Legionsadler
+für Rom, das Tanit-Zeichen für Karthago, die Eule Athenes für die Griechen, der
+Anker der Seleukiden, die Tamga der Sarmaten. Dieselben Zeichen stehen in der
+Fraktionsliste und im Auswahlbildschirm. Wer die Kamera tief stellt, sieht das Zelt,
 wer von oben schaut, sieht die Karte.
 
 Die Karte ist **echte Geografie**: Küstenlinien, Gebirgszüge und Siedlungen sind in
@@ -120,8 +123,16 @@ den Punkten durchblättern.
   Stadtmauer, Landung vom Meer). „Abbrechen" lässt die Armee unverändert
   stehen. Die Schätzung entsteht aus 60 durchgerechneten Schlachten und
   verändert den späteren echten Kampf nicht.
-- **Flotten bauen**: Jede eigene Stadt mit Hafen hat eine Werft: **60
-  Kriegsschiffe für 200 Gold**. Sie laufen als eigene **Flotte** aus – ein
+- **Drei Schiffsarten**, historisch nach Fraktion verteilt: die **Quinquereme**
+  mit Turm und Enterbrücke für Rom, Karthago, Seleukiden und Ptolemäer
+  (50/52, 220 Gold) – schwer und im Rammstoß überlegen; der **leichte Ruderer**
+  (Lembos, Triere) für Griechen, Illyrer und Iberer (44/40, 170 Gold) – schnell
+  und billig, aber dünnwandig; das **Segelschiff** mit hochbordigem Eichenrumpf
+  und Ledersegel für Gallier, Britannier, Germanen, Daker und Sarmaten
+  (36/54, 195 Gold) – schwer zu rammen, schwach im Angriff. Jede Bauart hat ihr
+  eigenes Modell auf der Karte.
+- **Flotten bauen**: Jede eigene Stadt mit Hafen hat eine Werft: **60 Schiffe**
+  der eigenen Bauart. Sie laufen als eigene **Flotte** aus – ein
   Verband, der das Meer hält, statt ein Heer überzusetzen. Liegt schon eine
   Flotte im Hafen, wächst sie stattdessen. Eine Flotte fährt 15 Felder weit,
   geht nie an Land und greift an, was auf dem Wasser fährt.

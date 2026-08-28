@@ -1617,3 +1617,12 @@ html, body {
 .ti-line { margin: 2px 0; font-size: 0.8rem; color: var(--muted); }
 #tileInfo .terrain-panel { margin-top: 0; }
 #tileInfo .unit-list { margin-top: 6px; }
+
+/* --- Fraktionszeichen ----------------------------------------------------
+   Dasselbe Wappen, das im Zelt auf den Fahnen hängt, steht auch in der
+   Oberfläche: in der Fraktionsliste, in der Auswahl und in ihrer Tafel. */
+.fl-emblem, .fc-emblem, .fd-emblem { display: inline-flex; flex: none; }
+.fl-emblem svg { width: 20px; height: 20px; display: block; }
+.fc-emblem svg { width: 26px; height: 26px; display: block; }
+.fd-emblem svg { width: 44px; height: 44px; display: block; }
+.faction-detail h3 { display: flex; align-items: center; gap: 10px; }

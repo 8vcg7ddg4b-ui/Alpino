@@ -47,10 +47,58 @@ export const COMBAT_ROLES = [...GARRISON_ROLES, SHIP_ROLE];
 // eine Flotte auch nie einen Fuß dorthin setzt.
 // Gezählt werden Schiffe, nicht Männer: ein Rammsporn wiegt eine ganze
 // Abteilung auf, deshalb stehen die Werte je Schiff so hoch.
-export const SHIP_UNIT = {
-  name: 'Kriegsschiffe', icon: '⛵', attack: 46, defense: 48, hp: 700,
-  cost: 200, upkeep: 0.5,
+//
+// Drei Bauarten, wie sie im 3. Jahrhundert v. Chr. tatsächlich nebeneinander
+// fuhren: die schwere Fünfruderer-Flotte der Mittelmeermächte, der leichte
+// Ruderer der Ägäis und der Adria, und das hochbordige Segelschiff des
+// Nordens, dem der Rammsporn wenig anhaben konnte.
+export const SHIP_TYPES = {
+  quinquereme: {
+    key: 'quinquereme',
+    name: 'Quinqueremen',
+    icon: '⛵',
+    attack: 50, defense: 52, hp: 780, cost: 220, upkeep: 0.55,
+    note: 'Fünfruderer mit Enterbrücke und Turm – schwer, teuer, im Rammstoß überlegen.',
+  },
+  lembos: {
+    key: 'lembos',
+    name: 'Leichte Ruderer',
+    icon: '🚣',
+    attack: 44, defense: 40, hp: 600, cost: 170, upkeep: 0.42,
+    note: 'Lemboi und Trieren: schnell und billig, aber dünnwandig.',
+  },
+  keltenschiff: {
+    key: 'keltenschiff',
+    name: 'Segelschiffe',
+    icon: '⛵',
+    attack: 36, defense: 54, hp: 760, cost: 195, upkeep: 0.5,
+    note: 'Hochbordige Eichenrümpfe mit Ledersegel – schwer zu rammen, schwach im Angriff.',
+  },
 };
+
+// Wer welche Bauart fährt. Rom lernte den Schiffbau von einer gestrandeten
+// punischen Quinquereme; die Diadochenreiche bauten dieselben schweren
+// Einheiten. Griechen, Illyrer und Iberer fuhren leichter, die Stämme des
+// Nordens und die Binnenvölker mit Segelschiffen.
+export const FACTION_SHIP_TYPE = {
+  rom: 'quinquereme',
+  karthago: 'quinquereme',
+  seleukiden: 'quinquereme',
+  ptolemaeer: 'quinquereme',
+  griechen: 'lembos',
+  illyrer: 'lembos',
+  iberer: 'lembos',
+  gallier: 'keltenschiff',
+  britannier: 'keltenschiff',
+  germanen: 'keltenschiff',
+  daker: 'keltenschiff',
+  sarmaten: 'keltenschiff',
+  neutral: 'lembos',
+};
+
+export function shipTypeOf(factionId) {
+  return SHIP_TYPES[FACTION_SHIP_TYPE[factionId] || 'lembos'];
+}
 
 // Auf der Mauer taugt sie, im offenen Feld wäre sie nichts - was sie nie ist.
 export const WATCH_UNIT = {
@@ -157,7 +205,13 @@ export const FACTION_UNITS = {
 export function unitDefs(factionId) {
   const defs = FACTION_UNITS[factionId] || FACTION_UNITS.neutral;
   if (defs[WATCH_ROLE]) return defs;
-  return Object.assign(defs, { [WATCH_ROLE]: WATCH_UNIT, [SHIP_ROLE]: SHIP_UNIT });
+  // Die Wache ist überall dieselbe, die Schiffe nicht: jede Fraktion fährt
+  // die Bauart, die zu ihrer Küste gehört.
+  const factionKey = Object.keys(FACTION_UNITS).find((id) => FACTION_UNITS[id] === defs);
+  return Object.assign(defs, {
+    [WATCH_ROLE]: WATCH_UNIT,
+    [SHIP_ROLE]: shipTypeOf(factionKey || factionId),
+  });
 }
 
 export function unitDef(factionId, role) {

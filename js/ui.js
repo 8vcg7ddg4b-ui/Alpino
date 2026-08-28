@@ -1,6 +1,6 @@
 import {
-  UNIT_ROLES, GARRISON_ROLES, COMBAT_ROLES, WATCH_ROLE, watchTarget,
-  WARSHIP_BATCH, WARSHIP_COST,
+  UNIT_ROLES, GARRISON_ROLES, COMBAT_ROLES, WATCH_ROLE, SHIP_ROLE, watchTarget,
+  WARSHIP_BATCH,
   unitDef, ROLE_LABELS, settlementTier, garrisonCapacity, TILE_TYPES,
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
@@ -15,6 +15,7 @@ import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf,
 } from './actions.js';
 import { calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName } from './weather.js';
+import { emblemSVG } from './emblems.js';
 
 const TERRAIN_NAMES = {
   plains: 'Ebene', forest: 'Wald', hills: 'Hügel', mountain: 'Gebirge', water: 'Wasser',
@@ -452,11 +453,11 @@ function harbourHTML(state, city, isMine, player) {
 // Meer selbst hält.
 function fleetHTML(city, isMine, player) {
   if (!isMine || !city.harbour) return '';
-  const tooPoor = player.gold < WARSHIP_COST;
+  const ship = unitDef(city.factionId, SHIP_ROLE);
+  const tooPoor = player.gold < ship.cost;
   return `<button class="fleet-btn" ${tooPoor ? 'disabled' : ''}>
-      ⛵ ${WARSHIP_BATCH} Kriegsschiffe bauen – ${WARSHIP_COST} Gold
-      <small>Läuft als eigene Flotte aus; eine schon im Hafen liegende wird
-        verstärkt${tooPoor ? ' · zu wenig Gold' : ''}</small>
+      ${ship.icon} ${WARSHIP_BATCH} ${escapeHTML(ship.name)} bauen – ${ship.cost} Gold
+      <small>${escapeHTML(ship.note)}${tooPoor ? ' · zu wenig Gold' : ''}</small>
     </button>`;
 }
 
@@ -684,7 +685,8 @@ export function renderUI(state, handlers) {
   factionList.innerHTML = rows.map(({ faction, cities, armies }) => {
     const classes = [!faction.alive ? 'faction-dead' : '', faction.isPlayer ? 'faction-self' : '']
       .filter(Boolean).join(' ');
-    return `<li class="${classes}"><span class="dot" style="background:${faction.color}"></span>${
+    return `<li class="${classes}"><span class="fl-emblem">${
+      emblemSVG(faction.id, { size: 20, color: faction.color })}</span>${
       escapeHTML(faction.name)}
       <span class="muted">🏛️${cities} · ⚔️${armies}</span></li>`;
   }).join('');

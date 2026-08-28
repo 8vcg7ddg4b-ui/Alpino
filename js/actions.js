@@ -10,7 +10,7 @@ import {
   MAX_EXPERIENCE, EXPERIENCE_PER_BATTLE, EXPERIENCE_FOR_WIN,
   experienceBonus, experienceStars, starMarks, starTitle,
   SHIP_COST, NAVAL_MOVEMENT, EXHAUSTION_PER_SEA_MOVE,
-  AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_UNIT_SCALE, SHIP_ROLE, WARSHIP_BATCH, WARSHIP_COST,
+  AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_UNIT_SCALE, SHIP_ROLE, WARSHIP_BATCH,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
   HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
 } from './data.js';
@@ -692,7 +692,8 @@ export function buildFleet(state, cityId) {
   if (!city.harbour) return { ok: false, reason: 'noHarbour' };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
-  if (faction.gold < WARSHIP_COST) return { ok: false, reason: 'gold' };
+  const ship = unitDef(city.factionId, SHIP_ROLE);
+  if (faction.gold < ship.cost) return { ok: false, reason: 'gold' };
 
   // Liegt schon eine eigene Flotte im Hafen, wächst sie; sonst braucht es ein
   // freies Wasserfeld in Hafenreichweite.
@@ -710,12 +711,12 @@ export function buildFleet(state, cityId) {
     return { ok: false, reason: 'storm' };
   }
 
-  faction.gold -= WARSHIP_COST;
+  faction.gold -= ship.cost;
   if (fleet) {
     const veterans = unitTotalCount(fleet.units);
     fleet.experience = ((fleet.experience || 0) * veterans) / (veterans + WARSHIP_BATCH);
     fleet.units[SHIP_ROLE] = (fleet.units[SHIP_ROLE] || 0) + WARSHIP_BATCH;
-    logOwn(state, faction.id, `${WARSHIP_BATCH} Kriegsschiffe verstärken ${fleet.name} in ${city.name}.`);
+    logOwn(state, faction.id, `${WARSHIP_BATCH} ${ship.name} verstärken ${fleet.name} in ${city.name}.`);
     return { ok: true, armyId: fleet.id };
   }
 
@@ -734,7 +735,7 @@ export function buildFleet(state, cityId) {
     name: `${faction.name} Flotte`,
   };
   state.armies.push(newFleet);
-  logOwn(state, faction.id, `In ${city.name} läuft eine Flotte von ${WARSHIP_BATCH} Kriegsschiffen vom Stapel.`);
+  logOwn(state, faction.id, `In ${city.name} läuft eine Flotte von ${WARSHIP_BATCH} ${ship.name} vom Stapel.`);
   return { ok: true, armyId: newFleet.id };
 }
 

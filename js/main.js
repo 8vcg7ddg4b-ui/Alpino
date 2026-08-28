@@ -22,6 +22,7 @@ import {
 import { sfx, unlockAudio, toggleMuted, isMuted, stopMarch } from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
 import { factionArt, factionArtSVG } from './factionart.js';
+import { emblemSVG } from './emblems.js';
 import {
   loadSettings, getSetting, setSetting, resetSettings, settingsHTML,
   MARCH_SPEED_FACTORS, AI_STANCE_THRESHOLDS,
@@ -783,7 +784,8 @@ function factionDetailHTML(faction) {
   ].filter(Boolean).join(' · ');
 
   return `
-    <h3><span class="dot" style="background:${faction.color}"></span>${faction.name}</h3>
+    <h3><span class="fd-emblem">${emblemSVG(faction.id, { size: 44, color: faction.color })}</span>
+      ${faction.name}</h3>
     <p class="fd-motto">„${art.motto}"</p>
     <p class="fd-blurb">${profile.blurb || ''}</p>
     <div class="fd-facts">
@@ -839,7 +841,7 @@ function buildFactionChoices() {
     const profile = factionProfile(faction.id) || {};
     return `<button class="faction-choice" data-faction="${faction.id}" role="option"
       aria-selected="false" style="--dot:${faction.color}">
-      <span class="dot" style="background:${faction.color}"></span>
+      <span class="fc-emblem">${emblemSVG(faction.id, { size: 26, color: faction.color })}</span>
       ${faction.name}
       <span class="fc-diff">${profile.difficulty || ''}</span>
     </button>`;
