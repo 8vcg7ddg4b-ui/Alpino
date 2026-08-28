@@ -14,6 +14,14 @@ Anker der Seleukiden, die Tamga der Sarmaten. Dieselben Zeichen stehen in der
 Fraktionsliste und im Auswahlbildschirm. Wer die Kamera tief stellt, sieht das Zelt,
 wer von oben schaut, sieht die Karte.
 
+Das Zelt hat einen **Ausgang**: an einer Seite sind die Bahnen zurückgeschlagen
+und mit Stricken an zwei Pfosten gebunden, dahinter der Himmel, der Boden des
+Lagers und die Spitzen der Nachbarzelte. Hinaus geht es nicht – der Feldzug
+wird an diesem Tisch geführt, und die Kamera bleibt im Zelt und über der Karte.
+
+Das Wetter gehört zur Karte, nicht zum Zelt: Regen und Schnee fallen als
+flache Schicht über der Tischplatte und werden an ihren Kanten beschnitten.
+
 Der Feldzug beginnt deshalb auch nicht auf der Karte, sondern im Zelt: die
 **Eröffnungsansicht** steht weit genug zurück, dass der ganze Tisch mit der
 Karte darauf im Bild liegt und dahinter der Thron. Erst wenn die Ansprache
@@ -261,8 +269,12 @@ den Punkten durchblättern.
   sieht, wo eine Flotte auslaufen kann.
 - **Straßenbau**: Jede eigene Stadt bietet die nächstgelegenen eigenen Orte
   an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
-  Bauzeit. Eine fertige Straße kostet **ein Drittel dessen, was offene Ebene
-  kostet** – ein Punkt statt drei, durch Wald, Hügel und Wüste ein Sechstel. Ein
+  Bauzeit. Angeboten werden **die zwei nächstgelegenen** eigenen Orte, zu denen
+  noch keine Straße führt – weiter reicht der Straßenbau von einem Ort aus
+  nicht; eine Fernstraße entsteht Stück für Stück über die Orte dazwischen. Die
+  Regel steht nicht bloß in der Seitenleiste: ein Bauauftrag zu einem anderen
+  Ziel wird abgelehnt. Eine fertige Straße kostet **ein Drittel dessen, was
+  offene Ebene kostet** – ein Punkt statt drei, durch Wald, Hügel und Wüste ein Sechstel. Ein
   Heer kommt auf der Straße dreimal so weit wie über freies Feld: statt sechs
   Feldern achtzehn. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
   als Ganzes und immer nur eine je Stadt;

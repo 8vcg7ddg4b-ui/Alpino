@@ -649,8 +649,11 @@ export const ROAD_MOVE_COST = 1;
 export const ROAD_COST_PER_TILE = 30;
 export const ROAD_TURNS_PER_TILE = 0.4;
 export const ROAD_MIN_TURNS = 2;
-// Wie viele Bauziele einer Stadt zur Auswahl gestellt werden.
-export const ROAD_TARGET_CHOICES = 3;
+// Wie viele Bauziele eine Stadt hat: die beiden nächstgelegenen eigenen Orte,
+// zu denen noch keine Straße führt. Weiter reicht kein Straßenbau von einem
+// Ort aus - eine Fernstraße entsteht Stück für Stück über die Orte dazwischen,
+// nicht in einem Zug quer durchs Land.
+export const ROAD_TARGET_CHOICES = 2;
 
 export function roadCost(length) {
   return Math.round(length * ROAD_COST_PER_TILE);

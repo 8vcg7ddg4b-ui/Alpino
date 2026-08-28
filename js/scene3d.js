@@ -27,9 +27,14 @@ const BASE_DISTANCE = 235;
 const MIN_ZOOM = 0.62;
 const MAX_ZOOM = 4.5;
 // Weit genug, dass die Kamera auch ganz herausgezoomt unter dem Tuch bleibt.
-const TENT_RADIUS = 520;
-const TENT_HEIGHT = 520;
-const TENT_WALL = 130;
+// Das Zelt muss den Kartentisch samt der Kamera fassen, die um ihn herumläuft:
+// halbe Tischdiagonale plus der größte Kameraabstand, sonst stünde der Blick
+// bei weit herausgezogener Sicht auf einmal draußen.
+const TENT_RADIUS = 740;
+const TENT_HEIGHT = 620;
+const TENT_WALL = 170;
+// So weit bleibt die Kamera von den Zeltbahnen weg.
+const TENT_CAMERA_MARGIN = 60;
 
 let terrainMesh = null;
 let waterMesh = null;
@@ -159,6 +164,9 @@ export function initScene(canvas) {
   billboards.length = 0;
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Für das Wetter: Regen und Schnee werden an der Tischkante beschnitten,
+  // sonst fielen sie auch vor den Zeltbahnen herunter.
+  renderer.localClippingEnabled = true;
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY_COLOR);
@@ -182,7 +190,31 @@ function cameraDirection() {
   );
 }
 
+// Der Feldherr bleibt in seinem Zelt. Der Blick darf über die ganze Karte
+// wandern, aber die Kamera nicht durch die Zeltbahnen: käme sie hinaus, wird
+// der Blickpunkt so weit zurückgezogen, dass sie drinnen bleibt.
+function keepCameraInsideTent() {
+  if (!mapCols) return;
+  // Erst bleibt der Blick über dem Tisch: von der Karte herunterzufahren hieße,
+  // im leeren Zelt zu stehen und die Karte zu suchen.
+  cam.col = Math.max(0, Math.min(mapCols - 1, cam.col));
+  cam.row = Math.max(0, Math.min(mapRows - 1, cam.row));
+  const direction = cameraDirection();
+  const distance = BASE_DISTANCE / cam.zoom;
+  const targetX = worldX(cam.col);
+  const targetZ = worldZ(cam.row);
+  const x = targetX + direction.x * distance;
+  const z = targetZ + direction.z * distance;
+  const radius = Math.hypot(x, z);
+  const limit = TENT_RADIUS - TENT_CAMERA_MARGIN;
+  if (radius <= limit) return;
+  const pull = radius - limit;
+  cam.col = (targetX - (x / radius) * pull) / TILE_SIZE + mapCols / 2;
+  cam.row = (targetZ - (z / radius) * pull) / TILE_SIZE + mapRows / 2;
+}
+
 function applyCamera() {
+  keepCameraInsideTent();
   updateWeatherForCamera();
   alignBillboards();
   const dist = BASE_DISTANCE / cam.zoom;
@@ -922,12 +954,110 @@ function buildTentBackdrop(tent, state, colour, floorY) {
   // Auf Zeltmaß bringen und in die Blickachse der Grundansicht stellen.
   const scale = 26;
   stage.scale.setScalar(scale);
-  const away = TENT_RADIUS * 0.74;
+  // Fester Abstand hinter dem Tisch, nicht am Zeltrand: sonst rückte der Thron
+  // mit jeder Vergrößerung des Zelts weiter fort.
+  const away = 380;
   stage.position.set(
     -Math.cos(DEFAULT_AZIMUTH) * away, floorY, -Math.sin(DEFAULT_AZIMUTH) * away
   );
   stage.rotation.y = Math.PI / 2 - DEFAULT_AZIMUTH;
   tent.add(stage);
+}
+
+// --- Der Zeltausgang -------------------------------------------------------
+// Ein Zelt ohne Ausgang ist eine Kiste. Die Bahnen sind an einer Stelle
+// zurückgeschlagen und mit Stricken an zwei Pfosten gebunden; dahinter steht
+// das Tageslicht des Lagers. Hinausgehen kann man nicht - der Feldzug wird an
+// diesem Tisch geführt -, aber man sieht, dass es ein Draußen gibt.
+function buildTentExit(tent, colour, floorY) {
+  const doorway = new THREE.Group();
+  const width = 250;
+  const height = TENT_WALL * 0.94;
+
+  // Draußen: oben der Himmel, unten der Boden des Lagers. Eine einzelne helle
+  // Fläche reichte nicht - die Zeltbahn ist selbst hell, und ohne den kühlen
+  // Himmel darüber liest sich das Loch nicht als Ausgang, sondern als Fleck.
+  const horizon = height * 0.42;
+  const sky = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, height - horizon),
+    new THREE.MeshBasicMaterial({ color: '#dbe9f7', side: THREE.DoubleSide })
+  );
+  sky.position.y = horizon + (height - horizon) / 2;
+  doorway.add(sky);
+  const outside = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, horizon),
+    new THREE.MeshBasicMaterial({ color: '#b8a276', side: THREE.DoubleSide })
+  );
+  outside.position.y = horizon / 2;
+  doorway.add(outside);
+
+  // Ein Streifen Boden davor, damit der Ausgang nicht in der Luft hängt.
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, 46),
+    new THREE.MeshBasicMaterial({ color: '#c9b98d', side: THREE.DoubleSide })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(0, 0.5, -22);
+  doorway.add(ground);
+
+  // Das Lager draußen: ein paar Zeltspitzen als Schattenriss vor dem Licht.
+  // Sie liegen dicht vor der hellen Fläche, nicht dahinter - was hinter der
+  // Zeltwand steht, wäre von innen ohnehin verdeckt.
+  const silhouette = new THREE.MeshBasicMaterial({ color: '#8f7f5c' });
+  for (const [x, size] of [[-88, 40], [-26, 54], [44, 34], [98, 46]]) {
+    const hut = new THREE.Mesh(new THREE.ConeGeometry(size * 0.62, size, 4), silhouette);
+    hut.position.set(x, horizon * 0.55 + size / 2 - 6, 1.5);
+    hut.rotation.y = Math.PI / 4;
+    doorway.add(hut);
+  }
+
+  // Pfosten und Sturz.
+  for (const side of [-1, 1]) {
+    const post = new THREE.Mesh(
+      new THREE.CylinderGeometry(5, 6, height + 14, 7), TABLE_WOOD_DARK
+    );
+    post.position.set(side * (width / 2 + 5), (height + 14) / 2, 4);
+    doorway.add(post);
+  }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(width + 26, 9, 9), TABLE_WOOD_DARK);
+  lintel.position.set(0, height + 6, 4);
+  doorway.add(lintel);
+
+  // Die zurückgeschlagenen Bahnen links und rechts, in der Farbe des Zelts.
+  const flapMaterial = new THREE.MeshStandardMaterial({
+    map: tentFabric(colour), side: THREE.DoubleSide, roughness: 1, color: '#e8dcc0',
+  });
+  for (const side of [-1, 1]) {
+    const flap = new THREE.Mesh(new THREE.PlaneGeometry(64, height), flapMaterial);
+    flap.position.set(side * (width / 2 - 16), height / 2, 20);
+    flap.rotation.y = side * 0.85;
+    doorway.add(flap);
+    // Der Strick, mit dem die Bahn zurückgebunden ist.
+    const rope = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.6, 1.6, 34, 5),
+      new THREE.MeshStandardMaterial({ color: '#b9a170', roughness: 1 })
+    );
+    rope.rotation.z = Math.PI / 2;
+    rope.position.set(side * (width / 2 - 4), height * 0.55, 16);
+    doorway.add(rope);
+  }
+
+  // Etwas Licht fällt herein.
+  const glow = new THREE.PointLight('#ffeec4', 0.5, 420);
+  glow.position.set(0, height * 0.6, 60);
+  doorway.add(glow);
+
+  // Quer zur Grundansicht, damit der Ausgang neben dem Thron im Bild liegt und
+  // ihn nicht verdeckt.
+  // Deutlich innerhalb des Zeltrands: die Wand ist ein Sechzehneck, ihre
+  // Flächen liegen in der Mitte jedes Segments gut zehn Einheiten weiter innen
+  // als der Radius - ein Ausgang direkt an der Radiuslinie verschwände bis auf
+  // einen schmalen Streifen dahinter.
+  const angle = DEFAULT_AZIMUTH - Math.PI / 2;
+  const seat = TENT_RADIUS * Math.cos(Math.PI / 16) - 26;
+  doorway.position.set(Math.cos(angle) * seat, floorY, Math.sin(angle) * seat);
+  doorway.rotation.y = -angle + Math.PI / 2;
+  tent.add(doorway);
 }
 
 function buildTent(state) {
@@ -1005,6 +1135,7 @@ function buildTent(state) {
   }
 
   buildTentBackdrop(tentGroup, state, colour, floor.position.y);
+  buildTentExit(tentGroup, colour, floor.position.y);
 
   scene.add(tentGroup);
 }
@@ -2231,7 +2362,9 @@ const WEATHER_LOOKS = {
 };
 
 const WEATHER_VOLUME = 240;
-const WEATHER_HEIGHT = 120;
+// Flach über der Tischplatte: das Wetter gehört zur Karte, und ein Vorhang von
+// hundert Metern Höhe stünde bei tiefer Kamera quer vor den Zeltbahnen.
+const WEATHER_HEIGHT = 34;
 let weatherPoints = null;
 let weatherLook = null;
 let weatherEffect = null;
@@ -2258,6 +2391,23 @@ function disposeWeatherPoints() {
   weatherPoints.material.dispose();
   weatherPoints = null;
   weatherVelocity = null;
+}
+
+// Die Kanten der Tischplatte als Schnittebenen. Sie werden bei jedem Aufbau
+// neu gerechnet, weil sie von der Größe der Karte abhängen, und sie wirken im
+// Weltkoordinatensystem - das Verschieben und Skalieren der Wetterwolke mit
+// der Kamera stört sie also nicht.
+function boardClipPlanes() {
+  const halfW = (mapCols * TILE_SIZE) / 2;
+  const halfD = (mapRows * TILE_SIZE) / 2;
+  return [
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), halfW),
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), halfW),
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), halfD),
+    new THREE.Plane(new THREE.Vector3(0, 0, -1), halfD),
+    // und ein Deckel darüber, damit auch nach oben nichts hinausragt
+    new THREE.Plane(new THREE.Vector3(0, -1, 0), WEATHER_HEIGHT + 4),
+  ];
 }
 
 // Rain falls as streaks and snow as flakes, which needs two different objects:
@@ -2292,7 +2442,12 @@ function buildWeatherPoints(look) {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const shared = { color: look.colour, transparent: true, opacity: 0.7, depthWrite: false };
+  const shared = {
+    color: look.colour, transparent: true, opacity: 0.7, depthWrite: false,
+    // Das Wetter gehört zur Karte, nicht zum Zelt: vier Ebenen an den Kanten
+    // des Tisches schneiden alles weg, was daneben fiele.
+    clippingPlanes: boardClipPlanes(),
+  };
   weatherPoints = streaked
     ? new THREE.LineSegments(geometry, new THREE.LineBasicMaterial(shared))
     : new THREE.Points(geometry, new THREE.PointsMaterial({

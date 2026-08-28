@@ -989,6 +989,13 @@ export function buyRoad(state, cityId, targetCityId) {
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
 
+  // Gebaut wird nur zu den Orten, die der Ort auch anbietet - den beiden
+  // nächstgelegenen. Die Regel steht damit nicht bloß in der Seitenleiste,
+  // sondern im Regelwerk.
+  if (!roadTargets(state, city).some((t) => t.cityId === target.id)) {
+    return { ok: false, reason: 'zuweit' };
+  }
+
   const route = landRoute(state.map, city, target, state.roads);
   if (!route) return { ok: false, reason: 'weglos' };
   const length = tilesToPave(state, route);
