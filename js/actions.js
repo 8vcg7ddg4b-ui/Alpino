@@ -1274,12 +1274,16 @@ export function foundFreeState(state, army, city) {
 
 export function recoverArmies(state) {
   for (const army of state.armies) {
-    const rested = army.movement === army.maxMovement;
-    if (!rested) continue;
+    // Rast ist keine Alles-oder-nichts-Sache: wer nur ein Stück gezogen ist,
+    // hat den Rest des Tages Zeit, wieder zu Atem zu kommen. Erholt wird im
+    // Verhältnis der Bewegung, die das Heer stehen gelassen hat - ein kurzer
+    // Marsch trägt sich damit selbst, ein Gewaltmarsch nicht.
+    const share = army.maxMovement > 0 ? army.movement / army.maxMovement : 1;
+    if (share <= 0) continue;
     const city = cityAt(state, army.col, army.row);
     const inOwnCity = city && city.factionId === army.factionId;
-    adjustMorale(army, inOwnCity ? MORALE_REST_IN_CITY : MORALE_REST);
-    adjustExhaustion(army, inOwnCity ? EXHAUSTION_REST_IN_CITY : EXHAUSTION_REST);
+    adjustMorale(army, (inOwnCity ? MORALE_REST_IN_CITY : MORALE_REST) * share);
+    adjustExhaustion(army, (inOwnCity ? EXHAUSTION_REST_IN_CITY : EXHAUSTION_REST) * share);
   }
 }
 

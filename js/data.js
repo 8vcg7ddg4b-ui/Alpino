@@ -653,7 +653,12 @@ export const MORALE_AFTER_WIN = 12;
 export const MORALE_AFTER_LOSS = -28;
 export const MORALE_REST = 8;
 export const MORALE_REST_IN_CITY = 16;
-export const EXHAUSTION_PER_MOVE = 11;
+// Erschöpfung wird je Bewegungspunkt berechnet, nicht je Feld: auf der Straße
+// kommt ein Heer für denselben Preis weiter als querfeldein. Der Satz ist so
+// gewählt, dass ein voller Tagesmarsch (MAX_MOVEMENT Punkte) rund 45 kostet -
+// spürbar müde, aber noch kampffähig. Zwei solche Märsche hintereinander
+// laugen ein Heer aus.
+export const EXHAUSTION_PER_MOVE = 2.5;
 export const EXHAUSTION_REST = -18;
 export const EXHAUSTION_REST_IN_CITY = -34;
 export const EXHAUSTION_PER_BATTLE = 18;
@@ -789,7 +794,9 @@ export const SHIP_COST = 250;
 export const WARSHIP_BATCH = 60;
 export const NAVAL_MOVEMENT = 30;
 export const SEA_MOVE_COST = 2;
-export const EXHAUSTION_PER_SEA_MOVE = 5;
+// Eine Überfahrt zehrt weniger als ein Marsch - gerudert wird in Schichten -,
+// aber eine volle Fahrt über 30 Punkte setzt der Mannschaft trotzdem zu.
+export const EXHAUSTION_PER_SEA_MOVE = 1.2;
 // Attacking straight off the ships.
 export const AMPHIBIOUS_ATTACK_MULTIPLIER = 0.7;
 // Auf einer Ruderbank ist ein Fußsoldat kein Fußsoldat: zur See zählt nur,

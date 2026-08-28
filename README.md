@@ -254,8 +254,14 @@ den Punkten durchblättern.
   im Verhältnis der Männer. Löst sie sich in eine Garnison auf, ist die
   Erfahrung verloren.
 - **Moral und Erschöpfung**: Jede Armee führt beide Werte mit; sie gehen direkt
-  in die Kampfkraft ein. Märsche und Schlachten zehren, Rasten erholt – am
-  schnellsten in einer eigenen Stadt. Beides steht im Armee-Panel.
+  in die Kampfkraft ein. Beides steht im Armee-Panel. Erschöpfung wird je
+  Bewegungspunkt berechnet (2,5), nicht je Feld – auf der Straße kommt ein Heer
+  für denselben Preis weiter als querfeldein. Ein voller Tagesmarsch kostet
+  damit 45, eine Schlacht weitere 18. Gerastet wird im Verhältnis der Bewegung,
+  die stehen geblieben ist: −18 je Runde im Feld, −34 in einer eigenen Stadt,
+  jeweils anteilig. Ein kurzer Marsch trägt sich so selbst, zwei Gewaltmärsche
+  hintereinander laugen ein Heer aus – wer ausgeruht in die Schlacht geht,
+  gewinnt sie fast sicher, wer erschöpft antritt, fast nie.
 - **Armee auflösen**: Steht eine Armee in einer eigenen Stadt, kann sie sich
   auflösen; ihre Soldaten treten der Garnison bei.
 - **Befestigungen in drei Stufen**: **Holzpalisade** (200 Gold, 3 Runden,
