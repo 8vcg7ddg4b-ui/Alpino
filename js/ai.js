@@ -1,11 +1,13 @@
-import { UNIT_ROLES, SHIP_COST, HARBOUR_COST, roadCost } from './data.js';
+import { UNIT_ROLES, SHIP_COST, HARBOUR_COST, WARSHIP_COST, roadCost } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
   moveArmy, recruitUnit, raiseArmyFromGarrison, embarkArmy, embarkStatus,
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
-  buyHarbour, canBuildHarbour,
+  buyHarbour, canBuildHarbour, buildFleet,
 } from './actions.js';
-import { unitTotalCount, factionById, isCoastalCity, sameLandmass } from './state.js';
+import {
+  unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
+} from './state.js';
 
 // Keeps enough in the treasury that paying for a fleet never leaves a faction
 // unable to defend what it already has.
@@ -85,6 +87,27 @@ function stepArmyTowards(state, army, target) {
   if (direct && (!direct.combat || worthAttacking(state, army, target.col, target.row))) {
     moveArmy(state, army.id, target.col, target.row);
     return;
+  }
+
+  // Reicht es allein nicht, aber ein eigenes Heer steht in Reichweite, dann
+  // wird zusammengelegt statt abgewartet. Sonst stehen zwei halbe Heere
+  // nebeneinander vor einer Stadt, die keines von beiden nehmen kann.
+  if (direct && direct.combat) {
+    let merge = null;
+    let mergeDist = Infinity;
+    for (const [k, entry] of reachable) {
+      if (!entry.merge) continue;
+      const [col, row] = k.split(',').map(Number);
+      const dist = Math.hypot(col - target.col, row - target.row);
+      if (dist < mergeDist) {
+        mergeDist = dist;
+        merge = { col, row };
+      }
+    }
+    if (merge) {
+      moveArmy(state, army.id, merge.col, merge.row);
+      return;
+    }
   }
 
   let bestNonCombat = null;
@@ -193,6 +216,35 @@ function aiRoads(state, faction, savingForFleet) {
   return true;
 }
 
+// Das nächste feindliche Schiff - eine Flotte oder ein Heer auf Transportern.
+function nearestSeaTarget(state, fleet) {
+  let best = null;
+  let bestDistance = Infinity;
+  for (const other of state.armies) {
+    if (other.factionId === fleet.factionId || !other.embarked) continue;
+    const distance = Math.abs(other.col - fleet.col) + Math.abs(other.row - fleet.row);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = { col: other.col, row: other.row };
+    }
+  }
+  return best;
+}
+
+// Schiffe baut, wer einen Hafen hat und gerade nichts Dringenderes braucht.
+// Eine Flotte je drei Küstenorten reicht, um die eigene Küste zu decken.
+// Gebaut wird vor der Aushebung, sonst ist die Kasse jede Runde leer, bevor
+// die Werft an die Reihe kommt.
+function aiNavy(state, faction) {
+  if (faction.gold < WARSHIP_COST + AI_TREASURY_FLOOR) return;
+  const harbours = state.cities.filter((c) => c.factionId === faction.id && c.harbour);
+  if (!harbours.length) return;
+  const fleets = state.armies.filter((a) => a.factionId === faction.id && isFleet(a)).length;
+  const coastal = state.cities.filter((c) => c.factionId === faction.id && isCoastalCity(state, c));
+  if (fleets >= Math.max(1, Math.round(coastal.length / 3))) return;
+  buildFleet(state, harbours[Math.floor(Math.random() * harbours.length)].id);
+}
+
 // How close an enemy army has to be before a settlement counts as threatened.
 const HOME_GUARD_RANGE = 12;
 
@@ -240,6 +292,13 @@ function aiMilitary(state, faction) {
     }
   }
   for (const army of armies) {
+    // Eine Flotte sucht sich ihre eigenen Ziele: was auf dem Wasser fährt.
+    // Städte kann sie nicht nehmen, Landheere nicht stellen.
+    if (isFleet(army)) {
+      const prey = nearestSeaTarget(state, army);
+      if (prey) stepArmyTowards(state, army, prey);
+      continue;
+    }
     if (army === guard) {
       // Standing on the town it is guarding is the whole job.
       if (army.col !== guardHome.col || army.row !== guardHome.row) {
@@ -338,6 +397,7 @@ export function aiTakeTurn(state, faction) {
   // Ein Hafen geht der Flotte voraus: ohne ihn nützt das Schiffsgeld nichts.
   const savingForHarbour = aiHarbours(state, faction, harbourWanted);
   const savingForRoad = !savingForHarbour && aiRoads(state, faction, savingForFleet);
+  if (!savingForFleet && !savingForHarbour) aiNavy(state, faction);
   aiEconomy(state, faction, savingForFleet, savingForRoad || savingForHarbour);
 }
 

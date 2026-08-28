@@ -135,6 +135,7 @@
       <button id="settingsBtn" class="icon-btn" title="Einstellungen">⚙</button>
       <button id="muteBtn" class="icon-btn" title="Ton an/aus">🔊</button>
       <button id="sidebarBtn" class="icon-btn" title="Seitenleiste ein-/ausblenden">⇥</button>
+      <button id="quitBtn" class="icon-btn" title="Feldzug beenden – zurück zum Hauptmenü">🏳</button>
       <button id="fullscreenBtn" class="icon-btn" title="Vollbildmodus">⛶</button>
       <button id="endTurnBtn" class="end-turn">Runde beenden ▶</button>
     </header>
@@ -214,6 +215,19 @@
     <div class="report-box settings-box">
       <button id="settingsClose" class="report-close" title="Schließen">✕</button>
       <div id="settingsBody"></div>
+    </div>
+  </div>
+
+  <!-- Feldzug beenden: der Spielstand ist danach weg, also wird gefragt. -->
+  <div id="quitOverlay" class="hidden">
+    <div class="overlay-box">
+      <h1 class="overlay-title">Feldzug beenden?</h1>
+      <p class="overlay-text">Der laufende Feldzug geht dabei verloren – es gibt
+        keinen Spielstand, der ihn zurückholt.</p>
+      <div class="overlay-actions">
+        <button id="quitConfirm">Beenden</button>
+        <button id="quitCancel" class="overlay-secondary">Weiterspielen</button>
+      </div>
     </div>
   </div>
 

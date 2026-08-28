@@ -6,6 +6,11 @@ aus einer isometrischen Kameraperspektive dargestellt; Bewegung, Seefahrt,
 Belagerungen und Kämpfe finden direkt auf dieser Karte statt – es gibt keinen
 separaten Schlachtbildschirm.
 
+Die Kampagne spielt auf einer Karte, die **auf dem Tisch im eigenen Feldherrnzelt
+liegt**: Holzrahmen ringsum, Zeltbahnen darüber, Fahnen in den Farben der
+gewählten Fraktion an den Wänden. Wer die Kamera tief stellt, sieht das Zelt,
+wer von oben schaut, sieht die Karte.
+
 Die Karte ist **echte Geografie**: Küstenlinien, Gebirgszüge und Siedlungen sind in
 Längen- und Breitengraden hinterlegt (`js/geodata.js`) und werden auf ein Raster von
 80 × 52 Feldern gerastert – ein Feld entspricht rund 55 km. Roma liegt auf 12,5° O /
@@ -115,6 +120,20 @@ den Punkten durchblättern.
   Stadtmauer, Landung vom Meer). „Abbrechen" lässt die Armee unverändert
   stehen. Die Schätzung entsteht aus 60 durchgerechneten Schlachten und
   verändert den späteren echten Kampf nicht.
+- **Flotten bauen**: Jede eigene Stadt mit Hafen hat eine Werft: **60
+  Kriegsschiffe für 200 Gold**. Sie laufen als eigene **Flotte** aus – ein
+  Verband, der das Meer hält, statt ein Heer überzusetzen. Liegt schon eine
+  Flotte im Hafen, wächst sie stattdessen. Eine Flotte fährt 15 Felder weit,
+  geht nie an Land und greift an, was auf dem Wasser fährt.
+- **Kampf zur See**: Auf dem Wasser zählt das Schiff, nicht der Mann. Fußvolk
+  an Bord kämpft mit halber Kraft, Reiterei mit 40 %, Bogenschützen mit 80 % –
+  Kriegsschiffe zu voller. 60 Kriegsschiffe versenken deshalb ein
+  übergesetztes Heer von 540 Mann (20 % eigene Verluste), 30 reichen dafür
+  nicht. Wer eine Landung erwartet, hält seine Flotte davor.
+- **Heere vereinigen**: Zieht man ein Heer auf ein eigenes (blau markiertes
+  Feld), werden beide eines. Erfahrung, Moral und Erschöpfung mitteln sich nach
+  Kopfzahl. Auch die KI legt zusammen, statt mit zwei halben Heeren vor einer
+  Stadt zu warten, die keines von beiden nehmen kann.
 - **Schiffe**: In einer eigenen Stadt **mit Hafen** kann eine Armee für 250 Gold
   **in See stechen** – ohne Hafen geht sie nirgends an Bord, auch nicht in
   einer Stadt direkt am Wasser. Auf dem Wasser hat sie 15 Bewegungspunkte; gelb
@@ -206,6 +225,8 @@ den Punkten durchblättern.
   der beiden Orte an den Feind, wird der Bau abgebrochen.
 - **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
   Rekrutierung, Mauer- oder Straßenkauf, Auflösen oder ganzen Rundenwechsel.
+- **Feldzug beenden**: 🏳 in der Kopfzeile führt nach Rückfrage zurück ins
+  Hauptmenü.
 - **Ton**: 🔊 schaltet die Klänge um (Marsch, Schlacht, Rekrutierung, Mauerbau,
   Rundenwechsel …). Alle Geräusche werden zur Laufzeit synthetisiert – keine
   Audiodateien, funktioniert offline.

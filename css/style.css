@@ -350,6 +350,22 @@ html, body {
 .wall-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
 .wall-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+.fleet-btn {
+  margin-top: 8px;
+  width: 100%;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  text-align: left;
+}
+.fleet-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
+.fleet-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.fleet-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
 .reinforce-btn {
   background: var(--panel-2);
   color: var(--text);
@@ -616,7 +632,7 @@ html, body {
   .report-sides { grid-template-columns: 1fr; }
 }
 
-#gameOverOverlay {
+#gameOverOverlay, #quitOverlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.75);
@@ -642,7 +658,16 @@ html, body {
   padding: 10px 20px;
   font-weight: bold;
   cursor: pointer;
+  font-family: inherit;
 }
+.overlay-actions { display: flex; gap: 10px; justify-content: center; }
+.overlay-secondary {
+  background: var(--panel-2) !important;
+  color: var(--text);
+  border: 1px solid var(--border) !important;
+  font-weight: normal !important;
+}
+.overlay-secondary:hover { border-color: var(--gold) !important; color: var(--gold); }
 
 .icon-btn {
   background: var(--panel-2);

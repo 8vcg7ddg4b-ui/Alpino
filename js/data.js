@@ -25,6 +25,7 @@ export const ROLE_LABELS = {
   cavalry: 'Reiterei',
   ranged: 'Fernkampf',
   watch: 'Stadtwache',
+  ships: 'Kriegsschiffe',
 };
 
 // Die Stadtwache ist keine Feldtruppe: sie wird nicht ausgehoben, sie zieht
@@ -33,6 +34,23 @@ export const ROLE_LABELS = {
 // und nicht unter ihnen.
 export const WATCH_ROLE = 'watch';
 export const GARRISON_ROLES = [...UNIT_ROLES, WATCH_ROLE];
+
+// Kriegsschiffe sind die vierte Truppengattung, und die einzige, die nur zur
+// See etwas ausrichtet: sie werden in einer Hafenstadt gebaut, stehen nie in
+// einer Garnison und gehen nie an Land.
+export const SHIP_ROLE = 'ships';
+// Alles, was in einer Schlacht vorkommen kann - Feldtruppen, Stadtwache,
+// Schiffe. Die Kampfrechnung geht über diese Liste.
+export const COMBAT_ROLES = [...GARRISON_ROLES, SHIP_ROLE];
+
+// Eine Schiffsbesatzung samt Rammsporn: zur See stark, an Land nichts, weshalb
+// eine Flotte auch nie einen Fuß dorthin setzt.
+// Gezählt werden Schiffe, nicht Männer: ein Rammsporn wiegt eine ganze
+// Abteilung auf, deshalb stehen die Werte je Schiff so hoch.
+export const SHIP_UNIT = {
+  name: 'Kriegsschiffe', icon: '⛵', attack: 46, defense: 48, hp: 700,
+  cost: 200, upkeep: 0.5,
+};
 
 // Auf der Mauer taugt sie, im offenen Feld wäre sie nichts - was sie nie ist.
 export const WATCH_UNIT = {
@@ -138,7 +156,8 @@ export const FACTION_UNITS = {
 // Die Wache ist überall dieselbe: sie kommt aus der Stadt, nicht aus dem Heer.
 export function unitDefs(factionId) {
   const defs = FACTION_UNITS[factionId] || FACTION_UNITS.neutral;
-  return defs[WATCH_ROLE] ? defs : Object.assign(defs, { [WATCH_ROLE]: WATCH_UNIT });
+  if (defs[WATCH_ROLE]) return defs;
+  return Object.assign(defs, { [WATCH_ROLE]: WATCH_UNIT, [SHIP_ROLE]: SHIP_UNIT });
 }
 
 export function unitDef(factionId, role) {
@@ -588,14 +607,20 @@ export const ZOC_EXTRA_COST = 2;
 // An army takes ship in one of its own coastal settlements. At sea it travels
 // further than on foot, but it fights badly: rowing benches are no battle
 // line, and troops wading ashore meet a prepared enemy.
+// Was die Überfahrt eines Landheeres kostet: gecharterte Transporter.
 export const SHIP_COST = 250;
+// Und was ein Geschwader eigener Kriegsschiffe kostet, je Bautrupp.
+export const WARSHIP_BATCH = 60;
+export const WARSHIP_COST = 200;
 export const NAVAL_MOVEMENT = 15;
 export const SEA_MOVE_COST = 1;
 export const EXHAUSTION_PER_SEA_MOVE = 5;
 // Attacking straight off the ships.
 export const AMPHIBIOUS_ATTACK_MULTIPLIER = 0.7;
-// Being caught on the water with no room to form up.
-export const SEA_DEFENCE_MULTIPLIER = 0.75;
+// Auf einer Ruderbank ist ein Fußsoldat kein Fußsoldat: zur See zählt nur,
+// was das Schiff kann. Landtruppen an Bord kämpfen deshalb stark gemindert,
+// Bogenschützen noch am ehesten - sie können vom Deck aus schießen.
+export const SEA_UNIT_SCALE = { infantry: 0.5, cavalry: 0.4, ranged: 0.8 };
 
 // How many times a battle is played through for the forecast. Enough for a
 // stable percentage, cheap enough to run on every click.

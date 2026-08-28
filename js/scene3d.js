@@ -19,6 +19,14 @@ const MAX_POLAR = 1.35;
 
 const cam = { col: 0, row: 0, zoom: 1, azimuth: DEFAULT_AZIMUTH, polar: DEFAULT_POLAR };
 const BASE_DISTANCE = 235;
+// Das Zelt muss die Kamera umschließen, auch ganz herausgezoomt - deshalb
+// hängen Zeltmaß und kleinster Zoom zusammen.
+const MIN_ZOOM = 0.62;
+const MAX_ZOOM = 4.5;
+// Weit genug, dass die Kamera auch ganz herausgezoomt unter dem Tuch bleibt.
+const TENT_RADIUS = 520;
+const TENT_HEIGHT = 520;
+const TENT_WALL = 130;
 
 let terrainMesh = null;
 let waterMesh = null;
@@ -26,6 +34,8 @@ let deepSeaMesh = null;
 let currentMap = null;
 let propsGroup = null;
 let roadsGroup = null;
+let tableGroup = null;
+let tentGroup = null;
 let ambientLight = null;
 let sunLight = null;
 
@@ -168,6 +178,7 @@ function cameraDirection() {
 
 function applyCamera() {
   updateWeatherForCamera();
+  alignBillboards();
   const dist = BASE_DISTANCE / cam.zoom;
   const target = new THREE.Vector3(worldX(cam.col), 0, worldZ(cam.row));
   camera.position.copy(target).addScaledVector(cameraDirection(), dist);
@@ -245,7 +256,7 @@ export function centerOn(col, row) {
 }
 
 export function zoomCamera(factor) {
-  cam.zoom = Math.max(0.35, Math.min(4.5, cam.zoom * factor));
+  cam.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, cam.zoom * factor));
   applyCamera();
 }
 
@@ -449,12 +460,12 @@ export function buildMap(state) {
   terrainMesh = new THREE.Mesh(geometry, material);
   scene.add(terrainMesh);
 
-  const seaSize = Math.max(mapCols, mapRows) * TILE_SIZE * 1.8;
-  // An opaque deep-ocean floor under the translucent surface. Without it the
-  // sea beyond the edge of the heightmap shows the sky through it and the map
-  // ends in a visible pale shelf.
+  // Die Karte liegt auf einem Tisch: das Meer endet am Rahmen, es läuft nicht
+  // mehr ins Unendliche.
+  const boardW = mapCols * TILE_SIZE + TILE_SIZE * 0.6;
+  const boardH = mapRows * TILE_SIZE + TILE_SIZE * 0.6;
   deepSeaMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(seaSize, seaSize),
+    new THREE.PlaneGeometry(boardW, boardH),
     new THREE.MeshStandardMaterial({ color: '#1d3f66', roughness: 0.9 })
   );
   deepSeaMesh.rotation.x = -Math.PI / 2;
@@ -462,7 +473,7 @@ export function buildMap(state) {
   scene.add(deepSeaMesh);
 
   waterMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(seaSize, seaSize),
+    new THREE.PlaneGeometry(boardW, boardH),
     new THREE.MeshStandardMaterial({
       color: TILE_TYPES.water.color, transparent: true, opacity: 0.82, roughness: 0.25,
     })
@@ -471,9 +482,146 @@ export function buildMap(state) {
   waterMesh.position.y = SEA_LEVEL_Y;
   scene.add(waterMesh);
 
+  buildTable(boardW, boardH);
+  buildTent(state);
   buildProps(props);
   buildRoadNetwork(state);
   roadVersionDrawn = state.roadVersion || 0;
+}
+
+// --- Kartentisch und Feldherrnzelt ---------------------------------------
+// Der Feldzug wird nicht aus dem Himmel betrachtet, sondern über einer Karte,
+// die auf einem Tisch im eigenen Zelt liegt: Holzrahmen ringsum, Zeltbahnen
+// darüber, in den Farben der eigenen Fraktion.
+
+const TABLE_WOOD = new THREE.MeshStandardMaterial({ color: '#5a3d24', roughness: 0.85 });
+const TABLE_WOOD_DARK = new THREE.MeshStandardMaterial({ color: '#3f2a17', roughness: 0.9 });
+
+function buildTable(boardW, boardH) {
+  if (tableGroup) scene.remove(tableGroup);
+  tableGroup = new THREE.Group();
+
+  const rim = TILE_SIZE * 1.15;
+  const rimTop = SEA_LEVEL_Y + 1.1;
+  const rimHeight = 3.2;
+  const slabY = tileTopY(TILE_TYPES.water.elevation) - 1.4;
+
+  // Die Tischplatte unter der Karte, damit von unten nichts durchscheint.
+  const slab = new THREE.Mesh(
+    new THREE.BoxGeometry(boardW + rim * 2, 1.6, boardH + rim * 2),
+    TABLE_WOOD_DARK
+  );
+  slab.position.y = slabY;
+  tableGroup.add(slab);
+
+  // Vier Leisten als Rahmen, an den Ecken überlappend.
+  const beams = [
+    [boardW + rim * 2, rim, 0, (boardH + rim) / 2],
+    [boardW + rim * 2, rim, 0, -(boardH + rim) / 2],
+    [rim, boardH + rim * 2, (boardW + rim) / 2, 0],
+    [rim, boardH + rim * 2, -(boardW + rim) / 2, 0],
+  ];
+  for (const [w, d, x, z] of beams) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(w, rimHeight, d), TABLE_WOOD);
+    beam.position.set(x, rimTop - rimHeight / 2 + 1.4, z);
+    tableGroup.add(beam);
+  }
+
+  scene.add(tableGroup);
+}
+
+// Zeltbahnen als Streifentuch: Leinen und die Farbe der eigenen Fraktion.
+function tentFabric(color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 8;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#cbb894';
+  ctx.fillRect(0, 0, 128, 8);
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.55;
+  for (let x = 0; x < 128; x += 32) ctx.fillRect(x, 0, 13, 8);
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = '#000';
+  for (let x = 0; x < 128; x += 8) ctx.fillRect(x, 0, 2, 8);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(6, 1);
+  return texture;
+}
+
+function buildTent(state) {
+  if (tentGroup) scene.remove(tentGroup);
+  tentGroup = new THREE.Group();
+
+  const player = factionById(state, (state.factions.find((f) => f.isPlayer) || {}).id);
+  const colour = player ? player.color : '#8a6134';
+  const radius = TENT_RADIUS;
+  const height = TENT_HEIGHT;
+
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(radius * 1.02, 32),
+    new THREE.MeshStandardMaterial({ color: '#4a3b26', roughness: 1 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = tileTopY(TILE_TYPES.water.elevation) - 2.6;
+  tentGroup.add(floor);
+
+  // Das Dach: ein Kegel von innen gesehen.
+  const roof = new THREE.Mesh(
+    new THREE.ConeGeometry(radius, height, 16, 1, true),
+    new THREE.MeshStandardMaterial({
+      map: tentFabric(colour), side: THREE.BackSide, roughness: 1,
+    })
+  );
+  roof.position.y = floor.position.y + TENT_WALL + height / 2 - 8;
+  tentGroup.add(roof);
+
+  // Die Wände: ein niedriger Zylinder unter dem Dach, damit das Zelt steht
+  // und nicht auf dem Boden aufsitzt.
+  const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, TENT_WALL, 16, 1, true),
+    new THREE.MeshStandardMaterial({
+      map: tentFabric(colour), side: THREE.BackSide, roughness: 1, color: '#e8dcc0',
+    })
+  );
+  wall.position.y = floor.position.y + TENT_WALL / 2;
+  tentGroup.add(wall);
+
+  // Fahnen an den Zeltbahnen: sie sagen auf einen Blick, wessen Zelt das ist.
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    const banner = new THREE.Mesh(
+      new THREE.PlaneGeometry(58, 96),
+      new THREE.MeshStandardMaterial({ color: colour, side: THREE.DoubleSide, roughness: 1 })
+    );
+    banner.position.set(
+      Math.cos(angle) * (radius - 10), floor.position.y + TENT_WALL * 0.62, Math.sin(angle) * (radius - 10)
+    );
+    banner.rotation.y = -angle + Math.PI / 2;
+    tentGroup.add(banner);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(66, 4, 4), TABLE_WOOD_DARK);
+    bar.position.copy(banner.position);
+    bar.position.y += 50;
+    bar.rotation.y = banner.rotation.y;
+    tentGroup.add(bar);
+  }
+
+  // Ein paar Stangen, damit man die Größe des Zelts sieht.
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 + Math.PI / 8;
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(3.2, 3.8, TENT_WALL, 6),
+      TABLE_WOOD_DARK
+    );
+    pole.position.set(
+      Math.cos(angle) * (radius - 5), floor.position.y + TENT_WALL / 2, Math.sin(angle) * (radius - 5)
+    );
+    tentGroup.add(pole);
+  }
+
+  scene.add(tentGroup);
 }
 
 // Das Straßennetz als ein einziges Gitter: für jedes Straßenfeld ein Plättchen
@@ -539,29 +687,41 @@ function buildFortification(kind, scale) {
   const half = span / 2;
 
   if (kind === 'palisade') {
-    // A row of sharpened stakes: a shaft with a point on top, per stake.
+    // Eine Palisade ist eine Wand, kein Zaun: die Stämme stehen dicht an
+    // dicht, und dahinter läuft ein durchgehender Balken, damit zwischen den
+    // Pfählen kein Tageslicht steht.
     const wood = new THREE.MeshStandardMaterial({ color: '#7a5433', roughness: 1 });
-    // Niedriger und dünner als früher: die Befestigung soll die Stadt zeigen,
-    // nicht sie verstecken.
     const height = 0.92 * scale;
-    const perSide = 9;
+    const radius = 0.13 * scale;
+    // So viele Stämme, dass sie sich berühren.
+    const perSide = Math.max(12, Math.round(span / (radius * 1.7)));
     for (let side = 0; side < 4; side++) {
       const angle = (side * Math.PI) / 2;
+      // Der geschlossene Wall hinter den Stämmen.
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(span, height * 0.86, radius * 1.1),
+        wood
+      );
+      wall.rotation.y = angle;
+      wall.position.set(
+        Math.sin(angle) * half, height * 0.43, Math.cos(angle) * half
+      );
+      ring.add(wall);
       for (let i = 0; i < perSide; i++) {
         const t = (i / (perSide - 1) - 0.5) * span;
         const x = Math.cos(angle) * t + Math.sin(angle) * half;
         const z = -Math.sin(angle) * t + Math.cos(angle) * half;
         const stake = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.085 * scale, 0.1 * scale, height, 5),
+          new THREE.CylinderGeometry(radius * 0.82, radius, height, 5),
           wood
         );
         stake.position.set(x, height / 2, z);
         ring.add(stake);
         const tip = new THREE.Mesh(
-          new THREE.ConeGeometry(0.1 * scale, 0.2 * scale, 5),
+          new THREE.ConeGeometry(radius, 0.22 * scale, 5),
           wood
         );
-        tip.position.set(x, height + 0.1 * scale, z);
+        tip.position.set(x, height + 0.11 * scale, z);
         ring.add(tip);
       }
     }
@@ -717,6 +877,36 @@ function addTemple(group, tinted, x, z, width, rotation) {
 }
 
 // Ein Feldzeichen: Stange, Banner in der Fraktionsfarbe, vergoldete Spitze.
+// --- Fahnen ---------------------------------------------------------------
+// Eine Fahne ist eine Fläche, und eine Fläche verschwindet, sobald man von der
+// Seite darauf sieht - beim Drehen der Karte wurde aus jedem Banner ein Strich.
+// Die Tücher hängen deshalb in einer eigenen Gruppe, die sich mit der Kamera
+// dreht: die Stange bleibt stehen, das Tuch zeigt immer zum Betrachter.
+const billboards = [];
+
+function alignBillboards() {
+  const facing = Math.atan2(Math.cos(cam.azimuth), Math.sin(cam.azimuth));
+  for (const group of billboards) group.rotation.y = facing;
+}
+
+// Ein Tuch mit Faltenwurf statt einer geraden Fläche: schmaler zum Mast hin,
+// leicht gewellt, damit es auch im Streiflicht als Stoff zu erkennen ist.
+function makeBannerCloth(width, height, material) {
+  const geometry = new THREE.PlaneGeometry(width, height, 4, 1);
+  const position = geometry.getAttribute('position');
+  for (let i = 0; i < position.count; i++) {
+    const x = position.getX(i);
+    // Am Mast (x = -width/2) liegt das Tuch an, außen weht es aus.
+    const t = (x + width / 2) / width;
+    position.setZ(i, Math.sin(t * Math.PI * 1.6) * height * 0.16);
+    position.setY(i, position.getY(i) * (1 - t * 0.12));
+  }
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.x = width / 2;
+  return mesh;
+}
+
 function addStandard(group, tinted, height, bannerWidth) {
   const pole = new THREE.Mesh(
     new THREE.CylinderGeometry(0.07, 0.07, height, 6),
@@ -729,12 +919,16 @@ function addStandard(group, tinted, height, bannerWidth) {
   finial.position.y = height + 0.1;
   group.add(finial);
 
-  const banner = new THREE.Mesh(
-    new THREE.PlaneGeometry(bannerWidth, bannerWidth * 0.72),
+  const flag = new THREE.Group();
+  flag.position.y = height - bannerWidth * 0.5;
+  group.add(flag);
+  billboards.push(flag);
+
+  const banner = makeBannerCloth(
+    bannerWidth, bannerWidth * 0.72,
     new THREE.MeshStandardMaterial({ color: '#999', side: THREE.DoubleSide, roughness: 0.85 })
   );
-  banner.position.set(bannerWidth / 2, height - bannerWidth * 0.5, 0);
-  group.add(banner);
+  flag.add(banner);
   tinted.push(banner);
   return banner;
 }
@@ -934,12 +1128,16 @@ function buildArmyGroup() {
   group.add(pole);
   group.userData.pole = pole;
 
-  const banner = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.3, 1.6),
+  const flag = new THREE.Group();
+  flag.position.set(0, 2.6, 0);
+  group.add(flag);
+  billboards.push(flag);
+  group.userData.flag = flag;
+  const banner = makeBannerCloth(
+    1.3, 1.6,
     new THREE.MeshStandardMaterial({ color: '#999', side: THREE.DoubleSide })
   );
-  banner.position.set(0.7, 2.6, 0);
-  group.add(banner);
+  flag.add(banner);
   group.userData.banner = banner;
 
   const ring = new THREE.Mesh(
@@ -970,7 +1168,7 @@ function syncArmyGroup(state, army, entry) {
   }
   group.userData.tents.visible = !afloat;
   if (group.userData.pole) group.userData.pole.visible = !afloat;
-  group.userData.banner.visible = !afloat;
+  group.userData.flag.visible = !afloat;
 
   const strength = unitTotalCount(army.units);
   const tierCount = tierForCount(strength);
@@ -1007,8 +1205,8 @@ function syncArmyGroup(state, army, entry) {
     group.userData.pole.scale.set(1, scale, 1);
     group.userData.pole.position.y = 1.6 * scale;
   }
-  group.userData.banner.scale.setScalar(scale);
-  group.userData.banner.position.set(0.7 * scale, 2.6 * scale, 0);
+  group.userData.flag.scale.setScalar(scale);
+  group.userData.flag.position.set(0, 2.6 * scale, 0);
   group.userData.ring.scale.setScalar(Math.max(1, scale));
 
   if (group.userData.label) group.remove(group.userData.label);
@@ -1098,6 +1296,10 @@ export function syncEntities(state) {
     // A destroyed army keeps its group until it has finished marching to the
     // battle; the animation's completion callback triggers the next sync.
     if (!seenArmies.has(id) && !armyAnimations.has(id)) {
+      // Die Fahne der Armee war bei den mitgedrehten Tüchern angemeldet; sonst
+      // wüchse die Liste mit jeder vernichteten Armee weiter.
+      const flagIndex = billboards.indexOf(entry.group.userData.flag);
+      if (flagIndex !== -1) billboards.splice(flagIndex, 1);
       scene.remove(entry.group);
       armyGroups.delete(id);
     }
@@ -1120,8 +1322,9 @@ export function syncEntities(state) {
       // enemy army holds costs extra to enter - both deserve their own colour
       // so the player can read the cost before paying it.
       const color = info.combat ? '#ff4d3d'
-        : info.landing ? '#ffd166'
-          : info.contested ? '#ff8c42' : '#4dffa0';
+        : info.merge ? '#7ecbff'
+          : info.landing ? '#ffd166'
+            : info.contested ? '#ff8c42' : '#4dffa0';
       addHighlight(col, row, color);
     }
   }

@@ -1,5 +1,6 @@
 import {
-  UNIT_ROLES, GARRISON_ROLES, WATCH_ROLE, watchTarget,
+  UNIT_ROLES, GARRISON_ROLES, COMBAT_ROLES, WATCH_ROLE, watchTarget,
+  WARSHIP_BATCH, WARSHIP_COST,
   unitDef, ROLE_LABELS, settlementTier, garrisonCapacity, TILE_TYPES,
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
@@ -8,7 +9,7 @@ import {
 } from './data.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
-  isWaterTile, isCoastalCity,
+  isWaterTile, isCoastalCity, isFleet,
 } from './state.js';
 import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf,
@@ -29,7 +30,7 @@ function escapeHTML(text) {
 // marched in, how many walked away, and the shortfall between the two.
 function sideHTML(state, factionId, label, engaged, survivors, lossPct, won) {
   const faction = factionById(state, factionId);
-  const rows = GARRISON_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => {
+  const rows = COMBAT_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => {
     const before = engaged[k] || 0;
     const after = survivors[k] || 0;
     const lost = before - after;
@@ -190,7 +191,7 @@ export function battleReportHTML(state, report) {
 }
 
 function unitBreakdownHTML(units, factionId) {
-  return GARRISON_ROLES.filter((k) => units[k] > 0)
+  return COMBAT_ROLES.filter((k) => units[k] > 0)
     .map((k) => {
       const def = unitDef(factionId, k);
       return `<span class="unit-chip" title="${escapeHTML(ROLE_LABELS[k])} · Angriff ${
@@ -253,6 +254,11 @@ const EMBARK_REASONS = {
 };
 
 function embarkHTML(state, army) {
+  if (isFleet(army)) {
+    return `<p class="sea-line">⛵ Flotte – ${NAVAL_MOVEMENT} Bewegungspunkte.
+      <span class="muted">Sie hält das Meer: sie greift feindliche Flotten und
+      Transporte an, geht aber nie an Land.</span></p>`;
+  }
   if (army.embarked) {
     return `<p class="sea-line">⛵ Auf See – ${NAVAL_MOVEMENT} Bewegungspunkte.
       <span class="muted">Ein gelbes Feld ist eine Landung; sie beendet die Fahrt.</span></p>`;
@@ -292,7 +298,8 @@ function reinforceHTML(state, army, city) {
 function renderSelectedArmy(state, army) {
   const faction = factionById(state, army.factionId);
   const city = state.cities.find((c) => c.col === army.col && c.row === army.row);
-  const canDisband = city && city.factionId === army.factionId && !army.embarked;
+  const canDisband = city && city.factionId === army.factionId && !army.embarked
+    && !isFleet(army);
   return `
     <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(army.name)}
       ${army.embarked ? '<span class="afloat-tag">⛵ Flotte</span>' : ''}</h3>
@@ -312,7 +319,8 @@ function renderSelectedArmy(state, army) {
     ${embarkHTML(state, army)}
     <p class="hint">Grüne Felder: freie Bewegung · Orange: vom Feind kontrolliert
       (+${ZOC_EXTRA_COST} Bewegung, kein Weiterziehen entlang der Front) ·
-      Rot: Angriff${army.embarked ? ' · Gelb: an Land gehen' : ''}.</p>
+      Rot: Angriff · Blau: eigenes Heer, beide vereinigen sich${
+  army.embarked ? ' · Gelb: an Land gehen' : ''}.</p>
   `;
 }
 
@@ -367,6 +375,7 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
     : 'stellt sich aus der Bevölkerung nach'}</span></p>
     ${wallHTML(city, isMine, player)}
     ${harbourHTML(state, city, isMine, player)}
+    ${fleetHTML(city, isMine, player)}
     ${roadHTML(state, city, isMine, player)}
     <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>
     ${recruitHTML}
@@ -435,6 +444,19 @@ function harbourHTML(state, city, isMine, player) {
       ⚓ Hafen bauen – ${HARBOUR_COST} Gold
       <small>${HARBOUR_TURNS} Runden · ohne Hafen kann hier keine Armee in See stechen${
   tooPoor ? ' · zu wenig Gold' : ''}</small>
+    </button>`;
+}
+
+// Im Hafen liegt die Werft: hier entstehen Kriegsschiffe, die als eigene
+// Flotte auslaufen - kein Transport für ein Heer, sondern ein Verband, der das
+// Meer selbst hält.
+function fleetHTML(city, isMine, player) {
+  if (!isMine || !city.harbour) return '';
+  const tooPoor = player.gold < WARSHIP_COST;
+  return `<button class="fleet-btn" ${tooPoor ? 'disabled' : ''}>
+      ⛵ ${WARSHIP_BATCH} Kriegsschiffe bauen – ${WARSHIP_COST} Gold
+      <small>Läuft als eigene Flotte aus; eine schon im Hafen liegende wird
+        verstärkt${tooPoor ? ' · zu wenig Gold' : ''}</small>
     </button>`;
 }
 
@@ -695,6 +717,8 @@ export function renderUI(state, handlers) {
       if (wallBtn) wallBtn.addEventListener('click', () => handlers.onBuyWalls(city.id));
       const harbourBtn = panel.querySelector('.harbour-btn:not([disabled])');
       if (harbourBtn) harbourBtn.addEventListener('click', () => handlers.onBuyHarbour(city.id));
+      const fleetBtn = panel.querySelector('.fleet-btn:not([disabled])');
+      if (fleetBtn) fleetBtn.addEventListener('click', () => handlers.onBuildFleet(city.id));
       panel.querySelectorAll('.road-btn').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onBuildRoad(city.id, btn.dataset.target));
       });
@@ -763,7 +787,7 @@ function oddsVerdict(chance) {
 // One side of the forecast: what marches in and what is expected to walk away.
 function forecastSideHTML(state, factionId, label, engaged, survivors, lossPct) {
   const faction = factionById(state, factionId);
-  const rows = GARRISON_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => `<tr>
+  const rows = COMBAT_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => `<tr>
       <td class="u-name">${unitDef(factionId, k).icon} ${escapeHTML(unitDef(factionId, k).name)}</td>
       <td class="u-num">${(engaged[k] || 0).toLocaleString('de-DE')}</td>
       <td class="u-num">${(survivors[k] || 0).toLocaleString('de-DE')}</td>

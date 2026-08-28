@@ -11,7 +11,7 @@ import {
   recruitUnit, raiseArmyFromGarrison, reinforceArmy, collectIncome, regenerateGarrisons,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
-  buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction,
+  buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction, buildFleet,
 } from './actions.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
@@ -99,6 +99,46 @@ function observeMapSize() {
     render();
   });
   observer.observe(canvas.parentElement);
+}
+
+// --- Feldzug beenden ------------------------------------------------------
+// Zurück ins Hauptmenü, mit Rückfrage: es gibt keinen Spielstand, der den
+// laufenden Feldzug zurückholt.
+
+function showQuitDialog() {
+  const overlay = document.getElementById('quitOverlay');
+  if (overlay) overlay.classList.remove('hidden');
+}
+
+function hideQuitDialog() {
+  const overlay = document.getElementById('quitOverlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+function quitToMenu() {
+  hideQuitDialog();
+  hideBattleReport();
+  hideBattlePreview();
+  hideTileInfo();
+  stopMarch();
+  state = null;
+  undoStack.length = 0;
+  appEl.classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+  startChronicle();
+}
+
+function setupQuitButton() {
+  const button = document.getElementById('quitBtn');
+  if (button) button.addEventListener('click', showQuitDialog);
+  const confirmBtn = document.getElementById('quitConfirm');
+  if (confirmBtn) confirmBtn.addEventListener('click', quitToMenu);
+  const cancelBtn = document.getElementById('quitCancel');
+  if (cancelBtn) cancelBtn.addEventListener('click', hideQuitDialog);
+  const overlay = document.getElementById('quitOverlay');
+  if (overlay) {
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) hideQuitDialog(); });
+  }
 }
 
 // --- Feldauskunft (Rechtsklick) -----------------------------------------
@@ -492,6 +532,13 @@ function refresh() {
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
+    onBuildFleet: (cityId) => {
+      pushUndo();
+      const result = buildFleet(state, cityId);
+      if (result.ok) state.selectedArmyId = result.armyId;
+      (result.ok ? sfx.embark : sfx.denied)();
+      refresh();
+    },
     onBuildRoad: (cityId, targetId) => {
       pushUndo();
       const ok = buyRoad(state, cityId, targetId).ok;
@@ -883,6 +930,7 @@ reflectFullscreenAvailability();
 setupSidebarToggle();
 setupSidebarTabs();
 setupTileInfo();
+setupQuitButton();
 setupMuteButton();
 setupMapModeButton();
 setupDpad();

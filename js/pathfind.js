@@ -1,5 +1,5 @@
 import { TILE_TYPES, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST } from './data.js';
-import { armyAt, cityAt } from './state.js';
+import { armyAt, cityAt, isFleet } from './state.js';
 import { weatherMoveCost } from './weather.js';
 
 const NEIGHBORS = [
@@ -13,7 +13,7 @@ function key(col, row) {
 // What a tile means to this army: blocked, free to cross, or a destination
 // that starts a fight. A fleet sees the map inverted - open water is its road
 // and every shore is a landing, which ends its voyage either way.
-function classifyTile(state, col, row, movingFactionId, embarked) {
+function classifyTile(state, col, row, movingFactionId, embarked, fleet) {
   const map = state.map;
   if (col < 0 || col >= map.cols || row < 0 || row >= map.rows) {
     return { blocked: true };
@@ -23,6 +23,9 @@ function classifyTile(state, col, row, movingFactionId, embarked) {
   const isSea = tile.type === 'water';
 
   if (embarked) {
+    // Ein Geschwader aus lauter Schiffen kennt keine Landung: für eine Flotte
+    // endet die Welt am Ufer.
+    if (!isSea && fleet) return { blocked: true };
     if (!isSea && tileDef.impassable) return { blocked: true };
   } else if (tileDef.impassable) {
     return { blocked: true };
@@ -40,8 +43,12 @@ function classifyTile(state, col, row, movingFactionId, embarked) {
   const occupant = armyAt(state, col, row);
   const city = cityAt(state, col, row);
 
+  // Auf ein eigenes Heer zu ziehen heißt, sich mit ihm zu vereinigen: zwei
+  // halbe Heere nehmen keine Stadt, ein ganzes schon. Durchziehen geht nicht.
   if (occupant && occupant.factionId === movingFactionId) {
-    return { blocked: true };
+    const bothAfloat = !!occupant.embarked === !!embarked;
+    if (!bothAfloat) return { blocked: true };
+    return { blocked: false, cost, endpointOnly: true, combat: false, merge: true, landing };
   }
   if (occupant && occupant.factionId !== movingFactionId) {
     return { blocked: false, cost, endpointOnly: true, combat: true, landing };
@@ -86,7 +93,9 @@ export function computeReachable(state, army) {
   const combatEndpoint = new Set();
   const stopEndpoint = new Set();
   const landings = new Set();
+  const merges = new Set();
   const embarked = !!army.embarked;
+  const fleet = embarked && isFleet(army);
   const zoc = zoneOfControl(state, army);
   const contested = new Set();
   const frontier = [{ col: army.col, row: army.row, cost: 0 }];
@@ -104,7 +113,7 @@ export function computeReachable(state, army) {
       const nk = key(ncol, nrow);
       if (visited.has(nk)) continue;
 
-      const info = classifyTile(state, ncol, nrow, army.factionId, embarked);
+      const info = classifyTile(state, ncol, nrow, army.factionId, embarked, fleet);
       if (info.blocked) continue;
 
       const isStart = ncol === army.col && nrow === army.row;
@@ -130,6 +139,8 @@ export function computeReachable(state, army) {
         else combatEndpoint.delete(nk);
         if (info.landing) landings.add(nk);
         else landings.delete(nk);
+        if (info.merge) merges.add(nk);
+        else merges.delete(nk);
         if (info.combat || info.endpointOnly) stopEndpoint.add(nk);
         else stopEndpoint.delete(nk);
         if (heldTo && !info.combat) contested.add(nk);
@@ -154,6 +165,7 @@ export function computeReachable(state, army) {
       path,
       combat: combatEndpoint.has(k),
       landing: landings.has(k),
+      merge: merges.has(k),
       contested: contested.has(k),
     });
   }

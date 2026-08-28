@@ -2,6 +2,7 @@ import {
   FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES,
   CAPITAL_WALL_LEVEL, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
+  UNIT_ROLES, SHIP_ROLE,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
@@ -264,6 +265,15 @@ export function coastalOnMap(map, col, row) {
 
 export function isCoastalCity(state, city) {
   return coastalOnMap(state.map, city.col, city.row);
+}
+
+// Eine Flotte ist eine Armee, die nur aus Schiffen besteht: sie fährt zur See,
+// sie kämpft zur See, und sie geht nie an Land. Ein Landheer auf Transportern
+// ist keine Flotte - es ist eingeschifft.
+export function isFleet(army) {
+  if (!army || !army.units) return false;
+  return (army.units[SHIP_ROLE] || 0) > 0
+    && UNIT_ROLES.every((key) => !(army.units[key] > 0));
 }
 
 export function unitTotalCount(units) {

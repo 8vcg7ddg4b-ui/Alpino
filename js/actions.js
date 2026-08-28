@@ -1,5 +1,5 @@
 import {
-  UNIT_ROLES, GARRISON_ROLES, WATCH_ROLE, watchTarget, watchGrowth,
+  UNIT_ROLES, GARRISON_ROLES, COMBAT_ROLES, WATCH_ROLE, watchTarget, watchGrowth,
   unitDef, MAX_MOVEMENT, INCOME_PER_CITY,
   RECRUIT_BATCH, TILE_TYPES, settlementTier, garrisonCapacity,
   MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
@@ -10,7 +10,7 @@ import {
   MAX_EXPERIENCE, EXPERIENCE_PER_BATTLE, EXPERIENCE_FOR_WIN,
   experienceBonus, experienceStars, starMarks, starTitle,
   SHIP_COST, NAVAL_MOVEMENT, EXHAUSTION_PER_SEA_MOVE,
-  AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_DEFENCE_MULTIPLIER,
+  AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_UNIT_SCALE, SHIP_ROLE, WARSHIP_BATCH, WARSHIP_COST,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
   HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
 } from './data.js';
@@ -19,7 +19,7 @@ import { computeReachable, tileKey } from './pathfind.js';
 import { resolveBattle, forecastBattle } from './combat.js';
 import {
   makeId, factionById, cityAt, armyAt, unitTotalCount, logMsg, logOwn, playerFaction,
-  isWaterTile, isCoastalCity, harbourTile,
+  isWaterTile, isCoastalCity, harbourTile, isFleet, PORT_RANGE,
 } from './state.js';
 import {
   rollWeather, weatherAt, weatherInfo, weatherBattleModifiers, calendarOfTurn, zoneName,
@@ -47,7 +47,7 @@ const MAX_BATTLE_REPORTS = 40;
 // Verteidigung, obwohl sie in der Stadt steht.
 function mergeAllUnits(parts) {
   const out = {};
-  for (const key of GARRISON_ROLES) {
+  for (const key of COMBAT_ROLES) {
     out[key] = parts.reduce((sum, part) => sum + (part[key] || 0), 0);
   }
   return out;
@@ -58,7 +58,7 @@ function mergeAllUnits(parts) {
 // all of the casualties.
 function splitSurvivors(survivors, parts) {
   const out = parts.map(() => ({}));
-  for (const key of GARRISON_ROLES) {
+  for (const key of COMBAT_ROLES) {
     const total = parts.reduce((sum, part) => sum + (part[key] || 0), 0);
     const available = survivors[key] || 0;
     if (total === 0) {
@@ -243,6 +243,15 @@ function recordBattle(state, opts) {
 // Everything the defence of a tile consists of, and every modifier the battle
 // will run under. Both the forecast and the real engagement read it from here,
 // so the preview can never promise a fight on terms the battle does not use.
+// Zwei Multiplikatorlisten je Waffengattung zu einer zusammenfassen.
+function combineScales(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  const out = { ...a };
+  for (const [key, value] of Object.entries(b)) out[key] = (out[key] ?? 1) * value;
+  return out;
+}
+
 export function gatherDefence(state, army, destCol, destRow, attackerOverrides = {}) {
   const city = cityAt(state, destCol, destRow);
   const cityIsEnemy = !!city && city.factionId !== army.factionId;
@@ -293,8 +302,7 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       defenderMorale: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'morale'),
       defenderExhaustion: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'exhaustion'),
       wallMultiplier: wallDefenceMultiplier(wallLevel),
-      // Caught on open water there is no line to form and no ground to hold.
-      defenderMultiplier: atSea ? SEA_DEFENCE_MULTIPLIER : 1,
+      defenderMultiplier: 1,
       // Storming a shore straight off the ships is the hardest attack there is.
       attackerMultiplier: amphibious ? AMPHIBIOUS_ATTACK_MULTIPLIER : 1,
       attackerVeterancy: experienceBonus(army.experience),
@@ -302,6 +310,9 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       attackerFactionId: army.factionId,
       defenderFactionId,
       ...sky.modifiers,
+      // Wetter und Seegang wirken beide auf die Waffengattungen; sie werden
+      // multipliziert, nicht gegeneinander ausgetauscht.
+      unitScale: combineScales(sky.modifiers.unitScale, atSea ? SEA_UNIT_SCALE : null),
     },
   };
 }
@@ -541,6 +552,33 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   return { ok: true, survived: true, capturedCity, reports };
 }
 
+// Zwei Heere derselben Fraktion werden zu einem. Erfahrung, Moral und
+// Erschöpfung werden nach Kopfzahl gemittelt: ein frisches Aufgebot verdünnt
+// die Veteranen, und wer erschöpft ankommt, zieht den Rest mit herunter.
+export function mergeArmies(state, mover, host) {
+  const moverMen = unitTotalCount(mover.units);
+  const hostMen = unitTotalCount(host.units);
+  const total = moverMen + hostMen;
+  if (total > 0) {
+    const blend = (stat, fallback) => (
+      ((host[stat] ?? fallback) * hostMen + (mover[stat] ?? fallback) * moverMen) / total
+    );
+    host.experience = blend('experience', 0);
+    host.morale = blend('morale', MORALE_START);
+    host.exhaustion = blend('exhaustion', 0);
+  }
+  for (const key of COMBAT_ROLES) {
+    if (mover.units[key]) host.units[key] = (host.units[key] || 0) + mover.units[key];
+  }
+  // Das vereinigte Heer hat den Marsch des Zuziehenden in den Knochen.
+  host.movement = Math.min(host.movement, mover.movement);
+  const name = mover.name;
+  removeArmy(state, mover.id);
+  logOwn(state, host.factionId, `${name} schließt sich ${host.name} an – ${
+    unitTotalCount(host.units).toLocaleString('de-DE')} Mann.`);
+  return { ok: true, combat: false, merged: true, armyId: host.id, reports: [] };
+}
+
 export function moveArmy(state, armyId, destCol, destRow) {
   const army = state.armies.find((a) => a.id === armyId);
   if (!army) return { ok: false };
@@ -550,6 +588,13 @@ export function moveArmy(state, armyId, destCol, destRow) {
 
   army.movement = Math.max(0, army.movement - entry.cost);
   adjustExhaustion(army, moveExhaustion(army, entry.cost));
+
+  // Zwei eigene Heere auf einem Feld werden eines.
+  if (entry.merge) {
+    const host = armyAt(state, destCol, destRow);
+    if (!host || host.factionId !== army.factionId) return { ok: false };
+    return mergeArmies(state, army, host);
+  }
 
   if (!entry.combat) {
     army.col = destCol;
@@ -632,6 +677,67 @@ export function recruitUnit(state, cityId, unitKey) {
   return { ok: true };
 }
 
+// --- Flottenbau -----------------------------------------------------------
+// In einer Hafenstadt lassen sich Kriegsschiffe bauen. Sie bilden eine eigene
+// Flotte, die im Hafenbecken liegt: kein Landheer, das übersetzt, sondern ein
+// Geschwader, das das Meer selbst hält.
+export function fleetAt(state, col, row, factionId) {
+  const army = armyAt(state, col, row);
+  return army && army.factionId === factionId && isFleet(army) ? army : null;
+}
+
+export function buildFleet(state, cityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false };
+  if (!city.harbour) return { ok: false, reason: 'noHarbour' };
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  if (faction.gold < WARSHIP_COST) return { ok: false, reason: 'gold' };
+
+  // Liegt schon eine eigene Flotte im Hafen, wächst sie; sonst braucht es ein
+  // freies Wasserfeld in Hafenreichweite.
+  let fleet = null;
+  for (let dr = -PORT_RANGE; dr <= PORT_RANGE && !fleet; dr++) {
+    for (let dc = -PORT_RANGE; dc <= PORT_RANGE && !fleet; dc++) {
+      if (Math.abs(dc) + Math.abs(dr) > PORT_RANGE) continue;
+      if (!isWaterTile(state, city.col + dc, city.row + dr)) continue;
+      fleet = fleetAt(state, city.col + dc, city.row + dr, city.factionId);
+    }
+  }
+  const berth = fleet ? null : harbourTile(state, city, true);
+  if (!fleet && !berth) return { ok: false, reason: 'blocked' };
+  if (weatherAt(state, (fleet || berth).col, (fleet || berth).row).blocksEmbark) {
+    return { ok: false, reason: 'storm' };
+  }
+
+  faction.gold -= WARSHIP_COST;
+  if (fleet) {
+    const veterans = unitTotalCount(fleet.units);
+    fleet.experience = ((fleet.experience || 0) * veterans) / (veterans + WARSHIP_BATCH);
+    fleet.units[SHIP_ROLE] = (fleet.units[SHIP_ROLE] || 0) + WARSHIP_BATCH;
+    logOwn(state, faction.id, `${WARSHIP_BATCH} Kriegsschiffe verstärken ${fleet.name} in ${city.name}.`);
+    return { ok: true, armyId: fleet.id };
+  }
+
+  const newFleet = {
+    id: makeId('army'),
+    factionId: city.factionId,
+    col: berth.col,
+    row: berth.row,
+    movement: 0,
+    maxMovement: NAVAL_MOVEMENT,
+    units: { [SHIP_ROLE]: WARSHIP_BATCH },
+    morale: GARRISON_MORALE,
+    exhaustion: 0,
+    experience: 0,
+    embarked: true,
+    name: `${faction.name} Flotte`,
+  };
+  state.armies.push(newFleet);
+  logOwn(state, faction.id, `In ${city.name} läuft eine Flotte von ${WARSHIP_BATCH} Kriegsschiffen vom Stapel.`);
+  return { ok: true, armyId: newFleet.id };
+}
+
 // Eine Armee, die in einer eigenen Stadt steht, kann dort frische Truppen
 // kaufen. Sie treten unmittelbar in die Armee ein statt den Umweg über die
 // Garnison zu nehmen - und verdünnen wie jede Aushebung die Erfahrung.
@@ -709,6 +815,7 @@ export function disbandArmyIntoCity(state, armyId) {
   const city = cityAt(state, army.col, army.row);
   if (!city || city.factionId !== army.factionId) return { ok: false, reason: 'noCity' };
 
+  if (isFleet(army)) return { ok: false, reason: 'fleet' };
   const joined = unitTotalCount(army.units);
   if (joined <= 0) return { ok: false, reason: 'empty' };
   for (const key of UNIT_ROLES) {
@@ -1004,7 +1111,7 @@ export function collectIncome(state) {
     income += ownCities.reduce((s, c) => s + Math.floor(c.population / 200), 0);
     const upkeep = state.armies
       .filter((a) => a.factionId === faction.id)
-      .reduce((s, a) => s + UNIT_ROLES.reduce(
+      .reduce((s, a) => s + COMBAT_ROLES.reduce(
         (s2, k) => s2 + (a.units[k] || 0) * unitDef(faction.id, k).upkeep, 0
       ), 0);
     faction.gold = Math.max(0, Math.round(faction.gold + income - upkeep));

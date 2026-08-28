@@ -1,25 +1,25 @@
 // Gerechnet wird über alle Rollen, die in einer Truppe stehen können - die
 // drei Waffengattungen und die Stadtwache, die nur auf der Verteidigerseite
 // vorkommt und dort mitkämpft.
-import { unitDefs, GARRISON_ROLES, TILE_TYPES, BATTLE_PREVIEW_SAMPLES } from './data.js';
+import { unitDefs, COMBAT_ROLES, TILE_TYPES, BATTLE_PREVIEW_SAMPLES } from './data.js';
 import { mulberry32 } from './prng.js';
 
 let battleSeed = 42;
 
 function cloneUnits(units) {
   const out = {};
-  for (const key of GARRISON_ROLES) out[key] = units[key] || 0;
+  for (const key of COMBAT_ROLES) out[key] = units[key] || 0;
   return out;
 }
 
 // How much punishment a force can take, which depends on whose men they are:
 // a Roman legionary and a Dacian falx-man do not stand up to the same beating.
 function totalStrength(units, defs) {
-  return GARRISON_ROLES.reduce((sum, key) => sum + (units[key] || 0) * defs[key].hp, 0);
+  return COMBAT_ROLES.reduce((sum, key) => sum + (units[key] || 0) * defs[key].hp, 0);
 }
 
 function totalCount(units) {
-  return GARRISON_ROLES.reduce((sum, key) => sum + (units[key] || 0), 0);
+  return COMBAT_ROLES.reduce((sum, key) => sum + (units[key] || 0), 0);
 }
 
 // Fresh, confident troops hit harder; worn-out ones falter. Both inputs are
@@ -75,7 +75,7 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
 
     let atkPower = 0;
     let defPower = 0;
-    for (const key of GARRISON_ROLES) {
+    for (const key of COMBAT_ROLES) {
       const atkDef = attackerDefs[key];
       const defDef = defenderDefs[key];
       const conditions = (unitScale && unitScale[key]) || 1;
@@ -160,7 +160,7 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
 function applyDamage(units, dmg, defs) {
   const strength = totalStrength(units, defs);
   if (strength <= 0 || dmg <= 0) return;
-  for (const key of GARRISON_ROLES) {
+  for (const key of COMBAT_ROLES) {
     const count = units[key] || 0;
     if (count <= 0) continue;
     const share = (count * defs[key].hp) / strength;
@@ -178,7 +178,7 @@ function situationSeed(attacker, defender, terrainType, modifiers) {
     h ^= Math.round(value * 1000) | 0;
     h = Math.imul(h, 16777619);
   };
-  for (const key of GARRISON_ROLES) {
+  for (const key of COMBAT_ROLES) {
     mix(attacker[key] || 0);
     mix(defender[key] || 0);
   }
@@ -195,7 +195,7 @@ function situationSeed(attacker, defender, terrainType, modifiers) {
   mix(modifiers.defenderVeterancy ?? 1);
   mix(String(modifiers.attackerFactionId || '').length);
   mix(String(modifiers.defenderFactionId || '').length);
-  for (const key of GARRISON_ROLES) mix((modifiers.unitScale && modifiers.unitScale[key]) ?? 1);
+  for (const key of COMBAT_ROLES) mix((modifiers.unitScale && modifiers.unitScale[key]) ?? 1);
   return h >>> 0;
 }
 
@@ -213,7 +213,7 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
   let defenderWipes = 0;
   const attackerSurvivors = {};
   const defenderSurvivors = {};
-  for (const key of GARRISON_ROLES) {
+  for (const key of COMBAT_ROLES) {
     attackerSurvivors[key] = 0;
     defenderSurvivors[key] = 0;
   }
@@ -229,14 +229,14 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     defenderLoss += result.defenderLossesPct;
     if (totalCount(result.attackerSurvivors) === 0) attackerWipes++;
     if (totalCount(result.defenderSurvivors) === 0) defenderWipes++;
-    for (const key of GARRISON_ROLES) {
+    for (const key of COMBAT_ROLES) {
       attackerSurvivors[key] += result.attackerSurvivors[key] || 0;
       defenderSurvivors[key] += result.defenderSurvivors[key] || 0;
     }
     if (i === 0) sample = result;
   }
 
-  for (const key of GARRISON_ROLES) {
+  for (const key of COMBAT_ROLES) {
     attackerSurvivors[key] = Math.round(attackerSurvivors[key] / samples);
     defenderSurvivors[key] = Math.round(defenderSurvivors[key] / samples);
   }
