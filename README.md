@@ -47,6 +47,19 @@ Elburs sowie Euphrat und Tigris.
 Das Spiel läuft wahlweise **im Browser** oder als **eigenständige Desktop-Anwendung**
 (Windows/macOS/Linux) mit eigenem Fenster, eigenem Icon und ohne sichtbaren Browser.
 
+## Als einzelne Datei bauen
+
+`npm run artifact` zieht das ganze Spiel in eine einzige HTML-Datei
+(`dist/pax-aeterna.html`, rund 1,1 MB): Stil, three.js und die 21 ES-Module,
+in Abhängigkeitsreihenfolge zu einem klassischen Skript verflacht. Das ist die
+Form, die ein Artefakt oder ein beliebiger Webspeicher braucht - eine Datei,
+keine Nachbardateien, nichts über das Netz.
+
+Der Bau bricht ab, statt ein stummes Spiel zu erzeugen: er prüft, dass der
+Abhängigkeitsgraph kreisfrei ist und kein Name auf oberster Ebene zweimal
+vergeben wurde - beides würde in einem gemeinsamen Geltungsbereich zu Fehlern
+führen, die erst im Browser auffielen.
+
 ## Als Desktop-Programm starten
 
 ```bash
