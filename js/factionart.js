@@ -173,6 +173,33 @@ export const FACTION_ART = {
         ${spears(816, 34, 128, rng, '#0a120c')}`;
     },
   },
+  numidien: {
+    motto: 'Ohne Zaum und ohne Sattel',
+    render() {
+      const rng = seeded(1313);
+      // Numidien ist das Land zwischen der Küste und dem Atlas: trockene
+      // Hügel, Palmen an den Wasserstellen - und die Reiter, für die es
+      // berühmt war, ohne Zaum und ohne Sattel.
+      const riders = (baseY, count, scale, colour, x0, x1) => {
+        let out = '';
+        for (let i = 0; i < count; i++) {
+          const x = x0 + ((x1 - x0) / count) * (i + rng() * 0.5);
+          out += horseman(x, baseY + rng() * 8, scale * (0.85 + rng() * 0.35), colour);
+        }
+        return out;
+      };
+      return `${sky([[0, '#243a55'], [0.38, '#8a7f83'], [0.72, '#d9ab6a'], [1, '#f6dfae']], 'faNum')}
+        ${sun(1160, 520, 82, '#ffeec0', 0.36)}
+        ${peaks(600, 150, rng, '#6d5c46', 0.5, 8)}
+        ${hills(650, 30, rng, '#9c7f4e', 0.62)}
+        ${palm(240, 706, 1.05, '#241c12')}
+        ${palm(330, 712, 0.75, '#241c12')}
+        ${hills(712, 20, rng, '#6a5530', 0.9)}
+        ${riders(716, 6, 0.9, '#2b2214', 140, 1500)}
+        <rect y="742" width="${SCENE_W}" height="${SCENE_H - 742}" fill="#2a2015"/>
+        ${riders(824, 4, 1.6, '#100c06', 160, 1460)}`;
+    },
+  },
   griechen: {
     motto: 'Die Phalanx der Poleis',
     render() {

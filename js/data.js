@@ -98,6 +98,7 @@ export const FACTION_SHIP_TYPE = {
   griechen: 'lembos',
   illyrer: 'lembos',
   iberer: 'lembos',
+  numidien: 'lembos',
   gallier: 'keltenschiff',
   britannier: 'keltenschiff',
   germanen: 'keltenschiff',
@@ -145,8 +146,15 @@ export const FACTION_UNITS = {
   },
   karthago: {
     infantry: { name: 'Libysche Speerträger', icon: '⚔️', attack: 6, defense: 9, hp: 100, cost: 100, upkeep: 0.05 },
-    cavalry: { name: 'Numidische Reiter', icon: '🐎', attack: 11, defense: 3, hp: 85, cost: 145, upkeep: 0.09 },
+    cavalry: { name: 'Punische Reiterei', icon: '🐎', attack: 11, defense: 3, hp: 85, cost: 145, upkeep: 0.09 },
     ranged: { name: 'Balearische Schleuderer', icon: '🪨', attack: 6, defense: 3, hp: 70, cost: 125, upkeep: 0.065, ranged: true },
+  },
+  // Numidien: leichtes Fußvolk, das nur die Reiter deckt - und die beste
+  // leichte Reiterei der Karte, die niemand stellen kann.
+  numidien: {
+    infantry: { name: 'Numidische Speerträger', icon: '⚔️', attack: 6, defense: 6, hp: 90, cost: 90, upkeep: 0.045 },
+    cavalry: { name: 'Numidische Reiter', icon: '🐎', attack: 12, defense: 3, hp: 85, cost: 145, upkeep: 0.09 },
+    ranged: { name: 'Numidische Speerwerfer', icon: '🪶', attack: 6, defense: 3, hp: 70, cost: 105, upkeep: 0.055, ranged: true },
   },
   gallier: {
     infantry: { name: 'Schwertkämpfer', icon: '🗡️', attack: 8, defense: 7, hp: 105, cost: 105, upkeep: 0.055 },
@@ -234,7 +242,15 @@ export const DEFAULT_PLAYER_FACTION = 'rom';
 
 export const FACTIONS = [
   { id: 'rom', name: 'Rom', color: '#c0392b' },
-  { id: 'karthago', name: 'Karthago', color: '#2c3e8c' },
+  // Karthago hält seit Generationen einen Brückenkopf in Iberien; dort steht
+  // ein eigenes Heer, weil es von Afrika aus nicht zu verteidigen wäre.
+  {
+    id: 'karthago', name: 'Karthago', color: '#2c3e8c',
+    startingArmies: [
+      { units: { infantry: 300, cavalry: 120, ranged: 120 } },
+      { units: { infantry: 160, cavalry: 60, ranged: 50 }, home: 'Carthago Nova' },
+    ],
+  },
   // Der keltische Ruf gründet auf dem Ansturm des Fußvolks mit dem langen
   // Schwert - viel Infanterie, wenig anderes.
   {
@@ -248,6 +264,9 @@ export const FACTIONS = [
     ],
     armyLabel: 'Heerbann',
   },
+  // Numidien lebt vom Pferd: die berittenen Verbände, die Karthago jahrhunderte-
+  // lang anwarb, stehen hier unter eigener Fahne.
+  { id: 'numidien', name: 'Numidien', color: '#c98a2e', armyLabel: 'Reiterheer' },
   { id: 'griechen', name: 'Griechen', color: '#7a4fae' },
   // The tribes field a great mass of foot: no siege train, few horse and
   // fewer bows, but more men in the line than anyone else brings.
@@ -325,9 +344,15 @@ export const FACTION_PROFILES = {
   },
   karthago: {
     difficulty: 'leicht',
-    blurb: 'Sechs Städte an der afrikanischen Küste, jede einzelne am Meer.',
-    strength: 'Numidische Reiter und Häfen ringsum – die See gehört dir.',
-    weakness: 'Eine lange Küste ohne Tiefe: überall Front, nirgends Rückzug.',
+    blurb: 'Vier Städte an der afrikanischen Küste und Carthago Nova in Iberien, mit eigenem Heer.',
+    strength: 'Quinqueremen, Häfen ringsum und zwei Heere auf zwei Erdteilen.',
+    weakness: 'Eine lange Küste ohne Tiefe, und Numidien im Rücken.',
+  },
+  numidien: {
+    difficulty: 'schwer',
+    blurb: 'Fünf Orte zwischen Karthago und dem Atlas – Cirta als Königssitz, dazu das königliche Hippo.',
+    strength: 'Numidische Reiter: die schnellste und härteste leichte Reiterei der Karte.',
+    weakness: 'Fußvolk, das nur die Reiter deckt, und Karthago als unmittelbarer Nachbar.',
   },
   gallier: {
     difficulty: 'schwer',
@@ -452,11 +477,20 @@ export const CITY_DEFS = [
   { name: 'Ravenna', lon: 12.20, lat: 44.42, factionId: 'rom', capital: false, size: 'village' },
   // --- Karthago: Nordafrika ----------------------------------------------
   { name: 'Karthago', lon: 10.32, lat: 36.85, factionId: 'karthago', capital: true, size: 'large' },
-  { name: 'Hippo Regius', lon: 7.75, lat: 36.90, factionId: 'karthago', capital: false, size: 'city' },
   { name: 'Hadrumetum', lon: 10.64, lat: 35.83, factionId: 'karthago', capital: false, size: 'city' },
-  { name: 'Cirta', lon: 6.61, lat: 36.37, factionId: 'karthago', capital: false, size: 'village' },
   { name: 'Tingis', lon: -5.81, lat: 35.78, factionId: 'karthago', capital: false, size: 'village' },
   { name: 'Leptis Magna', lon: 14.29, lat: 32.64, factionId: 'karthago', capital: false, size: 'village' },
+  // Karthagos Brückenkopf in Iberien: die Silberminen der Halbinsel und der
+  // Hafen, von dem aus ein Heer nach Norden zieht statt über die See.
+  { name: 'Carthago Nova', lon: -0.98, lat: 37.60, factionId: 'karthago', capital: false, size: 'city' },
+  // --- Numidien: das Reiterland westlich von Karthago --------------------
+  { name: 'Cirta', lon: 6.61, lat: 36.37, factionId: 'numidien', capital: true, size: 'large' },
+  // Hippo Regius heißt "das königliche Hippo", weil dort die numidischen
+  // Könige Hof hielten - es gehört hierher und nicht zu Karthago.
+  { name: 'Hippo Regius', lon: 7.75, lat: 36.90, factionId: 'numidien', capital: false, size: 'city' },
+  { name: 'Icosium', lon: 3.06, lat: 36.75, factionId: 'numidien', capital: false, size: 'city' },
+  { name: 'Zama Regia', lon: 9.45, lat: 36.05, factionId: 'numidien', capital: false, size: 'village' },
+  { name: 'Siga', lon: -1.32, lat: 35.19, factionId: 'numidien', capital: false, size: 'village' },
   // --- Gallier ------------------------------------------------------------
   { name: 'Alesia', lon: 4.50, lat: 47.54, factionId: 'gallier', capital: true, size: 'large' },
   { name: 'Bibracte', lon: 4.03, lat: 46.75, factionId: 'gallier', capital: false, size: 'city' },
@@ -723,7 +757,7 @@ export const FREE_STATE_MAX = 2;
 // Völker, die es in der Alten Welt gab, die aber nicht als Startfraktion
 // antreten. Wer sich erhebt, bekommt den nächstpassenden Namen dieser Liste.
 export const FREE_STATE_NAMES = [
-  { name: 'Numider', color: '#c08a3e' },
+  { name: 'Mauren', color: '#b06a3a' },
   { name: 'Thraker', color: '#7d4a8c' },
   { name: 'Ligurer', color: '#4f8a7a' },
   { name: 'Lusitaner', color: '#a8603c' },

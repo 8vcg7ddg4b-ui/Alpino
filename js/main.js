@@ -33,6 +33,7 @@ import {
 } from './settings.js';
 import { setAiStance } from './ai.js';
 import { weatherAt, calendarOfTurn } from './weather.js';
+import { rollEvents } from './events.js';
 
 const canvas = document.getElementById('gameCanvas');
 const appEl = document.getElementById('app');
@@ -127,6 +128,7 @@ const HERALD_TITLES = {
   britannier: 'Dein Gefolgsmann', iberer: 'Dein Gefolgsmann',
   daker: 'Dein Gefolgsmann', illyrer: 'Dein Gefolgsmann',
   sarmaten: 'Dein Reiterführer',
+  numidien: 'Dein Reiterfürst',
 };
 
 const heraldOverlay = document.getElementById('heraldOverlay');
@@ -167,6 +169,41 @@ function setupHerald() {
   heraldOverlay.addEventListener('click', hideHerald);
 }
 setupHerald();
+
+// --- Zufallsereignisse ----------------------------------------------------
+// Was der Spieler nicht befohlen hat, bekommt er trotzdem zu sehen: ein
+// eigenes Fenster, damit eine Seuche nicht zwischen zwei Wetterzeilen im
+// Protokoll untergeht. Was den anderen Fraktionen zustößt, steht nur dort.
+
+const eventOverlay = document.getElementById('eventOverlay');
+
+function hideEvent() {
+  if (eventOverlay) eventOverlay.classList.add('hidden');
+}
+
+function showEvent(event) {
+  if (!eventOverlay || !event) return;
+  const box = eventOverlay.querySelector('.event-box');
+  box.classList.toggle('good', !!event.good);
+  box.classList.toggle('bad', !event.good);
+  document.getElementById('eventIcon').textContent = event.icon;
+  document.getElementById('eventKind').textContent = event.good ? 'Ein guter Tag' : 'Ein schwerer Tag';
+  document.getElementById('eventTitle').textContent = event.title;
+  document.getElementById('eventText').textContent = event.text;
+  document.getElementById('eventEffect').textContent = event.effect;
+  eventOverlay.classList.remove('hidden');
+  (event.good ? sfx.wallDone : sfx.denied)();
+}
+
+function setupEventWindow() {
+  if (!eventOverlay) return;
+  const close = document.getElementById('eventClose');
+  if (close) close.addEventListener('click', hideEvent);
+  eventOverlay.addEventListener('click', (e) => {
+    if (e.target === eventOverlay) hideEvent();
+  });
+}
+setupEventWindow();
 
 // --- Reichsübersicht ------------------------------------------------------
 // Ein Fenster über den ganzen Besitz: jeder Ort mit seinen Einnahmen, die
@@ -233,6 +270,7 @@ function quitToMenu() {
   hideQuitDialog();
   hideHerald();
   hideEmpire();
+  hideEvent();
   hideBattleReport();
   hideBattlePreview();
   hideTileInfo();
@@ -695,6 +733,9 @@ function endTurn() {
 
   aiTakeAllTurns(state);
   collectIncome(state);
+  // Erst die Abrechnung, dann das Schicksal: ein Ereignis greift in denselben
+  // Schatz, den die Runde gerade gefüllt hat.
+  const myEvent = rollEvents(state);
   regenerateGarrisons(state);
   advanceWallConstruction(state);
   const roadsDone = advanceRoadConstruction(state);
@@ -722,6 +763,8 @@ function endTurn() {
     if (report.involvesPlayer) { mine = report; break; }
   }
   if (mine && !state.gameOver) showBattleReport(mine);
+  // Der Schlachtbericht geht vor: was einen selbst getroffen hat, kommt danach.
+  else if (myEvent && !state.gameOver) showEvent(myEvent);
 
   if (roadsDone.length || harboursDone.length
     || (wallsBuilding && state.cities.filter((c) => c.wallBuilding).length < wallsBuilding)) {
@@ -1109,6 +1152,7 @@ window.addEventListener('keydown', (e) => {
   // Escape backs out of the decision without attacking. With nothing open it
   // is the browser's own way out of fullscreen, and that is a decision too.
   if (heraldOverlay && !heraldOverlay.classList.contains('hidden')) hideHerald();
+  else if (eventOverlay && !eventOverlay.classList.contains('hidden')) hideEvent();
   else if (empireOverlay && !empireOverlay.classList.contains('hidden')) hideEmpire();
   else if (!settingsOverlay.classList.contains('hidden')) hideSettings();
   else if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();

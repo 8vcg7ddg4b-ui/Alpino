@@ -79,8 +79,14 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     // start with several smaller hosts, which are spread over its towns.
     const rosters = faction.startingArmies || [faction.startingArmy || DEFAULT_ARMY];
     const homes = [capital, ...cities.filter((c) => c.factionId === faction.id && !c.capital)];
-    rosters.forEach((units, index) => {
-      const home = homes[Math.min(index, homes.length - 1)];
+    rosters.forEach((entry, index) => {
+      // Ein Eintrag ist entweder die Truppenliste selbst oder ein Paar aus
+      // Liste und Standort: Karthagos zweites Heer steht in Carthago Nova und
+      // nicht dort, wo die Reihenfolge der Städte es hinstellen würde.
+      const units = entry.units || entry;
+      const home = (entry.home && cities.find(
+        (c) => c.name === entry.home && c.factionId === faction.id
+      )) || homes[Math.min(index, homes.length - 1)];
       const label = faction.armyLabel || 'Feldarmee';
       armies.push({
         id: makeId('army'),

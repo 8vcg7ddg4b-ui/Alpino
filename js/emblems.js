@@ -73,6 +73,12 @@ const EMBLEMS = {
     <path d="M22 30 q28 22 56 0" stroke="currentColor" stroke-width="9" fill="none"/>
     <path d="M26 62 q24 20 48 0" stroke="currentColor" stroke-width="9" fill="none"/>
     <circle cx="50" cy="84" r="8"/>`,
+  // Numidien: der Pferdekopf, der auf den Münzen der numidischen Könige steht.
+  numidien: `<path d="M34 84 v-22 q0-16 10-26 l8-8 q4-4 4-10 V6 l12 10 q6 5 6 13 v9
+      q0 9-6 15 l-10 10 q-6 6-6 14 v7 Z"/>
+    <circle cx="60" cy="26" r="3.4" fill="#1a1208"/>
+    <path d="M62 6 l8 6 -9 3 Z"/>
+    <path d="M26 84 h34" stroke="currentColor" stroke-width="7" fill="none"/>`,
   neutral: `<circle cx="50" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="8"/>
     <circle cx="50" cy="50" r="7"/>`,
 };

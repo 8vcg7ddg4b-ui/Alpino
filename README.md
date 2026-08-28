@@ -310,6 +310,15 @@ den Punkten durchblättern.
   der Mauerbau zwischen Bevölkerung und Garnison, und wer nur nachsehen wollte,
   was ein Ort trägt, scrollte an drei Bauknöpfen vorbei. Die Wahl bleibt
   stehen: wer baut, baut meist mehrmals hintereinander.
+- **Zufallsereignisse**: Was niemand befohlen hat, geschieht trotzdem. Ab der
+  zehnten Runde trifft es jede Fraktion mit zehn Prozent Wahrscheinlichkeit je
+  Runde – eine Seuche, eine Dürre, ein Erdbeben, ein Aufruhr, ein Brand, ein
+  Sturm über der Flotte; oder ein Jahr voller Korn, ein guter Handelszug, die
+  Getreideflotte, Söldner vor dem Tor, ein Feldherr von Ruf, günstige
+  Vorzeichen. Vierzehn Ereignisse, jedes mit einer Bedingung: eine Flotte kann
+  nur verlieren, wer eine hat. Was die eigene Fraktion trifft, kommt in einem
+  **eigenen Fenster** – mit Bild, Begebenheit und der Zeile, was es gekostet
+  oder gebracht hat. Was den anderen zustößt, steht nur im Protokoll.
 - **Reichsübersicht** (🏛 in der Kopfzeile): ein Fenster über den ganzen
   Besitz – Schatz, Einnahmen, Sold und Bilanz, dazu Orte, Heere, Flotten und
   Stadtwachen, und darunter jeder eigene Ort mit seinen Einnahmen einzeln
@@ -362,16 +371,17 @@ den Punkten durchblättern.
 
 ## Spielprinzip
 
-- **Alle zwölf Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
+- **Alle dreizehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
   eigener Auswahlbildschirm: links die Fraktionen mit ihrer Schwierigkeit,
   rechts Hauptstadt, Siedlungen, Startheer, die drei eigenen Einheiten sowie
   Stärke und Schwäche – und im Hintergrund ein Bild, das mit der Auswahl
   wechselt: der Tempel und der Adler für Rom, die Hafenmauer mit Elefant für
   Karthago, der Herkynische Wald für die Germanen, Pyramiden und Palmen für die
   Ptolemäer. Wer nicht gewählt wird, wird von der KI geführt.
-- Zur Wahl stehen **Rom**, **Karthago**, die **Gallier**, die **Griechen**, die
-  **Germanen**, die **Britannier**, die **Iberer**, die **Daker**, die
-  **Seleukiden**, die **Ptolemäer**, die **Illyrer** und die **Sarmaten** –
+- Zur Wahl stehen **Rom**, **Karthago**, die **Gallier**, **Numidien**, die
+  **Griechen**, die **Germanen**, die **Britannier**, die **Iberer**, die
+  **Daker**, die **Seleukiden**, die **Ptolemäer**, die **Illyrer** und die
+  **Sarmaten** –
   verteilt über Europa, das Mittelmeer, Nordafrika, den Vorderen Orient und die
   Steppe nördlich des Schwarzen Meeres. Alle beginnen mit demselben Startgold und
   (bis auf die zwei Heere der Seleukiden) demselben Heer: der Unterschied liegt
@@ -383,7 +393,8 @@ den Punkten durchblättern.
   | Fraktion | Fußvolk | Reiterei | Fernkampf |
   | --- | --- | --- | --- |
   | Rom | Legionär (Schild und Gladius, sehr zäh) | Equites | Veliten |
-  | Karthago | Libysche Speerträger | Numidische Reiter (schnellste Reiterei) | Balearische Schleuderer |
+  | Karthago | Libysche Speerträger | Punische Reiterei | Balearische Schleuderer |
+  | Numidien | Numidische Speerträger (leicht, billig) | Numidische Reiter (beste leichte Reiterei) | Numidische Speerwerfer |
   | Gallier | Schwertkämpfer (harter Angriff) | Edle Reiter | Bogenschützen |
   | Griechen | Hopliten (beste Verteidigung) | Thessalische Reiter | Peltasten |
   | Germanen | Speerträger | Gefolgschaftsreiter | Wurfspeerträger |
@@ -413,6 +424,13 @@ den Punkten durchblättern.
   hält das Bauwerk: ein Weltwunder bringt 15 Gold je Runde, ein Wahrzeichen 6.
   Fällt die Stadt, fällt das Bauwerk mit ihr, und das Protokoll sagt es beiden
   Seiten. Ein Rechtsklick auf das Feld nennt Bauwerk, Bauzeit und Besitzer.
+- **Karthago hält Carthago Nova in Iberien** – die Stadt an der spanischen
+  Südostküste mit den Silberminen im Rücken, und dort steht ein eigenes Heer
+  von 270 Mann: von Afrika aus wäre der Brückenkopf nicht zu halten.
+- **Numidien** steht westlich von Karthago: Cirta als Sitz, dazu Zama Regia,
+  Icosium und Siga. Sein Fußvolk deckt nur die Reiter – die numidische
+  Reiterei ist die schnellste und härteste leichte Reiterei der Karte, und
+  Karthago, das sie jahrhundertelang anwarb, muss sie sich nun vom Leib halten.
 - **Gallien und die Seleukiden beginnen mit zwei Heeren** statt einem: beide
   stehen zwischen mehreren Nachbarn, und ein einziges Heer kann nur an einer
   Front stehen. Alle anderen führen ein Heer von 540 Mann.
@@ -478,5 +496,7 @@ den Punkten durchblättern.
 - `js/audio.js` – der ganze Ton: Hall- und Kompressorkette, die einzelnen
   Klangereignisse, der Marschtritt und die Titelmusik
 - `js/settings.js` – Einstellungen: Schema, Speicherung, Einstellungsfenster
+- `js/events.js` – die Zufallsereignisse: Bedingung, Wirkung und der Satz,
+  der sie erzählt
 - `js/chronicle.js` – die acht Chronikbilder als SVG-Silhouetten
 - `js/ui.js`, `js/input.js`, `js/main.js` – Seitenleiste, Eingabe, Startbildschirm, Bootstrap

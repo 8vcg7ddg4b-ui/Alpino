@@ -686,6 +686,7 @@ const THRONE_STYLE = {
   rom: 'curule', griechen: 'stone', seleukiden: 'stone', ptolemaeer: 'stone',
   karthago: 'stone', gallier: 'wood', germanen: 'wood', britannier: 'wood',
   iberer: 'wood', daker: 'wood', illyrer: 'wood', sarmaten: 'wood',
+  numidien: 'wood',
 };
 
 // Zwei Stücke Ausstattung je Fraktion.
@@ -702,6 +703,7 @@ const TENT_FURNISHINGS = {
   ptolemaeer: ['palm', 'amphorae'],
   illyrer: ['shields', 'brazier'],
   sarmaten: ['pelts', 'brazier'],
+  numidien: ['spears', 'palm'],
 };
 
 function buildThrone(style, colour) {
@@ -1146,7 +1148,17 @@ function buildTent(state) {
 // sich in der Mitte, damit Kurven und Kreuzungen von selbst zusammenpassen.
 let roadVersionDrawn = -1;
 
-function pushQuad(positions, ax, az, bx, bz, halfWidth) {
+// Die Höhe an einer beliebigen Stelle des Geländes, nicht die der nächsten
+// Feldmitte. Ein Band, das auf einer Feldgrenze liegt - und genau dort liegt
+// ein Fluss -, bekäme sonst je Eckpunkt die Höhe irgendeines der vier
+// angrenzenden Felder und liefe treppenförmig durchs Gelände.
+function bandY(x, z) {
+  const colF = x / TILE_SIZE + mapCols / 2;
+  const rowF = z / TILE_SIZE + mapRows / 2;
+  return Math.max(groundY(colF, rowF), SEA_LEVEL_Y);
+}
+
+function pushQuad(positions, ax, az, bx, bz, halfWidth, lift = 0.18) {
   const dx = bx - ax;
   const dz = bz - az;
   const length = Math.hypot(dx, dz) || 1;
@@ -1157,7 +1169,7 @@ function pushQuad(positions, ax, az, bx, bz, halfWidth) {
   ];
   for (const [i, j, k] of [[0, 1, 2], [0, 2, 3]]) {
     for (const corner of [corners[i], corners[j], corners[k]]) {
-      positions.push(corner[0], surfaceY(colFromWorldX(corner[0]), rowFromWorldZ(corner[1])) + 0.18, corner[1]);
+      positions.push(corner[0], bandY(corner[0], corner[1]) + lift, corner[1]);
     }
   }
 }
@@ -1200,7 +1212,8 @@ function buildRivers(state) {
     const alongX = a.row === b.row;
     const from = alongX ? [mx, mz - half] : [mx - half, mz];
     const to = alongX ? [mx, mz + half] : [mx + half, mz];
-    pushQuad(positions, from[0], from[1], to[0], to[1], TILE_SIZE * 0.11);
+    // Etwas tiefer als die Straße: die Brücke soll darüber liegen, nicht darin.
+    pushQuad(positions, from[0], from[1], to[0], to[1], TILE_SIZE * 0.12, 0.1);
 
     const roads = state.roads || {};
     if (roads[`${a.col},${a.row}`] && roads[`${b.col},${b.row}`]) {
@@ -1221,7 +1234,7 @@ function buildRivers(state) {
 
   for (const bridge of bridges) {
     const group = new THREE.Group();
-    const y = surfaceY(colFromWorldX(bridge.mx), rowFromWorldZ(bridge.mz));
+    const y = bandY(bridge.mx, bridge.mz);
     // Ein Steg quer über den Lauf, dazu zwei Geländer - genug, dass eine
     // Brücke auch aus der Feldherrnperspektive als Brücke zu erkennen ist.
     const deck = new THREE.Mesh(
