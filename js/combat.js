@@ -1,7 +1,10 @@
 // Gerechnet wird über alle Rollen, die in einer Truppe stehen können - die
 // drei Waffengattungen und die Stadtwache, die nur auf der Verteidigerseite
 // vorkommt und dort mitkämpft.
-import { unitDefs, COMBAT_ROLES, TILE_TYPES, BATTLE_PREVIEW_SAMPLES } from './data.js';
+import {
+  unitDefs, COMBAT_ROLES, TILE_TYPES, BATTLE_PREVIEW_SAMPLES,
+  frontageWidth, engagedShare,
+} from './data.js';
 import { mulberry32 } from './prng.js';
 
 let battleSeed = 42;
@@ -29,6 +32,13 @@ export function conditionFactor(morale, exhaustion) {
   const e = Math.max(0, Math.min(100, exhaustion ?? 0));
   return (0.62 + 0.38 * (m / 100)) * (1 - 0.3 * (e / 100));
 }
+
+// Wie viel von der aufgebotenen Kraft beim Gegner ankommt. Der Angreifer hatte
+// hier lange den deutlich größeren Anteil; zusammen mit der stärkeren
+// Eröffnungssalve gewann er dadurch selbst bei Gleichstand fast jede Schlacht,
+// und Angreifen war nie eine Entscheidung, sondern immer die richtige Wahl.
+const ATTACK_DAMAGE_SHARE = 0.53;
+const DEFENCE_DAMAGE_SHARE = 0.46;
 
 // Simplified multi-round battle resolver. Runs entirely on the campaign map:
 // no separate battle screen. Returns enough detail for a full battle report.
@@ -60,6 +70,12 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
   const attackerCondition = conditionFactor(attackerMorale, attackerExhaustion);
   const defenderCondition = conditionFactor(defenderMorale, defenderExhaustion);
 
+  // Wer stürmt, kommt nur an Tor und Bresche heran: je stärker die Mauer,
+  // desto schmaler die Front, auf der überhaupt gefochten werden kann. Die
+  // Verteidiger stehen auf ihrer eigenen Mauer und werden davon nicht enger.
+  const attackerFrontage = frontageWidth(terrainType, wallMultiplier);
+  const defenderFrontage = frontageWidth(terrainType);
+
   const startAtkStrength = totalStrength(attacker, attackerDefs);
   const startDefStrength = totalStrength(defender, defenderDefs);
   const rounds = [];
@@ -90,9 +106,14 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     atkPower *= attackerCondition * attackerMultiplier * attackerVeterancy;
     defPower *= defenderCondition * wallMultiplier * defenderMultiplier * defenderVeterancy;
 
+    // Was nicht an die Front passt, wartet dahinter. Fällt vorne genug aus,
+    // rückt es nach - deshalb wird der Anteil jede Runde neu bestimmt.
+    atkPower *= engagedShare(totalCount(attacker), attackerFrontage);
+    defPower *= engagedShare(totalCount(defender), defenderFrontage);
+
     const variance = () => 0.8 + rng() * 0.4;
-    const dmgToDefender = atkPower * 0.55 * variance();
-    const dmgToAttacker = defPower * 0.42 * variance();
+    const dmgToDefender = atkPower * ATTACK_DAMAGE_SHARE * variance();
+    const dmgToAttacker = defPower * DEFENCE_DAMAGE_SHARE * variance();
 
     const attackerBefore = totalCount(attacker);
     const defenderBefore = totalCount(defender);
@@ -135,6 +156,10 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     rounds,
     terrainType,
     terrainBonus,
+    attackerFrontage,
+    defenderFrontage,
+    attackerEngagedShare: engagedShare(totalCount(attackerUnitsIn), attackerFrontage),
+    defenderEngagedShare: engagedShare(totalCount(defenderUnitsIn), defenderFrontage),
     wallMultiplier,
     defenderMultiplier,
     attackerMultiplier,
@@ -256,6 +281,10 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     defenderSurvivors,
     terrainType,
     terrainBonus: sample ? sample.terrainBonus : 0,
+    attackerFrontage: sample ? sample.attackerFrontage : null,
+    defenderFrontage: sample ? sample.defenderFrontage : null,
+    attackerEngagedShare: sample ? sample.attackerEngagedShare : 1,
+    defenderEngagedShare: sample ? sample.defenderEngagedShare : 1,
     wallMultiplier: modifiers.wallMultiplier ?? 1,
     defenderMultiplier: modifiers.defenderMultiplier ?? 1,
     attackerMultiplier: modifiers.attackerMultiplier ?? 1,

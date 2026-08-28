@@ -687,6 +687,30 @@ export const WALL_LEVELS = [
   },
 ];
 
+// --- Frontbreite ----------------------------------------------------------
+// Eine Schlacht wird an einer Linie geschlagen, nicht als Haufen. Was über
+// diese Zahl hinausgeht, steht in zweiter und dritter Reihe und wartet, bis
+// vorne eine Lücke ist. Übermacht bleibt damit ein Vorteil - aber kein
+// Freibrief: ein Heer von 2000 Mann trat vorher gegen 500 an, als kämpften
+// alle 2000 auf einmal, und kam mit drei Prozent Verlust davon.
+export const FRONTAGE_BASE = 900;
+// Enges Gelände nimmt der Übermacht noch mehr davon: im Wald und in den
+// Hügeln steht kein Heer in einer Linie. Gebirge fehlt hier, weil dort nicht
+// gekämpft wird - es ist unpassierbar.
+export const FRONTAGE_TERRAIN = { forest: 0.7, hills: 0.8 };
+
+// Wie breit eine Seite auf diesem Gelände überhaupt aufmarschieren kann.
+// `narrowBy` verengt die Front des Angreifers: vor einer Mauer kommt er nur
+// an Tor und Bresche heran, und zwar umso weniger, je stärker sie ist.
+export function frontageWidth(terrainType, narrowBy = 1) {
+  return (FRONTAGE_BASE * (FRONTAGE_TERRAIN[terrainType] ?? 1)) / Math.max(1, narrowBy);
+}
+
+// Der Anteil einer Truppe, der gleichzeitig ins Gefecht kommt.
+export function engagedShare(count, width) {
+  return count > width ? width / count : 1;
+}
+
 export const MAX_WALL_LEVEL = WALL_LEVELS.length;
 // Capitals are fortified from the first turn, but not to the last stage:
 // there is still something left for their owner to build.

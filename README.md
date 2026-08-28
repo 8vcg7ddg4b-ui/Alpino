@@ -47,6 +47,19 @@ Elburs sowie Euphrat und Tigris.
 Das Spiel läuft wahlweise **im Browser** oder als **eigenständige Desktop-Anwendung**
 (Windows/macOS/Linux) mit eigenem Fenster, eigenem Icon und ohne sichtbaren Browser.
 
+## Als einzelne Datei bauen
+
+`npm run artifact` zieht das ganze Spiel in eine einzige HTML-Datei
+(`dist/pax-aeterna.html`, rund 1,1 MB): Stil, three.js und die 21 ES-Module,
+in Abhängigkeitsreihenfolge zu einem klassischen Skript verflacht. Das ist die
+Form, die ein Artefakt oder ein beliebiger Webspeicher braucht - eine Datei,
+keine Nachbardateien, nichts über das Netz.
+
+Der Bau bricht ab, statt ein stummes Spiel zu erzeugen: er prüft, dass der
+Abhängigkeitsgraph kreisfrei ist und kein Name auf oberster Ebene zweimal
+vergeben wurde - beides würde in einem gemeinsamen Geltungsbereich zu Fehlern
+führen, die erst im Browser auffielen.
+
 ## Als Desktop-Programm starten
 
 ```bash
@@ -185,6 +198,15 @@ den Punkten durchblättern.
   Feld), werden beide eines. Erfahrung, Moral und Erschöpfung mitteln sich nach
   Kopfzahl. Auch die KI legt zusammen, statt mit zwei halben Heeren vor einer
   Stadt zu warten, die keines von beiden nehmen kann.
+- **Was die KI tut**: Sie baut **Befestigungen** – eine Stufe nach der anderen,
+  eine Baustelle zur Zeit, und zuerst dort, wo ein fremdes Heer schon in der
+  Nähe steht. Steht der Feind vor dem Tor, hebt sie in dieser Stadt aus, bis
+  die Truhe leer ist, statt weiter auf Flotte und Straße zu sparen, und was
+  dort ausgehoben wird, bleibt hinter der Mauer, statt einzeln ins offene Feld
+  zu ziehen. Ausgehoben wird nach einer Mischung aus Fußvolk, Reiterei und
+  Fernkämpfern statt nach Zufall. Ihre schärfste Waffe bleibt aber der
+  Gegenangriff: wer mit allem, was er hat, ins Feld zieht, findet seine eigenen
+  Städte hinter dem Rücken nicht mehr so vor, wie er sie verlassen hat.
 - **Schiffe**: In einer eigenen Stadt **mit Hafen** kann eine Armee für 250 Gold
   **in See stechen** – ohne Hafen geht sie nirgends an Bord, auch nicht in
   einer Stadt direkt am Wasser. Auf dem Wasser hat sie 15 Bewegungspunkte; gelb
@@ -262,6 +284,22 @@ den Punkten durchblättern.
   jeweils anteilig. Ein kurzer Marsch trägt sich so selbst, zwei Gewaltmärsche
   hintereinander laugen ein Heer aus – wer ausgeruht in die Schlacht geht,
   gewinnt sie fast sicher, wer erschöpft antritt, fast nie.
+- **Frontbreite**: Eine Schlacht wird an einer Linie geschlagen, nicht als
+  Haufen. Höchstens **900 Mann** je Seite kommen gleichzeitig ins Gefecht; was
+  darüber hinausgeht, steht dahinter und rückt nach, wenn vorne eine Lücke
+  fällt. Enges Gelände verengt die Front weiter (Hügel 80 %, Wald 70 %), und
+  wer eine befestigte Stadt stürmt, kommt nur an Tor und
+  Bresche heran: die Front des Angreifers wird um den Mauerbonus schmaler, vor
+  der Steinmauer also halbiert. Übermacht bleibt damit ein Vorteil – aber sie
+  ist keine Freikarte mehr: ein Heer von 2000 Mann schlägt vier Heere zu 500
+  nacheinander nicht mehr für 12 % Verlust, sondern für 26 %. In Vorschau und
+  Schlachtbericht steht, wie viele Mann tatsächlich ins Gefecht kommen.
+- **Angriff und Verteidigung**: Der Angreifer hat die Eröffnungssalve und
+  bringt etwas mehr von seiner Kraft zur Wirkung, aber nicht mehr so viel, dass
+  Angreifen immer richtig wäre: zwei gleich starke Heere im offenen Feld
+  entscheiden die Schlacht ungefähr hälftig zugunsten des Angreifers (55 %),
+  beide unter schweren Verlusten. Gelände, Mauern, Moral, Erschöpfung und
+  Erfahrung entscheiden den Rest.
 - **Armee auflösen**: Steht eine Armee in einer eigenen Stadt, kann sie sich
   auflösen; ihre Soldaten treten der Garnison bei.
 - **Befestigungen in drei Stufen**: **Holzpalisade** (200 Gold, 3 Runden,
