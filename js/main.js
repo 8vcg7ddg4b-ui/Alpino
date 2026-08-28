@@ -959,7 +959,10 @@ function factionFacts(faction) {
   for (const c of own) sizes[c.size || 'city'] += 1;
   const rosters = faction.startingArmies || [faction.startingArmy
     || { infantry: 300, cavalry: 120, ranged: 120 }];
-  const men = rosters.reduce((sum, r) => sum + unitTotalCount(r), 0);
+  // Ein Starteintrag ist entweder die Truppenliste selbst oder ein Paar aus
+  // Liste und Standort - Karthagos zweites Heer nennt seinen Ort. Ohne das
+  // Auspacken zählte die Übersicht ein Objekt statt Männer.
+  const men = rosters.reduce((sum, r) => sum + unitTotalCount(r.units || r), 0);
   return {
     capital: capital ? capital.name : '—',
     settlements: own.length,

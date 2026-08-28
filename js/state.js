@@ -81,7 +81,7 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     const homes = [capital, ...cities.filter((c) => c.factionId === faction.id && !c.capital)];
     rosters.forEach((entry, index) => {
       // Ein Eintrag ist entweder die Truppenliste selbst oder ein Paar aus
-      // Liste und Standort: Karthagos zweites Heer steht in Carthago Nova und
+      // Liste und Standort: Karthagos zweites Heer steht in Karthago Nova und
       // nicht dort, wo die Reihenfolge der Städte es hinstellen würde.
       const units = entry.units || entry;
       const home = (entry.home && cities.find(

@@ -272,7 +272,7 @@ export const FACTIONS = [
     id: 'karthago', name: 'Karthago', color: '#2c3e8c',
     startingArmies: [
       { units: { infantry: 300, cavalry: 120, ranged: 120 } },
-      { units: { infantry: 160, cavalry: 60, ranged: 50 }, home: 'Carthago Nova' },
+      { units: { infantry: 160, cavalry: 60, ranged: 50 }, home: 'Karthago Nova' },
     ],
   },
   // Der keltische Ruf gründet auf dem Ansturm des Fußvolks mit dem langen
@@ -377,7 +377,7 @@ export const FACTION_PROFILES = {
   },
   karthago: {
     difficulty: 'leicht',
-    blurb: 'Vier Städte an der afrikanischen Küste und Carthago Nova in Iberien, mit eigenem Heer.',
+    blurb: 'Vier Städte an der afrikanischen Küste und Karthago Nova in Iberien, mit eigenem Heer.',
     strength: 'Quinqueremen, Häfen ringsum und zwei Heere auf zwei Erdteilen.',
     weakness: 'Eine lange Küste ohne Tiefe, und Numidien im Rücken.',
   },
@@ -533,7 +533,7 @@ export const CITY_DEFS = [
   { name: 'Leptis Magna', lon: 14.29, lat: 32.64, factionId: 'karthago', capital: false, size: 'village' },
   // Karthagos Brückenkopf in Iberien: die Silberminen der Halbinsel und der
   // Hafen, von dem aus ein Heer nach Norden zieht statt über die See.
-  { name: 'Carthago Nova', lon: -0.98, lat: 37.60, factionId: 'karthago', capital: false, size: 'city' },
+  { name: 'Karthago Nova', lon: -0.98, lat: 37.60, factionId: 'karthago', capital: false, size: 'city' },
   // --- Numidien: das Reiterland westlich von Karthago --------------------
   { name: 'Cirta', lon: 6.61, lat: 36.37, factionId: 'numidien', capital: true, size: 'large' },
   // Hippo Regius heißt "das königliche Hippo", weil dort die numidischen

@@ -437,7 +437,7 @@ den Punkten durchblättern.
   hält das Bauwerk: ein Weltwunder bringt 15 Gold je Runde, ein Wahrzeichen 6.
   Fällt die Stadt, fällt das Bauwerk mit ihr, und das Protokoll sagt es beiden
   Seiten. Ein Rechtsklick auf das Feld nennt Bauwerk, Bauzeit und Besitzer.
-- **Karthago hält Carthago Nova in Iberien** – die Stadt an der spanischen
+- **Karthago hält Karthago Nova in Iberien** – die Stadt an der spanischen
   Südostküste mit den Silberminen im Rücken, und dort steht ein eigenes Heer
   von 270 Mann: von Afrika aus wäre der Brückenkopf nicht zu halten.
 - **Die Parther** stehen auf der iranischen Hochebene: Ekbatana als Sitz, dazu
