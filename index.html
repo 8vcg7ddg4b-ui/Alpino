@@ -187,6 +187,11 @@
           <ul id="factionList"></ul>
         </section>
         <section id="logSection" data-panel="log" hidden>
+          <!-- Standardmäßig steht hier nur, was die eigene Fraktion angeht. -->
+          <div id="logFilter" class="log-filter">
+            <button data-filter="own" class="active">Nur eigene</button>
+            <button data-filter="all">Alle Fraktionen</button>
+          </div>
           <div id="logPanel"></div>
         </section>
       </aside>

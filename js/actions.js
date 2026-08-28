@@ -42,6 +42,13 @@ function battleLine(attackerFaction, defenderFaction, vs, result, cityName, opts
 
 const MAX_BATTLE_REPORTS = 40;
 
+// Eine Schlacht geht beide Seiten an - so kann das Protokoll später
+// entscheiden, ob sie den Spieler betrifft.
+function logBattle(state, attackerFaction, defenderFaction, text, reportId) {
+  logMsg(state, text, reportId, [attackerFaction.id, defenderFaction.id]);
+}
+
+
 // Über alle Rollen, die kämpfen können - die Stadtwache eingeschlossen. Wird
 // hier nur über die drei Feldrollen gerechnet, verschwindet die Wache aus der
 // Verteidigung, obwohl sie in der Stadt steht.
@@ -235,7 +242,8 @@ function recordBattle(state, opts) {
   if (state.battleReports.length > MAX_BATTLE_REPORTS) {
     state.battleReports.length = MAX_BATTLE_REPORTS;
   }
-  logMsg(state, battleLine(attackerFaction, defenderFaction, kind, result, city && city.name,
+  logBattle(state, attackerFaction, defenderFaction,
+    battleLine(attackerFaction, defenderFaction, kind, result, city && city.name,
     { naval, amphibious }), report.id);
   return report;
 }
@@ -515,7 +523,8 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       }
     } else {
       capturedCity = true;
-      logMsg(state, `${attackerFaction.name} nimmt das unverteidigte ${city.name} kampflos ein.`);
+      logMsg(state, `${attackerFaction.name} nimmt das unverteidigte ${city.name} kampflos ein.`,
+        null, [attackerFaction.id, city.factionId]);
     }
   }
 
@@ -1078,7 +1087,7 @@ export function applyWeather(state) {
 export function advanceWeather(state) {
   const previous = state.weather;
   state.weather = rollWeather(state.turn, previous, state.weatherSeed);
-  const { season, year } = calendarOfTurn(state.turn);
+  const { season, year, seasonStart } = calendarOfTurn(state.turn);
   const changes = [];
   for (const [zone, key] of Object.entries(state.weather)) {
     if (previous && previous[zone] === key) continue;
@@ -1086,8 +1095,14 @@ export function advanceWeather(state) {
     if (!weather.effect || weather.effect === 'clouds') continue;
     changes.push(`${weather.icon} ${weather.name} über ${zoneName(zone)}`);
   }
-  logMsg(state, `${season.icon} ${season.name} ${year} v. Chr.`
-    + (changes.length ? ` – ${changes.slice(0, 3).join(', ')}.` : ''));
+  // Die Jahreszeit wird gemeldet, wenn sie anfängt - nicht in jeder ihrer vier
+  // Runden. Wetterwechsel dazwischen bekommen ihre eigene Zeile.
+  if (seasonStart) {
+    logMsg(state, `${season.icon} ${season.name} ${year} v. Chr.`
+      + (changes.length ? ` – ${changes.slice(0, 3).join(', ')}.` : ''));
+  } else if (changes.length) {
+    logMsg(state, `${changes.slice(0, 3).join(', ')}.`);
+  }
 }
 
 // Armies that stayed put regain their edge; a city lets them recover fastest.

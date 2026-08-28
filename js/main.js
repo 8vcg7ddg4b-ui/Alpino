@@ -3,7 +3,9 @@ import {
   playableFactions, factionProfile, unitDefs, UNIT_ROLES, ROLE_LABELS,
   CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION,
 } from './data.js';
-import { renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML } from './ui.js';
+import {
+  renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount,
+} from './ui.js';
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
 import { aiTakeAllTurns } from './ai.js';
@@ -207,7 +209,7 @@ function showSidebarTab(tab) {
     section.hidden = section.dataset.panel !== tab;
   });
   if (tab === 'log' && state) {
-    seenLogLength = state.log.length;
+    seenLogLength = visibleLogCount(state);
     paintLogBadge();
   }
 }
@@ -215,7 +217,7 @@ function showSidebarTab(tab) {
 function paintLogBadge() {
   const badge = document.querySelector('#sidebarTabs .tab-badge');
   if (!badge || !state) return;
-  const unseen = activeTab === 'log' ? 0 : Math.max(0, state.log.length - seenLogLength);
+  const unseen = activeTab === 'log' ? 0 : Math.max(0, visibleLogCount(state) - seenLogLength);
   badge.textContent = unseen > 9 ? '9+' : String(unseen);
   badge.classList.toggle('hidden', unseen === 0);
 }
@@ -553,6 +555,7 @@ function refresh() {
       refresh();
     },
     onShowReport: showBattleReport,
+    onRefresh: refresh,
   });
 
   undoBtn.disabled = undoStack.length === 0;

@@ -61,9 +61,12 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 
 ## Jahreszeiten und Wetter
 
-Vier Runden sind ein Jahr; das Spiel beginnt im **Frühling 264 v. Chr.**, dem
-Jahr, in dem der Erste Punische Krieg ausbricht. Die Kopfzeile zeigt Jahreszeit
-und Jahr, daneben das Wetter dort, wo die Kamera gerade hinsieht.
+**Jede Jahreszeit dauert vier Runden**, vier Jahreszeiten ergeben das Jahr – ein
+Feldzugsjahr sind also sechzehn Runden. Das Spiel beginnt im **Frühling
+264 v. Chr.**, dem Jahr, in dem der Erste Punische Krieg ausbricht. Die
+Kopfzeile zeigt Jahreszeit, Jahr und die wievielte Runde der Jahreszeit gerade
+läuft (`Frühling 264 v. Chr. · 2/4`), daneben das Wetter dort, wo die Kamera
+gerade hinsieht.
 
 Weil die Karte von der Nordsee bis in die Sahara reicht, gibt es kein einziges
 Wetter für alles: Vier Klimazonen (Nordeuropa, Mitteleuropa, Mittelmeerraum,
@@ -164,10 +167,12 @@ den Punkten durchblättern.
   Meer und die geografische Lage – dazu, was auf dem Feld steht.
 - **Seitenleiste**: drei Reiter – **Auswahl**, **Fraktionen**, **Ereignisse**.
   Es liegt immer nur einer offen; wer etwas anklickt, landet von selbst auf der
-  Auswahl, und neue Ereignisse melden sich mit einer Zahl am Reiter. Das
-  Protokoll führt Schlachten, Eroberungen und Jahreszeiten aller Fraktionen,
-  aber Rekrutierung, Straßen und Häfen nur für die eigene – sonst geht die
-  eigene Schlacht in der Buchhaltung von neun KI-Fraktionen unter.
+  Auswahl, und neue Ereignisse melden sich mit einer Zahl am Reiter.
+- **Das Protokoll zeigt standardmäßig nur eigene Ereignisse**: die eigenen
+  Schlachten, Eroberungen, Aushebungen, Straßen und Häfen – dazu Jahreszeit und
+  Wetter, die für alle gelten. Zwölf Fraktionen führen zwölf Kriege; ungefiltert
+  geht der eigene darin unter. Der Knopf **Alle Fraktionen** über dem Protokoll
+  zeigt bei Bedarf auch die Kriege der anderen.
 - **Armeen sind an ihrer Größe zu erkennen**: das Lager wächst mit der Stärke,
   von einem einzelnen Zelt bei einer Handvoll Männern bis zum Zeltring mit
   Führungszelt bei einem vollen Heer.

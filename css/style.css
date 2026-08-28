@@ -1626,3 +1626,23 @@ html, body {
 .fc-emblem svg { width: 26px; height: 26px; display: block; }
 .fd-emblem svg { width: 44px; height: 44px; display: block; }
 .faction-detail h3 { display: flex; align-items: center; gap: 10px; }
+
+/* Der Protokollfilter: eigene Ereignisse oder alle. */
+.log-filter {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.log-filter button {
+  flex: 1;
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 4px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.log-filter button:hover { color: var(--text); }
+.log-filter button.active { color: var(--gold); border-color: var(--gold); }

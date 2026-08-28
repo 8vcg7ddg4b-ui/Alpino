@@ -14,7 +14,9 @@ import {
 import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf,
 } from './actions.js';
-import { calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName } from './weather.js';
+import {
+  calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
+} from './weather.js';
 import { emblemSVG } from './emblems.js';
 
 const TERRAIN_NAMES = {
@@ -662,10 +664,33 @@ export function terrainPanelHTML(state, tile, opts = {}) {
     </div>`;
 }
 
+// --- Protokollfilter ------------------------------------------------------
+// Zwölf Fraktionen führen zwölf Kriege; ungefiltert geht der eigene darin
+// unter. Standardmäßig steht deshalb nur im Protokoll, was die eigene
+// Fraktion angeht - Jahreszeiten und Wetter gelten für alle und bleiben.
+
+let logFilter = 'own';
+
+// Wie viele Zeilen der Filter gerade durchlässt - die Zahl am Reiter zählt
+// dasselbe, was auch zu sehen wäre.
+export function visibleLogCount(state) {
+  if (!state) return 0;
+  const player = playerFaction(state);
+  return state.log.filter((entry) => logConcernsPlayer(entry, player.id)).length;
+}
+
+function logConcernsPlayer(entry, playerId) {
+  if (logFilter === 'all') return true;
+  if (!entry.factions || !entry.factions.length) return true;
+  return entry.factions.includes(playerId);
+}
+
 export function renderUI(state, handlers) {
-  const { season, year } = calendarOfTurn(state.turn);
+  // Eine Jahreszeit dauert vier Runden - die Anzeige sagt, die wievielte
+  // gerade läuft, sonst steht viermal dasselbe da.
+  const { season, year, weekOfSeason } = calendarOfTurn(state.turn);
   document.getElementById('turnLabel').textContent =
-    `${season.icon} ${season.name} ${year} v. Chr.`;
+    `${season.icon} ${season.name} ${year} v. Chr. · ${weekOfSeason}/${TURNS_PER_SEASON}`;
   document.getElementById('turnLabel').title = `Runde ${state.turn}`;
   const player = playerFaction(state);
   document.getElementById('goldLabel').textContent = `💰 ${player.gold} Gold`;
@@ -742,14 +767,24 @@ export function renderUI(state, handlers) {
   }
 
   const logPanel = document.getElementById('logPanel');
-  logPanel.innerHTML = state.log.slice(0, 30).map((entry) => {
+  const visible = state.log.filter((entry) => logConcernsPlayer(entry, player.id));
+  logPanel.innerHTML = visible.slice(0, 30).map((entry) => {
     const linked = entry.reportId ? ' log-battle' : '';
     const attr = entry.reportId ? ` data-report="${entry.reportId}"` : '';
     return `<div class="log-line${linked}"${attr}>${escapeHTML(entry.text)}${
       entry.reportId ? '<span class="log-more">Bericht ansehen</span>' : ''}</div>`;
-  }).join('');
+  }).join('') || `<p class="muted">${logFilter === 'own'
+    ? 'Noch nichts, was dich betrifft. „Alle Fraktionen“ zeigt auch die Kriege der anderen.'
+    : 'Noch keine Ereignisse.'}</p>`;
   logPanel.querySelectorAll('[data-report]').forEach((el) => {
     el.addEventListener('click', () => handlers.onShowReport(el.dataset.report));
+  });
+  document.querySelectorAll('#logFilter button').forEach((button) => {
+    button.classList.toggle('active', button.dataset.filter === logFilter);
+    button.onclick = () => {
+      logFilter = button.dataset.filter;
+      if (handlers.onRefresh) handlers.onRefresh();
+    };
   });
 
   const overlay = document.getElementById('gameOverOverlay');

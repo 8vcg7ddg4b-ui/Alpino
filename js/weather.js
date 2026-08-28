@@ -19,16 +19,29 @@ export const SEASONS = [
   { key: 'winter', name: 'Winter', icon: '❄️' },
 ];
 
-// Vier Runden sind ein Jahr, und das erste ist das Jahr, in dem der Erste
-// Punische Krieg beginnt.
-export const TURNS_PER_YEAR = SEASONS.length;
+// Jede Jahreszeit dauert vier Runden, vier Jahreszeiten ergeben das Jahr -
+// ein Feldzugsjahr sind also sechzehn Runden. Das erste ist das Jahr, in dem
+// der Erste Punische Krieg beginnt.
+export const TURNS_PER_SEASON = 4;
+export const TURNS_PER_YEAR = SEASONS.length * TURNS_PER_SEASON;
 export const START_YEAR_BC = 264;
 
 export function calendarOfTurn(turn) {
   const index = Math.max(0, turn - 1);
-  const season = SEASONS[index % TURNS_PER_YEAR];
+  const seasonIndex = Math.floor(index / TURNS_PER_SEASON);
+  const season = SEASONS[seasonIndex % SEASONS.length];
   const year = START_YEAR_BC - Math.floor(index / TURNS_PER_YEAR);
-  return { season, year, label: `${season.name} ${year} v. Chr.` };
+  // Die wievielte Runde innerhalb der Jahreszeit gerade läuft - sonst sieht
+  // vier Runden lang alles gleich aus.
+  const weekOfSeason = (index % TURNS_PER_SEASON) + 1;
+  return {
+    season,
+    year,
+    weekOfSeason,
+    // Wahr, wenn mit dieser Runde eine neue Jahreszeit beginnt.
+    seasonStart: weekOfSeason === 1,
+    label: `${season.name} ${year} v. Chr.`,
+  };
 }
 
 // --- Wettertypen ---------------------------------------------------------

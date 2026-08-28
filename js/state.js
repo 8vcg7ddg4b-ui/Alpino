@@ -289,10 +289,13 @@ export function unitTotalCount(units) {
 export function logOwn(state, factionId, msg, reportId = null) {
   const faction = state.factions.find((f) => f.id === factionId);
   if (!faction || !faction.isPlayer) return;
-  logMsg(state, msg, reportId);
+  logMsg(state, msg, reportId, [factionId]);
 }
 
-export function logMsg(state, msg, reportId = null) {
-  state.log.unshift({ text: msg, reportId });
+// factions nennt, wen die Meldung angeht. Eine Zeile ohne Angabe gilt für
+// alle - Jahreszeit, Wetter, Spielbeginn -, und das Protokoll kann danach
+// filtern: standardmäßig zeigt es nur, was die eigene Fraktion betrifft.
+export function logMsg(state, msg, reportId = null, factions = null) {
+  state.log.unshift({ text: msg, reportId, factions });
   if (state.log.length > 60) state.log.length = 60;
 }
