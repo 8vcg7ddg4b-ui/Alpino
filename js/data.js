@@ -100,6 +100,7 @@ export const FACTION_SHIP_TYPE = {
   iberer: 'lembos',
   numidien: 'lembos',
   parther: 'lembos',
+  armenien: 'lembos',
   gallier: 'keltenschiff',
   britannier: 'keltenschiff',
   germanen: 'keltenschiff',
@@ -163,6 +164,13 @@ export const FACTION_UNITS = {
     infantry: { name: 'Persisches Fußvolk', icon: '⚔️', attack: 5, defense: 7, hp: 95, cost: 95, upkeep: 0.05 },
     cavalry: { name: 'Kataphrakten', icon: '🐎', attack: 13, defense: 8, hp: 105, cost: 200, upkeep: 0.125 },
     ranged: { name: 'Berittene Bogenschützen', icon: '🏹', attack: 8, defense: 4, hp: 80, cost: 140, upkeep: 0.08, ranged: true },
+  },
+  // Armenien: schwere Reiterei aus dem Bergadel, dazu ein Fußvolk, das anders
+  // als das parthische wirklich stehen kann.
+  armenien: {
+    infantry: { name: 'Armenische Speerträger', icon: '⚔️', attack: 6, defense: 9, hp: 100, cost: 105, upkeep: 0.055 },
+    cavalry: { name: 'Armenische Kataphrakten', icon: '🐎', attack: 12, defense: 9, hp: 100, cost: 195, upkeep: 0.12 },
+    ranged: { name: 'Armenische Bogenschützen', icon: '🏹', attack: 6, defense: 4, hp: 75, cost: 110, upkeep: 0.055, ranged: true },
   },
   gallier: {
     infantry: { name: 'Schwertkämpfer', icon: '🗡️', attack: 8, defense: 7, hp: 105, cost: 105, upkeep: 0.055 },
@@ -278,6 +286,9 @@ export const FACTIONS = [
   // Die Parther: aus der Steppe nordöstlich des Seleukidenreichs, berittene
   // Bogenschützen und Panzerreiter - das Heer, an dem Rom später scheitert.
   { id: 'parther', name: 'Parther', color: '#8c3f5c', armyLabel: 'Reiterheer' },
+  // Armenien im Hochland zwischen Schwarzem und Kaspischem Meer: Panzerreiter
+  // aus dem Bergadel, dazwischen ein Fußvolk, das die Pässe hält.
+  { id: 'armenien', name: 'Armenien', color: '#3f8c72', armyLabel: 'Königsheer' },
   { id: 'griechen', name: 'Griechen', color: '#7a4fae' },
   // The tribes field a great mass of foot: no siege train, few horse and
   // fewer bows, but more men in the line than anyone else brings.
@@ -370,6 +381,12 @@ export const FACTION_PROFILES = {
     blurb: 'Fünf Orte auf der iranischen Hochebene – Ekbatana als Sitz, der Zagros als Wall nach Westen.',
     strength: 'Kataphrakten und berittene Bogenschützen: das beste Reiterheer der Karte.',
     weakness: 'Fußvolk, das nur hält, teure Truppen und weite Wege zwischen den Orten.',
+  },
+  armenien: {
+    difficulty: 'mittel',
+    blurb: 'Fünf Orte im Hochland um den Ararat – Artaxata als Sitz, Berge nach allen Seiten.',
+    strength: 'Kataphrakten und ein Fußvolk, das die Pässe wirklich halten kann.',
+    weakness: 'Kein Meer, kein Hafen – und Seleukiden wie Parther als Nachbarn.',
   },
   gallier: {
     difficulty: 'schwer',
@@ -514,6 +531,12 @@ export const CITY_DEFS = [
   { name: 'Rhagae', lon: 51.43, lat: 35.59, factionId: 'parther', capital: false, size: 'city' },
   { name: 'Ktesiphon', lon: 44.58, lat: 33.09, factionId: 'parther', capital: false, size: 'village' },
   { name: 'Arbela', lon: 44.01, lat: 36.19, factionId: 'parther', capital: false, size: 'village' },
+  // --- Armenien: das Hochland zwischen den Meeren ------------------------
+  { name: 'Artaxata', lon: 44.55, lat: 39.93, factionId: 'armenien', capital: true, size: 'large' },
+  { name: 'Tigranokerta', lon: 40.95, lat: 37.85, factionId: 'armenien', capital: false, size: 'city' },
+  { name: 'Tushpa', lon: 43.38, lat: 38.49, factionId: 'armenien', capital: false, size: 'city' },
+  { name: 'Arsamosata', lon: 39.20, lat: 38.60, factionId: 'armenien', capital: false, size: 'village' },
+  { name: 'Naxuana', lon: 45.41, lat: 39.21, factionId: 'armenien', capital: false, size: 'village' },
   // --- Gallier ------------------------------------------------------------
   { name: 'Alesia', lon: 4.50, lat: 47.54, factionId: 'gallier', capital: true, size: 'large' },
   { name: 'Bibracte', lon: 4.03, lat: 46.75, factionId: 'gallier', capital: false, size: 'city' },

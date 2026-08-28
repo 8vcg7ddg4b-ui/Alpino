@@ -130,6 +130,7 @@ const HERALD_TITLES = {
   sarmaten: 'Dein Reiterführer',
   numidien: 'Dein Reiterfürst',
   parther: 'Dein Satrap',
+  armenien: 'Dein Nacharar',
 };
 
 const heraldOverlay = document.getElementById('heraldOverlay');

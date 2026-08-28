@@ -86,6 +86,10 @@ const EMBLEMS = {
     <path d="M28 12 L28 88" stroke="currentColor" stroke-width="4.5" fill="none"/>
     <path d="M26 50 h48" stroke="currentColor" stroke-width="6" fill="none"/>
     <path d="M74 50 l-11 -7 v14 Z"/>`,
+  // Armenien: der zweigipflige Ararat, unter dem das Hochland liegt.
+  armenien: `<path d="M6 82 L34 30 L48 54 L58 38 L94 82 Z"/>
+    <path d="M26 48 L34 30 L43 46 L37 44 L32 50 Z" fill="#1a1208" opacity="0.45"/>
+    <path d="M52 46 L58 38 L65 48 L60 46 L56 50 Z" fill="#1a1208" opacity="0.45"/>`,
   neutral: `<circle cx="50" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="8"/>
     <circle cx="50" cy="50" r="7"/>`,
 };

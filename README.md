@@ -298,7 +298,9 @@ den Punkten durchblättern.
   Eine **Brücke** entsteht dort, wo eine Straße über den Fluss führt: liegt auf
   beiden Ufern Pflaster, steht dort eine Brücke, und das Übersetzen kostet
   nichts mehr. Bezahlt wird sie mit der Straße, gebaut wird sie mit ihr, und auf
-  der Karte ist sie als Steg mit Geländern zu sehen. Zu Spielbeginn tragen die
+  der Karte steht sie als **steinerne Bogenbrücke**: eine durchgehende
+  Fahrbahnplatte mit Brüstung, darunter zwei gemauerte Bögen aus Keilsteinen,
+  ein Mittelpfeiler mit Eisbrechern und Widerlager an beiden Ufern. Zu Spielbeginn tragen die
   Startstraßen acht solcher Übergänge. Ein Rechtsklick sagt für jedes Feld, auf
   welchen Seiten ein Fluss liegt und wo eine Brücke hinüberführt.
 - **Einnahmen jedes Orts** stehen in seiner Anzeige, aufgeschlüsselt nach dem,
@@ -375,7 +377,7 @@ den Punkten durchblättern.
 
 ## Spielprinzip
 
-- **Alle vierzehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
+- **Alle fünfzehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
   eigener Auswahlbildschirm: links die Fraktionen mit ihrer Schwierigkeit,
   rechts Hauptstadt, Siedlungen, Startheer, die drei eigenen Einheiten sowie
   Stärke und Schwäche – und im Hintergrund ein Bild, das mit der Auswahl
@@ -383,9 +385,9 @@ den Punkten durchblättern.
   Karthago, der Herkynische Wald für die Germanen, Pyramiden und Palmen für die
   Ptolemäer. Wer nicht gewählt wird, wird von der KI geführt.
 - Zur Wahl stehen **Rom**, **Karthago**, die **Gallier**, **Numidien**, die
-  **Parther**, die **Griechen**, die **Germanen**, die **Britannier**, die
-  **Iberer**, die **Daker**, die **Seleukiden**, die **Ptolemäer**, die
-  **Illyrer** und die **Sarmaten** –
+  **Parther**, **Armenien**, die **Griechen**, die **Germanen**, die
+  **Britannier**, die **Iberer**, die **Daker**, die **Seleukiden**, die
+  **Ptolemäer**, die **Illyrer** und die **Sarmaten** –
   verteilt über Europa, das Mittelmeer, Nordafrika, den Vorderen Orient und die
   Steppe nördlich des Schwarzen Meeres. Alle beginnen mit demselben Startgold und
   (bis auf die zwei Heere der Seleukiden) demselben Heer: der Unterschied liegt
@@ -400,6 +402,7 @@ den Punkten durchblättern.
   | Karthago | Libysche Speerträger | Punische Reiterei | Balearische Schleuderer |
   | Numidien | Numidische Speerträger (leicht, billig) | Numidische Reiter (beste leichte Reiterei) | Numidische Speerwerfer |
   | Parther | Persisches Fußvolk (hält nur) | Kataphrakten (Panzerreiter, härteste Reiterei) | Berittene Bogenschützen |
+  | Armenien | Armenische Speerträger (zäh in den Pässen) | Armenische Kataphrakten | Armenische Bogenschützen |
   | Gallier | Schwertkämpfer (harter Angriff) | Edle Reiter | Bogenschützen |
   | Griechen | Hopliten (beste Verteidigung) | Thessalische Reiter | Peltasten |
   | Germanen | Speerträger | Gefolgschaftsreiter | Wurfspeerträger |
@@ -436,6 +439,10 @@ den Punkten durchblättern.
   Susa, Rhagae, Ktesiphon und Arbela, der Zagros als Wall nach Westen. Ihr
   Fußvolk hält nur die Linie – die Entscheidung fällt zwischen Kataphrakten und
   berittenen Bogenschützen, dem besten Reiterheer der Karte. Teuer ist es auch.
+- **Armenien** hält das Hochland um den Ararat: Artaxata als Sitz, dazu
+  Tigranokerta, Tushpa, Arsamosata und Naxuana. Anders als bei den Parthern
+  hält sein Fußvolk die Pässe wirklich – dafür hat es kein Meer, keinen Hafen
+  und Seleukiden wie Parther als Nachbarn.
 - **Numidien** steht westlich von Karthago: Cirta als Sitz, dazu Zama Regia,
   Icosium und Siga. Sein Fußvolk deckt nur die Reiter – die numidische
   Reiterei ist die schnellste und härteste leichte Reiterei der Karte, und

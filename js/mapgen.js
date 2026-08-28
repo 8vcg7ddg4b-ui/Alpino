@@ -355,9 +355,14 @@ export function riverEdgeKey(colA, rowA, colB, rowB) {
 // (i, j); ein senkrechtes von (i, j) nach (i, j+1) trennt (i-1, j) und (i, j).
 function traceRiver(tiles, course) {
   const edges = [];
-  const passable = (col, row) => inBounds(col, row) && tiles[row][col].type !== 'water';
+  // Ein Uferstück fällt nur weg, wenn beide Seiten Meer sind - dann ist der
+  // Fluss schon in der See. Liegt nur eine Seite im Wasser, ist das die
+  // Mündung, und die gehört dazu: sonst hört der Lauf ein Feld vor der Küste
+  // auf, und genau das sah nach einer Lücke aus.
+  const wet = (col, row) => !inBounds(col, row) || tiles[row][col].type === 'water';
   const add = (colA, rowA, colB, rowB) => {
-    if (!passable(colA, rowA) || !passable(colB, rowB)) return;
+    if (!inBounds(colA, rowA) || !inBounds(colB, rowB)) return;
+    if (wet(colA, rowA) && wet(colB, rowB)) return;
     edges.push(riverEdgeKey(colA, rowA, colB, rowB));
   };
   const segment = (from, to) => {

@@ -225,6 +225,33 @@ export const FACTION_ART = {
         ${spears(804, 12, 88, rng, '#170a0e', -20, 700)}`;
     },
   },
+  armenien: {
+    motto: 'Im Schatten des Ararat',
+    render() {
+      const rng = seeded(1515);
+      // Das armenische Hochland: der Doppelgipfel über allem, davor die
+      // Bergketten und die gepanzerte Reiterei des Adels.
+      const riders = (baseY, count, scale, colour, x0, x1) => {
+        let out = '';
+        for (let i = 0; i < count; i++) {
+          const x = x0 + ((x1 - x0) / count) * (i + rng() * 0.5);
+          out += horseman(x, baseY + rng() * 8, scale * (0.9 + rng() * 0.3), colour);
+        }
+        return out;
+      };
+      return `${sky([[0, '#1d2f42'], [0.4, '#4f6a72'], [0.74, '#c4a878'], [1, '#f0dfb8']], 'faArm')}
+        ${sun(1220, 470, 70, '#fff0cc', 0.3)}
+        <path d="M 300 660 L 620 240 L 760 430 L 840 320 L 1180 660 Z" fill="#e9edf2" opacity="0.95"/>
+        <path d="M 520 420 L 620 240 L 720 380 L 660 356 L 590 430 Z" fill="#ffffff"/>
+        <path d="M 790 386 L 840 320 L 906 410 L 862 396 L 826 430 Z" fill="#ffffff"/>
+        ${peaks(648, 150, rng, '#3f4f5c', 0.75, 7)}
+        ${hills(700, 26, rng, '#5b5a3f', 0.9)}
+        ${riders(708, 5, 0.95, '#221d16', 150, 1500)}
+        <rect y="742" width="${SCENE_W}" height="${SCENE_H - 742}" fill="#221e17"/>
+        ${riders(824, 4, 1.65, '#0d0b08', 180, 1450)}
+        ${spears(806, 11, 92, rng, '#141009', -20, 660)}`;
+    },
+  },
   griechen: {
     motto: 'Die Phalanx der Poleis',
     render() {
