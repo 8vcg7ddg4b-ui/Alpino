@@ -18,6 +18,7 @@ import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
 } from './weather.js';
 import { emblemSVG } from './emblems.js';
+import { wonderAt, wondersOfCity, OFFMAP_WONDER } from './wonders.js';
 
 const TERRAIN_NAMES = {
   plains: 'Ebene', forest: 'Wald', hills: 'Hügel', mountain: 'Gebirge', water: 'Wasser',
@@ -384,6 +385,9 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
       <span class="muted">· ${watch >= watchGoal
     ? 'vollzählig; sie verteidigt die Stadt, rückt aber nie aus'
     : 'stellt sich aus der Bevölkerung nach'}</span></p>
+    ${wondersOfCity(state, city.id).map((w) => `
+      <p class="wall-line wall-done">${w.wonder ? '🏛️' : '🗿'} ${escapeHTML(w.name)}
+        <span class="muted">· ${w.wonder ? 'Weltwunder' : 'Wahrzeichen'}, +${w.income} Gold je Runde</span></p>`).join('')}
     ${wallHTML(city, isMine, player)}
     ${harbourHTML(state, city, isMine, player)}
     ${fleetHTML(city, isMine, player)}
@@ -554,6 +558,7 @@ export function tileInfoHTML(state, tile) {
   return `
     ${city ? cityInfoHTML(state, city) : ''}
     ${army ? armyInfoHTML(state, army) : ''}
+    ${wonderPanelHTML(state, wonderAt(state, col, row))}
     ${terrainPanelHTML(state, tile, { standalone: true })}`;
 }
 
@@ -600,6 +605,31 @@ function terrainFactsHTML(state, col, row) {
 
   return facts.map(([label, value]) =>
     `<div class="terrain-fact"><span>${label}</span><strong>${escapeHTML(value)}</strong></div>`).join('');
+}
+
+// Ein Weltwunder oder Wahrzeichen auf dem angeklickten Feld: was es ist, wann
+// es gebaut wurde, wer daran verdient.
+function wonderPanelHTML(state, wonder) {
+  if (!wonder) return '';
+  const city = wonder.cityId && state.cities.find((c) => c.id === wonder.cityId);
+  const owner = city && factionById(state, city.factionId);
+  const heading = wonder.wonder ? 'Weltwunder der Antike' : 'Wahrzeichen der Alten Welt';
+  const holder = city
+    ? `<span class="dot" style="background:${owner.color}"></span>${escapeHTML(city.name)}
+       <em>${escapeHTML(owner.name)}</em> – ${wonder.income} Gold je Runde`
+    : 'Kein Ort in der Nähe – niemand zieht Nutzen daraus.';
+  return `
+    <div class="wonder-panel">
+      <p class="wonder-kind">${wonder.wonder ? '🏛️' : '🗿'} ${heading}</p>
+      <h3 class="wonder-name">${escapeHTML(wonder.name)}</h3>
+      <p class="wonder-built">Errichtet ${escapeHTML(wonder.built)}</p>
+      <p class="wonder-note">${escapeHTML(wonder.note)}</p>
+      <p class="wonder-owner">${holder}</p>
+      ${wonder.id === 'gizeh'
+    ? `<p class="wonder-note">Von den sieben Weltwundern fehlt auf dieser Karte nur eines:
+         die ${escapeHTML(OFFMAP_WONDER.name)} lägen bei ${escapeHTML(OFFMAP_WONDER.where)}.</p>`
+    : ''}
+    </div>`;
 }
 
 // What the player learns by clicking a tile. Shown on its own for open ground,
@@ -656,6 +686,14 @@ export function terrainPanelHTML(state, tile, opts = {}) {
     notes.push(`Im Kontrollbereich von ${names.join(' und ')} – hineinzuziehen kostet `
       + `${ZOC_EXTRA_COST} Bewegungspunkte mehr, und aus dem Kontrollbereich heraus `
       + 'geht es nur ins Freie oder in den Angriff.');
+  }
+  // Einmal je Ansicht genügt: im Nachschlagefenster steht das Bauwerk in
+  // seinem eigenen Block darüber, und in der Seitenleiste in der Stadt, wenn
+  // die gerade ausgewählt ist.
+  const landmark = wonderAt(state, col, row);
+  if (landmark && !opts.standalone && !(city && shownAbove.has(city.id))) {
+    notes.push(`${landmark.wonder ? '🏛️ Weltwunder' : '🗿 Wahrzeichen'}: ${landmark.name} `
+      + `– ${landmark.income} Gold je Runde für den, der den nächsten Ort hält.`);
   }
   if (type === 'desert') notes.push('Wüste – zäh zu durchqueren und ohne Deckung.');
   const sky = weatherAt(state, col, row);

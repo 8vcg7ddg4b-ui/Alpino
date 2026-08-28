@@ -7,6 +7,7 @@ import {
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
 import { generateMap, landRoute } from './mapgen.js';
+import { placeWonders } from './wonders.js';
 
 let nextId = 1;
 export function makeId(prefix) {
@@ -162,6 +163,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   return {
     turn: 1,
     weatherSeed,
+    // Die Bauwerke der Alten Welt stehen schon, bevor der erste Zug gemacht
+    // wird - sie werden nicht gebaut, sie werden erobert.
+    wonders: placeWonders(map, cities),
     roads,
     roadProjects: [],
     // Bumped whenever the network changes, so the scene knows to redraw it.

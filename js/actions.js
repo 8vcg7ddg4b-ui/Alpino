@@ -24,6 +24,7 @@ import {
 import {
   rollWeather, weatherAt, weatherInfo, weatherBattleModifiers, calendarOfTurn, zoneName,
 } from './weather.js';
+import { wonderIncomeOf, wondersOfCity } from './wonders.js';
 
 export function removeArmy(state, armyId) {
   const idx = state.armies.findIndex((a) => a.id === armyId);
@@ -535,7 +536,15 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   }
 
   if (capturedCity && city) {
+    const lostTo = city.factionId;
     city.factionId = army.factionId;
+    // Mit der Stadt wechselt auch das Wahrzeichen den Besitzer - das ist eine
+    // Zeile im Protokoll wert, für beide Seiten.
+    const landmarks = wondersOfCity(state, city.id);
+    if (landmarks.length) {
+      logMsg(state, `Mit ${city.name} fällt ${landmarks.map((w) => w.name).join(' und ')} `
+        + `an ${attackerFaction.name}.`, null, [attackerFaction.id, lostTo]);
+    }
     // A small occupying garrison remains so the city isn't immediately
     // defenseless against a follow-up attack the same turn.
     city.garrison = { infantry: 30 };
@@ -1131,6 +1140,9 @@ export function collectIncome(state) {
       (sum, c) => sum + INCOME_PER_CITY * settlementTier(c.size).incomeFactor, 0
     );
     income += ownCities.reduce((s, c) => s + Math.floor(c.population / 200), 0);
+    // Wer die Stadt hält, hält auch das Bauwerk vor ihren Toren - Pilger,
+    // Schaulustige und Händler zahlen mit.
+    income += wonderIncomeOf(state, faction.id);
     const upkeep = state.armies
       .filter((a) => a.factionId === faction.id)
       .reduce((s, a) => s + COMBAT_ROLES.reduce(

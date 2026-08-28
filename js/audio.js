@@ -6,6 +6,7 @@ let ctx = null;
 let master = null;
 let muted = false;
 let marchHandle = null;
+let marchGain = null;
 
 const STORAGE_KEY = 'spqr.muted';
 
@@ -64,7 +65,7 @@ function getNoise(context) {
 }
 
 // A shaped burst of noise: the backbone of footsteps, impacts and stone work.
-function noiseBurst(context, when, { duration = 0.18, gain = 0.4, frequency = 900, q = 1, type = 'bandpass' } = {}) {
+function noiseBurst(context, when, { duration = 0.18, gain = 0.4, frequency = 900, q = 1, type = 'bandpass', destination = null } = {}) {
   const source = context.createBufferSource();
   source.buffer = getNoise(context);
   source.playbackRate.value = 0.8 + Math.random() * 0.4;
@@ -79,7 +80,7 @@ function noiseBurst(context, when, { duration = 0.18, gain = 0.4, frequency = 90
   envelope.gain.linearRampToValueAtTime(gain, when + 0.008);
   envelope.gain.exponentialRampToValueAtTime(0.0001, when + duration);
 
-  source.connect(filter).connect(envelope).connect(master);
+  source.connect(filter).connect(envelope).connect(destination || master);
   source.start(when);
   source.stop(when + duration + 0.02);
 }
@@ -177,8 +178,18 @@ export const sfx = {
   }),
 };
 
-// A repeating boot-fall while an army is on the move. Scheduled step by step
-// so it can be cut off the moment the march ends.
+// Der Tritt der Kolonne, solange ein Heer unterwegs ist.
+//
+// Die Schritte werden der Audiouhr ein Stück voraus eingeplant und nicht erst
+// in dem Moment angestoßen, in dem sie zu hören sein sollen. Während des
+// Marsches rendert der Haupt-Thread die Karte; ein Timer, der genau dann
+// feuern müsste, kommt dabei ins Stocken, und der Ton hängt hörbar nach.
+// Der Timer weckt hier nur den Planer - wann ein Schritt fällt, entscheidet
+// allein die Uhr des Audiokontexts.
+const MARCH_INTERVAL = 0.26;   // Sekunden zwischen zwei Tritten
+const MARCH_LOOKAHEAD = 0.45;  // so weit im Voraus wird eingeplant
+const MARCH_TICK = 110;        // so oft schaut der Planer nach (ms)
+
 export function startMarch() {
   if (muted) return;
   const context = ensureContext();
@@ -186,22 +197,37 @@ export function startMarch() {
   if (context.state === 'suspended') context.resume().catch(() => {});
   stopMarch();
 
-  const interval = 260;
+  // Alle Tritte laufen über einen eigenen Regler. Beim Abbrechen wird der
+  // zugedreht, damit auch die schon eingeplanten Schritte verstummen.
+  marchGain = context.createGain();
+  marchGain.gain.value = 1;
+  marchGain.connect(master);
+  const bus = marchGain;
+
   let step = 0;
-  const tick = () => {
-    const at = context.currentTime;
-    const strong = step % 2 === 0;
-    noiseBurst(context, at, {
-      duration: 0.14,
-      gain: strong ? 0.26 : 0.17,
-      frequency: strong ? 240 : 340,
-      q: 1.1,
-      type: 'lowpass',
-    });
-    step++;
+  let nextAt = context.currentTime + 0.02;
+
+  const schedule = () => {
+    if (bus !== marchGain) return;
+    while (nextAt < context.currentTime + MARCH_LOOKAHEAD) {
+      // Lag der Takt zurück (verdeckter Tab, langer Ruckler), wird er auf die
+      // Gegenwart gesetzt statt einen Schwall Schritte nachzuholen.
+      if (nextAt < context.currentTime) nextAt = context.currentTime + 0.02;
+      const strong = step % 2 === 0;
+      noiseBurst(context, nextAt, {
+        duration: 0.14,
+        gain: strong ? 0.26 : 0.17,
+        frequency: strong ? 240 : 340,
+        q: 1.1,
+        type: 'lowpass',
+        destination: bus,
+      });
+      nextAt += MARCH_INTERVAL;
+      step++;
+    }
   };
-  tick();
-  marchHandle = setInterval(tick, interval);
+  schedule();
+  marchHandle = setInterval(schedule, MARCH_TICK);
 }
 
 export function stopMarch() {
@@ -209,4 +235,14 @@ export function stopMarch() {
     clearInterval(marchHandle);
     marchHandle = null;
   }
+  if (marchGain && ctx) {
+    const bus = marchGain;
+    const now = ctx.currentTime;
+    bus.gain.cancelScheduledValues(now);
+    bus.gain.setValueAtTime(bus.gain.value, now);
+    bus.gain.linearRampToValueAtTime(0, now + 0.06);
+    // Erst abklemmen, wenn auch der letzte eingeplante Tritt vorbei ist.
+    setTimeout(() => bus.disconnect(), 1200);
+  }
+  marchGain = null;
 }

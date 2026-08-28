@@ -294,6 +294,22 @@ den Punkten durchblättern.
 
   Im Kampf rechnet jede Seite mit ihren eigenen Werten – ein Legionär hält
   anders stand als ein Falxträger, auch wenn beide „Fußvolk" heißen.
+- **Die Weltwunder der Antike stehen auf der Karte**, jedes an seinem echten
+  Ort. Von den klassischen sieben liegen sechs im Kartenausschnitt: die
+  **Pyramiden von Gizeh**, der **Leuchtturm von Alexandria**, der **Koloss von
+  Rhodos**, das **Mausoleum von Halikarnassos**, der **Artemistempel von
+  Ephesos** und die **Zeusstatue von Olympia**. Die Hängenden Gärten von
+  Babylon lägen bei 44,4° O – gut zwei Grad östlich des Kartenrands; sie an den
+  Rand zu rücken wäre geografisch falsch, deshalb fehlen sie. Dazu kommen fünf
+  weitere Wahrzeichen: der **Parthenon** auf der Akropolis, das **Orakel von
+  Delphi**, der **Tempel des Jupiter Optimus Maximus** auf dem Kapitol, die
+  **Säulen des Herakles** an der Meerenge von Gibraltar und der **Steinkreis von
+  Stonehenge**.
+
+  Gebaut werden sie nicht – sie standen schon. Wer den nächstgelegenen Ort hält,
+  hält das Bauwerk: ein Weltwunder bringt 15 Gold je Runde, ein Wahrzeichen 6.
+  Fällt die Stadt, fällt das Bauwerk mit ihr, und das Protokoll sagt es beiden
+  Seiten. Ein Rechtsklick auf das Feld nennt Bauwerk, Bauzeit und Besitzer.
 - **Gallien und die Seleukiden beginnen mit zwei Heeren** statt einem: beide
   stehen zwischen mehreren Nachbarn, und ein einziges Heer kann nur an einer
   Front stehen. Alle anderen führen ein Heer von 540 Mann.
@@ -340,6 +356,8 @@ den Punkten durchblättern.
 - `js/data.js` – Einheiten-, Gelände- und Fraktionsdefinitionen samt
   Fraktionsprofilen für die Auswahl, Siedlungen mit ihren echten Koordinaten
 - `js/factionart.js` – die SVG-Bilder des Auswahlbildschirms, eines je Fraktion
+- `js/wonders.js` – die Weltwunder und Wahrzeichen der Alten Welt in Grad,
+  ihre Zuordnung zum nächsten Ort und was sie einbringen
 - `js/mapgen.js` / `js/state.js` – Rasterung der Geografie zu Gelände,
   Spielzustand
 - `js/pathfind.js` – Bewegungsreichweite (Dijkstra) inkl. Kampf-Zielfeldern

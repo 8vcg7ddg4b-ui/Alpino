@@ -1646,3 +1646,25 @@ html, body {
 }
 .log-filter button:hover { color: var(--text); }
 .log-filter button.active { color: var(--gold); border-color: var(--gold); }
+
+/* --- Weltwunder und Wahrzeichen ------------------------------------------ */
+.wonder-panel {
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(217, 180, 81, 0.45);
+  border-left: 3px solid #d9b451;
+  border-radius: 6px;
+  background: rgba(217, 180, 81, 0.08);
+}
+.wonder-kind {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d9b451;
+}
+.wonder-name { margin: 2px 0 0; font-size: 15px; }
+.wonder-built { margin: 1px 0 6px; font-size: 12px; opacity: 0.7; }
+.wonder-note { margin: 0 0 6px; font-size: 12px; line-height: 1.45; opacity: 0.85; }
+.wonder-owner { margin: 0; font-size: 12px; }
+.wonder-owner em { opacity: 0.75; font-style: normal; }

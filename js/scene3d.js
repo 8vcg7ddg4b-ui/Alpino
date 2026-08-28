@@ -154,6 +154,9 @@ const SKY_COLOR = '#bcd8ec';
 
 export function initScene(canvas) {
   canvasEl = canvas;
+  // Jede Partie baut eine neue Szene. Die Liste der Fahnen hängt am Modul und
+  // müsste sonst noch die Banner der vorigen Partie ausrichten.
+  billboards.length = 0;
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
@@ -488,6 +491,7 @@ export function buildMap(state) {
   buildTable(boardW, boardH);
   buildTent(state);
   buildProps(props);
+  buildWonders(state);
   buildRoadNetwork(state);
   roadVersionDrawn = state.roadVersion || 0;
 }
@@ -1058,6 +1062,260 @@ function buildCityGroup(city) {
   return {
     group, label, tinted, scale, walls: [null, null, null], harbour: null,
   };
+}
+
+// --- Weltwunder und Wahrzeichen ------------------------------------------
+// Die Bauwerke der Alten Welt stehen auf ihrem echten Feld. Teilt sich eines
+// das Feld mit einer Stadt - der Parthenon mit Athen, der Jupitertempel mit
+// Rom -, rückt es an den Rand des Felds und auf einen Felsen darüber: so
+// steht es neben der Stadt statt zwischen ihren Dächern, und beim Kapitol und
+// bei der Akropolis ist der Burgberg ohnehin der historische Ort.
+
+const WONDER_MATERIALS = {
+  limestone: new THREE.MeshStandardMaterial({ color: '#ded1ab', roughness: 0.9 }),
+  sandstone: new THREE.MeshStandardMaterial({ color: '#cbb083', roughness: 0.95 }),
+  marble: new THREE.MeshStandardMaterial({ color: '#f0ead8', roughness: 0.5 }),
+  bronze: new THREE.MeshStandardMaterial({ color: '#c98f3e', roughness: 0.45, metalness: 0.12 }),
+  gold: new THREE.MeshStandardMaterial({ color: '#e6c65c', roughness: 0.4, metalness: 0.15 }),
+  roof: new THREE.MeshStandardMaterial({ color: '#b8503a', roughness: 0.7, side: THREE.DoubleSide }),
+  rock: new THREE.MeshStandardMaterial({ color: '#8f8779', roughness: 1, flatShading: true }),
+  fire: new THREE.MeshBasicMaterial({ color: '#ffcb6b' }),
+};
+
+function addBox(group, material, width, height, depth, x, y, z, rotation = 0) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+  mesh.position.set(x, y + height / 2, z);
+  mesh.rotation.y = rotation;
+  group.add(mesh);
+  return mesh;
+}
+
+// Eine Reihe Säulen auf einem Stufenbau, mit Gebälk und Satteldach darüber -
+// der Bauplan, aus dem Ephesos, der Parthenon, Delphi und das Kapitol jeweils
+// eine eigene Größe machen.
+function makeColonnade(width, columnHeight, { columns = 6 } = {}) {
+  const group = new THREE.Group();
+  const depth = width * 0.6;
+  addBox(group, WONDER_MATERIALS.marble, width, width * 0.09, depth, 0, 0, 0);
+  addBox(group, WONDER_MATERIALS.marble, width * 0.9, width * 0.07, depth * 0.9, 0, width * 0.09, 0);
+  const base = width * 0.16;
+
+  const shaft = new THREE.CylinderGeometry(width * 0.035, width * 0.042, columnHeight, 8);
+  for (let i = 0; i < columns; i++) {
+    for (const side of [-1, 1]) {
+      const along = (i / (columns - 1) - 0.5) * width * 0.78;
+      const column = new THREE.Mesh(shaft, WONDER_MATERIALS.marble);
+      column.position.set(along, base + columnHeight / 2, side * depth * 0.33);
+      group.add(column);
+    }
+  }
+
+  addBox(group, WONDER_MATERIALS.marble, width * 0.86, width * 0.08, depth * 0.78,
+    0, base + columnHeight, 0);
+  const pediment = new THREE.Mesh(
+    makeGableRoof(width * 0.92, depth * 0.84, width * 0.22), WONDER_MATERIALS.roof
+  );
+  pediment.position.y = base + columnHeight + width * 0.08;
+  group.add(pediment);
+  return group;
+}
+
+// Ein stehender Mensch, grob aus Kästen - genug, um aus der Feldherrnperspektive
+// als Statue durchzugehen.
+function addFigure(group, material, height, { armUp = false, stride = 0.5 } = {}) {
+  const unit = height / 8;
+  // Die Beine stehen auseinander: aus der Feldherrnperspektive ist eine
+  // einzelne Säule kein Mensch, zwei Beine mit Lücke dazwischen schon.
+  for (const side of [-1, 1]) {
+    addBox(group, material, unit * 0.62, unit * 3.3, unit * 0.7,
+      side * unit * stride, 0, 0);
+  }
+  addBox(group, material, unit * 1.9, unit * 2.9, unit * 1.15, 0, unit * 3.3, 0);
+  addBox(group, material, unit * 1.2, unit * 0.5, unit * 0.9, 0, unit * 6.2, 0);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(unit * 0.8, 10, 8), material);
+  head.position.y = unit * 7.1;
+  group.add(head);
+  for (const side of [-1, 1]) {
+    const raised = armUp && side > 0;
+    const arm = addBox(group, material, unit * 0.6, raised ? unit * 3.4 : unit * 2.8, unit * 0.6,
+      side * unit * 1.3, raised ? unit * 4.9 : unit * 3.3, 0);
+    if (raised) arm.rotation.z = -0.2;
+  }
+}
+
+const WONDER_BUILDERS = {
+  // Drei Pyramiden, die größte vorn, dazu ein Rest der Sphinx davor.
+  pyramid(group) {
+    const sizes = [[3.9, 3.6, 0, 0], [2.9, 2.7, -3.6, 1.7], [2.0, 1.8, 3.2, 2.2]];
+    for (const [radius, height, x, z] of sizes) {
+      const pyramid = new THREE.Mesh(
+        new THREE.ConeGeometry(radius, height, 4), WONDER_MATERIALS.limestone
+      );
+      pyramid.position.set(x, height / 2, z);
+      pyramid.rotation.y = Math.PI / 4;
+      group.add(pyramid);
+    }
+    addBox(group, WONDER_MATERIALS.sandstone, 1.7, 0.55, 0.7, 0.5, 0, -3.1);
+    addBox(group, WONDER_MATERIALS.sandstone, 0.55, 0.85, 0.55, 1.15, 0.55, -3.1);
+  },
+
+  // Der Pharos: quadratischer Unterbau, achteckiger Mittelteil, runder Turm,
+  // und ganz oben das Feuer.
+  lighthouse(group) {
+    addBox(group, WONDER_MATERIALS.limestone, 2.6, 0.5, 2.6, 0, 0, 0);
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(1.9, 3.6, 1.9), WONDER_MATERIALS.limestone);
+    lower.position.y = 2.3;
+    group.add(lower);
+    const middle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.72, 0.95, 2.4, 8), WONDER_MATERIALS.limestone
+    );
+    middle.position.y = 5.3;
+    group.add(middle);
+    const top = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.55, 0.6, 1.2, 10), WONDER_MATERIALS.marble
+    );
+    top.position.y = 7.1;
+    group.add(top);
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.0, 7), WONDER_MATERIALS.fire);
+    flame.position.y = 8.2;
+    group.add(flame);
+  },
+
+  // Der Koloss, breitbeinig über dem Hafen, den Arm mit der Fackel erhoben.
+  colossus(group) {
+    addBox(group, WONDER_MATERIALS.marble, 3.0, 0.5, 3.0, 0, 0, 0);
+    addBox(group, WONDER_MATERIALS.marble, 2.4, 0.5, 2.4, 0, 0.5, 0);
+    const figure = new THREE.Group();
+    figure.position.y = 1.0;
+    // Breitbeinig über der Hafeneinfahrt, die Fackel im erhobenen Arm.
+    addFigure(figure, WONDER_MATERIALS.bronze, 7.4, { armUp: true, stride: 0.85 });
+    const torch = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.0, 6), WONDER_MATERIALS.fire);
+    torch.position.set(1.55, 7.3, 0);
+    figure.add(torch);
+    group.add(figure);
+  },
+
+  // Das Mausoleum: Stufensockel, Säulenkranz, Stufenpyramide, Viergespann.
+  mausoleum(group) {
+    addBox(group, WONDER_MATERIALS.marble, 3.6, 1.5, 3.0, 0, 0, 0);
+    addBox(group, WONDER_MATERIALS.marble, 3.2, 0.3, 2.6, 0, 1.5, 0);
+    const shaft = new THREE.CylinderGeometry(0.16, 0.18, 2.2, 8);
+    for (let i = 0; i < 4; i++) {
+      for (const side of [-1, 1]) {
+        const column = new THREE.Mesh(shaft, WONDER_MATERIALS.marble);
+        column.position.set((i / 3 - 0.5) * 2.5, 2.9, side * 1.0);
+        group.add(column);
+      }
+    }
+    addBox(group, WONDER_MATERIALS.marble, 3.0, 0.28, 2.4, 0, 4.0, 0);
+    for (let i = 0; i < 4; i++) {
+      addBox(group, WONDER_MATERIALS.marble, 2.6 - i * 0.55, 0.3, 2.1 - i * 0.45,
+        0, 4.28 + i * 0.3, 0);
+    }
+    addBox(group, WONDER_MATERIALS.gold, 1.0, 0.5, 0.6, 0, 5.48, 0);
+  },
+
+  // Ein Tempel - das Maß gibt der Aufrufer über die Skalierung vor.
+  temple(group) {
+    group.add(makeColonnade(4.4, 2.3, { columns: 7 }));
+  },
+
+  // Der Zeustempel von Olympia, und darin die Statue, die aus ihm herausragt.
+  statue(group) {
+    // Der Tempel steht hinten, die Statue davor: im Inneren wäre von zwölf
+    // Metern Gold und Elfenbein nichts zu sehen als ein Dach.
+    const temple = makeColonnade(4.6, 2.4, { columns: 6 });
+    temple.position.z = -1.6;
+    group.add(temple);
+    const figure = new THREE.Group();
+    figure.position.set(0, 0.4, 1.5);
+    addBox(group, WONDER_MATERIALS.marble, 2.2, 0.4, 1.8, 0, 0, 1.5);
+    addFigure(figure, WONDER_MATERIALS.gold, 4.6);
+    group.add(figure);
+  },
+
+  // Zwei Felsen zu beiden Seiten der Meerenge.
+  pillars(group) {
+    for (const [x, z, height, radius] of [[-1.5, 0.8, 3.6, 1.0], [1.7, -1.0, 2.8, 0.85]]) {
+      const rock = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius * 0.55, radius, height, 6, 1), WONDER_MATERIALS.rock
+      );
+      rock.position.set(x, height / 2, z);
+      rock.rotation.y = x;
+      group.add(rock);
+    }
+  },
+
+  // Der Steinkreis: aufrechte Blöcke, über je zweien ein Deckstein.
+  stones(group) {
+    const count = 9;
+    const radius = 2.1;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      addBox(group, WONDER_MATERIALS.rock, 0.75, 2.4, 0.45, x, 0, z, -angle);
+      if (i % 2 === 0) {
+        const next = ((i + 1) / count) * Math.PI * 2;
+        addBox(group, WONDER_MATERIALS.rock, 1.5, 0.35, 0.45,
+          (x + Math.cos(next) * radius) / 2, 2.4, (z + Math.sin(next) * radius) / 2,
+          -(angle + next) / 2);
+      }
+    }
+    for (const [x, z] of [[0, -0.7], [0, 0.7]]) {
+      addBox(group, WONDER_MATERIALS.rock, 0.9, 3.1, 0.5, x, 0, z);
+    }
+  },
+};
+
+let wondersGroup = null;
+
+function buildWonders(state) {
+  wondersGroup = new THREE.Group();
+  scene.add(wondersGroup);
+  if (!state.wonders) return;
+
+  const cityTiles = new Set(state.cities.map((c) => `${c.col},${c.row}`));
+  for (const wonder of state.wonders) {
+    const build = WONDER_BUILDERS[wonder.model];
+    if (!build) continue;
+    const group = new THREE.Group();
+    build(group);
+
+    // Ein Bauwerk, das sich sein Feld mit einer Stadt teilt, weicht nach
+    // Nordwesten aus und steht auf einem Felsen darüber - beim Kapitol und
+    // bei der Akropolis ist genau das der historische Ort, und in der
+    // Draufsicht verschwindet es sonst zwischen den Dächern.
+    // Quer zur Blickrichtung an den Rand des Felds: nach hinten gerückt
+    // verschwände das Bauwerk hinter den Dächern, nach vorn verdeckte sein
+    // Felsen die Stadt. So stehen beide nebeneinander.
+    const shared = cityTiles.has(`${wonder.col},${wonder.row}`);
+    const dx = shared ? 0.38 : 0;
+    const dz = shared ? -0.38 : 0;
+    const scale = wonder.wonder ? 0.72 : 0.58;
+    // Hoch genug, um über die Dächer zu ragen: Kapitol und Akropolis sind
+    // Burgberge, und nur so ist das Bauwerk in der Stadt überhaupt zu sehen.
+    const lift = shared ? 3.4 : 0;
+    if (shared) {
+      const rock = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.5, 3.4, (lift + 3) / scale, 7, 1), WONDER_MATERIALS.rock
+      );
+      rock.position.y = -(lift + 3) / (2 * scale);
+      group.add(rock);
+    }
+    group.position.set(
+      worldX(wonder.col) + dx * TILE_SIZE,
+      groundY(wonder.col + dx, wonder.row + dz) - 0.15 + lift,
+      worldZ(wonder.row) + dz * TILE_SIZE
+    );
+    group.scale.setScalar(scale);
+
+    // Über den Stadtnamen, sonst überschreiben sich beide.
+    const label = makeLabelSprite(wonder.name, { scale: 0.78, color: '#ffe4a6' });
+    label.position.y = shared ? 13.5 : 12;
+    group.add(label);
+    wondersGroup.add(group);
+  }
 }
 
 // Ein Hafen: Steg, Poller und ein vertäutes Boot. Er steht nicht in der
@@ -1894,18 +2152,28 @@ function startAnimationLoop() {
     // speed instead of in slow motion.
     const dt = Math.min(0.12, (now - last) / 1000);
     last = now;
-    const marching = advanceAnimations(dt);
-    const effecting = advanceEffects(dt);
+    advanceAnimations(dt);
+    advanceEffects(dt);
     const raining = advanceWeatherPoints(dt);
     render();
-    if (marching || effecting || raining) {
+
+    // Fertige Märsche und Effekte melden sich sofort - noch in dem Bild, in
+    // dem sie zu Ende gehen. Früher wurde die Warteschlange erst geleert,
+    // wenn die Schleife ganz anhielt; bei Regen oder Schnee treiben aber
+    // dauernd Tropfen über die Karte, die Schleife hielt nie an, und so
+    // liefen der Marschton weiter und der Schlachtbericht kam erst mit dem
+    // nächsten Wetterumschwung.
+    // Ein Rückruf darf dabei die nächste Stufe starten (der Marsch, der in
+    // einen Zusammenstoß mündet): animationFrameId steht noch, sein
+    // startAnimationLoop() fällt also durch, und die Schleife läuft unten
+    // ohnehin weiter.
+    for (const done of completionQueue.splice(0)) if (done) done();
+
+    if (armyAnimations.size > 0 || effects.length > 0 || raining) {
       animationFrameId = requestAnimationFrame(step);
       return;
     }
     animationFrameId = null;
-    // Callbacks may start the next stage (a march ending in a clash), which
-    // restarts the loop on its own.
-    for (const done of completionQueue.splice(0)) if (done) done();
   };
   animationFrameId = requestAnimationFrame(step);
 }
