@@ -29,7 +29,7 @@ function escapeHTML(text) {
 // marched in, how many walked away, and the shortfall between the two.
 function sideHTML(state, factionId, label, engaged, survivors, lossPct, won) {
   const faction = factionById(state, factionId);
-  const rows = UNIT_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => {
+  const rows = GARRISON_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => {
     const before = engaged[k] || 0;
     const after = survivors[k] || 0;
     const lost = before - after;
@@ -472,6 +472,58 @@ function roadHTML(state, city, isMine, player) {
     </div>`;
 }
 
+// --- Nachschlagefenster --------------------------------------------------
+// Was auf einem Feld steht, ohne dass man dafür etwas auswählen muss: Gelände,
+// Wetter, Stadt und Armee mit allem, was für die nächste Entscheidung zählt.
+
+function armyInfoHTML(state, army) {
+  const owner = factionById(state, army.factionId);
+  const stars = starMarks(army.experience);
+  return `
+    <div class="ti-block">
+      <h4><span class="dot" style="background:${owner.color}"></span>${escapeHTML(army.name)}
+        ${army.embarked ? '⛵' : ''}</h4>
+      <p class="ti-line">${escapeHTML(owner.name)} ·
+        ${unitTotalCount(army.units).toLocaleString('de-DE')} Mann ·
+        <span class="vet-stars">${stars}</span> ${escapeHTML(starTitle(army.experience))}</p>
+      <p class="ti-line">Moral ${Math.round(army.morale ?? 100)} ·
+        Erschöpfung ${Math.round(army.exhaustion ?? 0)} ·
+        Bewegung ${army.movement} / ${army.maxMovement}</p>
+      <div class="unit-list">${unitBreakdownHTML(army.units, army.factionId)}</div>
+    </div>`;
+}
+
+function cityInfoHTML(state, city) {
+  const owner = factionById(state, city.factionId);
+  const level = cityWallLevel(city);
+  const watch = city.garrison[WATCH_ROLE] || 0;
+  return `
+    <div class="ti-block">
+      <h4><span class="dot" style="background:${owner.color}"></span>${escapeHTML(city.name)}
+        ${city.capital ? '👑' : ''}</h4>
+      <p class="ti-line">${settlementLabel(city)} · ${escapeHTML(owner.name)} ·
+        ${city.population.toLocaleString('de-DE')} Einwohner</p>
+      <p class="ti-line">Garnison ${unitTotalCount(city.garrison).toLocaleString('de-DE')} ·
+        🛡️ Stadtwache ${watch.toLocaleString('de-DE')} /
+        ${watchTarget(city, owner).toLocaleString('de-DE')}</p>
+      <p class="ti-line">${level ? `${wallLevelInfo(level).icon} ${wallLevelName(level)}` : 'keine Befestigung'}
+        · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}</p>
+      <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>
+    </div>`;
+}
+
+export function tileInfoHTML(state, tile) {
+  if (!tile) return '';
+  const { col, row } = tile;
+  if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) return '';
+  const city = cityAt(state, col, row);
+  const army = armyAt(state, col, row);
+  return `
+    ${city ? cityInfoHTML(state, city) : ''}
+    ${army ? armyInfoHTML(state, army) : ''}
+    ${terrainPanelHTML(state, tile, { standalone: true })}`;
+}
+
 const TERRAIN_ICONS = {
   plains: '🌾', forest: '🌲', hills: '⛰️', desert: '🏜️', mountain: '🏔️', water: '🌊',
 };
@@ -519,7 +571,7 @@ function terrainFactsHTML(state, col, row) {
 
 // What the player learns by clicking a tile. Shown on its own for open ground,
 // and under the army or city panel for a tile that is occupied.
-export function terrainPanelHTML(state, tile) {
+export function terrainPanelHTML(state, tile, opts = {}) {
   if (!tile) return '';
   const { col, row } = tile;
   if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) return '';
@@ -530,7 +582,11 @@ export function terrainPanelHTML(state, tile) {
   const army = armyAt(state, col, row);
   const occupants = [];
   // Was oben schon als Auswahl steht, wird hier nicht wiederholt.
-  const shownAbove = new Set([state.selectedCityId, state.selectedArmyId].filter(Boolean));
+  // Im Nachschlagefenster stehen Stadt und Armee schon ausführlich darüber,
+  // in der Seitenleiste nur, was gerade ausgewählt ist.
+  const shownAbove = opts.standalone
+    ? new Set([city && city.id, army && army.id].filter(Boolean))
+    : new Set([state.selectedCityId, state.selectedArmyId].filter(Boolean));
   if (city && !shownAbove.has(city.id)) {
     const owner = factionById(state, city.factionId);
     occupants.push(`<span class="dot" style="background:${owner.color}"></span>
@@ -707,7 +763,7 @@ function oddsVerdict(chance) {
 // One side of the forecast: what marches in and what is expected to walk away.
 function forecastSideHTML(state, factionId, label, engaged, survivors, lossPct) {
   const faction = factionById(state, factionId);
-  const rows = UNIT_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => `<tr>
+  const rows = GARRISON_ROLES.filter((k) => (engaged[k] || 0) > 0).map((k) => `<tr>
       <td class="u-name">${unitDef(factionId, k).icon} ${escapeHTML(unitDef(factionId, k).name)}</td>
       <td class="u-num">${(engaged[k] || 0).toLocaleString('de-DE')}</td>
       <td class="u-num">${(survivors[k] || 0).toLocaleString('de-DE')}</td>

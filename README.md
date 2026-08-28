@@ -141,10 +141,17 @@ den Punkten durchblättern.
 - **Armeen sind an ihrer Größe zu erkennen**: das Lager wächst mit der Stärke,
   von einem einzelnen Zelt bei einer Handvoll Männern bis zum Zeltring mit
   Führungszelt bei einem vollen Heer.
-- **Karte verschieben**: Ziehen mit Maus oder einem Finger, **Mausrad gedrückt
-  halten** und die Sicht frei bewegen (das geht auch dort, wo unter dem Zeiger
-  kein Boden liegt), Pfeiltasten/WASD oder das Steuerkreuz unten links.
-  **Umschalt + Mausrad gedrückt** dreht und neigt die Kamera.
+- **Karte verschieben**: Ziehen mit Maus oder einem Finger, Pfeiltasten/WASD
+  oder das Steuerkreuz unten links. **Umschalt + Mausrad gedrückt** verschiebt
+  ebenfalls – auch dort, wo unter dem Zeiger kein Boden liegt und das Ziehen
+  deshalb nicht greift.
+- **Kamera schwenken**: **Mausrad gedrückt halten** – seitlich dreht die Kamera
+  um die Bildmitte, nach oben und unten neigt sie sich.
+- **Feld nachschlagen**: **Rechtsklick** auf ein beliebiges Feld öffnet ein
+  Fenster am Zeiger mit Stadt, Armee und Gelände – Garnison und Stadtwache,
+  Stärke, Moral und Erfahrung der Armee, Bewegungskosten, Verteidigung, Höhe,
+  Lage und Wetter. Es ändert nichts: keine Auswahl, keine Bewegung. Esc oder
+  ein Klick daneben schließt es wieder.
 - **Drehen und Zoomen**: Auf dem Touchscreen zwei Finger – auseinander/zusammen
   zoomt, Verdrehen dreht die Karte. Am Rechner: Mausrad zoomt, Umschalt+Mausrad
   bzw. **Q**/**E** dreht. Die Knöpfe ↺ ↻ drehen, ⌂ setzt die Ansicht zurück.

@@ -541,7 +541,9 @@ function buildFortification(kind, scale) {
   if (kind === 'palisade') {
     // A row of sharpened stakes: a shaft with a point on top, per stake.
     const wood = new THREE.MeshStandardMaterial({ color: '#7a5433', roughness: 1 });
-    const height = 1.15 * scale;
+    // Niedriger und dünner als früher: die Befestigung soll die Stadt zeigen,
+    // nicht sie verstecken.
+    const height = 0.92 * scale;
     const perSide = 9;
     for (let side = 0; side < 4; side++) {
       const angle = (side * Math.PI) / 2;
@@ -550,16 +552,16 @@ function buildFortification(kind, scale) {
         const x = Math.cos(angle) * t + Math.sin(angle) * half;
         const z = -Math.sin(angle) * t + Math.cos(angle) * half;
         const stake = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.11 * scale, 0.13 * scale, height, 5),
+          new THREE.CylinderGeometry(0.085 * scale, 0.1 * scale, height, 5),
           wood
         );
         stake.position.set(x, height / 2, z);
         ring.add(stake);
         const tip = new THREE.Mesh(
-          new THREE.ConeGeometry(0.13 * scale, 0.26 * scale, 5),
+          new THREE.ConeGeometry(0.1 * scale, 0.2 * scale, 5),
           wood
         );
-        tip.position.set(x, height + 0.13 * scale, z);
+        tip.position.set(x, height + 0.1 * scale, z);
         ring.add(tip);
       }
     }
@@ -571,8 +573,8 @@ function buildFortification(kind, scale) {
     color: stone ? '#b8ab90' : '#8a6134',
     roughness: stone ? 0.9 : 1,
   });
-  const height = (stone ? 1.7 : 1.35) * scale;
-  const thickness = (stone ? 0.42 : 0.34) * scale;
+  const height = (stone ? 1.28 : 1.02) * scale;
+  const thickness = (stone ? 0.28 : 0.22) * scale;
 
   for (let i = 0; i < 4; i++) {
     const segment = new THREE.Mesh(new THREE.BoxGeometry(span, height, thickness), material);
@@ -583,11 +585,11 @@ function buildFortification(kind, scale) {
     ring.add(segment);
     // The parapet a defender actually stands behind.
     const walk = new THREE.Mesh(
-      new THREE.BoxGeometry(span, 0.16 * scale, thickness * 1.9),
+      new THREE.BoxGeometry(span, 0.12 * scale, thickness * 1.7),
       material
     );
     walk.position.copy(segment.position);
-    walk.position.y = height + 0.08 * scale;
+    walk.position.y = height + 0.06 * scale;
     walk.rotation.y = segment.rotation.y;
     ring.add(walk);
   }
@@ -596,16 +598,16 @@ function buildFortification(kind, scale) {
     const angle = Math.PI / 4 + (i * Math.PI) / 2;
     const tower = stone
       ? new THREE.Mesh(
-        new THREE.CylinderGeometry(0.42 * scale, 0.48 * scale, height * 1.45, 8),
+        new THREE.CylinderGeometry(0.3 * scale, 0.34 * scale, height * 1.32, 8),
         material
       )
       : new THREE.Mesh(
-        new THREE.BoxGeometry(0.72 * scale, height * 1.35, 0.72 * scale),
+        new THREE.BoxGeometry(0.54 * scale, height * 1.26, 0.54 * scale),
         material
       );
     tower.position.set(
       Math.cos(angle) * half * Math.SQRT2,
-      height * (stone ? 0.72 : 0.68),
+      height * (stone ? 0.66 : 0.63),
       Math.sin(angle) * half * Math.SQRT2
     );
     tower.rotation.y = angle;

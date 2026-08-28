@@ -143,8 +143,13 @@
       <div id="mapWrap">
         <canvas id="gameCanvas"></canvas>
         <div id="weatherVeil" data-effect="clear" aria-hidden="true"></div>
-        <div id="mapHint">Ziehen oder Mausrad gedrückt halten zum Verschieben · Umschalt dazu dreht · zwei Finger zum Drehen und Zoomen · Armee antippen, dann Zielfeld wählen</div>
+        <div id="mapHint">Ziehen verschiebt · Mausrad gedrückt schwenkt die Kamera (mit Umschalt verschiebt sie) · Rechtsklick zeigt das Feld · zwei Finger drehen und zoomen</div>
         <div id="toast" class="hidden"></div>
+        <!-- Rechtsklick auf ein Feld: nachschlagen, ohne etwas auszuwählen. -->
+        <div id="tileInfo" class="hidden" role="dialog" aria-label="Feldauskunft">
+          <button id="tileInfoClose" class="ti-close" aria-label="Schließen">×</button>
+          <div id="tileInfoBody"></div>
+        </div>
 
         <div id="mapControls">
           <div class="dpad">

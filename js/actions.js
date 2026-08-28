@@ -42,9 +42,12 @@ function battleLine(attackerFaction, defenderFaction, vs, result, cityName, opts
 
 const MAX_BATTLE_REPORTS = 40;
 
+// Über alle Rollen, die kämpfen können - die Stadtwache eingeschlossen. Wird
+// hier nur über die drei Feldrollen gerechnet, verschwindet die Wache aus der
+// Verteidigung, obwohl sie in der Stadt steht.
 function mergeAllUnits(parts) {
   const out = {};
-  for (const key of UNIT_ROLES) {
+  for (const key of GARRISON_ROLES) {
     out[key] = parts.reduce((sum, part) => sum + (part[key] || 0), 0);
   }
   return out;
@@ -55,7 +58,7 @@ function mergeAllUnits(parts) {
 // all of the casualties.
 function splitSurvivors(survivors, parts) {
   const out = parts.map(() => ({}));
-  for (const key of UNIT_ROLES) {
+  for (const key of GARRISON_ROLES) {
     const total = parts.reduce((sum, part) => sum + (part[key] || 0), 0);
     const available = survivors[key] || 0;
     if (total === 0) {

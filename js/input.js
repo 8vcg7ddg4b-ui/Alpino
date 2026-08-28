@@ -53,7 +53,7 @@ function toNdc(canvas, clientX, clientY) {
   };
 }
 
-export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction, onPreviewAttack) {
+export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction, onPreviewAttack, onInspect) {
   // Pointer events cover mouse, pen and touch in one path. Two simultaneous
   // pointers mean a pinch: the distance between them zooms, the angle between
   // them turns the map.
@@ -61,9 +61,10 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
   let dragMoved = false;
   let dragAnchor = null;
   let pinch = null;
-  // Mit gedrücktem Mausrad wird die Sicht frei bewegt - unabhängig davon, ob
-  // unter dem Zeiger Boden oder Himmel liegt. Mit Umschalt dazu wird gedreht
-  // und geneigt.
+  // Mit gedrücktem Mausrad wird die Kamera geschwenkt: seitlich dreht sie um
+  // die Bildmitte, nach oben und unten neigt sie sich. Mit Umschalt dazu wird
+  // stattdessen verschoben - das braucht man, wo unter dem Zeiger kein Boden
+  // liegt und das Ziehen mit der linken Taste deshalb nicht greift.
   let freeLook = null;
 
   const pointerNdc = (e) => toNdc(canvas, e.clientX, e.clientY);
@@ -88,12 +89,15 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
   }
 
   canvas.addEventListener('pointerdown', (e) => {
-    // Mausrad gedrückt: freies Bewegen, ohne Auswahl und ohne die
+    // Die rechte Taste schlägt nur nach (siehe contextmenu): sie darf nichts
+    // auswählen und nichts bewegen.
+    if (e.button === 2) return;
+    // Mausrad gedrückt: Kameraschwenk, ohne Auswahl und ohne die
     // Bildlauf-Automatik des Browsers.
     if (e.button === 1) {
       e.preventDefault();
       capturePointer(e.pointerId);
-      freeLook = { id: e.pointerId, x: e.clientX, y: e.clientY, turn: e.shiftKey };
+      freeLook = { id: e.pointerId, x: e.clientX, y: e.clientY, turn: !e.shiftKey };
       canvas.classList.add('free-look');
       return;
     }
@@ -182,6 +186,16 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
   // oder einen Link im neuen Tab.
   canvas.addEventListener('auxclick', (e) => { if (e.button === 1) e.preventDefault(); });
   canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
+
+  // Rechte Maustaste: das Feld nachschlagen, ohne etwas auszuwählen oder zu
+  // bewegen. Wer eine Armee im Zug hat, verliert sie dabei nicht.
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (!onInspect) return;
+    const ndc = toNdc(canvas, e.clientX, e.clientY);
+    const tile = pickTile(ndc.x, ndc.y);
+    onInspect(tile, e.clientX, e.clientY);
+  });
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();

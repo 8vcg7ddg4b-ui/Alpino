@@ -3,7 +3,7 @@ import {
   playableFactions, factionProfile, unitDefs, UNIT_ROLES, ROLE_LABELS,
   CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION,
 } from './data.js';
-import { renderUI, battleReportHTML, battlePreviewHTML } from './ui.js';
+import { renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML } from './ui.js';
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
 import { aiTakeAllTurns } from './ai.js';
@@ -99,6 +99,54 @@ function observeMapSize() {
     render();
   });
   observer.observe(canvas.parentElement);
+}
+
+// --- Feldauskunft (Rechtsklick) -----------------------------------------
+// Ein Fenster am Mauszeiger, das sagt, was auf dem Feld steht. Es ändert
+// nichts: keine Auswahl, keine Bewegung, kein Zug.
+
+function hideTileInfo() {
+  const box = document.getElementById('tileInfo');
+  if (box) box.classList.add('hidden');
+}
+
+function showTileInfo(tile, clientX, clientY) {
+  const box = document.getElementById('tileInfo');
+  const body = document.getElementById('tileInfoBody');
+  if (!box || !body || !state || !tile) {
+    hideTileInfo();
+    return;
+  }
+  const html = tileInfoHTML(state, tile);
+  if (!html.trim()) {
+    hideTileInfo();
+    return;
+  }
+  body.innerHTML = html;
+  box.classList.remove('hidden');
+  // Am Zeiger, aber immer ganz im Bild: sonst steht die Hälfte außerhalb,
+  // wenn man am rechten oder unteren Rand nachschlägt.
+  const wrap = document.getElementById('mapWrap').getBoundingClientRect();
+  const width = box.offsetWidth;
+  const height = box.offsetHeight;
+  const left = Math.min(Math.max(8, clientX - wrap.left + 14), wrap.width - width - 8);
+  const top = Math.min(Math.max(8, clientY - wrap.top + 14), wrap.height - height - 8);
+  box.style.left = `${left}px`;
+  box.style.top = `${top}px`;
+}
+
+function setupTileInfo() {
+  const close = document.getElementById('tileInfoClose');
+  if (close) close.addEventListener('click', hideTileInfo);
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTileInfo(); });
+  // Ein Klick auf die Karte oder daneben schließt es wieder.
+  document.addEventListener('pointerdown', (e) => {
+    const box = document.getElementById('tileInfo');
+    if (!box || box.classList.contains('hidden')) return;
+    if (box.contains(e.target)) return;
+    if (e.button === 2) return;
+    hideTileInfo();
+  }, true);
 }
 
 // --- Reiter in der Seitenleiste -----------------------------------------
@@ -816,7 +864,8 @@ function startNewGame(factionId = chosenFaction) {
 
   // Input holds no reference to `state` itself, so it reads through a getter -
   // undo swaps the object wholesale.
-  setupInput(canvas, () => state, refresh, showBattleReport, pushUndo, showBattlePreview);
+  setupInput(canvas, () => state, refresh, showBattleReport, pushUndo, showBattlePreview,
+    showTileInfo);
   document.getElementById('endTurnBtn').addEventListener('click', endTurn);
   undoBtn.addEventListener('click', undoLastAction);
   observeMapSize();
@@ -833,6 +882,7 @@ setupFullscreenButton(document.getElementById('menuFullscreenBtn'));
 reflectFullscreenAvailability();
 setupSidebarToggle();
 setupSidebarTabs();
+setupTileInfo();
 setupMuteButton();
 setupMapModeButton();
 setupDpad();

@@ -1549,3 +1549,46 @@ html, body {
 
 /* Mit gedrücktem Mausrad wird die Sicht frei bewegt. */
 #gameCanvas.free-look { cursor: all-scroll; }
+
+/* --- Feldauskunft per Rechtsklick ---------------------------------------
+   Ein Fenster, das dorthin kommt, wo geklickt wurde, und nichts an der
+   Auswahl ändert: nachschlagen, ohne den laufenden Zug zu verlieren. */
+#tileInfo {
+  position: absolute;
+  z-index: 12;
+  width: 320px;
+  max-width: min(320px, calc(100vw - 24px));
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgba(24, 18, 12, 0.96);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 12px 14px 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  font-size: 0.85rem;
+}
+.ti-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.ti-close:hover { color: var(--gold); }
+.ti-block { margin-bottom: 10px; }
+.ti-block h4 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.ti-line { margin: 2px 0; font-size: 0.8rem; color: var(--muted); }
+#tileInfo .terrain-panel { margin-top: 0; }
+#tileInfo .unit-list { margin-top: 6px; }
