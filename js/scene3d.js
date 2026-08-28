@@ -1739,6 +1739,9 @@ function updateWeatherForCamera() {
 // panning the camera is enough to change what falls out of the sky.
 export function setWeatherSource(lookup) {
   weatherLookup = lookup;
+  // Ohne Quelle - etwa nach dem Beenden eines Feldzugs - fällt nichts mehr vom
+  // Himmel, statt dass die Szene ins Leere greift.
+  if (!lookup) applyWeatherEffect(null);
   updateWeatherForCamera();
 }
 

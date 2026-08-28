@@ -124,6 +124,10 @@ function quitToMenu() {
   hideBattlePreview();
   hideTileInfo();
   stopMarch();
+  // Erst die Szene abmelden, dann den Spielstand loslassen: die Karte fragt
+  // das Wetter über einen Rückruf ab, und der griffe sonst ins Leere.
+  setWeatherSource(null);
+  setWeatherReporter(null);
   state = null;
   undoStack.length = 0;
   appEl.classList.add('hidden');

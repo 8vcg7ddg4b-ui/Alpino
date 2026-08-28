@@ -39,7 +39,7 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     wallMultiplier = 1, defenderMultiplier = 1, attackerMultiplier = 1, seed,
     // The weather does not care which side you are on: wet bowstrings are wet
     // for everyone, and in fog nobody gets an opening volley.
-    unitScale = null, openingVolley = true,
+    unitScale = null, weatherScale = null, seaScale = null, openingVolley = true,
     // Veterans hit harder, and the report has to be able to say by how much -
     // so this is its own multiplier rather than folded into another.
     attackerVeterancy = 1, defenderVeterancy = 1,
@@ -139,6 +139,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     defenderMultiplier,
     attackerMultiplier,
     unitScale,
+    weatherScale,
+    seaScale,
     openingVolley,
     attackerVeterancy,
     defenderVeterancy,
@@ -258,6 +260,8 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     defenderMultiplier: modifiers.defenderMultiplier ?? 1,
     attackerMultiplier: modifiers.attackerMultiplier ?? 1,
     unitScale: modifiers.unitScale ?? null,
+    weatherScale: modifiers.weatherScale ?? null,
+    seaScale: modifiers.seaScale ?? null,
     openingVolley: modifiers.openingVolley !== false,
     attackerVeterancy: modifiers.attackerVeterancy ?? 1,
     defenderVeterancy: modifiers.defenderVeterancy ?? 1,

@@ -223,6 +223,8 @@ function recordBattle(state, opts) {
     defenderMultiplier: result.defenderMultiplier,
     attackerMultiplier: result.attackerMultiplier,
     unitScale: result.unitScale,
+    weatherScale: result.weatherScale,
+    seaScale: result.seaScale,
     openingVolley: result.openingVolley,
     attackerMorale: result.attackerMorale,
     attackerExhaustion: result.attackerExhaustion,
@@ -319,8 +321,12 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       defenderFactionId,
       ...sky.modifiers,
       // Wetter und Seegang wirken beide auf die Waffengattungen; sie werden
-      // multipliziert, nicht gegeneinander ausgetauscht.
+      // multipliziert, nicht gegeneinander ausgetauscht. Für die Anzeige
+      // bleiben beide getrennt erhalten - sonst schriebe der Bericht dem Wetter
+      // zu, was in Wahrheit das Meer tut.
       unitScale: combineScales(sky.modifiers.unitScale, atSea ? SEA_UNIT_SCALE : null),
+      weatherScale: sky.modifiers.unitScale || null,
+      seaScale: atSea ? SEA_UNIT_SCALE : null,
     },
   };
 }

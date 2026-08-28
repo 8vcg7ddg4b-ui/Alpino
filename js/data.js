@@ -663,9 +663,8 @@ export const ZOC_EXTRA_COST = 2;
 // line, and troops wading ashore meet a prepared enemy.
 // Was die Überfahrt eines Landheeres kostet: gecharterte Transporter.
 export const SHIP_COST = 250;
-// Und was ein Geschwader eigener Kriegsschiffe kostet, je Bautrupp.
+// Wie viele Schiffe ein Bautrupp umfasst; was sie kosten, sagt die Bauart.
 export const WARSHIP_BATCH = 60;
-export const WARSHIP_COST = 200;
 export const NAVAL_MOVEMENT = 15;
 export const SEA_MOVE_COST = 1;
 export const EXHAUSTION_PER_SEA_MOVE = 5;
@@ -695,4 +694,3 @@ export function garrisonCapacity(city, faction) {
   return Math.floor((city.population / GARRISON_POP_RATIO) * factionGarrisonFactor(faction));
 }
 export const RECRUIT_BATCH = 100;
-export const GARRISON_REGEN_BATCH = 15;

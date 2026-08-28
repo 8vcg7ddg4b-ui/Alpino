@@ -137,9 +137,17 @@ function modifierNotesHTML(info) {
     notes.push(`<span class="mod-note mod-sea">🌊 Landung vom Meer: −${
       Math.round((1 - (info.attackerMultiplier ?? 1)) * 100)}% Angriffskraft</span>`);
   }
-  if (info.naval || (info.defenderMultiplier ?? 1) < 1) {
-    notes.push(`<span class="mod-note mod-sea">⛵ Kampf auf See: −${
+  if ((info.defenderMultiplier ?? 1) < 1) {
+    notes.push(`<span class="mod-note mod-sea">⛵ Auf offener See: −${
       Math.round((1 - (info.defenderMultiplier ?? 1)) * 100)}% Verteidigung</span>`);
+  }
+  // Zur See zählt das Schiff: was an Truppen an Bord ist, kämpft gemindert.
+  // Das ist keine Sache des Wetters und steht deshalb in einer eigenen Zeile.
+  const seaScaled = Object.entries(info.seaScale || {})
+    .map(([unit, scale]) => `${ROLE_LABELS[unit]} ${Math.round((scale - 1) * 100)}%`);
+  if (seaScaled.length) {
+    notes.push(`<span class="mod-note mod-sea">⛵ Kampf auf See: ${
+      seaScaled.join(', ')} – Kriegsschiffe kämpfen voll</span>`);
   }
   // The report stores the weather flattened, the forecast passes the object;
   // both describe the same sky.
@@ -150,7 +158,7 @@ function modifierNotesHTML(info) {
       Math.round((value - 1) * 100)}% aus Erfahrung</span>`);
   }
   const sky = info.weather || (info.weatherKey ? weatherInfo(info.weatherKey) : null);
-  const scaled = Object.entries(info.unitScale || sky?.unitScale || {})
+  const scaled = Object.entries(info.weatherScale || sky?.unitScale || {})
     .map(([unit, scale]) => `${ROLE_LABELS[unit]} ${Math.round((scale - 1) * 100)}%`);
   const noVolley = info.openingVolley === false || sky?.volley === false;
   if (sky && (scaled.length || noVolley)) {
