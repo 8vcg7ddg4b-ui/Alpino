@@ -751,10 +751,12 @@ export const HARBOUR_TURNS = 3;
 export const HARBOUR_NAME = 'Hafen';
 
 // --- Straßenbau ----------------------------------------------------------
-// Eine gepflasterte Straße kostet ein Drittel dessen, was offene Ebene kostet,
-// und ein Sechstel dessen, was Wald, Hügel oder Wüste kosten. Gebaut wird von
-// Ort zu Ort, bezahlt nach Länge.
-export const ROAD_MOVE_COST = 1;
+// Eine gepflasterte Straße kostet zwei Drittel dessen, was offene Ebene
+// kostet, und ein Drittel dessen, was Wald, Hügel oder Wüste kosten: ein Heer
+// kommt auf ihr die Hälfte weiter als querfeldein (9 Felder statt 6 je Runde)
+// und zehrt dabei weniger. Zieht es über die ganze Halbinsel, braucht es
+// trotzdem mehr als eine Runde. Gebaut wird von Ort zu Ort, bezahlt nach Länge.
+export const ROAD_MOVE_COST = 2;
 export const ROAD_COST_PER_TILE = 30;
 export const ROAD_TURNS_PER_TILE = 0.4;
 export const ROAD_MIN_TURNS = 2;

@@ -283,18 +283,19 @@ den Punkten durchblättern.
   noch keine Straße führt – weiter reicht der Straßenbau von einem Ort aus
   nicht; eine Fernstraße entsteht Stück für Stück über die Orte dazwischen. Die
   Regel steht nicht bloß in der Seitenleiste: ein Bauauftrag zu einem anderen
-  Ziel wird abgelehnt. Eine fertige Straße kostet **ein Drittel dessen, was
-  offene Ebene kostet** – ein Punkt statt drei, durch Wald, Hügel und Wüste ein Sechstel. Ein
-  Heer kommt auf der Straße dreimal so weit wie über freies Feld: statt sechs
-  Feldern achtzehn. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
+  Ziel wird abgelehnt. Eine fertige Straße kostet **zwei Drittel dessen, was
+  offene Ebene kostet** – zwei Punkte statt drei, durch Wald, Hügel und Wüste ein
+  Drittel. Ein Heer kommt auf der Straße die Hälfte weiter als über freies Feld:
+  neun Felder statt sechs, und weil Erschöpfung je Punkt anfällt, zehrt ein
+  Straßenfeld auch weniger als ein Feld Ebene. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
   als Ganzes und immer nur eine je Stadt;
   neue Straßen legen sich an das bestehende Netz an. Zu Spielbeginn hängen die
   Städte jeder Fraktion an ihrer Hauptstadt, die Dörfer noch nicht. Fällt einer
   der beiden Orte an den Feind, wird der Bau abgebrochen.
 - **Bewegung wird in Punkten gerechnet, nicht in Feldern**: offene Ebene kostet
   3, gebrochenes Gelände – Wald, Hügel, Wüste – das Doppelte, eine gepflasterte
-  Straße 1, und ein Heer hat 18 Punkte je Runde. Das sind sechs Felder Ebene,
-  drei Felder Wald – und achtzehn Felder Straße.
+  Straße 2, und ein Heer hat 18 Punkte je Runde. Das sind sechs Felder Ebene,
+  drei Felder Wald – und neun Felder Straße.
 - **Flüsse und Brücken**: Fünfzehn große Ströme liegen auf der Karte, in echten
   Koordinaten wie alles Geografische – Rhein und Donau, Rhône, Po und Tiber,
   Seine und Loire, Ebro, Tejo und Guadalquivir, Elbe und Weichsel, Mariza, Nil

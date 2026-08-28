@@ -603,7 +603,7 @@ function roadHTML(state, city, isMine, player) {
   }
   return `
     <p class="road-head">🛣️ Straßenbau <span class="muted">· ein Feld Straße kostet nur
-      ${ROAD_MOVE_COST} Bewegungspunkt</span></p>
+      ${ROAD_MOVE_COST} Bewegungspunkte statt ${TILE_TYPES.plains.cost}</span></p>
     <div class="road-row">
       ${targets.map((t) => {
         const tooPoor = player.gold < t.cost;
