@@ -51,12 +51,18 @@ function chromiumPath() {
   return undefined;
 }
 
-export const GAME_URL = process.env.GAME_URL || 'http://localhost:8080';
+// Erst beim Aufruf gelesen, nicht beim Import: ein Skript, das GAME_URL nach
+// dem import-Aufruf setzt, hätte sonst stillschweigend den falschen Server
+// geprüft - und ein Test, der am Prüfling vorbeimisst, ist schlimmer als
+// keiner.
+export function gameUrl(override) {
+  return override || process.env.GAME_URL || 'http://localhost:8080';
+}
 
 // Öffnet das Spiel. `settings` wird vor dem Laden in den localStorage gelegt -
 // so lässt sich vor allem die Marschanimation abschalten, sonst wartet der
 // Treiber mehr, als er spielt.
-export async function openGame({ settings = { marchSpeed: 'off', music: false, chronicle: false },
+export async function openGame({ url, settings = { marchSpeed: 'off', music: false, chronicle: false },
   viewport = { width: 1400, height: 900 }, slowMo = 0 } = {}) {
   const { chromium } = await playwright();
   const browser = await chromium.launch({
@@ -74,8 +80,16 @@ export async function openGame({ settings = { marchSpeed: 'off', music: false, c
   const errors = [];
   page.on('pageerror', (e) => errors.push(`PAGEERROR: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(GAME_URL, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.__spqrReady === true, null, { timeout: 30000 });
+  const target = gameUrl(url);
+  await page.goto(target, { waitUntil: 'domcontentloaded' });
+  // __spqrReady setzt main.js als letzte Zeile. Bleibt es aus, ist das Skript
+  // unterwegs gescheitert - dann sagen die gesammelten Fehler, woran.
+  try {
+    await page.waitForFunction(() => window.__spqrReady === true, null, { timeout: 30000 });
+  } catch (err) {
+    throw new Error(`${target} startet nicht (__spqrReady bleibt aus). Fehler der Seite: `
+      + (errors.length ? errors.join(' | ') : 'keine'));
+  }
   await page.waitForTimeout(1500);
   return { browser, page, errors };
 }

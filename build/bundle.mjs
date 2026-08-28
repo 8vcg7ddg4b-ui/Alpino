@@ -27,16 +27,26 @@ for (const file of readdirSync(JS).filter((f) => f.endsWith('.js'))) {
 // Beides zieht ein Modul herein und muss verschwinden: der gewöhnliche Import
 // und der Weiterexport (`export { X } from './y.js'`), mit dem data.js zwei
 // Karten-Maße durchreicht.
-const IMPORT_RE = /^(?:import|export)\s+[\s\S]*?from\s+['"](.+?)['"];?[ \t]*$/gm;
+//
+// Beide Ausdrücke laufen über mehrere Zeilen, weil eine Importliste umbrechen
+// darf - aber sie dürfen kein Semikolon und keine schließende Klammer
+// überspringen. Ohne diese Schranke verschluckt `export` in
+// `export const GAME_VERSION = '1.1.0';` alles bis zum nächsten `from` weiter
+// unten in der Datei. Genau das ist einmal passiert und hat ein Bündel
+// erzeugt, das erst im Browser stumm blieb.
+const IMPORT_RE = /^import\s[^;]*?from\s*['"](\.[^'"]+)['"];?[ \t]*$/gm;
+const REEXPORT_RE = /^export\s*\{[^}]*\}\s*from\s*['"](\.[^'"]+)['"];?[ \t]*$/gm;
 
 function dependenciesOf(source) {
   const deps = [];
-  for (const m of source.matchAll(IMPORT_RE)) {
-    const spec = m[1];
-    if (!spec.startsWith('./')) throw new Error(`nur relative Importe: ${spec}`);
-    const file = spec.slice(2);
-    if (!modules.has(file)) throw new Error(`unbekanntes Modul: ${spec}`);
-    deps.push(file);
+  for (const re of [IMPORT_RE, REEXPORT_RE]) {
+    for (const m of source.matchAll(re)) {
+      const spec = m[1];
+      if (!spec.startsWith('./')) throw new Error(`nur relative Importe: ${spec}`);
+      const file = spec.slice(2);
+      if (!modules.has(file)) throw new Error(`unbekanntes Modul: ${spec}`);
+      deps.push(file);
+    }
   }
   return deps;
 }
@@ -59,16 +69,53 @@ const state = new Map();
 const unused = [...modules.keys()].filter((f) => !order.includes(f));
 if (unused.length) console.warn(`Hinweis: nicht eingebunden: ${unused.join(', ')}`);
 
+// --- Was ein Modul nach außen gibt ---------------------------------------
+// Drei Formen kommen vor: die Deklaration mit `export` davor, die Liste
+// `export { a, b };` und die Umbenennung `export { key as tileKey };`. Die
+// letzte ist die heikle: der Name, unter dem andere Module die Funktion
+// aufrufen, steht nirgends als Deklaration. Wird die Zeile beim Verflachen
+// einfach gestrichen, ruft das Bündel einen Namen auf, den es nicht gibt.
+const EXPORT_LIST_RE = /^export\s*\{([^}]*)\}\s*(?:from\s*['"][^'"]+['"])?\s*;?[ \t]*$/gm;
+
+function exportedNamesOf(source) {
+  const names = new Set();
+  for (const m of source.matchAll(DECL_RE)) {
+    if (m[0].startsWith('export')) names.add(m[1]);
+  }
+  for (const m of source.matchAll(EXPORT_LIST_RE)) {
+    for (const entry of m[1].split(',')) {
+      const parts = entry.trim().split(/\s+as\s+/);
+      if (parts[0]) names.add((parts[1] || parts[0]).trim());
+    }
+  }
+  return names;
+}
+
+// Aus `export { key as tileKey };` wird im gemeinsamen Geltungsbereich eine
+// schlichte Zuweisung - der zweite Name muss weiter zeigen, wohin er zeigte.
+function aliasesOf(source) {
+  const lines = [];
+  for (const m of source.matchAll(EXPORT_LIST_RE)) {
+    for (const entry of m[1].split(',')) {
+      const [from, to] = entry.trim().split(/\s+as\s+/).map((x) => x && x.trim());
+      if (to && from && to !== from) lines.push(`const ${to} = ${from};`);
+    }
+  }
+  return lines;
+}
+
 // --- Namen prüfen ---------------------------------------------------------
 // In einem gemeinsamen Geltungsbereich ist ein doppelter Name ein stiller
 // Fehler, der erst im Spiel auffällt. Lieber hier abbrechen.
 const DECL_RE = /^(?:export\s+)?(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][\w$]*)/gm;
 const seen = new Map();
 for (const file of order) {
-  for (const m of modules.get(file).matchAll(DECL_RE)) {
-    const prev = seen.get(m[1]);
-    if (prev) throw new Error(`Name doppelt vergeben: "${m[1]}" in ${prev} und ${file}`);
-    seen.set(m[1], file);
+  const declared = [...modules.get(file).matchAll(DECL_RE)].map((m) => m[1]);
+  const aliased = aliasesOf(modules.get(file)).map((line) => line.split(' ')[1]);
+  for (const name of [...declared, ...aliased]) {
+    const prev = seen.get(name);
+    if (prev) throw new Error(`Name doppelt vergeben: "${name}" in ${prev} und ${file}`);
+    seen.set(name, file);
   }
 }
 
@@ -76,14 +123,44 @@ for (const file of order) {
 function flatten(source) {
   return source
     .replace(IMPORT_RE, '')
+    .replace(REEXPORT_RE, '')
     // `export { a, b };` beschreibt nur die Modulgrenze - die gibt es hier nicht mehr.
     .replace(/^export\s*\{[^}]*\}\s*;?[ \t]*$/gm, '')
     .replace(/^export\s+(?=(?:async\s+)?(?:function|const|let|var|class)\b)/gm, '');
 }
 
-const bundle = order
-  .map((file) => `\n// ---- ${file} ----\n${flatten(modules.get(file)).trim()}\n`)
-  .join('');
+// Nichts darf beim Verflachen verlorengehen. Ein zu gieriger Ausdruck löscht
+// stillschweigend halbe Dateien, und das Ergebnis fällt erst im Browser auf -
+// deshalb wird jede Deklaration einzeln nachgezählt.
+function declarationsOf(source) {
+  return new Set([...source.matchAll(DECL_RE)].map((m) => m[1]));
+}
+
+const parts = [];
+const exported = new Map();
+for (const file of order) {
+  const source = modules.get(file);
+  const flat = flatten(source);
+  for (const name of declarationsOf(source)) {
+    if (!declarationsOf(flat).has(name)) {
+      throw new Error(`beim Verflachen von ${file} ging "${name}" verloren`);
+    }
+  }
+  for (const name of exportedNamesOf(source)) exported.set(name, file);
+  const alias = aliasesOf(source);
+  parts.push(`\n// ---- ${file} ----\n${flat.trim()}\n${alias.length ? `${alias.join('\n')}\n` : ''}`);
+}
+const bundle = parts.join('');
+
+// Jeder Name, unter dem ein Modul etwas nach außen gab, muss im Bündel als
+// Bindung ankommen. Das ist die Prüfung, die `export { key as tileKey }`
+// gefunden hätte: der Aufrufer nennt tileKey, deklariert war nur key.
+const bound = new Set([
+  ...[...bundle.matchAll(DECL_RE)].map((m) => m[1]),
+]);
+for (const [name, file] of exported) {
+  if (!bound.has(name)) throw new Error(`${file} gibt "${name}" nach außen, im Bündel fehlt der Name`);
+}
 
 if (/^\s*(import|export)\s/m.test(bundle)) {
   throw new Error('im Bündel steht noch ein import/export - die Verflachung hat etwas übersehen');
