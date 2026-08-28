@@ -45,7 +45,8 @@ export function calendarOfTurn(turn) {
 }
 
 // --- Wettertypen ---------------------------------------------------------
-// moveCost  zusätzliche Bewegungspunkte je Feld
+// moveCost  zusätzliche Bewegungspunkte je Feld (gerechnet wird in halben
+//           Feldern: die Ebene kostet 2, eine Straße darüber 1)
 // wear      Erschöpfung je Runde, die eine Armee darin verbringt
 // spirit    Moral je Runde
 // unitScale Kampfkraft einzelner Waffengattungen, für beide Seiten
@@ -61,14 +62,14 @@ export const WEATHER = {
   },
   regen: {
     key: 'regen', name: 'Regen', icon: '🌧️', effect: 'rain',
-    moveCost: 1, wear: 4,
+    moveCost: 2, wear: 4,
     unitScale: { cavalry: 0.85, ranged: 0.7 },
     volley: false,
     note: 'Aufgeweichte Wege, nasse Sehnen: Bogenschützen und Reiterei leiden.',
   },
   sturm: {
     key: 'sturm', name: 'Sturm', icon: '🌊', effect: 'storm',
-    moveCost: 1, wear: 6,
+    moveCost: 2, wear: 6,
     unitScale: { cavalry: 0.85, ranged: 0.6 },
     volley: false,
     blocksEmbark: true,
@@ -77,7 +78,7 @@ export const WEATHER = {
   },
   schnee: {
     key: 'schnee', name: 'Schnee', icon: '❄️', effect: 'snow',
-    moveCost: 2, wear: 7, spirit: -3,
+    moveCost: 4, wear: 7, spirit: -3,
     unitScale: { cavalry: 0.8, ranged: 0.8 },
     note: 'Jeder Schritt kostet doppelt, und das Lager zehrt an der Truppe.',
   },
@@ -89,13 +90,13 @@ export const WEATHER = {
   },
   hitze: {
     key: 'hitze', name: 'Gluthitze', icon: '🔥', effect: 'heat',
-    moveCost: 1, wear: 9,
+    moveCost: 2, wear: 9,
     unitScale: { infantry: 0.92 },
     note: 'Marschieren in Rüstung zehrt schneller als jeder Feind.',
   },
   sandsturm: {
     key: 'sandsturm', name: 'Sandsturm', icon: '🌪️', effect: 'sand',
-    moveCost: 2, wear: 7, spirit: -2,
+    moveCost: 4, wear: 7, spirit: -2,
     unitScale: { ranged: 0.5, cavalry: 0.9 },
     volley: false,
     note: 'Man sieht die eigene Vorhut nicht mehr.',

@@ -14,6 +14,15 @@ Anker der Seleukiden, die Tamga der Sarmaten. Dieselben Zeichen stehen in der
 Fraktionsliste und im Auswahlbildschirm. Wer die Kamera tief stellt, sieht das Zelt,
 wer von oben schaut, sieht die Karte.
 
+Dem Betrachter gegenüber steht der **Feldherrnsitz**: der Thron auf seinem
+Podest, links und rechts die Feldzeichen mit dem Wappen, daneben zwei Stücke
+Ausstattung, die zur Fraktion passen. Rom hat den kurulischen Stuhl aus
+Elfenbein zwischen Schildbock und Speerbock, Karthago Elefantenzähne und
+Amphoren, die Ptolemäer einen steinernen Sitz mit Palme, die Germanen einen
+geschnitzten Hochsitz mit Fellen. Und bevor der erste Zug fällt, meldet sich
+der Erste Offizier: **„Ich grüße dich, Herr. Lass uns die Schlachtkarte
+betrachten."**
+
 Die Karte ist **echte Geografie**: Küstenlinien, Gebirgszüge und Siedlungen sind in
 Längen- und Breitengraden hinterlegt (`js/geodata.js`) und werden auf ein Raster von
 80 × 52 Feldern gerastert – ein Feld entspricht rund 55 km. Roma liegt auf 12,5° O /
@@ -247,12 +256,25 @@ den Punkten durchblättern.
   sieht, wo eine Flotte auslaufen kann.
 - **Straßenbau**: Jede eigene Stadt bietet die nächstgelegenen eigenen Orte
   an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
-  Bauzeit. Auf fertiger Straße kostet jedes Feld nur **einen** Bewegungspunkt,
-  egal ob Wald, Hügel oder Wüste darunter liegt; das Wetter kostet weiter
-  extra. Gebaut wird eine Verbindung als Ganzes und immer nur eine je Stadt;
+  Bauzeit. Eine fertige Straße kostet **die Hälfte dessen, was offene Ebene
+  kostet** – ein Punkt statt zwei, durch Wald, Hügel und Wüste ein Viertel. Ein
+  Heer kommt auf der Straße doppelt so weit wie über freies Feld: statt neun
+  Feldern achtzehn. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
+  als Ganzes und immer nur eine je Stadt;
   neue Straßen legen sich an das bestehende Netz an. Zu Spielbeginn hängen die
   Städte jeder Fraktion an ihrer Hauptstadt, die Dörfer noch nicht. Fällt einer
   der beiden Orte an den Feind, wird der Bau abgebrochen.
+- **Bewegung wird in halben Feldern gerechnet**: offene Ebene kostet 2 Punkte,
+  Wald, Hügel und Wüste 4, eine Straße 1, und ein Heer hat 18 Punkte je Runde.
+  Anders ließe sich „eine Straße ist halb so teuer wie die Ebene" nicht in
+  ganzen Zahlen sagen – und ganze Zahlen braucht die Wegsuche. An den
+  Reichweiten abseits der Straßen hat sich dadurch nichts geändert.
+- **Einnahmen jedes Orts** stehen in seiner Anzeige, aufgeschlüsselt nach dem,
+  was die Siedlung selbst abwirft (40 Gold, mal 1,7 für eine Große Stadt, mal
+  0,5 für ein Dorf), was ihre Einwohner darüber hinaus tragen (je 200 Einwohner
+  ein Gold) und was ein Weltwunder vor ihren Toren einbringt. Dieselbe Rechnung
+  läuft in der Rundenabrechnung – es gibt nur eine Wahrheit darüber, was eine
+  Stadt wert ist.
 - **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
   Rekrutierung, Mauer- oder Straßenkauf, Auflösen oder ganzen Rundenwechsel.
 - **Feldzug beenden**: 🏳 in der Kopfzeile führt nach Rückfrage zurück ins

@@ -1677,3 +1677,75 @@ html, body {
   letter-spacing: 0.06em;
   opacity: 0.55;
 }
+
+/* Die Einnahmen eines Orts: eine Zeile im selben Raster wie Mauer und Hafen. */
+.income-line {
+  margin: 6px 0;
+  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  align-items: baseline;
+}
+.income-line strong { color: #e7c86a; }
+
+/* --- Der Empfang im Zelt -------------------------------------------------- */
+/* Die Ansprache steht auf der Karte, nicht davor: der Hintergrund bleibt
+   sichtbar, damit man das Zelt sieht, in dem gesprochen wird. */
+#heraldOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 20px 8vh;
+  background: radial-gradient(ellipse at 50% 40%,
+    rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.55) 100%);
+  animation: herald-in 0.7s ease-out both;
+}
+#heraldOverlay.hidden { display: none; }
+
+@keyframes herald-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+.herald-box {
+  max-width: 620px;
+  padding: 20px 26px 18px;
+  text-align: center;
+  border: 1px solid rgba(217, 180, 81, 0.45);
+  border-radius: 10px;
+  background: rgba(24, 18, 12, 0.88);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+}
+.herald-where {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d9b451;
+}
+.herald-line {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 22px;
+  line-height: 1.45;
+}
+.herald-who { margin: 8px 0 0; font-size: 13px; opacity: 0.65; }
+.herald-btn {
+  margin-top: 16px;
+  padding: 9px 22px;
+  font-size: 14px;
+  color: #f4e9d2;
+  cursor: pointer;
+  border: 1px solid rgba(217, 180, 81, 0.5);
+  border-radius: 7px;
+  background: rgba(150, 40, 30, 0.75);
+}
+.herald-btn:hover { background: rgba(178, 52, 38, 0.9); }
+
+@media (max-width: 620px) {
+  .herald-line { font-size: 18px; }
+}

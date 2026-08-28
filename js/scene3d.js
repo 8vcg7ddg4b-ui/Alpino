@@ -596,6 +596,320 @@ function emblemTexture(factionId, colour) {
   return texture;
 }
 
+// --- Der Feldherrnsitz -----------------------------------------------------
+// Hinter dem Kartentisch, dem Betrachter gegenüber, steht der Thron: das Zelt
+// ist das Hauptquartier, und ein Hauptquartier hat einen Platz, an dem
+// entschieden wird. Links und rechts die Feldzeichen, daneben zwei Stücke
+// Ausstattung, die zur Fraktion passen - Schilde und Speere bei Rom,
+// Elefantenzähne bei Karthago, Felle beim Norden, Palme bei den Ptolemäern.
+//
+// Gebaut wird in Throneinheiten (Sitzhöhe 1) und am Ende auf Zeltmaß
+// hochskaliert; so bleiben die Maße hier lesbar.
+
+const TENT_MATERIALS = {
+  wood: new THREE.MeshStandardMaterial({ color: '#6b4a28', roughness: 0.9 }),
+  darkWood: new THREE.MeshStandardMaterial({ color: '#432c17', roughness: 1 }),
+  stone: new THREE.MeshStandardMaterial({ color: '#ded6c2', roughness: 0.7 }),
+  gold: new THREE.MeshStandardMaterial({ color: '#d9b451', roughness: 0.4, metalness: 0.18 }),
+  bronze: new THREE.MeshStandardMaterial({ color: '#b08040', roughness: 0.5, metalness: 0.15 }),
+  fur: new THREE.MeshStandardMaterial({ color: '#7a6247', roughness: 1 }),
+  clay: new THREE.MeshStandardMaterial({ color: '#a4633c', roughness: 0.95 }),
+  ivory: new THREE.MeshStandardMaterial({ color: '#e9e2cc', roughness: 0.6 }),
+  leaf: new THREE.MeshStandardMaterial({ color: '#3f7a3a', roughness: 0.9 }),
+  ember: new THREE.MeshBasicMaterial({ color: '#ff9a3c' }),
+};
+
+function tentBox(group, material, w, h, d, x, y, z, rotation = 0) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+  mesh.position.set(x, y + h / 2, z);
+  mesh.rotation.y = rotation;
+  group.add(mesh);
+  return mesh;
+}
+
+// Drei Bauarten Thron: Roms Klappstuhl aus Elfenbein, der steinerne Sitz der
+// hellenistischen Höfe, der geschnitzte Hochsitz des Nordens.
+const THRONE_STYLE = {
+  rom: 'curule', griechen: 'stone', seleukiden: 'stone', ptolemaeer: 'stone',
+  karthago: 'stone', gallier: 'wood', germanen: 'wood', britannier: 'wood',
+  iberer: 'wood', daker: 'wood', illyrer: 'wood', sarmaten: 'wood',
+};
+
+// Zwei Stücke Ausstattung je Fraktion.
+const TENT_FURNISHINGS = {
+  rom: ['shields', 'spears'],
+  karthago: ['tusks', 'amphorae'],
+  gallier: ['pelts', 'spears'],
+  griechen: ['shields', 'amphorae'],
+  germanen: ['pelts', 'spears'],
+  britannier: ['shields', 'pelts'],
+  iberer: ['spears', 'amphorae'],
+  daker: ['spears', 'pelts'],
+  seleukiden: ['tusks', 'brazier'],
+  ptolemaeer: ['palm', 'amphorae'],
+  illyrer: ['shields', 'brazier'],
+  sarmaten: ['pelts', 'brazier'],
+};
+
+function buildThrone(style, colour) {
+  const group = new THREE.Group();
+  const frame = style === 'stone' ? TENT_MATERIALS.stone
+    : style === 'curule' ? TENT_MATERIALS.ivory : TENT_MATERIALS.wood;
+  const cushion = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.85 });
+
+  // Podest, auf dem der Sitz steht - zwei Stufen, damit er über den Tisch sieht.
+  tentBox(group, TENT_MATERIALS.darkWood, 4.2, 0.22, 3.4, 0, 0, 0);
+  tentBox(group, TENT_MATERIALS.darkWood, 3.4, 0.22, 2.8, 0, 0.22, 0);
+  const base = 0.44;
+
+  if (style === 'curule') {
+    // Der kurulische Stuhl: gekreuzte Beine, kein Rücken, ein Kissen darauf.
+    for (const side of [-1, 1]) {
+      for (const lean of [-1, 1]) {
+        const leg = tentBox(group, frame, 0.16, 1.5, 0.16, side * 0.62, base, lean * 0.05);
+        leg.rotation.z = lean * 0.42;
+      }
+    }
+    tentBox(group, frame, 1.9, 0.16, 1.4, 0, base + 1.05, 0);
+    tentBox(group, cushion, 1.75, 0.22, 1.25, 0, base + 1.21, 0);
+  } else {
+    for (const side of [-1, 1]) {
+      tentBox(group, frame, 0.26, 1.1, 0.26, side * 0.78, base, 0.55);
+      tentBox(group, frame, 0.26, 2.6, 0.26, side * 0.78, base, -0.62);
+    }
+    tentBox(group, frame, 1.95, 0.2, 1.5, 0, base + 1.1, 0);
+    tentBox(group, cushion, 1.8, 0.24, 1.35, 0, base + 1.3, 0);
+    // Rückenlehne mit Aufsatz
+    tentBox(group, frame, 1.95, 1.7, 0.22, 0, base + 1.3, -0.62);
+    tentBox(group, style === 'stone' ? TENT_MATERIALS.gold : TENT_MATERIALS.bronze,
+      2.15, 0.2, 0.32, 0, base + 3.0, -0.62);
+    // Armlehnen
+    for (const side of [-1, 1]) {
+      tentBox(group, frame, 0.22, 0.2, 1.5, side * 0.86, base + 1.75, 0);
+    }
+  }
+  return group;
+}
+
+const FURNISHING_BUILDERS = {
+  // Schilde, an den Bock gelehnt.
+  shields(group, colour) {
+    const face = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.85 });
+    // Ein Balken auf zwei Böcken, dagegen lehnen die Schilde - sonst schweben
+    // sie in der Luft.
+    for (const side of [-1, 1]) {
+      tentBox(group, TENT_MATERIALS.darkWood, 0.14, 0.95, 0.14, side * 1.25, 0, -0.35);
+    }
+    const rail = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.08, 2.7, 6), TENT_MATERIALS.darkWood
+    );
+    rail.rotation.z = Math.PI / 2;
+    rail.position.set(0, 0.95, -0.35);
+    group.add(rail);
+    for (let i = 0; i < 3; i++) {
+      const lean = 0.32;
+      const shield = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.11, 16), face);
+      shield.rotation.set(Math.PI / 2 - lean, 0, 0);
+      shield.position.set((i - 1) * 0.78, 0.58, 0.05 + Math.sin(lean) * 0.55);
+      group.add(shield);
+      const boss = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), TENT_MATERIALS.bronze);
+      boss.position.set((i - 1) * 0.78, 0.6, 0.2 + Math.sin(lean) * 0.55);
+      group.add(boss);
+    }
+  },
+
+  // Ein Speerbock: die Schäfte lehnen zusammen, die Spitzen nach oben.
+  spears(group) {
+    // Ein Speerbock: die Schäfte stehen fast aufrecht am Querbalken, die
+    // Spitzen sitzen oben auf dem Schaft und nicht daneben.
+    for (const side of [-1, 1]) {
+      tentBox(group, TENT_MATERIALS.darkWood, 0.13, 1.3, 0.13, side * 1.1, 0, -0.3);
+    }
+    const rail = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.075, 0.075, 2.4, 6), TENT_MATERIALS.darkWood
+    );
+    rail.rotation.z = Math.PI / 2;
+    rail.position.set(0, 1.3, -0.3);
+    group.add(rail);
+
+    const length = 3.4;
+    for (let i = 0; i < 5; i++) {
+      const lean = (i - 2) * 0.055;
+      const x = (i - 2) * 0.42;
+      const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, length, 6), TENT_MATERIALS.wood
+      );
+      shaft.position.set(x, length / 2, 0);
+      shaft.rotation.z = lean;
+      group.add(shaft);
+      // Die Spitze sitzt am oberen Ende des Schafts. Der Schaft dreht sich um
+      // seine Mitte, also wird vom Mittelpunkt aus gerechnet und nicht vom
+      // Boden - sonst steckt die Spitze auf halber Höhe im Holz.
+      const reach = length / 2 + 0.22;
+      const head = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.46, 6), TENT_MATERIALS.bronze);
+      head.position.set(x - Math.sin(lean) * reach, length / 2 + Math.cos(lean) * reach, 0);
+      head.rotation.z = lean;
+      group.add(head);
+    }
+  },
+
+  // Ein Kohlebecken auf Dreifuß, das noch glüht.
+  brazier(group) {
+    for (let i = 0; i < 3; i++) {
+      const angle = (i / 3) * Math.PI * 2;
+      const leg = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.08, 1.3, 5), TENT_MATERIALS.bronze
+      );
+      leg.position.set(Math.cos(angle) * 0.35, 0.65, Math.sin(angle) * 0.35);
+      leg.rotation.set(Math.sin(angle) * 0.22, 0, -Math.cos(angle) * 0.22);
+      group.add(leg);
+    }
+    const bowl = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.72, 0.42, 0.42, 12), TENT_MATERIALS.bronze
+    );
+    bowl.position.y = 1.5;
+    group.add(bowl);
+    const coals = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 6), TENT_MATERIALS.ember);
+    coals.scale.y = 0.3;
+    coals.position.y = 1.68;
+    group.add(coals);
+  },
+
+  // Amphoren im Ständer.
+  amphorae(group) {
+    for (let i = 0; i < 3; i++) {
+      const jar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16, 0.42, 1.5, 10), TENT_MATERIALS.clay
+      );
+      jar.position.set((i - 1) * 0.72, 0.75, (i % 2) * 0.35);
+      jar.rotation.z = (i - 1) * 0.1;
+      group.add(jar);
+      const neck = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2, 0.16, 0.4, 8), TENT_MATERIALS.clay
+      );
+      neck.position.set((i - 1) * 0.72, 1.62, (i % 2) * 0.35);
+      group.add(neck);
+    }
+  },
+
+  // Felle über einem Gestell.
+  pelts(group) {
+    for (const side of [-1, 1]) {
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.09, 0.11, 2.1, 6), TENT_MATERIALS.darkWood
+      );
+      post.position.set(side * 0.95, 1.05, 0);
+      group.add(post);
+    }
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 2.1, 6), TENT_MATERIALS.darkWood);
+    bar.rotation.z = Math.PI / 2;
+    bar.position.y = 2.05;
+    group.add(bar);
+    const hide = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.7, 4, 3), TENT_MATERIALS.fur);
+    const pos = hide.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      pos.setZ(i, Math.sin((pos.getX(i) + 0.9) * 2.6) * 0.12);
+    }
+    hide.geometry.computeVertexNormals();
+    hide.material.side = THREE.DoubleSide;
+    hide.position.set(0, 1.15, 0.06);
+    group.add(hide);
+  },
+
+  // Zwei Stoßzähne, mit den Spitzen nach innen aufgestellt.
+  tusks(group) {
+    for (const side of [-1, 1]) {
+      const tusk = new THREE.Mesh(
+        new THREE.TorusGeometry(1.1, 0.13, 8, 14, Math.PI * 0.62), TENT_MATERIALS.ivory
+      );
+      tusk.position.set(side * 0.9, 0.15, 0);
+      tusk.rotation.set(0, side > 0 ? 0 : Math.PI, side > 0 ? 0.35 : -0.35);
+      group.add(tusk);
+      tentBox(group, TENT_MATERIALS.darkWood, 0.5, 0.3, 0.5, side * 0.9, 0, 0);
+    }
+  },
+
+  // Eine Dattelpalme im Kübel.
+  palm(group) {
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.45, 0.7, 10), TENT_MATERIALS.clay);
+    pot.position.y = 0.35;
+    group.add(pot);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.2, 2.6, 7), TENT_MATERIALS.wood);
+    trunk.position.y = 2.0;
+    group.add(trunk);
+    for (let i = 0; i < 7; i++) {
+      const angle = (i / 7) * Math.PI * 2;
+      const frond = new THREE.Mesh(new THREE.ConeGeometry(0.26, 1.7, 4), TENT_MATERIALS.leaf);
+      frond.position.set(Math.cos(angle) * 0.62, 3.35, Math.sin(angle) * 0.62);
+      frond.rotation.set(Math.sin(angle) * 1.15, 0, -Math.cos(angle) * 1.15);
+      group.add(frond);
+    }
+  },
+};
+
+// Ein Feldzeichen: Stange, Querbalken, Tuch mit dem Wappen, vergoldete Spitze.
+function buildFieldStandard(factionId, colour) {
+  const group = new THREE.Group();
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.09, 0.09, 5.4, 7), TENT_MATERIALS.darkWood
+  );
+  pole.position.y = 2.7;
+  group.add(pole);
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), TENT_MATERIALS.gold);
+  finial.position.y = 5.5;
+  group.add(finial);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 0.12), TENT_MATERIALS.gold);
+  bar.position.y = 5.05;
+  group.add(bar);
+  const cloth = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.7, 2.3),
+    new THREE.MeshStandardMaterial({
+      map: emblemTexture(factionId, colour), side: THREE.DoubleSide,
+      roughness: 1, transparent: true,
+    })
+  );
+  cloth.position.set(0, 3.85, 0.03);
+  group.add(cloth);
+  return group;
+}
+
+// Setzt den ganzen Hintergrund zusammen und stellt ihn dem Betrachter
+// gegenüber - dorthin, wohin die Grundansicht der Kamera blickt.
+function buildTentBackdrop(tent, state, colour, floorY) {
+  const player = state.factions.find((f) => f.isPlayer);
+  const id = player ? player.id : 'neutral';
+  const stage = new THREE.Group();
+
+  const throne = buildThrone(THRONE_STYLE[id] || 'wood', colour);
+  throne.scale.setScalar(1.25);
+  stage.add(throne);
+  for (const side of [-1, 1]) {
+    const standard = buildFieldStandard(id, colour);
+    standard.position.set(side * 3.4, 0, -0.3);
+    stage.add(standard);
+  }
+  const furnishings = TENT_FURNISHINGS[id] || ['shields', 'spears'];
+  furnishings.forEach((kind, index) => {
+    const build = FURNISHING_BUILDERS[kind];
+    if (!build) return;
+    const piece = new THREE.Group();
+    build(piece, colour);
+    piece.position.set((index === 0 ? -1 : 1) * 5.8, 0, 1.1);
+    piece.rotation.y = (index === 0 ? 1 : -1) * 0.42;
+    stage.add(piece);
+  });
+
+  // Auf Zeltmaß bringen und in die Blickachse der Grundansicht stellen.
+  const scale = 26;
+  stage.scale.setScalar(scale);
+  const away = TENT_RADIUS * 0.74;
+  stage.position.set(
+    -Math.cos(DEFAULT_AZIMUTH) * away, floorY, -Math.sin(DEFAULT_AZIMUTH) * away
+  );
+  stage.rotation.y = Math.PI / 2 - DEFAULT_AZIMUTH;
+  tent.add(stage);
+}
+
 function buildTent(state) {
   if (tentGroup) scene.remove(tentGroup);
   tentGroup = new THREE.Group();
@@ -669,6 +983,8 @@ function buildTent(state) {
     );
     tentGroup.add(pole);
   }
+
+  buildTentBackdrop(tentGroup, state, colour, floor.position.y);
 
   scene.add(tentGroup);
 }

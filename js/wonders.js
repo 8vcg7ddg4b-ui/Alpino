@@ -222,15 +222,3 @@ export function wondersOfCity(state, cityId) {
   if (!state || !state.wonders) return [];
   return state.wonders.filter((w) => w.cityId === cityId);
 }
-
-// Was die Bauwerke einer Fraktion in dieser Runde einbringen.
-export function wonderIncomeOf(state, factionId) {
-  if (!state.wonders) return 0;
-  let sum = 0;
-  for (const wonder of state.wonders) {
-    if (!wonder.cityId) continue;
-    const city = state.cities.find((c) => c.id === wonder.cityId);
-    if (city && city.factionId === factionId) sum += wonder.income;
-  }
-  return sum;
-}

@@ -24,7 +24,7 @@ import {
 import {
   rollWeather, weatherAt, weatherInfo, weatherBattleModifiers, calendarOfTurn, zoneName,
 } from './weather.js';
-import { wonderIncomeOf, wondersOfCity } from './wonders.js';
+import { wondersOfCity } from './wonders.js';
 
 export function removeArmy(state, armyId) {
   const idx = state.armies.findIndex((a) => a.id === armyId);
@@ -1132,17 +1132,23 @@ export function recoverArmies(state) {
   }
 }
 
+// Was ein einzelner Ort in dieser Runde einbringt, aufgeschlüsselt: die
+// Abgaben der Siedlung selbst, was ihre Einwohner darüber hinaus tragen, und
+// was ein Weltwunder vor ihren Toren an Pilgern und Händlern anzieht.
+// Dieselbe Rechnung steht in der Seitenleiste und in der Rundenabrechnung -
+// es soll nicht zwei Wahrheiten darüber geben, was eine Stadt wert ist.
+export function cityIncome(state, city) {
+  const settlement = INCOME_PER_CITY * settlementTier(city.size).incomeFactor;
+  const people = Math.floor(city.population / 200);
+  const wonders = wondersOfCity(state, city.id).reduce((sum, w) => sum + w.income, 0);
+  return { settlement, people, wonders, total: settlement + people + wonders };
+}
+
 export function collectIncome(state) {
   for (const faction of state.factions) {
     if (faction.isNeutral) continue;
     const ownCities = state.cities.filter((c) => c.factionId === faction.id);
-    let income = ownCities.reduce(
-      (sum, c) => sum + INCOME_PER_CITY * settlementTier(c.size).incomeFactor, 0
-    );
-    income += ownCities.reduce((s, c) => s + Math.floor(c.population / 200), 0);
-    // Wer die Stadt hält, hält auch das Bauwerk vor ihren Toren - Pilger,
-    // Schaulustige und Händler zahlen mit.
-    income += wonderIncomeOf(state, faction.id);
+    const income = ownCities.reduce((sum, c) => sum + cityIncome(state, c).total, 0);
     const upkeep = state.armies
       .filter((a) => a.factionId === faction.id)
       .reduce((s, a) => s + COMBAT_ROLES.reduce(

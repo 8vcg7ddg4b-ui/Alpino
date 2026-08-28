@@ -6,17 +6,21 @@ export const GAME_VERSION = '1.1.0';
 // bounds or the tile size in geodata.js and everything here follows.
 export { MAP_COLS, MAP_ROWS } from './geodata.js';
 
+// Bewegung wird in halben Feldern gerechnet: die Ebene kostet 2, eine Straße
+// darüber 1. Anders ließe sich "eine Straße ist halb so teuer wie die Ebene"
+// nicht in ganzen Zahlen ausdrücken - und ganze Zahlen braucht die Wegsuche.
+// Die Reichweiten sind dieselben geblieben: neun Felder Ebene wie zuvor.
 export const TILE_TYPES = {
-  plains: { name: 'Ebene', cost: 1, defense: 0, elevation: 0, color: '#8fae5a', deco: null },
-  forest: { name: 'Wald', cost: 2, defense: 1, elevation: 0.35, color: '#4c7a3f', deco: 'tree' },
-  hills: { name: 'Hügel', cost: 2, defense: 2, elevation: 1, color: '#b3a06b', deco: null },
-  desert: { name: 'Wüste', cost: 2, defense: 0, elevation: 0.08, color: '#d9c489', deco: null },
+  plains: { name: 'Ebene', cost: 2, defense: 0, elevation: 0, color: '#8fae5a', deco: null },
+  forest: { name: 'Wald', cost: 4, defense: 1, elevation: 0.35, color: '#4c7a3f', deco: 'tree' },
+  hills: { name: 'Hügel', cost: 4, defense: 2, elevation: 1, color: '#b3a06b', deco: null },
+  desert: { name: 'Wüste', cost: 4, defense: 0, elevation: 0.08, color: '#d9c489', deco: null },
   mountain: {
-    name: 'Gebirge', cost: 99, defense: 3, elevation: 2.6, color: '#8a8a8a',
+    name: 'Gebirge', cost: 198, defense: 3, elevation: 2.6, color: '#8a8a8a',
     deco: 'peak', impassable: true,
   },
   // Impassable on foot; a fleet crosses it at the sea cost below.
-  water: { name: 'Meer', cost: 99, defense: 0, elevation: -0.4, color: '#3f6fa8', deco: null, impassable: true },
+  water: { name: 'Meer', cost: 198, defense: 0, elevation: -0.4, color: '#3f6fa8', deco: null, impassable: true },
 };
 
 // Drei Waffengattungen, überall dieselben - damit bleiben die Regeln ein
@@ -636,9 +640,10 @@ export const HARBOUR_TURNS = 3;
 export const HARBOUR_NAME = 'Hafen';
 
 // --- Straßenbau ----------------------------------------------------------
-// Eine Straße macht jedes Feld, über das sie führt, so leicht begehbar wie
-// offene Ebene - durch Wald, Hügel und Wüste ist das die halbe Mühe. Gebaut
-// wird von Ort zu Ort, bezahlt nach Länge.
+// Eine gepflasterte Straße kostet die Hälfte dessen, was offene Ebene kostet -
+// durch Wald, Hügel und Wüste ist es ein Viertel. Wer sein Land mit Straßen
+// überzieht, verschiebt seine Heere doppelt so schnell wie über freies Feld.
+// Gebaut wird von Ort zu Ort, bezahlt nach Länge.
 export const ROAD_MOVE_COST = 1;
 export const ROAD_COST_PER_TILE = 30;
 export const ROAD_TURNS_PER_TILE = 0.4;
@@ -654,12 +659,12 @@ export function roadTurns(length) {
   return Math.max(ROAD_MIN_TURNS, Math.round(length * ROAD_TURNS_PER_TILE));
 }
 
-export const MAX_MOVEMENT = 9;
+export const MAX_MOVEMENT = 18;
 
 // What it costs to push into ground an enemy army holds. Together with the
 // rule that forbids moving from one held tile straight into another, this is
 // what makes an army a barrier rather than a piece to walk around.
-export const ZOC_EXTRA_COST = 2;
+export const ZOC_EXTRA_COST = 4;
 
 // --- Seefahrt -------------------------------------------------------------
 // An army takes ship in one of its own coastal settlements. At sea it travels
@@ -669,8 +674,8 @@ export const ZOC_EXTRA_COST = 2;
 export const SHIP_COST = 250;
 // Wie viele Schiffe ein Bautrupp umfasst; was sie kosten, sagt die Bauart.
 export const WARSHIP_BATCH = 60;
-export const NAVAL_MOVEMENT = 15;
-export const SEA_MOVE_COST = 1;
+export const NAVAL_MOVEMENT = 30;
+export const SEA_MOVE_COST = 2;
 export const EXHAUSTION_PER_SEA_MOVE = 5;
 // Attacking straight off the ships.
 export const AMPHIBIOUS_ATTACK_MULTIPLIER = 0.7;

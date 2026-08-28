@@ -113,6 +113,53 @@ function focusOwnCapital() {
   if (home) centerOn(home.col, home.row);
 }
 
+// --- Der Empfang im Zelt --------------------------------------------------
+// Bevor der erste Zug fällt, meldet sich der Erste Offizier. Die Ansprache
+// liegt über der Karte statt vor ihr: man soll das Zelt sehen, in dem sie
+// gesprochen wird.
+
+// Wer da spricht, richtet sich nach der Fraktion - ein Legat dient keinem
+// Sarmatenfürsten.
+const HERALD_TITLES = {
+  rom: 'Dein Legat', karthago: 'Dein Suffet', griechen: 'Dein Stratege',
+  seleukiden: 'Dein Stratege', ptolemaeer: 'Dein Nomarch',
+  gallier: 'Dein Gefolgsmann', germanen: 'Dein Gefolgsmann',
+  britannier: 'Dein Gefolgsmann', iberer: 'Dein Gefolgsmann',
+  daker: 'Dein Gefolgsmann', illyrer: 'Dein Gefolgsmann',
+  sarmaten: 'Dein Reiterführer',
+};
+
+const heraldOverlay = document.getElementById('heraldOverlay');
+let heraldTimer = null;
+
+function hideHerald() {
+  if (!heraldOverlay) return;
+  if (heraldTimer !== null) {
+    clearTimeout(heraldTimer);
+    heraldTimer = null;
+  }
+  heraldOverlay.classList.add('hidden');
+}
+
+function showHerald() {
+  if (!heraldOverlay || !state) return;
+  const player = playerFaction(state);
+  const who = document.getElementById('heraldWho');
+  if (who) who.textContent = `${HERALD_TITLES[player.id] || 'Dein Gefolgsmann'} · ${player.name}`;
+  heraldOverlay.classList.remove('hidden');
+  sfx.raise();
+  // Wer weiterlesen will, hat Zeit; wer die Partie kennt, klickt weg.
+  heraldTimer = setTimeout(hideHerald, 9000);
+}
+
+function setupHerald() {
+  if (!heraldOverlay) return;
+  const close = document.getElementById('heraldClose');
+  if (close) close.addEventListener('click', hideHerald);
+  heraldOverlay.addEventListener('click', hideHerald);
+}
+setupHerald();
+
 function resizeScene() {
   const rect = canvas.parentElement.getBoundingClientRect();
   resize(rect.width, rect.height);
@@ -146,6 +193,7 @@ function hideQuitDialog() {
 
 function quitToMenu() {
   hideQuitDialog();
+  hideHerald();
   hideBattleReport();
   hideBattlePreview();
   hideTileInfo();
@@ -946,6 +994,7 @@ function startNewGame(factionId = chosenFaction) {
   focusOwnCapital();
   // Auf der Karte wird es still: die Musik gehört zum Vorspann, nicht zum Zug.
   stopTheme({ fadeOut: 4 });
+  showHerald();
 
   // Input holds no reference to `state` itself, so it reads through a getter -
   // undo swaps the object wholesale.
@@ -989,7 +1038,8 @@ window.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   // Escape backs out of the decision without attacking. With nothing open it
   // is the browser's own way out of fullscreen, and that is a decision too.
-  if (!settingsOverlay.classList.contains('hidden')) hideSettings();
+  if (heraldOverlay && !heraldOverlay.classList.contains('hidden')) hideHerald();
+  else if (!settingsOverlay.classList.contains('hidden')) hideSettings();
   else if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();
   else if (!reportOverlay.classList.contains('hidden')) hideBattleReport();
   else if (document.fullscreenElement) wantsFullscreen = false;

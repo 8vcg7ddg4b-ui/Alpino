@@ -12,7 +12,7 @@ import {
   isWaterTile, isCoastalCity, isFleet,
 } from './state.js';
 import {
-  embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf,
+  embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, cityIncome,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -342,6 +342,18 @@ function settlementLabel(city) {
   return city.capital ? `Hauptstadt · ${tier}` : tier;
 }
 
+// Was der Ort einbringt. Aufgeschlüsselt, weil sonst niemand nachvollziehen
+// kann, warum eine Große Stadt mehr wert ist als zwei Dörfer.
+function incomeLineHTML(state, city) {
+  const income = cityIncome(state, city);
+  const parts = [`Siedlung ${income.settlement}`];
+  if (income.people) parts.push(`Einwohner ${income.people}`);
+  if (income.wonders) parts.push(`Bauwerk ${income.wonders}`);
+  return `<p class="income-line">💰 Einnahmen
+    <strong>${income.total.toLocaleString('de-DE')} Gold je Runde</strong>
+    <span class="muted">· ${parts.join(' · ')}</span></p>`;
+}
+
 function renderSelectedCity(state, city, onRecruit, onRaise) {
   const faction = factionById(state, city.factionId);
   const player = playerFaction(state);
@@ -380,6 +392,7 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
       ${current > maxTotal
         ? `<span class="over-strength">über Sollstärke (${maxTotal.toLocaleString('de-DE')})</span>`
         : `/ ${maxTotal.toLocaleString('de-DE')}`}</p>
+    ${incomeLineHTML(state, city)}
     <p class="wall-line ${watch >= watchGoal ? 'wall-done' : ''}">🛡️ Stadtwache
       ${watch.toLocaleString('de-DE')} / ${watchGoal.toLocaleString('de-DE')}
       <span class="muted">· ${watch >= watchGoal
@@ -545,6 +558,7 @@ function cityInfoHTML(state, city) {
         ${watchTarget(city, owner).toLocaleString('de-DE')}</p>
       <p class="ti-line">${level ? `${wallLevelInfo(level).icon} ${wallLevelName(level)}` : 'keine Befestigung'}
         · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}</p>
+      <p class="ti-line">💰 ${cityIncome(state, city).total.toLocaleString('de-DE')} Gold je Runde</p>
       <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>
     </div>`;
 }
