@@ -4,7 +4,7 @@ import {
   CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION, GAME_VERSION,
 } from './data.js';
 import {
-  renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount,
+  renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount, empireHTML,
 } from './ui.js';
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
@@ -160,6 +160,36 @@ function setupHerald() {
 }
 setupHerald();
 
+// --- Reichsübersicht ------------------------------------------------------
+// Ein Fenster über den ganzen Besitz: jeder Ort mit seinen Einnahmen, die
+// Summe darunter, dazu Heere, Flotten und der Sold, der davon abgeht.
+
+const empireOverlay = document.getElementById('empireOverlay');
+
+function hideEmpire() {
+  if (empireOverlay) empireOverlay.classList.add('hidden');
+}
+
+function showEmpire() {
+  if (!empireOverlay || !state) return;
+  document.getElementById('empireBody').innerHTML = empireHTML(state);
+  empireOverlay.classList.remove('hidden');
+  sfx.select();
+}
+
+function setupEmpireButton() {
+  const button = document.getElementById('empireBtn');
+  if (button) button.addEventListener('click', showEmpire);
+  const close = document.getElementById('empireClose');
+  if (close) close.addEventListener('click', hideEmpire);
+  if (empireOverlay) {
+    empireOverlay.addEventListener('click', (e) => {
+      if (e.target === empireOverlay) hideEmpire();
+    });
+  }
+}
+setupEmpireButton();
+
 function resizeScene() {
   const rect = canvas.parentElement.getBoundingClientRect();
   resize(rect.width, rect.height);
@@ -194,6 +224,7 @@ function hideQuitDialog() {
 function quitToMenu() {
   hideQuitDialog();
   hideHerald();
+  hideEmpire();
   hideBattleReport();
   hideBattlePreview();
   hideTileInfo();
@@ -1039,6 +1070,7 @@ window.addEventListener('keydown', (e) => {
   // Escape backs out of the decision without attacking. With nothing open it
   // is the browser's own way out of fullscreen, and that is a decision too.
   if (heraldOverlay && !heraldOverlay.classList.contains('hidden')) hideHerald();
+  else if (empireOverlay && !empireOverlay.classList.contains('hidden')) hideEmpire();
   else if (!settingsOverlay.classList.contains('hidden')) hideSettings();
   else if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();
   else if (!reportOverlay.classList.contains('hidden')) hideBattleReport();

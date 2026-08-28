@@ -13,6 +13,9 @@ import {
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_UNIT_SCALE, SHIP_ROLE, WARSHIP_BATCH,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
   HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
+  MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
+  MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
+  FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
 } from './data.js';
 import { landRoute } from './mapgen.js';
 import { computeReachable, tileKey } from './pathfind.js';
@@ -537,6 +540,8 @@ export function resolveTileCombat(state, army, destCol, destRow) {
 
   if (capturedCity && city) {
     const lostTo = city.factionId;
+    // Eine Miliz erobert nicht für die Unabhängigen - sie gründet einen Staat.
+    if (army.factionId === 'neutral') foundFreeState(state, army, city);
     city.factionId = army.factionId;
     // Mit der Stadt wechselt auch das Wahrzeichen den Besitzer - das ist eine
     // Zeile im Protokoll wert, für beide Seiten.
@@ -1121,6 +1126,142 @@ export function advanceWeather(state) {
 }
 
 // Armies that stayed put regain their edge; a city lets them recover fastest.
+// --- Unabhängige Orte ------------------------------------------------------
+// Eine Stadt ohne Herrn ist nicht herrenlos: aus ihrer Wache bildet sich mit
+// der Zeit eine Miliz, und was die einem Staat abnimmt, begründet ein eigenes
+// Gemeinwesen. So bleibt die Landkarte zwischen den zwölf Kriegen in Bewegung,
+// ohne dass ein dreizehnter von Anfang an mitliefe.
+
+function freeTileNear(state, city, taken) {
+  const order = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+  let best = null;
+  let bestCost = Infinity;
+  for (const [dc, dr] of order) {
+    const col = city.col + dc;
+    const row = city.row + dr;
+    if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) continue;
+    const def = TILE_TYPES[state.map.tiles[row][col].type];
+    if (def.impassable) continue;
+    if (taken.has(`${col},${row}`)) continue;
+    if (def.cost >= bestCost) continue;
+    bestCost = def.cost;
+    best = { col, row };
+  }
+  return best;
+}
+
+// Stellt in unabhängigen Orten Milizen auf. Bezahlt wird nicht mit Gold - die
+// Männer kommen aus der Stadtwache, und die stellt sich danach langsam wieder
+// nach, wie nach einer Belagerung.
+export function raiseIndependentArmies(state) {
+  if (state.turn < MILITIA_FIRST_TURN) return;
+  const militias = state.armies.filter((a) => a.factionId === 'neutral');
+  if (militias.length >= MILITIA_MAX) return;
+  const taken = new Set([
+    ...state.armies.map((a) => `${a.col},${a.row}`),
+    ...state.cities.map((c) => `${c.col},${c.row}`),
+  ]);
+  const homes = new Set(militias.map((a) => a.homeCityId));
+
+  for (const city of state.cities) {
+    if (state.armies.filter((a) => a.factionId === 'neutral').length >= MILITIA_MAX) return;
+    if (city.factionId !== 'neutral') continue;
+    if (city.population < MILITIA_MIN_POPULATION) continue;
+    // Ein Ort unterhält nur eine Miliz.
+    if (homes.has(city.id)) continue;
+    const watch = city.garrison[WATCH_ROLE] || 0;
+    if (watch <= MILITIA_WATCH_RESERVE) continue;
+    if (Math.random() > MILITIA_CHANCE) continue;
+    const spot = freeTileNear(state, city, taken);
+    if (!spot) continue;
+
+    // Die Bürgerschaft stellt die Masse, die Wache den Kern.
+    const strength = Math.min(MILITIA_MAX_SIZE,
+      Math.round(city.population / MILITIA_PER_POPULATION));
+    if (strength < MILITIA_MIN_SIZE) continue;
+    // Zwei Drittel Fußvolk, ein Drittel Fernkampf: was eine Stadt an Waffen
+    // im Haus hat, keine Reiterei.
+    const infantry = Math.round(strength * 0.68);
+    const ranged = strength - infantry;
+    city.garrison[WATCH_ROLE] = watch - Math.min(watch - MILITIA_WATCH_RESERVE,
+      Math.round(strength * MILITIA_WATCH_SHARE));
+
+    state.armies.push({
+      id: makeId('army'),
+      factionId: 'neutral',
+      homeCityId: city.id,
+      col: spot.col,
+      row: spot.row,
+      movement: MAX_MOVEMENT,
+      maxMovement: MAX_MOVEMENT,
+      units: { infantry, ranged },
+      morale: MORALE_START,
+      exhaustion: 0,
+      experience: 0,
+      embarked: false,
+      name: `Miliz von ${city.name}`,
+    });
+    taken.add(`${spot.col},${spot.row}`);
+    homes.add(city.id);
+    logMsg(state, `In ${city.name} stellt sich eine Miliz auf: `
+      + `${strength.toLocaleString('de-DE')} Mann.`, null, ['neutral']);
+  }
+}
+
+// Nimmt eine Miliz einem Staat einen Ort ab, ruft die Gegend ihr eigenes
+// Gemeinwesen aus. Es bekommt den Namen eines Volkes, das es wirklich gab,
+// die Waffen seines nächsten Nachbarn - und von da an spielt es mit.
+export function foundFreeState(state, army, city) {
+  const existing = state.factions.filter((f) => f.emergent).length;
+  if (existing >= FREE_STATE_MAX || existing >= FREE_STATE_NAMES.length) return null;
+
+  // Ein Staat braucht mehr als den eroberten Ort: die Heimatstadt der Miliz
+  // muss noch stehen und noch unabhängig sein. Sonst ist es kein Gemeinwesen,
+  // sondern eine Bande auf einer fremden Mauer - der Ort fällt dann einfach
+  // an die Unabhängigen.
+  const home = state.cities.find((c) => c.id === army.homeCityId && c.factionId === 'neutral');
+  if (!home) return null;
+  const seat = home;
+  const label = FREE_STATE_NAMES[existing];
+  const id = `frei${existing + 1}`;
+
+  // Die Waffen des nächsten bestehenden Staates: wer zwischen Galliern lebt,
+  // kämpft wie sie, und nicht wie eine Truppe aus dem Nichts.
+  let model = null;
+  let bestDistance = Infinity;
+  for (const other of state.cities) {
+    const owner = factionById(state, other.factionId);
+    if (!owner || owner.isNeutral || owner.emergent) continue;
+    const distance = Math.abs(other.col - seat.col) + Math.abs(other.row - seat.row);
+    if (distance >= bestDistance) continue;
+    bestDistance = distance;
+    model = owner.id;
+  }
+  if (model && FACTION_UNITS[model]) FACTION_UNITS[id] = FACTION_UNITS[model];
+
+  const faction = {
+    id,
+    name: label.name,
+    color: label.color,
+    emergent: true,
+    isPlayer: false,
+    gold: 0,
+    alive: true,
+  };
+  state.factions.push(faction);
+
+  city.factionId = id;
+  home.factionId = id;
+  home.capital = true;
+  army.factionId = id;
+  army.name = `${faction.name} Feldarmee`;
+  delete army.homeCityId;
+
+  logMsg(state, `Die ${faction.name} rufen ihr eigenes Reich aus: `
+    + `${seat.name} und ${city.name} stehen von nun an unter eigener Fahne.`);
+  return faction;
+}
+
 export function recoverArmies(state) {
   for (const army of state.armies) {
     const rested = army.movement === army.maxMovement;
@@ -1144,16 +1285,27 @@ export function cityIncome(state, city) {
   return { settlement, people, wonders, total: settlement + people + wonders };
 }
 
+// Was die Heere einer Fraktion in dieser Runde kosten. Steht hier, weil die
+// Übersicht dieselbe Zahl zeigt, die auch abgerechnet wird.
+export function armyUpkeep(state, factionId) {
+  return state.armies
+    .filter((a) => a.factionId === factionId)
+    .reduce((sum, a) => sum + COMBAT_ROLES.reduce(
+      (inner, role) => inner + (a.units[role] || 0) * unitDef(factionId, role).upkeep, 0
+    ), 0);
+}
+
+export function factionIncome(state, factionId) {
+  return state.cities
+    .filter((c) => c.factionId === factionId)
+    .reduce((sum, c) => sum + cityIncome(state, c).total, 0);
+}
+
 export function collectIncome(state) {
   for (const faction of state.factions) {
     if (faction.isNeutral) continue;
-    const ownCities = state.cities.filter((c) => c.factionId === faction.id);
-    const income = ownCities.reduce((sum, c) => sum + cityIncome(state, c).total, 0);
-    const upkeep = state.armies
-      .filter((a) => a.factionId === faction.id)
-      .reduce((s, a) => s + COMBAT_ROLES.reduce(
-        (s2, k) => s2 + (a.units[k] || 0) * unitDef(faction.id, k).upkeep, 0
-      ), 0);
+    const income = factionIncome(state, faction.id);
+    const upkeep = armyUpkeep(state, faction.id);
     faction.gold = Math.max(0, Math.round(faction.gold + income - upkeep));
   }
 }

@@ -13,6 +13,7 @@ import {
 } from './state.js';
 import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, cityIncome,
+  armyUpkeep, factionIncome,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -354,10 +355,74 @@ function incomeLineHTML(state, city) {
     <span class="muted">· ${parts.join(' · ')}</span></p>`;
 }
 
+// --- Was man von fremden Orten weiß ---------------------------------------
+// Ein Feldherr sieht von einer fremden Stadt, was von außen zu sehen ist: wie
+// groß sie ist, ob sie Mauern und einen Hafen hat, und wie stark sie ungefähr
+// besetzt scheint. Kopfzahlen, Bevölkerung und Einnahmen kennt nur, wer sie
+// hält - und Genaueres erfährt, wer ein Heer davorstehen hat.
+
+const SCOUT_ARMY_RANGE = 2;
+const SCOUT_CITY_RANGE = 3;
+
+function cityIntel(state, city) {
+  const player = playerFaction(state);
+  if (city.factionId === player.id) return 'own';
+  const near = (a, range) => Math.abs(a.col - city.col) + Math.abs(a.row - city.row) <= range;
+  const watched = state.armies.some((a) => a.factionId === player.id && near(a, SCOUT_ARMY_RANGE))
+    || state.cities.some((c) => c.factionId === player.id && near(c, SCOUT_CITY_RANGE));
+  return watched ? 'scouted' : 'distant';
+}
+
+// Die Besatzung in Worten - so, wie ein Kundschafter sie melden würde.
+function garrisonWord(total) {
+  if (total < 100) return 'schwach besetzt';
+  if (total < 300) return 'besetzt';
+  if (total < 700) return 'gut besetzt';
+  return 'stark besetzt';
+}
+
+function roughly(value, step) {
+  return `etwa ${(Math.round(value / step) * step).toLocaleString('de-DE')}`;
+}
+
+// Der Ort aus der Ferne: Rang, Besitzer, Mauern, Hafen - und so viel über die
+// Besatzung, wie die Nähe hergibt.
+function foreignCityHTML(state, city, intel) {
+  const faction = factionById(state, city.factionId);
+  const level = cityWallLevel(city);
+  const total = unitTotalCount(city.garrison);
+  const wonders = wondersOfCity(state, city.id);
+  const facts = [
+    ['Rang', `${settlementLabel(city)}${city.capital ? ' · Hauptstadt' : ''}`],
+    ['Herr', faction.name],
+    ['Befestigung', level ? `${wallLevelInfo(level).icon} ${wallLevelName(level)}` : 'offen'],
+    ['Hafen', city.harbour ? '⚓ vorhanden' : 'keiner'],
+    ['Besatzung', intel === 'scouted'
+      ? `${roughly(total, 50)} Mann · ${garrisonWord(total)}`
+      : garrisonWord(total)],
+  ];
+  if (intel === 'scouted') facts.push(['Einwohner', roughly(city.population, 500)]);
+  if (wonders.length) {
+    facts.push(['Bauwerk', wonders.map((w) => w.name).join(', ')]);
+  }
+  return `
+    <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(city.name)}
+      ${city.capital ? '👑' : ''}</h3>
+    <div class="terrain-facts">${facts.map(([label, value]) =>
+    `<div class="terrain-fact"><span>${escapeHTML(label)}</span>
+      <strong>${escapeHTML(value)}</strong></div>`).join('')}</div>
+    <p class="terrain-note">${intel === 'scouted'
+    ? 'Deine Leute stehen nah genug für eine Schätzung. Was genau hinter den '
+      + 'Mauern steht, sagt erst die Kampfvorschau.'
+    : 'Aus der Ferne gesehen. Wer ein Heer davorstellt, erfährt mehr.'}</p>`;
+}
+
 function renderSelectedCity(state, city, onRecruit, onRaise) {
   const faction = factionById(state, city.factionId);
   const player = playerFaction(state);
   const isMine = city.factionId === player.id;
+  // Ein fremder Ort gibt nur her, was von außen zu sehen ist.
+  if (!isMine) return foreignCityHTML(state, city, cityIntel(state, city));
   const maxTotal = garrisonCapacity(city, faction);
   const current = unitTotalCount(city.garrison);
   // Was ausrücken kann, und was auf der Mauer bleibt.
@@ -547,6 +612,22 @@ function cityInfoHTML(state, city) {
   const owner = factionById(state, city.factionId);
   const level = cityWallLevel(city);
   const watch = city.garrison[WATCH_ROLE] || 0;
+  const intel = cityIntel(state, city);
+  if (intel !== 'own') {
+    // Von einem fremden Ort steht hier nur, was von außen zu sehen ist.
+    const total = unitTotalCount(city.garrison);
+    return `
+    <div class="ti-block">
+      <h4><span class="dot" style="background:${owner.color}"></span>${escapeHTML(city.name)}
+        ${city.capital ? '👑' : ''}</h4>
+      <p class="ti-line">${settlementLabel(city)} · ${escapeHTML(owner.name)}</p>
+      <p class="ti-line">${level ? `${wallLevelInfo(level).icon} ${wallLevelName(level)}` : 'keine Befestigung'}
+        · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}</p>
+      <p class="ti-line">${intel === 'scouted'
+    ? `Besatzung ${roughly(total, 50)} Mann · ${garrisonWord(total)}`
+    : garrisonWord(total)}</p>
+    </div>`;
+  }
   return `
     <div class="ti-block">
       <h4><span class="dot" style="background:${owner.color}"></span>${escapeHTML(city.name)}
@@ -743,6 +824,95 @@ function logConcernsPlayer(entry, playerId) {
   if (logFilter === 'all') return true;
   if (!entry.factions || !entry.factions.length) return true;
   return entry.factions.includes(playerId);
+}
+
+// --- Reichsübersicht -------------------------------------------------------
+// Was das Reich in dieser Runde trägt: jeder Ort mit seinen Einnahmen, die
+// Summe darunter, und was die Heere davon wieder auffressen. Gerechnet wird
+// mit denselben Funktionen wie beim Rundenwechsel - die Übersicht zeigt keine
+// Schätzung, sondern die Abrechnung selbst.
+export function empireHTML(state) {
+  const player = playerFaction(state);
+  const cities = state.cities
+    .filter((c) => c.factionId === player.id)
+    .map((city) => ({ city, income: cityIncome(state, city) }))
+    .sort((a, b) => b.income.total - a.income.total || a.city.name.localeCompare(b.city.name, 'de'));
+
+  const income = factionIncome(state, player.id);
+  const upkeep = armyUpkeep(state, player.id);
+  const balance = Math.round(income - upkeep);
+  const armies = state.armies.filter((a) => a.factionId === player.id);
+  const fleets = armies.filter((a) => isFleet(a));
+  const land = armies.filter((a) => !isFleet(a));
+  const troops = land.reduce((sum, a) => sum + unitTotalCount(a.units), 0);
+  const ships = fleets.reduce((sum, a) => sum + (a.units[SHIP_ROLE] || 0), 0);
+  const watch = cities.reduce((sum, { city }) => sum + (city.garrison[WATCH_ROLE] || 0), 0);
+  const people = cities.reduce((sum, { city }) => sum + city.population, 0);
+  const held = state.wonders
+    ? state.wonders.filter((w) => cities.some(({ city }) => city.id === w.cityId))
+    : [];
+  const { season, year } = calendarOfTurn(state.turn);
+
+  const tile = (label, value, note = '') => `
+    <div class="emp-tile"><span class="emp-tile-label">${label}</span>
+      <strong>${value}</strong>${note ? `<small>${note}</small>` : ''}</div>`;
+
+  const rows = cities.map(({ city, income: entry }) => {
+    const level = cityWallLevel(city);
+    const marks = [
+      city.capital ? '👑' : '',
+      level ? wallLevelInfo(level).icon : '',
+      city.harbour ? '⚓' : '',
+    ].filter(Boolean).join(' ');
+    return `<tr>
+      <td>${escapeHTML(city.name)} <span class="emp-marks">${marks}</span></td>
+      <td>${settlementLabel(city)}</td>
+      <td class="emp-num">${city.population.toLocaleString('de-DE')}</td>
+      <td class="emp-num">${entry.settlement}</td>
+      <td class="emp-num">${entry.people}</td>
+      <td class="emp-num">${entry.wonders || '–'}</td>
+      <td class="emp-num emp-total">${entry.total.toLocaleString('de-DE')}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <h2 class="report-title">${escapeHTML(player.name)} · ${season.icon} ${season.name} ${year} v. Chr.</h2>
+    <div class="emp-tiles">
+      ${tile('Schatz', `${player.gold.toLocaleString('de-DE')} Gold`)}
+      ${tile('Einnahmen', `+${income.toLocaleString('de-DE')}`, 'je Runde')}
+      ${tile('Sold', `−${Math.round(upkeep).toLocaleString('de-DE')}`, 'je Runde')}
+      ${tile('Bilanz', `${balance >= 0 ? '+' : '−'}${Math.abs(balance).toLocaleString('de-DE')}`,
+    balance >= 0 ? 'Der Schatz wächst' : 'Der Schatz schrumpft')}
+    </div>
+    <div class="emp-tiles">
+      ${tile('Orte', cities.length, `${people.toLocaleString('de-DE')} Einwohner`)}
+      ${tile('Heere', land.length, `${troops.toLocaleString('de-DE')} Mann im Feld`)}
+      ${tile('Flotten', fleets.length, `${ships.toLocaleString('de-DE')} Schiffe`)}
+      ${tile('Stadtwachen', watch.toLocaleString('de-DE'), 'auf den Mauern')}
+    </div>
+
+    ${cities.length ? `
+    <table class="emp-table">
+      <thead><tr>
+        <th>Ort</th><th>Rang</th><th class="emp-num">Einwohner</th>
+        <th class="emp-num">Siedlung</th><th class="emp-num">Einwohner</th>
+        <th class="emp-num">Bauwerk</th><th class="emp-num">Summe</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td colspan="3">${cities.length} ${cities.length === 1 ? 'Ort' : 'Orte'}</td>
+        <td class="emp-num">${cities.reduce((s, e) => s + e.income.settlement, 0)}</td>
+        <td class="emp-num">${cities.reduce((s, e) => s + e.income.people, 0)}</td>
+        <td class="emp-num">${cities.reduce((s, e) => s + e.income.wonders, 0) || '–'}</td>
+        <td class="emp-num emp-total">${income.toLocaleString('de-DE')}</td>
+      </tr></tfoot>
+    </table>` : '<p class="muted">Kein Ort mehr in eigener Hand.</p>'}
+
+    ${held.length ? `<p class="emp-note">${held.map((w) =>
+    `${w.wonder ? '🏛️' : '🗿'} ${escapeHTML(w.name)}`).join(' · ')}</p>` : ''}
+    <p class="emp-note muted">Die Spalte „Siedlung" ist die Abgabe des Orts nach seinem Rang,
+      „Einwohner" trägt je 200 Einwohner ein Gold bei, „Bauwerk" ein Weltwunder oder
+      Wahrzeichen in seiner Nähe. Der Sold wird beim Rundenwechsel vom Schatz abgezogen.</p>`;
 }
 
 export function renderUI(state, handlers) {

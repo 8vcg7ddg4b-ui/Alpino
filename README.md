@@ -256,25 +256,46 @@ den Punkten durchblättern.
   sieht, wo eine Flotte auslaufen kann.
 - **Straßenbau**: Jede eigene Stadt bietet die nächstgelegenen eigenen Orte
   an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
-  Bauzeit. Eine fertige Straße kostet **die Hälfte dessen, was offene Ebene
-  kostet** – ein Punkt statt zwei, durch Wald, Hügel und Wüste ein Viertel. Ein
-  Heer kommt auf der Straße doppelt so weit wie über freies Feld: statt neun
+  Bauzeit. Eine fertige Straße kostet **ein Drittel dessen, was offene Ebene
+  kostet** – ein Punkt statt drei, durch Wald, Hügel und Wüste ein Viertel. Ein
+  Heer kommt auf der Straße dreimal so weit wie über freies Feld: statt sechs
   Feldern achtzehn. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
   als Ganzes und immer nur eine je Stadt;
   neue Straßen legen sich an das bestehende Netz an. Zu Spielbeginn hängen die
   Städte jeder Fraktion an ihrer Hauptstadt, die Dörfer noch nicht. Fällt einer
   der beiden Orte an den Feind, wird der Bau abgebrochen.
-- **Bewegung wird in halben Feldern gerechnet**: offene Ebene kostet 2 Punkte,
-  Wald, Hügel und Wüste 4, eine Straße 1, und ein Heer hat 18 Punkte je Runde.
-  Anders ließe sich „eine Straße ist halb so teuer wie die Ebene" nicht in
-  ganzen Zahlen sagen – und ganze Zahlen braucht die Wegsuche. An den
-  Reichweiten abseits der Straßen hat sich dadurch nichts geändert.
+- **Bewegung wird in Punkten gerechnet, nicht in Feldern**: offene Ebene kostet
+  3, Wald, Hügel und Wüste 4, eine gepflasterte Straße 1, und ein Heer hat 18
+  Punkte je Runde. Das sind sechs Felder Ebene, viereinhalb Felder Wald – und
+  achtzehn Felder Straße.
 - **Einnahmen jedes Orts** stehen in seiner Anzeige, aufgeschlüsselt nach dem,
   was die Siedlung selbst abwirft (40 Gold, mal 1,7 für eine Große Stadt, mal
   0,5 für ein Dorf), was ihre Einwohner darüber hinaus tragen (je 200 Einwohner
   ein Gold) und was ein Weltwunder vor ihren Toren einbringt. Dieselbe Rechnung
   läuft in der Rundenabrechnung – es gibt nur eine Wahrheit darüber, was eine
   Stadt wert ist.
+- **Reichsübersicht** (🏛 in der Kopfzeile): ein Fenster über den ganzen
+  Besitz – Schatz, Einnahmen, Sold und Bilanz, dazu Orte, Heere, Flotten und
+  Stadtwachen, und darunter jeder eigene Ort mit seinen Einnahmen einzeln
+  aufgeschlüsselt und der Gesamtsumme in der Fußzeile. Gerechnet wird mit
+  denselben Funktionen wie beim Rundenwechsel – die Übersicht zeigt keine
+  Schätzung, sondern die Abrechnung selbst.
+- **Von fremden Orten sieht man nur, was von außen zu sehen ist**: Rang,
+  Besitzer, ob sie Mauern und einen Hafen haben, und wie stark sie besetzt
+  scheinen („gut besetzt"). Kopfzahlen, Bevölkerung und Einnahmen kennt nur,
+  wer den Ort hält. Wer ein eigenes Heer bis auf zwei Felder heranführt – oder
+  eine eigene Stadt in der Nähe hat –, bekommt eine Schätzung („etwa 350 Mann").
+  Was genau hinter den Mauern steht, sagt erst die Kampfvorschau.
+- **Unabhängige Orte sind nicht wehrlos**: ab und an stellt einer von ihnen eine
+  **Miliz** auf – bewaffnete Bürgerschaft mit einem Kern aus der Stadtwache. Sie
+  bleibt in der Nähe ihrer Stadt und greift nur zu, wenn ein schwacher Nachbarort
+  in Reichweite liegt. Nimmt sie einem Staat einen Ort ab und steht ihre
+  Heimatstadt noch, dann **rufen die Unabhängigen der Gegend ihr eigenes Reich
+  aus**: aus zwei Orten und einem Heer wird eine neue Fraktion mit eigenem Namen
+  und eigener Farbe – Numider, Thraker, Ligurer, Lusitaner –, die von da an
+  mitspielt wie jede andere. Sie kämpft mit den Waffen ihres nächsten Nachbarn,
+  weil man kämpft, wie man es gelernt hat. Höchstens zwei solcher Reiche können
+  entstehen, und die Hälfte von ihnen übersteht das erste Jahrzehnt nicht.
 - **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
   Rekrutierung, Mauer- oder Straßenkauf, Auflösen oder ganzen Rundenwechsel.
 - **Feldzug beenden**: 🏳 in der Kopfzeile führt nach Rückfrage zurück ins

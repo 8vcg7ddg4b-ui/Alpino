@@ -1749,3 +1749,74 @@ html, body {
 @media (max-width: 620px) {
   .herald-line { font-size: 18px; }
 }
+
+/* --- Reichsübersicht ------------------------------------------------------ */
+#empireOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+}
+#empireOverlay.hidden { display: none; }
+.empire-box { width: min(900px, 100%); }
+
+.emp-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.emp-tile {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.emp-tile-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.emp-tile strong { display: block; font-size: 20px; margin-top: 2px; }
+.emp-tile small { display: block; font-size: 11px; color: var(--muted); }
+
+.emp-table {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.emp-table th,
+.emp-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.emp-table th {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.emp-table .emp-num { text-align: right; font-variant-numeric: tabular-nums; }
+.emp-table .emp-total { color: #e7c86a; font-weight: 700; }
+.emp-table tfoot td {
+  border-top: 2px solid var(--gold);
+  border-bottom: none;
+  font-weight: 700;
+}
+.emp-marks { opacity: 0.75; font-size: 11px; }
+.emp-note { margin: 12px 0 0; font-size: 12px; line-height: 1.5; }
+
+@media (max-width: 640px) {
+  .emp-table { font-size: 12px; }
+  .emp-table th:nth-child(2),
+  .emp-table td:nth-child(2) { display: none; }
+}

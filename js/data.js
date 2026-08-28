@@ -6,12 +6,13 @@ export const GAME_VERSION = '1.1.0';
 // bounds or the tile size in geodata.js and everything here follows.
 export { MAP_COLS, MAP_ROWS } from './geodata.js';
 
-// Bewegung wird in halben Feldern gerechnet: die Ebene kostet 2, eine Straße
-// darüber 1. Anders ließe sich "eine Straße ist halb so teuer wie die Ebene"
-// nicht in ganzen Zahlen ausdrücken - und ganze Zahlen braucht die Wegsuche.
-// Die Reichweiten sind dieselben geblieben: neun Felder Ebene wie zuvor.
+// Bewegung wird in Punkten gerechnet, nicht in Feldern: offene Ebene kostet 3,
+// gebrochenes Gelände 4, eine gepflasterte Straße 1. Eine Straße ist damit ein
+// Drittel der Ebene wert - wer sein Land mit Straßen überzieht, verschiebt
+// seine Heere dreimal so schnell wie über freies Feld. Ein Heer hat 18 Punkte:
+// sechs Felder Ebene, vier Felder Wald, achtzehn Felder Straße.
 export const TILE_TYPES = {
-  plains: { name: 'Ebene', cost: 2, defense: 0, elevation: 0, color: '#8fae5a', deco: null },
+  plains: { name: 'Ebene', cost: 3, defense: 0, elevation: 0, color: '#8fae5a', deco: null },
   forest: { name: 'Wald', cost: 4, defense: 1, elevation: 0.35, color: '#4c7a3f', deco: 'tree' },
   hills: { name: 'Hügel', cost: 4, defense: 2, elevation: 1, color: '#b3a06b', deco: null },
   desert: { name: 'Wüste', cost: 4, defense: 0, elevation: 0.08, color: '#d9c489', deco: null },
@@ -640,10 +641,9 @@ export const HARBOUR_TURNS = 3;
 export const HARBOUR_NAME = 'Hafen';
 
 // --- Straßenbau ----------------------------------------------------------
-// Eine gepflasterte Straße kostet die Hälfte dessen, was offene Ebene kostet -
-// durch Wald, Hügel und Wüste ist es ein Viertel. Wer sein Land mit Straßen
-// überzieht, verschiebt seine Heere doppelt so schnell wie über freies Feld.
-// Gebaut wird von Ort zu Ort, bezahlt nach Länge.
+// Eine gepflasterte Straße kostet ein Drittel dessen, was offene Ebene kostet,
+// und ein Viertel dessen, was Wald, Hügel oder Wüste kosten. Gebaut wird von
+// Ort zu Ort, bezahlt nach Länge.
 export const ROAD_MOVE_COST = 1;
 export const ROAD_COST_PER_TILE = 30;
 export const ROAD_TURNS_PER_TILE = 0.4;
@@ -687,6 +687,46 @@ export const SEA_UNIT_SCALE = { infantry: 0.5, cavalry: 0.4, ranged: 0.8 };
 // How many times a battle is played through for the forecast. Enough for a
 // stable percentage, cheap enough to run on every click.
 export const BATTLE_PREVIEW_SAMPLES = 60;
+
+// --- Unabhängige Orte ------------------------------------------------------
+// Eine Stadt, die keinem Staat gehört, ist nicht wehrlos: aus ihrer Wache
+// bildet sich mit der Zeit eine Miliz. Nimmt die einem Staat einen Ort ab,
+// rufen die Unabhängigen der Gegend ein eigenes Gemeinwesen aus - aus zwei
+// Orten und einem Heer wird eine Fraktion, die von da an mitspielt.
+// Nicht gleich in der ersten Runde: die Eröffnung gehört den zwölf Staaten.
+export const MILITIA_FIRST_TURN = 10;
+export const MILITIA_MIN_POPULATION = 800;
+// Wie wahrscheinlich es ist, dass ein Ort in einer Runde eine Miliz aufstellt.
+export const MILITIA_CHANCE = 0.022;
+// Wie viele Milizen gleichzeitig unterwegs sein dürfen. Mehr wären keine
+// Unabhängigen mehr, sondern ein dreizehnter Krieg.
+export const MILITIA_MAX = 4;
+// Eine Miliz ist in erster Linie bewaffnete Bürgerschaft; die Stadtwache gibt
+// nur den Kern dazu und behält eine Reserve auf der Mauer.
+export const MILITIA_PER_POPULATION = 12;
+export const MILITIA_MIN_SIZE = 60;
+export const MILITIA_MAX_SIZE = 280;
+export const MILITIA_WATCH_SHARE = 0.4;
+export const MILITIA_WATCH_RESERVE = 40;
+// So viele freie Staaten können höchstens entstehen.
+export const FREE_STATE_MAX = 2;
+
+// Völker, die es in der Alten Welt gab, die aber nicht als Startfraktion
+// antreten. Wer sich erhebt, bekommt den nächstpassenden Namen dieser Liste.
+export const FREE_STATE_NAMES = [
+  { name: 'Numider', color: '#c08a3e' },
+  { name: 'Thraker', color: '#7d4a8c' },
+  { name: 'Ligurer', color: '#4f8a7a' },
+  { name: 'Lusitaner', color: '#a8603c' },
+  { name: 'Boier', color: '#6b8c3a' },
+  { name: 'Veneter', color: '#3f7d9c' },
+  { name: 'Bithynier', color: '#9c7b2f' },
+  { name: 'Kappadokier', color: '#a0503f' },
+  { name: 'Nabatäer', color: '#c2a24a' },
+  { name: 'Pannonier', color: '#6a5b9c' },
+  { name: 'Räter', color: '#8a8f5a' },
+  { name: 'Aquitanier', color: '#4a6f9c' },
+];
 
 export const STARTING_GOLD = 500;
 export const INCOME_PER_CITY = 40;

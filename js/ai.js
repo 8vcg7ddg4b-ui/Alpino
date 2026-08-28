@@ -5,7 +5,7 @@ import { computeReachable, tileKey } from './pathfind.js';
 import {
   moveArmy, recruitUnit, raiseArmyFromGarrison, embarkArmy, embarkStatus,
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
-  buyHarbour, canBuildHarbour, buildFleet,
+  buyHarbour, canBuildHarbour, buildFleet, raiseIndependentArmies,
 } from './actions.js';
 import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
@@ -392,6 +392,41 @@ function nearestOwnPort(state, army, walkable) {
   return best;
 }
 
+// --- Die Unabhängigen ------------------------------------------------------
+// Milizen führen keinen Feldzug: sie bleiben in der Nähe ihrer Stadt und
+// greifen nur zu, wenn ein schwacher Nachbarort in Reichweite liegt. Erst
+// wenn eine von ihnen zugreift, entsteht daraus ein Staat, und der wird von
+// da an wie jede andere Fraktion geführt.
+
+// Wie weit eine Miliz sich von ihrer Stadt entfernt.
+const MILITIA_RANGE = 7;
+
+function militiaTarget(state, army) {
+  let best = null;
+  let bestScore = -Infinity;
+  for (const city of state.cities) {
+    if (city.factionId === army.factionId) continue;
+    const distance = Math.abs(city.col - army.col) + Math.abs(city.row - army.row);
+    if (distance > MILITIA_RANGE) continue;
+    // Ein offenes Dorf ist die Gelegenheit, eine Hauptstadt hinter Steinmauern
+    // ist es nicht. Nähe zählt, Befestigung und Besatzung zählen dagegen.
+    const garrison = unitTotalCount(city.garrison);
+    const score = -distance * 2 - garrison / 40 - (city.wallLevel || 0) * 6;
+    if (score <= bestScore) continue;
+    bestScore = score;
+    best = city;
+  }
+  return best;
+}
+
+export function independentsTakeTurn(state) {
+  raiseIndependentArmies(state);
+  for (const army of state.armies.filter((a) => a.factionId === 'neutral')) {
+    const target = militiaTarget(state, army);
+    if (target) stepArmyTowards(state, army, target);
+  }
+}
+
 export function aiTakeTurn(state, faction) {
   // Movement first: a fleet that is needed this turn should not find the
   // treasury already spent on another batch of recruits.
@@ -404,8 +439,11 @@ export function aiTakeTurn(state, faction) {
 }
 
 export function aiTakeAllTurns(state) {
-  for (const faction of state.factions) {
+  // Eine Abschrift der Liste: aus einer Miliz kann in dieser Runde ein Staat
+  // werden, und der soll erst in der nächsten Runde ziehen.
+  for (const faction of [...state.factions]) {
     if (faction.isPlayer || faction.isNeutral || !faction.alive) continue;
     aiTakeTurn(state, faction);
   }
+  independentsTakeTurn(state);
 }

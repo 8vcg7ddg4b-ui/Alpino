@@ -133,6 +133,7 @@
       <div id="goldLabel" class="pill">💰 0 Gold</div>
       <button id="undoBtn" class="icon-btn" title="Letzten Zug rückgängig machen" disabled>↩</button>
       <button id="mapModeBtn" class="icon-btn" title="Taktische Sicht: Gebiete nach Fraktionen">🗺</button>
+      <button id="empireBtn" class="icon-btn" title="Reichsübersicht: Orte, Einnahmen, Heere">🏛</button>
       <button id="settingsBtn" class="icon-btn" title="Einstellungen">⚙</button>
       <button id="muteBtn" class="icon-btn" title="Ton an/aus">🔊</button>
       <button id="sidebarBtn" class="icon-btn" title="Seitenleiste ein-/ausblenden">⇥</button>
@@ -221,6 +222,14 @@
     <div class="report-box settings-box">
       <button id="settingsClose" class="report-close" title="Schließen">✕</button>
       <div id="settingsBody"></div>
+    </div>
+  </div>
+
+  <!-- Die Reichsübersicht: was jeder Ort trägt und was die Heere kosten. -->
+  <div id="empireOverlay" class="hidden">
+    <div class="report-box empire-box">
+      <button id="empireClose" class="report-close" aria-label="Schließen">×</button>
+      <div id="empireBody"></div>
     </div>
   </div>
 
