@@ -47,6 +47,13 @@ export const SETTINGS = [
     fallback: true,
   },
   {
+    key: 'music',
+    label: 'Titelmusik',
+    help: 'Das Stück im Startbildschirm und bei der Fraktionswahl. Auf der Karte bleibt es still.',
+    type: 'toggle',
+    fallback: true,
+  },
+  {
     key: 'chronicle',
     label: 'Bilder im Startbildschirm wechseln',
     help: 'Die Chronik der Republik läuft von selbst weiter; sonst blättert man mit ‹ ›.',
@@ -142,7 +149,7 @@ export function settingsHTML(soundOn) {
     <h2 class="report-title">Einstellungen</h2>
     <div class="set-list">
       <div class="set-row">
-        <div class="set-label">Ton<small>Marsch, Schlacht, Rekrutierung – alles zur Laufzeit erzeugt.</small></div>
+        <div class="set-label">Ton<small>Marsch, Schlacht, Rekrutierung, Musik – alles zur Laufzeit erzeugt.</small></div>
         <button class="set-toggle ${soundOn ? 'on' : 'off'}" data-key="sound"
           role="switch" aria-checked="${soundOn}">
           <span class="set-knob"></span><span class="set-state">${soundOn ? 'an' : 'aus'}</span>

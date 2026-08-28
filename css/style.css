@@ -1668,3 +1668,12 @@ html, body {
 .wonder-note { margin: 0 0 6px; font-size: 12px; line-height: 1.45; opacity: 0.85; }
 .wonder-owner { margin: 0; font-size: 12px; }
 .wonder-owner em { opacity: 0.75; font-style: normal; }
+
+/* Die Spielversion unter dem Menü: da, wo man sie sucht, ohne sich vor den
+   Startknopf zu drängen. */
+.start-version {
+  margin: 14px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+}

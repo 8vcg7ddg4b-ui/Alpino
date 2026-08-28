@@ -98,9 +98,21 @@ Einstellungen abschalten; die Regeln gelten weiter.
 
 ## Startbildschirm
 
+Unter dem Menü steht die **Spielversion**; sie kommt aus `GAME_VERSION` in
+`js/data.js` und wird mit `package.json` gleichgehalten, damit Anzeige und
+Auslieferung nicht auseinanderlaufen.
+
+Sobald der Spieler die erste Taste drückt, setzt die **Titelmusik** ein – ein
+Stück in d-Moll, das sich Takt für Takt selbst weiterschreibt: Bass und Blech
+tragen die Harmonie, ein Streicherteppich hält sie zusammen, die Kriegstrommel
+gibt den Schritt, und im zweiten Durchgang kommt die Melodie dazu. Sie läuft
+durch die Fraktionswahl und blendet aus, wenn der Feldzug beginnt; auf der
+Karte bleibt es still. Früher kann sie nicht anfangen: ein Browser lässt Ton
+erst nach einer echten Geste des Spielers zu.
+
 Das Menü führt ins Spiel, zu den **Einstellungen** (Ton, Kampfvorschau,
 Marschgeschwindigkeit, Kartensicht beim Start, Verhalten der Gegner,
-Wettereffekte, Bildwechsel)
+Wettereffekte, Titelmusik, Bildwechsel)
 und zu den Spielregeln. Alle Einstellungen wirken sofort und werden im Browser
 gespeichert; die KI-Haltung legt fest, wie sicher sich die KI ihres Sieges sein
 muss, bevor sie einen Kampf überhaupt eingeht.
@@ -189,7 +201,9 @@ den Punkten durchblättern.
   ein Klick daneben schließt es wieder.
 - **Drehen und Zoomen**: Auf dem Touchscreen zwei Finger – auseinander/zusammen
   zoomt, Verdrehen dreht die Karte. Am Rechner: Mausrad zoomt, Umschalt+Mausrad
-  bzw. **Q**/**E** dreht. Die Knöpfe ↺ ↻ drehen, ⌂ setzt die Ansicht zurück.
+  bzw. **Q**/**E** dreht. Die Knöpfe ↺ ↻ drehen; **⌂** setzt Blickwinkel,
+  Neigung und Zoom zurück und holt die eigene **Hauptstadt** in die Mitte
+  (ist sie gefallen, die nächste eigene Stadt, sonst das letzte Heer).
   Nach dem Drehen bleiben Steuerkreuz und Pfeiltasten bildschirmbezogen.
 - **Städte**: anklicken, um Einheiten zu rekrutieren und Garnisonen zu
   Feldarmeen auszuheben. Welche drei Einheiten zur Wahl stehen, hängt von der
@@ -243,9 +257,14 @@ den Punkten durchblättern.
   Rekrutierung, Mauer- oder Straßenkauf, Auflösen oder ganzen Rundenwechsel.
 - **Feldzug beenden**: 🏳 in der Kopfzeile führt nach Rückfrage zurück ins
   Hauptmenü.
-- **Ton**: 🔊 schaltet die Klänge um (Marsch, Schlacht, Rekrutierung, Mauerbau,
-  Rundenwechsel …). Alle Geräusche werden zur Laufzeit synthetisiert – keine
-  Audiodateien, funktioniert offline.
+- **Ton**: 🔊 schaltet alles ab, was zu hören ist – Titelmusik, Marschtritt,
+  Zusammenstoß, Hornruf, Steinarbeit, Kriegstrommel. Nichts davon ist eine
+  Audiodatei: alles entsteht zur Laufzeit aus Oszillatoren und Rauschen und
+  läuft über eine gemeinsame Kette aus Hall und Kompressor, damit die Klänge
+  in einem Raum stehen und sich nicht gegenseitig übersteuern. Eine Auswahl
+  ist bewusst nur ein trockener Klick, kein Ton – bei jedem zweiten Handgriff
+  wäre ein Piepser eine Belästigung. Die Titelmusik lässt sich in den
+  Einstellungen getrennt abschalten.
 - **Vollbildmodus**: ist der Normalfall – das Spiel geht beim Start hinein.
   Reißt eine Wischgeste oder die umgebende Seite das Vollbild ab, stellt der
   nächste Klick oder Tastendruck es wieder her (früher geht es nicht: ein
@@ -371,6 +390,8 @@ den Punkten durchblättern.
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl
 - `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
 - `js/weather.js` – Kalender, Klimazonen, Wettertypen und ihre Regelwirkung
+- `js/audio.js` – der ganze Ton: Hall- und Kompressorkette, die einzelnen
+  Klangereignisse, der Marschtritt und die Titelmusik
 - `js/settings.js` – Einstellungen: Schema, Speicherung, Einstellungsfenster
 - `js/chronicle.js` – die acht Chronikbilder als SVG-Silhouetten
 - `js/ui.js`, `js/input.js`, `js/main.js` – Seitenleiste, Eingabe, Startbildschirm, Bootstrap

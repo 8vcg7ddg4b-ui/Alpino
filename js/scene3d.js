@@ -199,9 +199,13 @@ export function rotateCamera(deltaAzimuth, deltaPolar = 0) {
   applyCamera();
 }
 
+// Zurück zur Ausgangsansicht: Blickwinkel, Neigung und Zoom wie beim Aufbau.
+// Wohin die Kamera dabei blickt, entscheidet der Aufrufer - im Spiel ist das
+// die eigene Hauptstadt.
 export function resetCameraOrientation() {
   cam.azimuth = DEFAULT_AZIMUTH;
   cam.polar = DEFAULT_POLAR;
+  cam.zoom = 1;
   applyCamera();
 }
 

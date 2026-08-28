@@ -1,7 +1,7 @@
 import { createInitialState, playerFaction, unitTotalCount } from './state.js';
 import {
   playableFactions, factionProfile, unitDefs, UNIT_ROLES, ROLE_LABELS,
-  CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION,
+  CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION, GAME_VERSION,
 } from './data.js';
 import {
   renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount,
@@ -21,7 +21,9 @@ import {
   setMapMode, getMapMode, setMarchSpeed,
   setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled,
 } from './scene3d.js';
-import { sfx, unlockAudio, toggleMuted, isMuted, stopMarch } from './audio.js';
+import {
+  sfx, unlockAudio, toggleMuted, isMuted, stopMarch, startTheme, stopTheme, setMusicEnabled,
+} from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
 import { factionArt, factionArtSVG } from './factionart.js';
 import { emblemSVG } from './emblems.js';
@@ -44,6 +46,7 @@ function applySettings() {
   setMarchSpeed(MARCH_SPEED_FACTORS[getSetting('marchSpeed')] ?? 1);
   setAiStance(AI_STANCE_THRESHOLDS[getSetting('aiStance')] ?? 0.5);
   setWeatherVisualsEnabled(getSetting('weatherEffects'));
+  setMusicEnabled(getSetting('music'));
 }
 applySettings();
 
@@ -83,9 +86,32 @@ document.getElementById('settingsBody').addEventListener('click', (event) => {
   applySettings();
   paintSettings();
   refreshMuteButton();
+  syncMenuMusic();
   if (state) setWeatherSource((col, row) => weatherAt(state, col, row));
   if (!isMuted()) sfx.select();
 });
+
+// Die Titelmusik gehört zum Vorspann: sie läuft, solange Startbildschirm oder
+// Fraktionswahl zu sehen sind, und schweigt auf der Karte. Wer den Ton oder
+// die Musik im Menü wieder einschaltet, soll sie auch wieder hören.
+function syncMenuMusic() {
+  const inMenu = !document.getElementById('startScreen').classList.contains('hidden')
+    || !document.getElementById('factionScreen').classList.contains('hidden');
+  if (inMenu && !isMuted() && getSetting('music')) startTheme({ fadeIn: 1.2 });
+  else if (!inMenu) stopTheme({ fadeOut: 2 });
+}
+
+// Der Blick auf den eigenen Sitz. Ist die Hauptstadt gefallen, tut es die
+// nächstbeste eigene Stadt, und wenn auch die fort ist, das letzte Heer -
+// sonst führte der Knopf ins Nichts.
+function focusOwnCapital() {
+  if (!state) return;
+  const player = playerFaction(state);
+  const own = state.cities.filter((c) => c.factionId === player.id);
+  const home = own.find((c) => c.capital) || own[0]
+    || state.armies.find((a) => a.factionId === player.id);
+  if (home) centerOn(home.col, home.row);
+}
 
 function resizeScene() {
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -133,6 +159,7 @@ function quitToMenu() {
   appEl.classList.add('hidden');
   document.getElementById('startScreen').classList.remove('hidden');
   startChronicle();
+  syncMenuMusic();
 }
 
 function setupQuitButton() {
@@ -386,6 +413,7 @@ function setupMuteButton() {
     unlockAudio();
     toggleMuted();
     refreshMuteButton();
+    syncMenuMusic();
     if (!isMuted()) sfx.select();
   });
 }
@@ -733,6 +761,7 @@ function setupDpad() {
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
       resetCameraOrientation();
+      focusOwnCapital();
       render();
     });
   }
@@ -914,9 +943,9 @@ function startNewGame(factionId = chosenFaction) {
   setWeatherReporter(paintWeatherLabel);
   setWeatherSource((col, row) => weatherAt(state, col, row));
 
-  const player = playerFaction(state);
-  const capital = state.cities.find((c) => c.factionId === player.id && c.capital);
-  if (capital) centerOn(capital.col, capital.row);
+  focusOwnCapital();
+  // Auf der Karte wird es still: die Musik gehört zum Vorspann, nicht zum Zug.
+  stopTheme({ fadeOut: 4 });
 
   // Input holds no reference to `state` itself, so it reads through a getter -
   // undo swaps the object wholesale.
@@ -982,6 +1011,23 @@ if (helpButton) {
     const shown = help.classList.toggle('hidden');
     helpButton.classList.toggle('active', !shown);
   });
+}
+
+// Die Version steht im Startbildschirm - eine Wahrheit aus data.js, damit sie
+// nicht zwischen Auslieferung und Anzeige auseinanderläuft.
+const versionLabel = document.getElementById('versionLabel');
+if (versionLabel) versionLabel.textContent = GAME_VERSION;
+
+// Musik darf erst nach einer echten Geste des Spielers losgehen - das schreibt
+// der Browser vor. Jede Taste im Startbildschirm ist so eine Geste, also hängt
+// der Anstoß an allen, nicht nur am Startknopf.
+function beginMenuMusic() {
+  unlockAudio();
+  startTheme();
+}
+for (const id of ['startGameBtn', 'menuSettingsBtn', 'menuHelpBtn', 'menuFullscreenBtn']) {
+  const button = document.getElementById(id);
+  if (button) button.addEventListener('click', beginMenuMusic);
 }
 
 startChronicle();
