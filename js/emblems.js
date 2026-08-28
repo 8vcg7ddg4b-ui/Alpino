@@ -79,6 +79,13 @@ const EMBLEMS = {
     <circle cx="60" cy="26" r="3.4" fill="#1a1208"/>
     <path d="M62 6 l8 6 -9 3 Z"/>
     <path d="M26 84 h34" stroke="currentColor" stroke-width="7" fill="none"/>`,
+  // Parther: der Reflexbogen, mit dem die berittenen Schützen im Abreiten
+  // schießen - das Zeichen, unter dem Rom bei Carrhae unterging.
+  parther: `<path d="M28 12 q34 38 0 76" stroke="currentColor" stroke-width="9" fill="none"
+      stroke-linecap="round"/>
+    <path d="M28 12 L28 88" stroke="currentColor" stroke-width="4.5" fill="none"/>
+    <path d="M26 50 h48" stroke="currentColor" stroke-width="6" fill="none"/>
+    <path d="M74 50 l-11 -7 v14 Z"/>`,
   neutral: `<circle cx="50" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="8"/>
     <circle cx="50" cy="50" r="7"/>`,
 };

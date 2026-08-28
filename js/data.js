@@ -99,6 +99,7 @@ export const FACTION_SHIP_TYPE = {
   illyrer: 'lembos',
   iberer: 'lembos',
   numidien: 'lembos',
+  parther: 'lembos',
   gallier: 'keltenschiff',
   britannier: 'keltenschiff',
   germanen: 'keltenschiff',
@@ -155,6 +156,13 @@ export const FACTION_UNITS = {
     infantry: { name: 'Numidische Speerträger', icon: '⚔️', attack: 6, defense: 6, hp: 90, cost: 90, upkeep: 0.045 },
     cavalry: { name: 'Numidische Reiter', icon: '🐎', attack: 12, defense: 3, hp: 85, cost: 145, upkeep: 0.09 },
     ranged: { name: 'Numidische Speerwerfer', icon: '🪶', attack: 6, defense: 3, hp: 70, cost: 105, upkeep: 0.055, ranged: true },
+  },
+  // Parthien kämpft zu Pferde: Fußvolk taugt nur zum Halten, die Entscheidung
+  // fällt zwischen Panzerreitern und berittenen Bogenschützen.
+  parther: {
+    infantry: { name: 'Persisches Fußvolk', icon: '⚔️', attack: 5, defense: 7, hp: 95, cost: 95, upkeep: 0.05 },
+    cavalry: { name: 'Kataphrakten', icon: '🐎', attack: 13, defense: 8, hp: 105, cost: 200, upkeep: 0.125 },
+    ranged: { name: 'Berittene Bogenschützen', icon: '🏹', attack: 8, defense: 4, hp: 80, cost: 140, upkeep: 0.08, ranged: true },
   },
   gallier: {
     infantry: { name: 'Schwertkämpfer', icon: '🗡️', attack: 8, defense: 7, hp: 105, cost: 105, upkeep: 0.055 },
@@ -267,6 +275,9 @@ export const FACTIONS = [
   // Numidien lebt vom Pferd: die berittenen Verbände, die Karthago jahrhunderte-
   // lang anwarb, stehen hier unter eigener Fahne.
   { id: 'numidien', name: 'Numidien', color: '#c98a2e', armyLabel: 'Reiterheer' },
+  // Die Parther: aus der Steppe nordöstlich des Seleukidenreichs, berittene
+  // Bogenschützen und Panzerreiter - das Heer, an dem Rom später scheitert.
+  { id: 'parther', name: 'Parther', color: '#8c3f5c', armyLabel: 'Reiterheer' },
   { id: 'griechen', name: 'Griechen', color: '#7a4fae' },
   // The tribes field a great mass of foot: no siege train, few horse and
   // fewer bows, but more men in the line than anyone else brings.
@@ -353,6 +364,12 @@ export const FACTION_PROFILES = {
     blurb: 'Fünf Orte zwischen Karthago und dem Atlas – Cirta als Königssitz, dazu das königliche Hippo.',
     strength: 'Numidische Reiter: die schnellste und härteste leichte Reiterei der Karte.',
     weakness: 'Fußvolk, das nur die Reiter deckt, und Karthago als unmittelbarer Nachbar.',
+  },
+  parther: {
+    difficulty: 'mittel',
+    blurb: 'Fünf Orte auf der iranischen Hochebene – Ekbatana als Sitz, der Zagros als Wall nach Westen.',
+    strength: 'Kataphrakten und berittene Bogenschützen: das beste Reiterheer der Karte.',
+    weakness: 'Fußvolk, das nur hält, teure Truppen und weite Wege zwischen den Orten.',
   },
   gallier: {
     difficulty: 'schwer',
@@ -491,6 +508,12 @@ export const CITY_DEFS = [
   { name: 'Icosium', lon: 3.06, lat: 36.75, factionId: 'numidien', capital: false, size: 'city' },
   { name: 'Zama Regia', lon: 9.45, lat: 36.05, factionId: 'numidien', capital: false, size: 'village' },
   { name: 'Siga', lon: -1.32, lat: 35.19, factionId: 'numidien', capital: false, size: 'village' },
+  // --- Parther: das Land östlich des Zweistromlands ----------------------
+  { name: 'Ekbatana', lon: 48.52, lat: 34.80, factionId: 'parther', capital: true, size: 'large' },
+  { name: 'Susa', lon: 48.25, lat: 32.19, factionId: 'parther', capital: false, size: 'city' },
+  { name: 'Rhagae', lon: 51.43, lat: 35.59, factionId: 'parther', capital: false, size: 'city' },
+  { name: 'Ktesiphon', lon: 44.58, lat: 33.09, factionId: 'parther', capital: false, size: 'village' },
+  { name: 'Arbela', lon: 44.01, lat: 36.19, factionId: 'parther', capital: false, size: 'village' },
   // --- Gallier ------------------------------------------------------------
   { name: 'Alesia', lon: 4.50, lat: 47.54, factionId: 'gallier', capital: true, size: 'large' },
   { name: 'Bibracte', lon: 4.03, lat: 46.75, factionId: 'gallier', capital: false, size: 'city' },
@@ -560,6 +583,7 @@ export const CITY_DEFS = [
   { name: 'Ankyra', lon: 32.86, lat: 39.93, factionId: 'seleukiden', capital: false, size: 'village' },
   { name: 'Damaskus', lon: 36.30, lat: 33.51, factionId: 'seleukiden', capital: false, size: 'city' },
   { name: 'Edessa', lon: 38.79, lat: 37.15, factionId: 'seleukiden', capital: false, size: 'village' },
+  { name: 'Babylon', lon: 44.42, lat: 32.54, factionId: 'seleukiden', capital: false, size: 'city' },
   { name: 'Dura Europos', lon: 40.73, lat: 34.75, factionId: 'seleukiden', capital: false, size: 'village' },
   // --- Ptolemäer: Ägypten, Zypern, Koilesyrien und die Kyrenaika ---------
   { name: 'Alexandria', lon: 29.92, lat: 31.20, factionId: 'ptolemaeer', capital: true, size: 'large' },
@@ -754,8 +778,9 @@ export const MILITIA_WATCH_RESERVE = 40;
 // So viele freie Staaten können höchstens entstehen.
 export const FREE_STATE_MAX = 2;
 
-// Völker, die es in der Alten Welt gab, die aber nicht als Startfraktion
-// antreten. Wer sich erhebt, bekommt den nächstpassenden Namen dieser Liste.
+// Ein freier Staat heißt nach dem Ort, aus dem er sich erhebt - den Namen
+// bringt er selbst mit. Aus dieser Liste kommt nur noch die Farbe, unter der
+// er auf der Karte steht.
 export const FREE_STATE_NAMES = [
   { name: 'Mauren', color: '#b06a3a' },
   { name: 'Thraker', color: '#7d4a8c' },

@@ -30,8 +30,8 @@ const MAX_ZOOM = 4.5;
 // Das Zelt muss den Kartentisch samt der Kamera fassen, die um ihn herumläuft:
 // halbe Tischdiagonale plus der größte Kameraabstand, sonst stünde der Blick
 // bei weit herausgezogener Sicht auf einmal draußen.
-const TENT_RADIUS = 740;
-const TENT_HEIGHT = 620;
+const TENT_RADIUS = 820;
+const TENT_HEIGHT = 680;
 const TENT_WALL = 170;
 // So weit bleibt die Kamera von den Zeltbahnen weg.
 const TENT_CAMERA_MARGIN = 60;
@@ -686,7 +686,7 @@ const THRONE_STYLE = {
   rom: 'curule', griechen: 'stone', seleukiden: 'stone', ptolemaeer: 'stone',
   karthago: 'stone', gallier: 'wood', germanen: 'wood', britannier: 'wood',
   iberer: 'wood', daker: 'wood', illyrer: 'wood', sarmaten: 'wood',
-  numidien: 'wood',
+  numidien: 'wood', parther: 'stone',
 };
 
 // Zwei Stücke Ausstattung je Fraktion.
@@ -704,6 +704,7 @@ const TENT_FURNISHINGS = {
   illyrer: ['shields', 'brazier'],
   sarmaten: ['pelts', 'brazier'],
   numidien: ['spears', 'palm'],
+  parther: ['brazier', 'pelts'],
 };
 
 function buildThrone(style, colour) {
@@ -1232,40 +1233,98 @@ function buildRivers(state) {
     riversGroup.add(mesh);
   }
 
-  for (const bridge of bridges) {
-    const group = new THREE.Group();
-    const y = bandY(bridge.mx, bridge.mz);
-    // Ein Steg quer über den Lauf, dazu zwei Geländer - genug, dass eine
-    // Brücke auch aus der Feldherrnperspektive als Brücke zu erkennen ist.
-    const deck = new THREE.Mesh(
-      new THREE.BoxGeometry(TILE_SIZE * 0.62, 0.22, TILE_SIZE * 0.34),
-      BRIDGE_TIMBER
-    );
-    deck.position.set(0, 0.42, 0);
-    group.add(deck);
-    for (const side of [-1, 1]) {
-      const rail = new THREE.Mesh(
-        new THREE.BoxGeometry(TILE_SIZE * 0.62, 0.34, 0.12), BRIDGE_TIMBER
-      );
-      rail.position.set(0, 0.7, side * TILE_SIZE * 0.16);
-      group.add(rail);
-    }
-    for (const side of [-1, 1]) {
-      const pier = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.13, 0.16, 0.9, 6), BRIDGE_TIMBER
-      );
-      pier.position.set(side * TILE_SIZE * 0.22, 0.05, 0);
-      group.add(pier);
-    }
-    group.position.set(bridge.mx, y + 0.12, bridge.mz);
-    // Der Steg liegt quer zum Fluss: läuft der Fluss in x-Richtung, führt die
-    // Brücke in z-Richtung darüber.
-    group.rotation.y = bridge.alongX ? 0 : Math.PI / 2;
-    riversGroup.add(group);
-  }
+  for (const bridge of bridges) buildBridge(riversGroup, bridge);
 }
 
-const BRIDGE_TIMBER = new THREE.MeshStandardMaterial({ color: '#7b5a33', roughness: 0.95 });
+// Eine Brücke, die den Namen verdient: ein leicht gewölbter Bogen von Ufer zu
+// Ufer, das Geländer mit Pfosten, zwei Pfeiler im Wasser. Gebaut wird sie
+// entlang der eigenen x-Achse und danach quer zum Fluss gedreht; die Höhe an
+// beiden Enden kommt vom Gelände, damit sie an den Ufern aufsitzt und nicht
+// darüber schwebt.
+const BRIDGE_SEGMENTS = 6;
+
+function buildBridge(parent, bridge) {
+  const { mx, mz, alongX } = bridge;
+  const dirX = alongX ? 1 : 0;
+  const dirZ = alongX ? 0 : 1;
+  const span = TILE_SIZE * 0.92;
+  const half = span / 2;
+  const bankA = bandY(mx - dirX * half, mz - dirZ * half);
+  const bankB = bandY(mx + dirX * half, mz + dirZ * half);
+  const base = Math.max(bankA, bankB);
+  const rise = 0.7;
+  // Die Fahrbahn: an den Ufern auf dem Boden, in der Mitte darüber.
+  const deckY = (t) => bankA + (bankB - bankA) * t + Math.sin(t * Math.PI) * rise + 0.28;
+
+  const group = new THREE.Group();
+  const width = TILE_SIZE * 0.36;
+  const step = span / BRIDGE_SEGMENTS;
+
+  for (let i = 0; i < BRIDGE_SEGMENTS; i++) {
+    const t0 = i / BRIDGE_SEGMENTS;
+    const t1 = (i + 1) / BRIDGE_SEGMENTS;
+    const y0 = deckY(t0);
+    const y1 = deckY(t1);
+    const length = Math.hypot(step, y1 - y0);
+    const plank = new THREE.Mesh(
+      new THREE.BoxGeometry(length + 0.04, 0.16, width), BRIDGE_TIMBER
+    );
+    plank.position.set(-half + (i + 0.5) * step, (y0 + y1) / 2 - base, 0);
+    plank.rotation.z = -Math.atan2(y1 - y0, step);
+    group.add(plank);
+  }
+
+  // Geländer: eine Latte je Abschnitt, dazwischen die Pfosten.
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < BRIDGE_SEGMENTS; i++) {
+      const t0 = i / BRIDGE_SEGMENTS;
+      const t1 = (i + 1) / BRIDGE_SEGMENTS;
+      const y0 = deckY(t0);
+      const y1 = deckY(t1);
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(Math.hypot(step, y1 - y0) + 0.04, 0.09, 0.09), BRIDGE_TIMBER
+      );
+      rail.position.set(-half + (i + 0.5) * step, (y0 + y1) / 2 - base + 0.42, side * width * 0.46);
+      rail.rotation.z = -Math.atan2(y1 - y0, step);
+      group.add(rail);
+    }
+    for (let i = 0; i <= BRIDGE_SEGMENTS; i += 2) {
+      const t = i / BRIDGE_SEGMENTS;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.1), BRIDGE_TIMBER);
+      post.position.set(-half + t * span, deckY(t) - base + 0.22, side * width * 0.46);
+      group.add(post);
+    }
+  }
+
+  // Zwei Pfeiler, die von der Fahrbahn bis unter die Wasserlinie reichen.
+  for (const t of [0.33, 0.67]) {
+    const top = deckY(t) - base;
+    const height = top + 1.1;
+    const pier = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.17, 0.22, height, 7), BRIDGE_STONE
+    );
+    pier.position.set(-half + t * span, top - height / 2, 0);
+    group.add(pier);
+  }
+
+  // Widerlager an beiden Ufern, damit die Fahrbahn nicht in der Luft endet.
+  for (const [t, y] of [[0, bankA], [1, bankB]]) {
+    const abutment = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.6, width * 1.1), BRIDGE_STONE
+    );
+    abutment.position.set(-half + t * span, y - base - 0.02, 0);
+    group.add(abutment);
+  }
+
+  group.position.set(mx, base, mz);
+  // Der Steg liegt quer zum Fluss: läuft der Fluss in z-Richtung, führt die
+  // Brücke in x-Richtung darüber.
+  group.rotation.y = alongX ? 0 : Math.PI / 2;
+  parent.add(group);
+}
+
+const BRIDGE_TIMBER = new THREE.MeshStandardMaterial({ color: '#8a6437', roughness: 0.95 });
+const BRIDGE_STONE = new THREE.MeshStandardMaterial({ color: '#b6ab95', roughness: 0.9 });
 
 function buildRoadNetwork(state) {
   while (roadsGroup.children.length) {
@@ -1790,6 +1849,41 @@ const WONDER_BUILDERS = {
         0, 4.28 + i * 0.3, 0);
     }
     addBox(group, WONDER_MATERIALS.gold, 1.0, 0.5, 0.6, 0, 5.48, 0);
+  },
+
+  // Die Hängenden Gärten: Terrassen über Terrassen, jede schmaler als die
+  // darunter, jede bewachsen - und ein Schöpfwerk an der Seite, das das Wasser
+  // aus dem Euphrat nach oben bringt.
+  gardens(group) {
+    const green = new THREE.MeshStandardMaterial({ color: '#4f8a3c', roughness: 0.95 });
+    const levels = 4;
+    for (let i = 0; i < levels; i++) {
+      const width = 5.2 - i * 1.0;
+      const depth = 4.0 - i * 0.78;
+      const y = i * 1.15;
+      addBox(group, WONDER_MATERIALS.sandstone, width, 0.95, depth, 0, y, 0);
+      // Der Bewuchs steht auf der Terrasse und hängt über ihre Kante.
+      addBox(group, green, width * 0.94, 0.42, depth * 0.94, 0, y + 0.95, 0);
+      for (let b = 0; b < 3; b++) {
+        const bush = new THREE.Mesh(new THREE.SphereGeometry(0.34, 8, 6), green);
+        bush.scale.y = 0.75;
+        bush.position.set((b - 1) * width * 0.3, y + 1.3, depth * 0.36);
+        group.add(bush);
+      }
+      // Bögen entlang der Vorderkante
+      for (let a = 0; a < 4; a++) {
+        addBox(group, WONDER_MATERIALS.sandstone, 0.24, 0.95, 0.24,
+          (a - 1.5) * width * 0.26, y, depth / 2 - 0.1);
+      }
+    }
+    // Das Schöpfwerk: Rad und Rinne an der Flanke.
+    const wheel = new THREE.Mesh(
+      new THREE.TorusGeometry(0.9, 0.12, 6, 12), WONDER_MATERIALS.sandstone
+    );
+    wheel.position.set(-3.1, 1.0, 1.4);
+    wheel.rotation.y = Math.PI / 2;
+    group.add(wheel);
+    addBox(group, WONDER_MATERIALS.sandstone, 0.2, 4.2, 0.2, -3.1, 0, 1.4);
   },
 
   // Ein Tempel - das Maß gibt der Aufrufer über die Skalierung vor.

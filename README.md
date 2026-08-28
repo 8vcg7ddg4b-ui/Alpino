@@ -38,8 +38,11 @@ betrachten."**
 
 Die Karte ist **echte Geografie**: Küstenlinien, Gebirgszüge und Siedlungen sind in
 Längen- und Breitengraden hinterlegt (`js/geodata.js`) und werden auf ein Raster von
-80 × 52 Feldern gerastert – ein Feld entspricht rund 55 km. Roma liegt auf 12,5° O /
-41,9° N, weil Rom dort liegt.
+94 × 52 Feldern gerastert – ein Feld entspricht rund 55 km. Roma liegt auf 12,5° O /
+41,9° N, weil Rom dort liegt. Der Ausschnitt reicht vom Atlantik bis auf die
+**iranische Hochebene** (10,5° W bis 52,3° O): Babylon, Susa und Ekbatana liegen
+darauf, dazu das Kaspische Meer, der Nordzipfel des Persischen Golfs, Zagros und
+Elburs sowie Euphrat und Tigris.
 
 Das Spiel läuft wahlweise **im Browser** oder als **eigenständige Desktop-Anwendung**
 (Windows/macOS/Linux) mit eigenem Fenster, eigenem Icon und ohne sichtbaren Browser.
@@ -336,9 +339,10 @@ den Punkten durchblättern.
   bleibt in der Nähe ihrer Stadt und greift nur zu, wenn ein schwacher Nachbarort
   in Reichweite liegt. Nimmt sie einem Staat einen Ort ab und steht ihre
   Heimatstadt noch, dann **rufen die Unabhängigen der Gegend ihr eigenes Reich
-  aus**: aus zwei Orten und einem Heer wird eine neue Fraktion mit eigenem Namen
-  und eigener Farbe – Numider, Thraker, Ligurer, Lusitaner –, die von da an
-  mitspielt wie jede andere. Sie kämpft mit den Waffen ihres nächsten Nachbarn,
+  aus**: aus zwei Orten und einem Heer wird eine neue Fraktion, die von da an
+  mitspielt wie jede andere. **Sie heißt nach dem Ort, aus dem sie sich erhoben
+  hat** – Massilia, Aquileia, Byzantion –, denn so nennen sich Bürger, die sich
+  selbst regieren; aus der Farbliste kommt nur noch die Farbe. Sie kämpft mit den Waffen ihres nächsten Nachbarn,
   weil man kämpft, wie man es gelernt hat. Höchstens zwei solcher Reiche können
   entstehen, und die Hälfte von ihnen übersteht das erste Jahrzehnt nicht.
 - **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
@@ -371,7 +375,7 @@ den Punkten durchblättern.
 
 ## Spielprinzip
 
-- **Alle dreizehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
+- **Alle vierzehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
   eigener Auswahlbildschirm: links die Fraktionen mit ihrer Schwierigkeit,
   rechts Hauptstadt, Siedlungen, Startheer, die drei eigenen Einheiten sowie
   Stärke und Schwäche – und im Hintergrund ein Bild, das mit der Auswahl
@@ -379,9 +383,9 @@ den Punkten durchblättern.
   Karthago, der Herkynische Wald für die Germanen, Pyramiden und Palmen für die
   Ptolemäer. Wer nicht gewählt wird, wird von der KI geführt.
 - Zur Wahl stehen **Rom**, **Karthago**, die **Gallier**, **Numidien**, die
-  **Griechen**, die **Germanen**, die **Britannier**, die **Iberer**, die
-  **Daker**, die **Seleukiden**, die **Ptolemäer**, die **Illyrer** und die
-  **Sarmaten** –
+  **Parther**, die **Griechen**, die **Germanen**, die **Britannier**, die
+  **Iberer**, die **Daker**, die **Seleukiden**, die **Ptolemäer**, die
+  **Illyrer** und die **Sarmaten** –
   verteilt über Europa, das Mittelmeer, Nordafrika, den Vorderen Orient und die
   Steppe nördlich des Schwarzen Meeres. Alle beginnen mit demselben Startgold und
   (bis auf die zwei Heere der Seleukiden) demselben Heer: der Unterschied liegt
@@ -395,6 +399,7 @@ den Punkten durchblättern.
   | Rom | Legionär (Schild und Gladius, sehr zäh) | Equites | Veliten |
   | Karthago | Libysche Speerträger | Punische Reiterei | Balearische Schleuderer |
   | Numidien | Numidische Speerträger (leicht, billig) | Numidische Reiter (beste leichte Reiterei) | Numidische Speerwerfer |
+  | Parther | Persisches Fußvolk (hält nur) | Kataphrakten (Panzerreiter, härteste Reiterei) | Berittene Bogenschützen |
   | Gallier | Schwertkämpfer (harter Angriff) | Edle Reiter | Bogenschützen |
   | Griechen | Hopliten (beste Verteidigung) | Thessalische Reiter | Peltasten |
   | Germanen | Speerträger | Gefolgschaftsreiter | Wurfspeerträger |
@@ -427,6 +432,10 @@ den Punkten durchblättern.
 - **Karthago hält Carthago Nova in Iberien** – die Stadt an der spanischen
   Südostküste mit den Silberminen im Rücken, und dort steht ein eigenes Heer
   von 270 Mann: von Afrika aus wäre der Brückenkopf nicht zu halten.
+- **Die Parther** stehen auf der iranischen Hochebene: Ekbatana als Sitz, dazu
+  Susa, Rhagae, Ktesiphon und Arbela, der Zagros als Wall nach Westen. Ihr
+  Fußvolk hält nur die Linie – die Entscheidung fällt zwischen Kataphrakten und
+  berittenen Bogenschützen, dem besten Reiterheer der Karte. Teuer ist es auch.
 - **Numidien** steht westlich von Karthago: Cirta als Sitz, dazu Zama Regia,
   Icosium und Siga. Sein Fußvolk deckt nur die Reiter – die numidische
   Reiterei ist die schnellste und härteste leichte Reiterei der Karte, und

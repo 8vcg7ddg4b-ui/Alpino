@@ -7,11 +7,15 @@
 // coordinates of the real towns, and the shapes a player recognises - the boot
 // of Italy, the Peloponnese, the Gulf of Sirte - come out right by themselves.
 
-// The frame of the Roman world: Atlantic to Mesopotamia, Sahara to Jutland.
-export const MAP_BOUNDS = { west: -10.5, east: 42.5, south: 29.5, north: 55.5 };
+// Der Rahmen der Alten Welt: vom Atlantik bis auf die iranische Hochebene,
+// von der Sahara bis nach Jütland. Der Osten reicht seit der Erweiterung über
+// Mesopotamien hinaus - Babylon, Susa und Ekbatana liegen jetzt auf der Karte,
+// und damit auch die Hängenden Gärten und das Land der Parther.
+export const MAP_BOUNDS = { west: -10.5, east: 52.3, south: 29.5, north: 55.5 };
 
-// Chosen so a tile is roughly 55 km across at the middle of the map.
-export const MAP_COLS = 80;
+// So gewählt, dass ein Feld in der Kartenmitte rund 55 km misst - dieselbe
+// Auflösung wie vor der Erweiterung, nur über mehr Spalten.
+export const MAP_COLS = 94;
 export const MAP_ROWS = 52;
 
 export function lonOfCol(col) {
@@ -68,7 +72,7 @@ const EURASIA = [
   [0.10, 49.50], [1.60, 50.95], [3.20, 51.40], [4.30, 52.40],
   [5.20, 53.40], [8.20, 53.90], [8.50, 55.00],
   // Out to the northern and eastern edges of the map
-  [8.50, 56.20], [43.50, 56.20], [43.50, 29.00],
+  [8.50, 56.20], [53.40, 56.20], [53.40, 29.00],
   // Back west along the southern edge, then north up the Levant
   [34.40, 29.00], [34.30, 31.25], [34.60, 31.60], [35.00, 33.30],
   [35.90, 35.90], [36.20, 36.60], [34.70, 36.30], [33.00, 36.30],
@@ -155,6 +159,15 @@ const INLAND_SEAS = [
   [[9.60, 54.40], [11.00, 54.30], [13.00, 54.40], [16.00, 54.40],
     [19.00, 54.70], [21.50, 55.40], [23.00, 56.60], [10.00, 56.60]],
 
+  // Kaspisches Meer: ohne es wäre die iranische Hochebene eine einzige Fläche
+  [[46.80, 38.30], [48.60, 37.50], [50.20, 36.70], [52.00, 36.60],
+    [53.40, 36.90], [53.40, 47.20], [51.60, 47.10], [49.20, 45.60],
+    [47.90, 43.60], [47.20, 41.20], [46.60, 39.60]],
+
+  // Der Persische Golf: nur sein Nordzipfel liegt auf der Karte
+  [[47.70, 30.60], [49.60, 30.20], [51.40, 29.60], [52.60, 29.20],
+    [52.60, 28.60], [47.40, 28.60], [47.30, 30.00]],
+
   // Schwarzes Meer mit Marmarameer und Asowschem Meer
   [[28.10, 41.20], [29.20, 41.30], [31.50, 41.10], [34.00, 42.00],
     [36.50, 45.00], [38.30, 46.30], [39.20, 47.20], [37.50, 47.10],
@@ -168,6 +181,16 @@ const INLAND_SEAS = [
 // `passes` are fractions along the spine where it dips into a saddle - without
 // them an impassable range would seal a whole province off.
 export const RIDGES = [
+  {
+    name: 'Zagros',
+    spine: [[45.2, 37.6], [46.6, 35.6], [48.4, 33.6], [50.2, 31.6], [52.0, 30.0]],
+    halfWidthKm: 150, crest: 4.3, passes: [0.3, 0.72],
+  },
+  {
+    name: 'Elburs',
+    spine: [[48.8, 36.4], [50.6, 36.2], [52.4, 36.3], [53.2, 36.6]],
+    halfWidthKm: 90, crest: 4.5, passes: [0.55],
+  },
   {
     name: 'Alpen',
     spine: [[6.0, 45.9], [7.6, 45.9], [9.5, 46.4], [11.5, 46.9], [13.5, 47.0], [15.2, 47.2]],
@@ -320,9 +343,15 @@ export const RIVERS = [
     course: [[32.9, 29.6], [32.0, 30.2], [31.4, 30.6], [31.2, 31.0], [30.9, 31.4]],
   },
   {
-    name: 'Euphrates (oberer Lauf)',
+    name: 'Euphrates (Euphrat)',
     course: [[38.9, 39.3], [38.4, 38.6], [38.2, 37.7], [39.0, 36.9], [40.2, 36.1],
-      [41.2, 35.2], [42.4, 34.4]],
+      [41.2, 35.2], [42.4, 34.4], [43.4, 33.5], [44.4, 32.5], [45.4, 31.4],
+      [46.6, 30.9], [47.8, 30.6]],
+  },
+  {
+    name: 'Tigris',
+    course: [[39.6, 37.8], [41.0, 37.2], [42.4, 36.2], [43.2, 35.2], [43.9, 34.2],
+      [44.6, 33.2], [45.7, 32.2], [46.8, 31.2], [47.8, 30.7]],
   },
 ];
 

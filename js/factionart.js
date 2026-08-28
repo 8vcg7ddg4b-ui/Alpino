@@ -200,6 +200,31 @@ export const FACTION_ART = {
         ${riders(824, 4, 1.6, '#100c06', 160, 1460)}`;
     },
   },
+  parther: {
+    motto: 'Der Pfeil im Abreiten',
+    render() {
+      const rng = seeded(1414);
+      // Die iranische Hochebene: kahle Ketten im Gegenlicht, davor die
+      // Reiterei, die niemand stellen konnte, weil sie nicht stehen blieb.
+      const riders = (baseY, count, scale, colour, x0, x1) => {
+        let out = '';
+        for (let i = 0; i < count; i++) {
+          const x = x0 + ((x1 - x0) / count) * (i + rng() * 0.5);
+          out += horseman(x, baseY + rng() * 8, scale * (0.9 + rng() * 0.3), colour);
+        }
+        return out;
+      };
+      return `${sky([[0, '#301a34'], [0.36, '#7a4256'], [0.7, '#d08a5c'], [1, '#f3d3a2']], 'faPar')}
+        ${sun(420, 520, 90, '#ffe3b4', 0.4)}
+        ${peaks(556, 220, rng, '#4a3040', 0.62, 7)}
+        ${peaks(640, 150, rng, '#33212c', 0.9, 6)}
+        ${hills(700, 26, rng, '#5c3f36', 0.9)}
+        ${riders(706, 6, 0.95, '#251119', 130, 1520)}
+        <rect y="736" width="${SCENE_W}" height="${SCENE_H - 736}" fill="#241119"/>
+        ${riders(820, 4, 1.7, '#100609', 170, 1470)}
+        ${spears(804, 12, 88, rng, '#170a0e', -20, 700)}`;
+    },
+  },
   griechen: {
     motto: 'Die Phalanx der Poleis',
     render() {

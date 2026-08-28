@@ -129,6 +129,7 @@ const HERALD_TITLES = {
   daker: 'Dein Gefolgsmann', illyrer: 'Dein Gefolgsmann',
   sarmaten: 'Dein Reiterführer',
   numidien: 'Dein Reiterfürst',
+  parther: 'Dein Satrap',
 };
 
 const heraldOverlay = document.getElementById('heraldOverlay');

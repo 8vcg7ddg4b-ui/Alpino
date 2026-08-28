@@ -6,10 +6,8 @@
 // Karte beim Aufbau aus. Verschiebt sich die Auflösung des Rasters, wandern
 // die Bauwerke von selbst mit.
 //
-// Von den klassischen sieben Weltwundern liegen sechs auf der Karte. Die
-// Hängenden Gärten von Babylon stünden bei 44,4° O - gut zwei Grad östlich
-// des Kartenrandes, mitten in Mesopotamien. Sie hier an den Rand zu rücken
-// wäre geografisch falsch, deshalb fehlen sie.
+// Seit die Karte nach Osten reicht, stehen alle sieben klassischen Weltwunder
+// darauf - die Hängenden Gärten von Babylon lagen vorher jenseits des Randes.
 
 import { colOfLon, rowOfLat } from './geodata.js';
 import { TILE_TYPES } from './data.js';
@@ -39,6 +37,17 @@ const WONDER_DEFS = [
     built: 'um 2560 v. Chr.',
     note: 'Das älteste der sieben Weltwunder und das einzige, das noch steht. '
       + 'Zur Zeit des Feldzugs sind die Pyramiden bereits über zwei Jahrtausende alt.',
+  },
+  {
+    id: 'babylon',
+    name: 'Hängende Gärten von Babylon',
+    model: 'gardens',
+    wonder: true,
+    lon: 44.42, lat: 32.54,
+    built: 'um 600 v. Chr.',
+    note: 'Terrassen über Terrassen, jede bepflanzt, jede bewässert aus dem Euphrat – '
+      + 'ein Garten, der in der Luft zu stehen scheint. Nebukadnezar soll ihn seiner '
+      + 'Frau gebaut haben, der die Berge ihrer Heimat fehlten.',
   },
   {
     id: 'pharos',
@@ -140,13 +149,6 @@ const WONDER_DEFS = [
       + 'Pyramiden von Gizeh in ihrer heutigen Gestalt und schon damals rätselhaft.',
   },
 ];
-
-// Die Hängenden Gärten stehen nicht auf der Karte - die Auskunft im Spiel sagt
-// das lieber, als sie stillschweigend zu unterschlagen.
-export const OFFMAP_WONDER = {
-  name: 'Hängende Gärten von Babylon',
-  where: 'Babylon, 44,4° O – östlich des Kartenrandes',
-};
 
 function passableLand(map, col, row) {
   if (col < 0 || col >= map.cols || row < 0 || row >= map.rows) return false;

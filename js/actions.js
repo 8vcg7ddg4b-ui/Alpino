@@ -1229,6 +1229,9 @@ export function foundFreeState(state, army, city) {
   const home = state.cities.find((c) => c.id === army.homeCityId && c.factionId === 'neutral');
   if (!home) return null;
   const seat = home;
+  // Ein freier Staat heißt nach dem Ort, aus dem er sich erhoben hat: die
+  // Bürger von Massilia nennen sich Massilia und nicht nach einem Volk, das
+  // eine Liste ihnen zuweist. Aus der Liste kommt nur noch die Farbe.
   const label = FREE_STATE_NAMES[existing];
   const id = `frei${existing + 1}`;
 
@@ -1248,7 +1251,7 @@ export function foundFreeState(state, army, city) {
 
   const faction = {
     id,
-    name: label.name,
+    name: seat.name,
     color: label.color,
     emergent: true,
     isPlayer: false,
@@ -1264,7 +1267,7 @@ export function foundFreeState(state, army, city) {
   army.name = `${faction.name} Feldarmee`;
   delete army.homeCityId;
 
-  logMsg(state, `Die ${faction.name} rufen ihr eigenes Reich aus: `
+  logMsg(state, `${seat.name} ruft sich zum eigenen Staat aus: `
     + `${seat.name} und ${city.name} stehen von nun an unter eigener Fahne.`);
   return faction;
 }

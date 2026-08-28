@@ -20,7 +20,7 @@ import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
 } from './weather.js';
 import { emblemSVG } from './emblems.js';
-import { wonderAt, wondersOfCity, OFFMAP_WONDER } from './wonders.js';
+import { wonderAt, wondersOfCity } from './wonders.js';
 
 const TERRAIN_NAMES = {
   plains: 'Ebene', forest: 'Wald', hills: 'Hügel', mountain: 'Gebirge', water: 'Wasser',
@@ -700,7 +700,8 @@ function terrainFactsHTML(state, col, row) {
   const facts = [];
 
   if (tile.type === 'water') {
-    facts.push(['Bewegung', `zur See ${SEA_MOVE_COST} Punkt je Feld · für Landarmeen unpassierbar`]);
+    facts.push(['Bewegung', `zur See ${SEA_MOVE_COST} `
+      + `${SEA_MOVE_COST === 1 ? 'Punkt' : 'Punkte'} je Feld · für Landarmeen unpassierbar`]);
   } else {
     const paved = !!(state.roads && state.roads[`${col},${row}`]);
     const stride = paved ? Math.min(ROAD_MOVE_COST, def.cost) : def.cost;
@@ -749,10 +750,6 @@ function wonderPanelHTML(state, wonder) {
       <p class="wonder-built">Errichtet ${escapeHTML(wonder.built)}</p>
       <p class="wonder-note">${escapeHTML(wonder.note)}</p>
       <p class="wonder-owner">${holder}</p>
-      ${wonder.id === 'gizeh'
-    ? `<p class="wonder-note">Von den sieben Weltwundern fehlt auf dieser Karte nur eines:
-         die ${escapeHTML(OFFMAP_WONDER.name)} lägen bei ${escapeHTML(OFFMAP_WONDER.where)}.</p>`
-    : ''}
     </div>`;
 }
 
