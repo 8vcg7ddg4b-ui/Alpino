@@ -199,6 +199,26 @@ export function rotateCamera(deltaAzimuth, deltaPolar = 0) {
   applyCamera();
 }
 
+// Die Eröffnung: der Blick, mit dem ein Feldzug beginnt. Die Kamera steht tief
+// und weit hinten in der Mitte des Zelts, sodass der ganze Kartentisch im Bild
+// liegt und dahinter der Thron mit den Feldzeichen. Erst wenn der Spieler die
+// Ansprache wegklickt, geht es hinunter auf die Karte.
+// Weiter draußen als der Spieler von Hand zoomen kann: nur so liegt der ganze
+// Tisch im Bild und der Thron noch dahinter.
+const OPENING_ZOOM = 0.55;
+const OPENING_POLAR = 0.35;
+
+export function setOpeningView() {
+  cam.col = mapCols / 2;
+  // Ein Stück in Richtung des Betrachters, damit der vordere Rand des Tisches
+  // nicht aus dem Bild läuft.
+  cam.row = mapRows / 2 + 2;
+  cam.azimuth = DEFAULT_AZIMUTH;
+  cam.polar = OPENING_POLAR;
+  cam.zoom = OPENING_ZOOM;
+  applyCamera();
+}
+
 // Zurück zur Ausgangsansicht: Blickwinkel, Neigung und Zoom wie beim Aufbau.
 // Wohin die Kamera dabei blickt, entscheidet der Aufrufer - im Spiel ist das
 // die eigene Hauptstadt.

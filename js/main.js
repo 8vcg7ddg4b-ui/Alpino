@@ -18,7 +18,7 @@ import {
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
-  setMapMode, getMapMode, setMarchSpeed,
+  setMapMode, getMapMode, setMarchSpeed, setOpeningView,
   setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled,
 } from './scene3d.js';
 import {
@@ -134,11 +134,19 @@ let heraldTimer = null;
 
 function hideHerald() {
   if (!heraldOverlay) return;
+  const wasOpen = !heraldOverlay.classList.contains('hidden');
   if (heraldTimer !== null) {
     clearTimeout(heraldTimer);
     heraldTimer = null;
   }
   heraldOverlay.classList.add('hidden');
+  // „Lass uns die Schlachtkarte betrachten": die Kamera geht vom Zelt
+  // hinunter auf den eigenen Sitz.
+  if (wasOpen && state) {
+    resetCameraOrientation();
+    focusOwnCapital();
+    render();
+  }
 }
 
 function showHerald() {
@@ -1022,7 +1030,10 @@ function startNewGame(factionId = chosenFaction) {
   setWeatherReporter(paintWeatherLabel);
   setWeatherSource((col, row) => weatherAt(state, col, row));
 
-  focusOwnCapital();
+  // Der Feldzug beginnt nicht auf der Karte, sondern im Zelt: erst der Tisch
+  // mit der Karte darauf und der Thron dahinter, dann - wenn der Spieler die
+  // Ansprache wegklickt - der Blick auf die eigene Hauptstadt.
+  setOpeningView();
   // Auf der Karte wird es still: die Musik gehört zum Vorspann, nicht zum Zug.
   stopTheme({ fadeOut: 4 });
   showHerald();

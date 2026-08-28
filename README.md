@@ -14,6 +14,11 @@ Anker der Seleukiden, die Tamga der Sarmaten. Dieselben Zeichen stehen in der
 Fraktionsliste und im Auswahlbildschirm. Wer die Kamera tief stellt, sieht das Zelt,
 wer von oben schaut, sieht die Karte.
 
+Der Feldzug beginnt deshalb auch nicht auf der Karte, sondern im Zelt: die
+**Eröffnungsansicht** steht weit genug zurück, dass der ganze Tisch mit der
+Karte darauf im Bild liegt und dahinter der Thron. Erst wenn die Ansprache
+weggeklickt ist, geht die Kamera hinunter auf die eigene Hauptstadt.
+
 Dem Betrachter gegenüber steht der **Feldherrnsitz**: der Thron auf seinem
 Podest, links und rechts die Feldzeichen mit dem Wappen, daneben zwei Stücke
 Ausstattung, die zur Fraktion passen. Rom hat den kurulischen Stuhl aus
@@ -257,7 +262,7 @@ den Punkten durchblättern.
 - **Straßenbau**: Jede eigene Stadt bietet die nächstgelegenen eigenen Orte
   an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
   Bauzeit. Eine fertige Straße kostet **ein Drittel dessen, was offene Ebene
-  kostet** – ein Punkt statt drei, durch Wald, Hügel und Wüste ein Viertel. Ein
+  kostet** – ein Punkt statt drei, durch Wald, Hügel und Wüste ein Sechstel. Ein
   Heer kommt auf der Straße dreimal so weit wie über freies Feld: statt sechs
   Feldern achtzehn. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
   als Ganzes und immer nur eine je Stadt;
@@ -265,9 +270,9 @@ den Punkten durchblättern.
   Städte jeder Fraktion an ihrer Hauptstadt, die Dörfer noch nicht. Fällt einer
   der beiden Orte an den Feind, wird der Bau abgebrochen.
 - **Bewegung wird in Punkten gerechnet, nicht in Feldern**: offene Ebene kostet
-  3, Wald, Hügel und Wüste 4, eine gepflasterte Straße 1, und ein Heer hat 18
-  Punkte je Runde. Das sind sechs Felder Ebene, viereinhalb Felder Wald – und
-  achtzehn Felder Straße.
+  3, gebrochenes Gelände – Wald, Hügel, Wüste – das Doppelte, eine gepflasterte
+  Straße 1, und ein Heer hat 18 Punkte je Runde. Das sind sechs Felder Ebene,
+  drei Felder Wald – und achtzehn Felder Straße.
 - **Einnahmen jedes Orts** stehen in seiner Anzeige, aufgeschlüsselt nach dem,
   was die Siedlung selbst abwirft (40 Gold, mal 1,7 für eine Große Stadt, mal
   0,5 für ein Dorf), was ihre Einwohner darüber hinaus tragen (je 200 Einwohner

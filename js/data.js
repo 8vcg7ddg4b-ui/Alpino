@@ -7,15 +7,16 @@ export const GAME_VERSION = '1.1.0';
 export { MAP_COLS, MAP_ROWS } from './geodata.js';
 
 // Bewegung wird in Punkten gerechnet, nicht in Feldern: offene Ebene kostet 3,
-// gebrochenes Gelände 4, eine gepflasterte Straße 1. Eine Straße ist damit ein
-// Drittel der Ebene wert - wer sein Land mit Straßen überzieht, verschiebt
-// seine Heere dreimal so schnell wie über freies Feld. Ein Heer hat 18 Punkte:
-// sechs Felder Ebene, vier Felder Wald, achtzehn Felder Straße.
+// gebrochenes Gelände - Wald, Hügel, Wüste - das Doppelte, eine gepflasterte
+// Straße 1. Eine Straße ist damit ein Drittel der Ebene wert und ein Sechstel
+// des Waldes: wer sein Land mit Straßen überzieht, verschiebt seine Heere ein
+// Vielfaches schneller als über freies Feld. Ein Heer hat 18 Punkte: sechs
+// Felder Ebene, drei Felder Wald, achtzehn Felder Straße.
 export const TILE_TYPES = {
   plains: { name: 'Ebene', cost: 3, defense: 0, elevation: 0, color: '#8fae5a', deco: null },
-  forest: { name: 'Wald', cost: 4, defense: 1, elevation: 0.35, color: '#4c7a3f', deco: 'tree' },
-  hills: { name: 'Hügel', cost: 4, defense: 2, elevation: 1, color: '#b3a06b', deco: null },
-  desert: { name: 'Wüste', cost: 4, defense: 0, elevation: 0.08, color: '#d9c489', deco: null },
+  forest: { name: 'Wald', cost: 6, defense: 1, elevation: 0.35, color: '#4c7a3f', deco: 'tree' },
+  hills: { name: 'Hügel', cost: 6, defense: 2, elevation: 1, color: '#b3a06b', deco: null },
+  desert: { name: 'Wüste', cost: 6, defense: 0, elevation: 0.08, color: '#d9c489', deco: null },
   mountain: {
     name: 'Gebirge', cost: 198, defense: 3, elevation: 2.6, color: '#8a8a8a',
     deco: 'peak', impassable: true,
@@ -642,7 +643,7 @@ export const HARBOUR_NAME = 'Hafen';
 
 // --- Straßenbau ----------------------------------------------------------
 // Eine gepflasterte Straße kostet ein Drittel dessen, was offene Ebene kostet,
-// und ein Viertel dessen, was Wald, Hügel oder Wüste kosten. Gebaut wird von
+// und ein Sechstel dessen, was Wald, Hügel oder Wüste kosten. Gebaut wird von
 // Ort zu Ort, bezahlt nach Länge.
 export const ROAD_MOVE_COST = 1;
 export const ROAD_COST_PER_TILE = 30;
