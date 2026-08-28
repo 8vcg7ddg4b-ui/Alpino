@@ -131,6 +131,19 @@ function aftermathHTML(report) {
 // for the report - so what the player was promised is what they get told.
 function modifierNotesHTML(info) {
   const notes = [];
+  // Die Frontbreite erklärt, warum ein doppelt so großes Heer nicht doppelt so
+  // hart zuschlägt: der Rest steht dahinter und wartet. Ohne diese Zeile wirkt
+  // die Vorschau falsch gerechnet.
+  for (const [side, share, width, engaged] of [
+    ['Angreifer', info.attackerEngagedShare, info.attackerFrontage, info.attackerEngaged],
+    ['Verteidiger', info.defenderEngagedShare, info.defenderFrontage, info.defenderEngaged],
+  ]) {
+    if (!(share < 0.999) || !width) continue;
+    const total = Object.values(engaged || {}).reduce((sum, n) => sum + n, 0);
+    notes.push(`<span class="mod-note mod-front">⚔ Frontbreite ${side}: ${
+      Math.round(width).toLocaleString('de-DE')} von ${total.toLocaleString('de-DE')} Mann
+      kommen ins Gefecht, der Rest steht dahinter</span>`);
+  }
   if (info.wallMultiplier > 1) {
     notes.push(`<span class="mod-note mod-wall">${
       escapeHTML(info.wallName || 'Befestigung')}: +${

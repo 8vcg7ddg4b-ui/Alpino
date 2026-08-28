@@ -191,6 +191,14 @@ den Punkten durchblättern.
   markierte Felder sind Landungen und beenden die Fahrt. Angriffe direkt vom
   Schiff kosten 30 % Angriffskraft, auf offener See verteidigt es sich 25 %
   schlechter. Nur so sind die Inseln (Caralis, Rhodos, Knossos) zu erreichen.
+- **Frontbreite**: Eine Schlacht wird an einer Linie geschlagen, nicht als
+  Haufen. Höchstens 900 Mann je Seite kommen gleichzeitig ins Gefecht, im Wald
+  30 % und in den Hügeln 20 % weniger; wer stürmt, wird zusätzlich von der
+  Mauer eingeengt, denn an Tor und Bresche ist kein Platz für ein ganzes Heer.
+  Was nicht hineinpasst, steht dahinter und rückt nach, sobald vorne eine Lücke
+  entsteht. Übermacht bleibt damit ein Vorteil, ist aber kein Freibrief mehr –
+  Vorschau und Bericht schreiben in einer eigenen Zeile hin, wie viele Mann
+  überhaupt zum Zug kommen.
 - **Schlachtberichte**: Nach jedem Kampf öffnet sich ein Bericht mit Verlusten
   pro Einheitentyp, Geländevorteil und Rundenverlauf. Ältere Kämpfe lassen sich
   jederzeit über die Einträge in der Ereignisliste wieder öffnen (Esc schließt).
@@ -255,13 +263,15 @@ den Punkten durchblättern.
   Erfahrung verloren.
 - **Moral und Erschöpfung**: Jede Armee führt beide Werte mit; sie gehen direkt
   in die Kampfkraft ein. Beides steht im Armee-Panel. Erschöpfung wird je
-  Bewegungspunkt berechnet (2,5), nicht je Feld – auf der Straße kommt ein Heer
+  Bewegungspunkt berechnet (1,2), nicht je Feld – auf der Straße kommt ein Heer
   für denselben Preis weiter als querfeldein. Ein voller Tagesmarsch kostet
-  damit 45, eine Schlacht weitere 18. Gerastet wird im Verhältnis der Bewegung,
-  die stehen geblieben ist: −18 je Runde im Feld, −34 in einer eigenen Stadt,
+  damit 22, eine Schlacht weitere 8. Gerastet wird im Verhältnis der Bewegung,
+  die stehen geblieben ist: −8 je Runde im Feld, −15 in einer eigenen Stadt,
   jeweils anteilig. Ein kurzer Marsch trägt sich so selbst, zwei Gewaltmärsche
-  hintereinander laugen ein Heer aus – wer ausgeruht in die Schlacht geht,
-  gewinnt sie fast sicher, wer erschöpft antritt, fast nie.
+  hintereinander laugen ein Heer aus. Die Zahlen wirken klein, wiegen aber
+  schwer: gegen einen frischen, gleich starken Gegner gewinnt ein ausgeruhtes
+  Heer 86 von 100 Schlachten, nach einem halben Tagesmarsch 65, nach einem
+  vollen 37 und nach zweien 3.
 - **Armee auflösen**: Steht eine Armee in einer eigenen Stadt, kann sie sich
   auflösen; ihre Soldaten treten der Garnison bei.
 - **Befestigungen in drei Stufen**: **Holzpalisade** (200 Gold, 3 Runden,

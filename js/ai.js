@@ -1,11 +1,13 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost,
+  wallLevelInfo,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
   moveArmy, recruitUnit, raiseArmyFromGarrison, embarkArmy, embarkStatus,
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
   buyHarbour, canBuildHarbour, buildFleet, raiseIndependentArmies,
+  buyCityWalls, nextWallLevel,
 } from './actions.js';
 import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
@@ -16,6 +18,11 @@ import {
 const AI_FLEET_RESERVE = 200;
 // How much closer an overseas target must be before the fleet is worth it.
 const SEA_CROSSING_MARGIN = 3;
+
+// Marschentfernung in Feldern, wie die KI sie überall veranschlagt.
+function tileDistance(a, b) {
+  return Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
+}
 
 function nearestTarget(state, army, walkable) {
   const candidates = [];
@@ -142,21 +149,66 @@ function stepArmyTowards(state, army, target) {
 // A faction that spends its last coin on recruits every turn can never pay
 // for a fleet or a wall. Recruiting stops at this floor.
 const AI_TREASURY_FLOOR = 400;
+// Steht der Feind schon vor dem Tor, ist Gold in der Truhe nichts mehr wert:
+// dann wird ausgehoben, bis nichts mehr da ist.
+const AI_EMERGENCY_FLOOR = 0;
+// So viele Trupps hebt eine bedrohte Stadt in einer Runde aus. Einer je Stadt
+// und Runde reicht nicht, wenn ein ganzes Heer anmarschiert - und wer erst in
+// der Runde darauf aufstockt, hat die Stadt schon verloren.
+const AI_EMERGENCY_BATCHES = 3;
 
-function aiEconomy(state, faction, savingForFleet, savingForRoad = false) {
+// Woraus eine Garnison bestehen soll. Vorher würfelte die KI die Waffengattung
+// aus und stellte damit reihenweise reine Reiterheere auf: teuer im Sold, im
+// Angriff gut, hinter einer Mauer aber das Falsche.
+const AI_COMPOSITION = { infantry: 0.6, cavalry: 0.2, ranged: 0.2 };
+
+// Die Gattung, an der es gemessen an der Sollmischung am meisten fehlt.
+function neediestRole(units) {
+  const total = UNIT_ROLES.reduce((sum, key) => sum + (units[key] || 0), 0);
+  let best = UNIT_ROLES[0];
+  let bestGap = -Infinity;
+  for (const key of UNIT_ROLES) {
+    const gap = (AI_COMPOSITION[key] || 0) * total - (units[key] || 0);
+    if (gap > bestGap) {
+      bestGap = gap;
+      best = key;
+    }
+  }
+  return best;
+}
+
+function aiEconomy(state, faction, savingForFleet, buildReserve = 0, threats = []) {
   // An army waiting in a harbour for want of coin will wait for ever if the
   // treasury is spent on recruits every turn. When a crossing is pending, the
   // floor rises until the fleet is paid for.
   let floor = savingForFleet
     ? Math.max(AI_TREASURY_FLOOR, SHIP_COST + AI_FLEET_RESERVE)
     : AI_TREASURY_FLOOR;
-  // Auch eine Straße will erst bezahlt sein, bevor die nächste Aushebung kommt.
-  if (savingForRoad) floor = Math.max(floor, AI_TREASURY_FLOOR + AI_ROAD_MAX_COST);
-  const ownCities = state.cities.filter((c) => c.factionId === faction.id);
+  // Auch eine Mauer oder eine Straße will erst bezahlt sein, bevor die nächste
+  // Aushebung kommt.
+  if (buildReserve > 0) floor = Math.max(floor, AI_TREASURY_FLOOR + buildReserve);
+
+  // Die bedrohten Orte kommen zuerst an die Reihe, und für sie gilt kein
+  // Sparzwang: eine volle Truhe in einer Stadt, die nächste Runde fällt, hat
+  // noch keinen Feldzug gewonnen.
+  const alarmed = new Map(
+    threats.filter((t) => t.distance <= AI_ALARM_RANGE).map((t) => [t.city.id, t])
+  );
+  const ownCities = state.cities.filter((c) => c.factionId === faction.id)
+    .sort((a, b) => (alarmed.has(b.id) ? 1 : 0) - (alarmed.has(a.id) ? 1 : 0));
+
   for (const city of ownCities) {
-    if (faction.gold <= floor) break;
-    const unitKey = UNIT_ROLES[Math.floor(Math.random() * UNIT_ROLES.length)];
-    recruitUnit(state, city.id, unitKey);
+    const danger = alarmed.get(city.id);
+    const cityFloor = danger ? AI_EMERGENCY_FLOOR : floor;
+    const batches = danger ? AI_EMERGENCY_BATCHES : 1;
+    for (let i = 0; i < batches; i++) {
+      if (faction.gold <= cityFloor) break;
+      if (!recruitUnit(state, city.id, neediestRole(city.garrison)).ok) break;
+    }
+
+    // Wo der Feind vor dem Tor steht, bleibt die Aushebung hinter der Mauer:
+    // dort kämpft sie mit dem Wall im Rücken statt einzeln im offenen Feld.
+    if (danger) continue;
 
     // Die Stadtwache zählt nicht mit: sie rückt nie aus, und eine Stadt, die
     // nur ihre Wache hat, stellt kein Heer auf.
@@ -249,29 +301,39 @@ function aiNavy(state, faction) {
 
 // How close an enemy army has to be before a settlement counts as threatened.
 const HOME_GUARD_RANGE = 12;
+// So nah heißt: der Sturm kommt in dieser oder der nächsten Runde. Dann wird
+// nicht mehr gespart, sondern ausgehoben.
+const AI_ALARM_RANGE = 6;
 
-// The own settlement with an enemy army nearest to it, if one is close enough
-// to be a real danger.
-function threatenedCity(state, faction) {
-  let best = null;
-  let bestDistance = Infinity;
+// Jede eigene Stadt, vor der Feinde stehen, mit der Stärke, die sich vor ihr
+// versammelt hat, und der Entfernung des nächsten von ihnen. Flotten zählen
+// nicht mit: sie nehmen keine Stadt.
+//
+// Daran hängen drei Entscheidungen: wo die Wache steht, wo gemauert wird und
+// wo ausgehoben wird, bis die Truhe leer ist.
+function threatsAgainst(state, faction) {
+  const threats = [];
   for (const city of state.cities) {
     if (city.factionId !== faction.id) continue;
+    let strength = 0;
+    let distance = Infinity;
     for (const enemy of state.armies) {
-      if (enemy.factionId === faction.id) continue;
-      const distance = Math.abs(enemy.col - city.col) + Math.abs(enemy.row - city.row);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = city;
-      }
+      if (enemy.factionId === faction.id || isFleet(enemy)) continue;
+      const away = tileDistance(enemy, city);
+      if (away > HOME_GUARD_RANGE) continue;
+      strength += unitTotalCount(enemy.units);
+      if (away < distance) distance = away;
     }
+    if (strength > 0) threats.push({ city, strength, distance });
   }
-  return bestDistance <= HOME_GUARD_RANGE ? best : null;
+  // Was am nächsten steht, ist am dringendsten; bei gleicher Nähe das Größere.
+  threats.sort((a, b) => (a.distance - b.distance) || (b.strength - a.strength));
+  return threats;
 }
 
 // Returns whether a crossing is being held up by an empty treasury, so the
 // economy knows to stop spending.
-function aiMilitary(state, faction) {
+function aiMilitary(state, faction, threats) {
   let savingForFleet = false;
   // Die Küstenstadt, in der eine Armee auf einen Hafen wartet.
   let harbourWanted = null;
@@ -283,7 +345,7 @@ function aiMilitary(state, faction) {
   let guard = null;
   let guardHome = null;
   if (armies.length > 1) {
-    const home = threatenedCity(state, faction);
+    const home = threats.length ? threats[0].city : null;
     if (home) {
       guard = armies.reduce((closest, army) => {
         const distance = Math.abs(army.col - home.col) + Math.abs(army.row - home.row);
@@ -372,6 +434,41 @@ function aiHarbours(state, faction, harbourWanted) {
   return true;
 }
 
+// --- Mauern ---------------------------------------------------------------
+// Nur Hauptstädte sind von Anfang an befestigt (CAPITAL_WALL_LEVEL); jede
+// andere Stadt der KI blieb bisher das ganze Spiel über offen, weil
+// buyCityWalls nirgends aufgerufen wurde. Gebaut wird eine Stufe nach der
+// anderen, eine Baustelle zur Zeit, und zuerst dort, wo der Feind schon steht.
+const AI_WALL_TREASURY = 200;
+// Länger als auf diese Summe spart die KI nicht: die Steinmauer wird gebaut,
+// wenn sie ohnehin bezahlbar ist, aber nicht auf Kosten der Aushebung erspart.
+const AI_WALL_SAVE_MAX = 450;
+
+function wallPlan(state, faction, threats) {
+  // Zwei angefangene Mauern halten keine einzige Stadt.
+  if (state.cities.some((c) => c.factionId === faction.id && c.wallBuilding)) return null;
+  const danger = new Map(threats.map((t) => [t.city.id, t.strength]));
+  const rank = { large: 0, city: 1, village: 2 };
+  const city = state.cities
+    .filter((c) => c.factionId === faction.id && nextWallLevel(c))
+    .sort((a, b) => (danger.get(b.id) || 0) - (danger.get(a.id) || 0)
+      || (b.capital ? 1 : 0) - (a.capital ? 1 : 0)
+      || (rank[a.size] ?? 3) - (rank[b.size] ?? 3))[0];
+  if (!city) return null;
+  return { city, cost: wallLevelInfo(nextWallLevel(city)).cost };
+}
+
+// Gibt zurück, ob die Fraktion gerade auf eine Mauer spart.
+function aiWalls(state, faction, threats) {
+  const plan = wallPlan(state, faction, threats);
+  if (!plan) return false;
+  if (faction.gold >= plan.cost + AI_WALL_TREASURY) {
+    buyCityWalls(state, plan.city.id);
+    return false;
+  }
+  return plan.cost <= AI_WALL_SAVE_MAX;
+}
+
 // The closest own harbour this army could actually walk to. A town with a
 // finished harbour always beats one that would first have to build one, however
 // close it is - otherwise the army camps in a fishing village for ever.
@@ -428,14 +525,26 @@ export function independentsTakeTurn(state) {
 }
 
 export function aiTakeTurn(state, faction) {
+  // Was der Fraktion gerade droht, entscheidet über alles Weitere: wo die
+  // Wache steht, wo gemauert und wo ausgehoben wird.
+  const threats = threatsAgainst(state, faction);
   // Movement first: a fleet that is needed this turn should not find the
   // treasury already spent on another batch of recruits.
-  const { savingForFleet, harbourWanted } = aiMilitary(state, faction);
+  const { savingForFleet, harbourWanted } = aiMilitary(state, faction, threats);
   // Ein Hafen geht der Flotte voraus: ohne ihn nützt das Schiffsgeld nichts.
   const savingForHarbour = aiHarbours(state, faction, harbourWanted);
-  const savingForRoad = !savingForHarbour && aiRoads(state, faction, savingForFleet);
-  if (!savingForFleet && !savingForHarbour) aiNavy(state, faction);
-  aiEconomy(state, faction, savingForFleet, savingForRoad || savingForHarbour);
+  // Die Mauer geht der Straße vor: die eine hält eine Stadt, die andere macht
+  // sie nur schneller erreichbar.
+  const savingForWall = !savingForFleet && !savingForHarbour
+    && aiWalls(state, faction, threats);
+  const savingForRoad = !savingForHarbour && !savingForWall
+    && aiRoads(state, faction, savingForFleet);
+  if (!savingForFleet && !savingForHarbour && !savingForWall) aiNavy(state, faction);
+  let buildReserve = 0;
+  if (savingForHarbour) buildReserve = HARBOUR_COST;
+  else if (savingForWall) buildReserve = AI_WALL_SAVE_MAX;
+  else if (savingForRoad) buildReserve = AI_ROAD_MAX_COST;
+  aiEconomy(state, faction, savingForFleet, buildReserve, threats);
 }
 
 export function aiTakeAllTurns(state) {

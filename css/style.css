@@ -889,6 +889,7 @@ html, body {
 }
 .mod-note.mod-wall { color: #e5c98a; border-color: #6b5528; }
 .mod-note.mod-sea { color: #9fd8e6; border-color: #3d6b78; }
+.mod-note.mod-front { color: #d8c6a8; border-color: #6b5b45; }
 
 .odds-block { margin: 14px 0 10px; }
 

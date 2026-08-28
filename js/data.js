@@ -655,13 +655,15 @@ export const MORALE_REST = 8;
 export const MORALE_REST_IN_CITY = 16;
 // Erschöpfung wird je Bewegungspunkt berechnet, nicht je Feld: auf der Straße
 // kommt ein Heer für denselben Preis weiter als querfeldein. Der Satz ist so
-// gewählt, dass ein voller Tagesmarsch (MAX_MOVEMENT Punkte) rund 45 kostet -
-// spürbar müde, aber noch kampffähig. Zwei solche Märsche hintereinander
-// laugen ein Heer aus.
-export const EXHAUSTION_PER_MOVE = 2.5;
-export const EXHAUSTION_REST = -18;
-export const EXHAUSTION_REST_IN_CITY = -34;
-export const EXHAUSTION_PER_BATTLE = 18;
+// gewählt, dass ein voller Tagesmarsch (MAX_MOVEMENT Punkte) rund 22 kostet.
+// Das klingt wenig, wiegt aber schwer: seit Angriff und Verteidigung nahe
+// beieinander liegen, entscheidet schon ein kleiner Unterschied im Zustand die
+// Schlacht. Ein Heer, das den ganzen Tag marschiert ist, greift damit noch mit
+// etwa vier zu zehn an - zwei solche Märsche hintereinander laugen es aus.
+export const EXHAUSTION_PER_MOVE = 1.2;
+export const EXHAUSTION_REST = -8;
+export const EXHAUSTION_REST_IN_CITY = -15;
+export const EXHAUSTION_PER_BATTLE = 8;
 // Garrisons sit behind their own walls and are neither marched nor routed,
 // so they fight at a fixed, solid standard.
 export const GARRISON_MORALE = 90;
@@ -686,6 +688,30 @@ export const WALL_LEVELS = [
     note: 'Quadermauer mit Rundtürmen – ohne Belagerung kaum zu nehmen.',
   },
 ];
+
+// --- Frontbreite ----------------------------------------------------------
+// Eine Schlacht wird an einer Linie geschlagen, nicht als Haufen. Was über
+// diese Zahl hinausgeht, steht in zweiter und dritter Reihe und wartet, bis
+// vorne eine Lücke ist. Übermacht bleibt damit ein Vorteil - aber kein
+// Freibrief: ein Heer von 2000 Mann trat vorher gegen 500 an, als kämpften
+// alle 2000 auf einmal, und kam mit drei Prozent Verlust davon.
+export const FRONTAGE_BASE = 900;
+// Enges Gelände nimmt der Übermacht noch mehr davon: im Wald und in den
+// Hügeln steht kein Heer in einer Linie. Gebirge fehlt hier, weil dort nicht
+// gekämpft wird - es ist unpassierbar.
+export const FRONTAGE_TERRAIN = { forest: 0.7, hills: 0.8 };
+
+// Wie breit eine Seite auf diesem Gelände überhaupt aufmarschieren kann.
+// `narrowBy` verengt die Front des Angreifers: vor einer Mauer kommt er nur
+// an Tor und Bresche heran, und zwar umso weniger, je stärker sie ist.
+export function frontageWidth(terrainType, narrowBy = 1) {
+  return (FRONTAGE_BASE * (FRONTAGE_TERRAIN[terrainType] ?? 1)) / Math.max(1, narrowBy);
+}
+
+// Der Anteil einer Truppe, der gleichzeitig ins Gefecht kommt.
+export function engagedShare(count, width) {
+  return count > width ? width / count : 1;
+}
 
 export const MAX_WALL_LEVEL = WALL_LEVELS.length;
 // Capitals are fortified from the first turn, but not to the last stage:
@@ -798,7 +824,7 @@ export const NAVAL_MOVEMENT = 30;
 export const SEA_MOVE_COST = 2;
 // Eine Überfahrt zehrt weniger als ein Marsch - gerudert wird in Schichten -,
 // aber eine volle Fahrt über 30 Punkte setzt der Mannschaft trotzdem zu.
-export const EXHAUSTION_PER_SEA_MOVE = 1.2;
+export const EXHAUSTION_PER_SEA_MOVE = 0.6;
 // Attacking straight off the ships.
 export const AMPHIBIOUS_ATTACK_MULTIPLIER = 0.7;
 // Auf einer Ruderbank ist ein Fußsoldat kein Fußsoldat: zur See zählt nur,
