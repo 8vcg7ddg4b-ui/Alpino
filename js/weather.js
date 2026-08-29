@@ -19,28 +19,42 @@ export const SEASONS = [
   { key: 'winter', name: 'Winter', icon: '❄️' },
 ];
 
-// Jede Jahreszeit dauert vier Runden, vier Jahreszeiten ergeben das Jahr -
-// ein Feldzugsjahr sind also sechzehn Runden. Das erste ist das Jahr, in dem
-// der Erste Punische Krieg beginnt.
-export const TURNS_PER_SEASON = 4;
+// Eine Runde ist ein Monat. Drei Monate sind eine Jahreszeit, vier
+// Jahreszeiten ein Jahr - ein Feldzugsjahr sind also zwölf Runden. Das erste
+// ist das Jahr, in dem der Erste Punische Krieg beginnt.
+export const TURNS_PER_SEASON = 3;
 export const TURNS_PER_YEAR = SEASONS.length * TURNS_PER_SEASON;
 export const START_YEAR_BC = 264;
+
+// Die Monate des römischen Jahres, wie sie 264 v. Chr. hießen: es beginnt im
+// März, und Quintilis und Sextilis tragen noch ihre Zahlennamen - Caesar und
+// Augustus, nach denen sie später heißen, sind noch nicht geboren.
+export const MONTHS = [
+  'Martius', 'Aprilis', 'Maius',
+  'Iunius', 'Quintilis', 'Sextilis',
+  'September', 'October', 'November',
+  'December', 'Ianuarius', 'Februarius',
+];
 
 export function calendarOfTurn(turn) {
   const index = Math.max(0, turn - 1);
   const seasonIndex = Math.floor(index / TURNS_PER_SEASON);
   const season = SEASONS[seasonIndex % SEASONS.length];
   const year = START_YEAR_BC - Math.floor(index / TURNS_PER_YEAR);
-  // Die wievielte Runde innerhalb der Jahreszeit gerade läuft - sonst sieht
-  // vier Runden lang alles gleich aus.
-  const weekOfSeason = (index % TURNS_PER_SEASON) + 1;
+  // Der wievielte Monat der Jahreszeit gerade läuft - und wie er heißt.
+  const monthOfSeason = (index % TURNS_PER_SEASON) + 1;
+  const month = MONTHS[index % TURNS_PER_YEAR];
   return {
     season,
     year,
-    weekOfSeason,
+    month,
+    monthOfSeason,
+    // Alter Name desselben Werts: die Anzeige hieß einmal "Woche".
+    weekOfSeason: monthOfSeason,
     // Wahr, wenn mit dieser Runde eine neue Jahreszeit beginnt.
-    seasonStart: weekOfSeason === 1,
+    seasonStart: monthOfSeason === 1,
     label: `${season.name} ${year} v. Chr.`,
+    monthLabel: `${month} ${year} v. Chr.`,
   };
 }
 

@@ -86,12 +86,16 @@ Alternativ funktioniert auch `python3 -m http.server 8080` im Projektordner.
 
 ## Jahreszeiten und Wetter
 
-**Jede Jahreszeit dauert vier Runden**, vier Jahreszeiten ergeben das Jahr – ein
-Feldzugsjahr sind also sechzehn Runden. Das Spiel beginnt im **Frühling
-264 v. Chr.**, dem Jahr, in dem der Erste Punische Krieg ausbricht. Die
-Kopfzeile zeigt Jahreszeit, Jahr und die wievielte Runde der Jahreszeit gerade
-läuft (`Frühling 264 v. Chr. · 2/4`), daneben das Wetter dort, wo die Kamera
-gerade hinsieht.
+**Eine Runde ist ein Monat.** Drei Monate sind eine Jahreszeit, vier
+Jahreszeiten ein Jahr – ein Feldzugsjahr sind also zwölf Runden. Das Spiel
+beginnt im **Martius 264 v. Chr.**, dem Jahr, in dem der Erste Punische Krieg
+ausbricht. Die Monate tragen ihre römischen Namen, und das Jahr fängt wie
+damals im März an; Quintilis und Sextilis heißen noch nach ihrer Zahl, denn
+Caesar und Augustus, nach denen sie später benannt werden, sind noch nicht
+geboren. Die Kopfzeile zeigt Monat und Jahr (`🌱 Aprilis 264 v. Chr.`) – weil
+der Monat mit jeder Runde wechselt, sagt er von selbst, wie weit die Jahreszeit
+ist; Jahreszeit und Rundenzahl stehen im Tooltip. Daneben das Wetter dort, wo
+die Kamera gerade hinsieht.
 
 Weil die Karte von der Nordsee bis in die Sahara reicht, gibt es kein einziges
 Wetter für alles: Vier Klimazonen (Nordeuropa, Mitteleuropa, Mittelmeerraum,

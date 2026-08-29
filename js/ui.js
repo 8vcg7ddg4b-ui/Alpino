@@ -1140,12 +1140,13 @@ export function empireHTML(state) {
 }
 
 export function renderUI(state, handlers) {
-  // Eine Jahreszeit dauert vier Runden - die Anzeige sagt, die wievielte
-  // gerade läuft, sonst steht viermal dasselbe da.
-  const { season, year, weekOfSeason } = calendarOfTurn(state.turn);
-  document.getElementById('turnLabel').textContent =
-    `${season.icon} ${season.name} ${year} v. Chr. · ${weekOfSeason}/${TURNS_PER_SEASON}`;
-  document.getElementById('turnLabel').title = `Runde ${state.turn}`;
+  // Eine Runde ist ein Monat, drei Monate sind eine Jahreszeit. Angezeigt wird
+  // der Monat: er wechselt mit jeder Runde und sagt damit von selbst, wie weit
+  // die Jahreszeit ist - ein Zähler daneben wäre dasselbe zweimal.
+  const { season, year, month, monthOfSeason } = calendarOfTurn(state.turn);
+  const label = document.getElementById('turnLabel');
+  label.textContent = `${season.icon} ${month} ${year} v. Chr.`;
+  label.title = `Runde ${state.turn} · ${season.name}, ${monthOfSeason}. von ${TURNS_PER_SEASON} Monaten`;
   const player = playerFaction(state);
   document.getElementById('goldLabel').textContent = `💰 ${player.gold} Gold`;
 
