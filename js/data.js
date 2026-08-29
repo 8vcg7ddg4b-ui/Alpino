@@ -776,6 +776,32 @@ export const HARBOUR_COST = 300;
 export const HARBOUR_TURNS = 3;
 export const HARBOUR_NAME = 'Hafen';
 
+// --- Bevölkerung ----------------------------------------------------------
+// Orte wachsen. Nicht durch Zuzug oder Eroberung, sondern schlicht dadurch,
+// dass mehr Kinder geboren werden als Menschen sterben - und das geht in
+// Friedenszeiten schneller als in einem Jahr, in dem ein Heer vor dem Tor
+// steht. Gerechnet wird je Runde, also je Monat.
+//
+// Der Satz ist bewusst klein: über ein Feldzugsjahr (zwölf Runden) wächst ein
+// Ort um gut vier Prozent, über zehn Jahre um die Hälfte. Man sieht es nicht
+// von Runde zu Runde, aber man sieht es.
+export const BIRTH_RATE = 0.0035;
+// Im Frühjahr und Sommer wird mehr geboren als im Winter.
+export const BIRTH_SEASON = { fruehling: 1.3, sommer: 1.2, herbst: 0.9, winter: 0.6 };
+// Steht ein fremdes Heer vor dem Ort, wächst nichts: die Felder liegen brach.
+export const BIRTH_SIEGE_RANGE = 1;
+// Weiter als bis hierher wächst ein Ort nicht - ein Dorf bleibt ein Dorf,
+// solange es ein Dorf ist. Der Anteil bezieht sich auf die Einwohnerzahl,
+// mit der ein Ort seines Rangs beginnt.
+export const POPULATION_CEILING = 1.6;
+
+// Die Obergrenze eines Orts: sein Rang bestimmt sie, die Hauptstadt hat mehr.
+export function populationCeiling(city) {
+  const tier = settlementTier(city.size);
+  const basis = city.capital ? tier.populationCapital : tier.population;
+  return Math.round(basis * POPULATION_CEILING);
+}
+
 // --- Handel ---------------------------------------------------------------
 // Jeder Ort bringt hervor, was sein Land hergibt. Zwei eigene Orte, die eine
 // Straße verbindet oder die beide einen Hafen haben, können einen Handelsweg

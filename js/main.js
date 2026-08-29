@@ -1,11 +1,11 @@
-import { createInitialState, playerFaction, unitTotalCount } from './state.js';
+import { createInitialState, playerFaction, unitTotalCount, factionById, logMsg } from './state.js';
 import {
   playableFactions, factionProfile, unitDefs, UNIT_ROLES, ROLE_LABELS,
   CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION, GAME_VERSION,
 } from './data.js';
 import {
   renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount, empireHTML,
-  diplomacyHTML,
+  diplomacyHTML, setDiploTab,
 } from './ui.js';
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
@@ -15,10 +15,11 @@ import {
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction, buildFleet,
-  openTradeRoute, closeTradeRoute, pruneTradeRoutes,
+  openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations,
 } from './actions.js';
 import {
   offerPeace, declareWar, sendGift, rulersTakeTurn, rulerOf, GIFT_COST,
+  takeDiploNews, updateKnowledge, knowsFaction,
 } from './diplomacy.js';
 import { rulerFor, TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
@@ -248,6 +249,93 @@ function showEmpire() {
   sfx.select();
 }
 
+// --- Nachrichten aus der Diplomatie ----------------------------------------
+// Wenn ein Herrscher dir den Krieg erklärt, sollst du es nicht im Protokoll
+// entdecken, sondern gesagt bekommen. Meldungen, die andere betreffen, stehen
+// im Protokoll; nur was dich angeht, hält die Runde an.
+const diploNewsOverlay = document.getElementById('diploNewsOverlay');
+let diploNewsQueue = [];
+
+function hideDiploNews() {
+  if (diploNewsOverlay) diploNewsOverlay.classList.add('hidden');
+  if (diploNewsQueue.length) {
+    // Mehrere Erklärungen in einer Runde kommen eine nach der anderen.
+    setTimeout(showNextDiploNews, 120);
+  }
+}
+
+function showNextDiploNews() {
+  if (!diploNewsOverlay || !diploNewsQueue.length || !state) return;
+  const meldung = diploNewsQueue.shift();
+  const krieg = meldung.kind === 'krieg';
+  const gegner = factionById(state, meldung.von === playerFaction(state).id
+    ? meldung.gegen : meldung.von);
+  const icon = document.getElementById('diploNewsIcon');
+  const kind = document.getElementById('diploNewsKind');
+  const title = document.getElementById('diploNewsTitle');
+  const text = document.getElementById('diploNewsText');
+  const effect = document.getElementById('diploNewsEffect');
+  if (icon) icon.textContent = krieg ? '⚔' : '🕊';
+  // Der Name der Fraktion steht in der Zeile darüber, nicht im Satz: "ein
+  // Herold aus Illyrer" wäre kein Deutsch, und die Namen sind teils Völker,
+  // teils Orte - eine Wendung, die für beide passt, gibt es nicht.
+  if (kind) {
+    kind.textContent = `${krieg ? 'Eine Kriegserklärung' : 'Ein Friedensschluss'}${
+      gegner ? ` · ${gegner.name}` : ''}`;
+  }
+  if (title) title.textContent = krieg
+    ? `${meldung.ruler} erklärt dir den Krieg`
+    : `${meldung.ruler} schließt Frieden`;
+  if (text) {
+    text.textContent = krieg
+      ? `Ein Herold steht im Zelt: ${meldung.ruler}, ${meldung.titel}, `
+        + `kündigt den Frieden auf – ${meldung.grund}.`
+      : `${meldung.ruler}, ${meldung.titel}, lässt ausrichten, dass zwischen euch `
+        + `wieder Friede sein soll – ${meldung.grund}.`;
+  }
+  if (effect) {
+    effect.textContent = krieg
+      ? 'Seine Heere können deine Orte ab dieser Runde angreifen. Im Diplomatiefenster '
+        + 'steht, was ihn ein neuer Friede kosten würde.'
+      : 'Eure Heere gehen einander wieder aus dem Weg.';
+  }
+  diploNewsOverlay.classList.remove('hidden');
+  sfx.raise();
+}
+
+// Nimmt entgegen, was die Herrscher in dieser Runde beschlossen haben: was den
+// Spieler angeht, kommt ins Fenster, alles andere ins Protokoll - aber nur,
+// wenn er die Beteiligten überhaupt kennt.
+function collectDiploNews() {
+  if (!state) return;
+  const me = playerFaction(state).id;
+  for (const meldung of takeDiploNews(state)) {
+    if (meldung.von === me || meldung.gegen === me) {
+      diploNewsQueue.push(meldung);
+      continue;
+    }
+    if (!knowsFaction(state, me, meldung.von) || !knowsFaction(state, me, meldung.gegen)) continue;
+    const von = factionById(state, meldung.von);
+    const gegen = factionById(state, meldung.gegen);
+    if (!von || !gegen) continue;
+    logMsg(state, meldung.kind === 'krieg'
+      ? `${meldung.ruler} von ${von.name} erklärt ${gegen.name} den Krieg – ${meldung.grund}.`
+      : `${von.name} und ${gegen.name} schließen Frieden.`);
+  }
+  if (diploNewsQueue.length) showNextDiploNews();
+}
+
+function setupDiploNews() {
+  const close = document.getElementById('diploNewsClose');
+  if (close) close.addEventListener('click', hideDiploNews);
+  if (diploNewsOverlay) {
+    diploNewsOverlay.addEventListener('click', (e) => {
+      if (e.target === diploNewsOverlay) hideDiploNews();
+    });
+  }
+}
+setupDiploNews();
+
 // --- Diplomatie ------------------------------------------------------------
 // Ein eigenes Fenster, weil hier nichts auf der Karte passiert: hier wird
 // geredet. Was gesagt wurde, steht als Antwort über der Liste, bis das
@@ -264,6 +352,13 @@ function renderDiplomacy() {
   const body = document.getElementById('diploBody');
   if (!body || !state) return;
   body.innerHTML = diplomacyHTML(state, diploNote);
+  body.querySelectorAll('[data-diplotab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setDiploTab(btn.dataset.diplotab);
+      sfx.select();
+      renderDiplomacy();
+    });
+  });
   body.querySelectorAll('.diplo-btn:not([disabled])').forEach((btn) => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.faction;
@@ -807,7 +902,7 @@ function refresh() {
     onCloseTrade: (routeId) => {
       pushUndo();
       closeTradeRoute(state, routeId);
-      sfx.click();
+      sfx.select();
       refresh();
     },
     onEmbark: (armyId) => {
@@ -840,6 +935,10 @@ function endTurn() {
   // beschließen, gilt für die Züge, die gleich folgen.
   rulersTakeTurn(state);
   aiTakeAllTurns(state);
+  // Wer inzwischen einem fremden Heer begegnet ist, kennt es jetzt.
+  updateKnowledge(state, playerFaction(state).id);
+  // Was die Herolde bringen, ehe die neue Runde beginnt.
+  collectDiploNews();
   // Eroberungen der KI können Handelswege gekappt haben - das muss stehen,
   // bevor abgerechnet wird, sonst zahlt ein Weg, den es nicht mehr gibt.
   pruneTradeRoutes(state);
@@ -847,6 +946,8 @@ function endTurn() {
   // Erst die Abrechnung, dann das Schicksal: ein Ereignis greift in denselben
   // Schatz, den die Runde gerade gefüllt hat.
   const myEvent = rollEvents(state);
+  // Die Menschen werden mehr, ehe die Wache aus ihnen nachgestellt wird.
+  growPopulations(state);
   regenerateGarrisons(state);
   advanceWallConstruction(state);
   const roadsDone = advanceRoadConstruction(state);

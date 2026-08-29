@@ -12,7 +12,7 @@ import {
 import { TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
   atWar, opinionOf, relationOf, rulerOf, peaceVerdict, peacePrice,
-  GIFT_COST, PEACE_GRACE_TURNS,
+  GIFT_COST, PEACE_GRACE_TURNS, knowsFaction, roughDirection,
 } from './diplomacy.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
@@ -1015,7 +1015,9 @@ export function rulerCardHTML(state, faction, options = {}) {
         <span class="diplo-state ${own ? '' : krieg ? 'diplo-krieg' : 'diplo-frieden'}">${
   own ? 'du' : krieg ? '⚔ Krieg' : '🕊 Friede'}</span></h4>
       <p class="diplo-name"><strong>${escapeHTML(ruler.name)}</strong>,
-        ${escapeHTML(ruler.titel)}</p>
+        ${escapeHTML(ruler.titel)}${own || !relation ? '' : `
+        <span class="muted"> · ${krieg ? 'im Krieg' : 'im Frieden'} seit ${
+  Math.max(0, state.turn - relation.since)} Runden</span>`}</p>
       <p class="muted diplo-wort">${escapeHTML(ruler.wort)}</p>
       <div class="cond-block">
         ${TRAITS.map((t) => traitBarHTML(t, ruler[t])).join('')}
@@ -1034,21 +1036,65 @@ export function rulerCardHTML(state, faction, options = {}) {
     </div>`;
 }
 
+// Zwei Reiter: die Reiche, die man kennt, und die, von denen man nur gehört
+// hat. Mit einem Unbekannten lässt sich nicht verhandeln - man weiß nicht
+// einmal, wer dort herrscht.
+let diploTab = 'bekannt';
+
+export function setDiploTab(tab) {
+  diploTab = tab === 'unbekannt' ? 'unbekannt' : 'bekannt';
+  return diploTab;
+}
+
+export function getDiploTab() {
+  return diploTab;
+}
+
+// Eine Karte für ein Reich, von dem nur Gerüchte kommen.
+function unknownCardHTML(state, faction) {
+  const player = playerFaction(state);
+  return `
+    <div class="diplo-card diplo-unknown">
+      <h4><span class="dot diplo-dot-unknown"></span>${escapeHTML(faction.name)}
+        <span class="diplo-state">? unbekannt</span></h4>
+      <p class="diplo-name">Ein Reich
+        <strong>${escapeHTML(roughDirection(state, player.id, faction.id))}</strong>,
+        von dem die Händler erzählen.</p>
+    </div>`;
+}
+
 export function diplomacyHTML(state, note) {
   const player = playerFaction(state);
   const others = state.factions.filter((f) => !f.isNeutral && f.alive && f.id !== player.id);
-  const kriege = others.filter((f) => atWar(state, player.id, f.id)).length;
+  const bekannt = others.filter((f) => knowsFaction(state, player.id, f.id));
+  const unbekannt = others.filter((f) => !knowsFaction(state, player.id, f.id));
+  const kriege = bekannt.filter((f) => atWar(state, player.id, f.id)).length;
   const { season, year } = calendarOfTurn(state.turn);
+  const zeigeUnbekannt = diploTab === 'unbekannt' && unbekannt.length;
   return `
     <h2 class="report-title">🕊 Diplomatie · ${season.icon} ${season.name} ${year} v. Chr.</h2>
     <p class="emp-note muted">Du führst ${escapeHTML(rulerOf(state, player.id).name)}.
-      Im Krieg mit ${kriege} von ${others.length} Herrschern. Ein Friede sperrt beiden
+      Im Krieg mit ${kriege} von ${bekannt.length} bekannten Herrschern; ${
+  unbekannt.length ? `${unbekannt.length} Reiche kennst du nur vom Hörensagen`
+    : 'die ganze bekannte Welt liegt vor dir'}. Ein Friede sperrt beiden
       Seiten die Waffen: eure Heere gehen aneinander vorbei, bis einer ihn aufkündigt.</p>
+    <div class="city-tabs diplo-tabs" role="tablist">
+      <button data-diplotab="bekannt" class="${diploTab === 'bekannt' ? 'active' : ''}"
+        role="tab" aria-selected="${diploTab === 'bekannt'}">Bekannt (${bekannt.length})</button>
+      <button data-diplotab="unbekannt" class="${diploTab === 'unbekannt' ? 'active' : ''}"
+        role="tab" aria-selected="${diploTab === 'unbekannt'}">Unbekannt (${unbekannt.length})</button>
+    </div>
     ${note ? `<p class="diplo-answer">${escapeHTML(note)}</p>` : ''}
     <div class="diplo-grid">
-      ${rulerCardHTML(state, player)}
-      ${others.map((f) => rulerCardHTML(state, f)).join('')}
-    </div>`;
+      ${zeigeUnbekannt
+    ? unbekannt.map((f) => unknownCardHTML(state, f)).join('')
+    : `${rulerCardHTML(state, player)}${bekannt.map((f) => rulerCardHTML(state, f)).join('')}`}
+    </div>
+    ${diploTab === 'unbekannt' ? `<p class="emp-note muted">${unbekannt.length
+    ? 'Wer einem fremden Heer oder einer fremden Stadt nahe genug kommt, erfährt, wer '
+      + 'dort herrscht. Bis dahin gibt es mit diesen Reichen nichts zu verhandeln – '
+      + 'und sie erklären dir auch keinen Krieg.'
+    : 'Es gibt kein Reich mehr, von dem du nichts weißt.'}</p>` : ''}`;
 }
 
 export function empireHTML(state) {

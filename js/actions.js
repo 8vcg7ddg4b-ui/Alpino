@@ -18,6 +18,7 @@ import {
   FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_BASE_INCOME, TRADE_VARIETY_BONUS,
   TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, tradeSizeFactor,
+  BIRTH_RATE, BIRTH_SEASON, BIRTH_SIEGE_RANGE, populationCeiling,
 } from './data.js';
 import { landRoute } from './mapgen.js';
 import { computeReachable, tileKey } from './pathfind.js';
@@ -30,7 +31,9 @@ import {
   rollWeather, weatherAt, weatherInfo, weatherBattleModifiers, calendarOfTurn, zoneName,
 } from './weather.js';
 import { wondersOfCity } from './wonders.js';
-import { adjustOpinion, OPINION_PER_BATTLE, OPINION_PER_CITY_TAKEN } from './diplomacy.js';
+import {
+  adjustOpinion, atWar, OPINION_PER_BATTLE, OPINION_PER_CITY_TAKEN,
+} from './diplomacy.js';
 
 export function removeArmy(state, armyId) {
   const idx = state.armies.findIndex((a) => a.id === armyId);
@@ -1452,6 +1455,37 @@ export function collectIncome(state) {
     const income = factionIncome(state, faction.id);
     const upkeep = armyUpkeep(state, faction.id);
     faction.gold = Math.max(0, Math.round(faction.gold + income - upkeep));
+  }
+}
+
+// --- Geburten -------------------------------------------------------------
+// Jede Runde ist ein Monat, und in jedem Monat werden Kinder geboren. Das
+// wirkt sich aus: die Einwohner tragen zu den Einnahmen bei, sie stellen die
+// Stadtwache nach und sie bestimmen, wie groß eine Garnison sein darf.
+//
+// Zwei Dinge bremsen: der Winter und ein Heer vor dem Tor. Und über die
+// Obergrenze seines Rangs wächst kein Ort hinaus - ein Dorf bleibt ein Dorf.
+export function citySieged(state, city) {
+  return state.armies.some((army) => army.factionId !== city.factionId
+    && !army.embarked
+    && atWar(state, city.factionId, army.factionId)
+    && Math.abs(army.col - city.col) + Math.abs(army.row - city.row) <= BIRTH_SIEGE_RANGE);
+}
+
+// Was ein Ort in dieser Runde an Menschen gewinnt - null, wenn er belagert
+// wird oder schon so groß ist, wie er werden kann.
+export function birthsIn(state, city) {
+  const grenze = populationCeiling(city);
+  if (city.population >= grenze) return 0;
+  if (citySieged(state, city)) return 0;
+  const { season } = calendarOfTurn(state.turn);
+  const rate = BIRTH_RATE * (BIRTH_SEASON[season.key] ?? 1);
+  return Math.min(Math.round(city.population * rate), grenze - city.population);
+}
+
+export function growPopulations(state) {
+  for (const city of state.cities) {
+    city.population += birthsIn(state, city);
   }
 }
 

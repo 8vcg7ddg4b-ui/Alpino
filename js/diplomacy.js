@@ -12,7 +12,7 @@
 // ändern will, muss erst den Krieg erklären - und das kostet Ansehen bei
 // allen, die zusehen.
 
-import { logMsg, factionById, unitTotalCount } from './state.js';
+import { logMsg, factionById, unitTotalCount, isFleet } from './state.js';
 import { rulerFor } from './rulers.js';
 
 // Ansehen läuft von 0 bis 100. 50 heißt: man kennt sich, mehr nicht.
@@ -41,13 +41,17 @@ function pairKey(a, b) {
 
 // Alle Beziehungen stehen in einer flachen Tabelle, damit sie der Undo-Stapel
 // mitkopiert und niemand zwei Wahrheiten über dasselbe Verhältnis führt.
+// Der Normalfall ist der Friede. Niemand beginnt einen Feldzug im Krieg mit
+// aller Welt - Kriege werden erklärt, und wer sie erklärt, entscheidet sein
+// Charakter. Das kostet die ersten Runden ihre Schlachten und gibt ihnen
+// dafür etwas anderes: die Frage, wer als Erster zum Schwert greift.
 export function initRelations(factions) {
   const relations = {};
   const ids = factions.filter((f) => !f.isNeutral).map((f) => f.id);
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
       relations[pairKey(ids[i], ids[j])] = {
-        state: 'krieg', opinion: OPINION_START, since: 1,
+        state: 'frieden', opinion: OPINION_START, since: 1,
       };
     }
   }
@@ -56,6 +60,84 @@ export function initRelations(factions) {
 
 // Die Unabhängigen und alles, was noch keinen Eintrag hat, stehen im Krieg:
 // mit einer Miliz verhandelt niemand.
+// --- Was man voneinander weiß -------------------------------------------
+// Ein Feldherr im Jahr 264 v. Chr. kennt seine Nachbarn und hat von den
+// Reichen dahinter gehört, mehr nicht. Erst wer einem Heer oder einer Stadt
+// nahe genug kommt, weiß, wer dort herrscht - und nur mit dem lässt sich
+// verhandeln. Wer im Krieg mit einem steht, kennt ihn ohnehin.
+export const SIGHT_RANGE = 8;
+// Was man schon immer wusste: die Reiche, die nah genug liegen, dass ihre
+// Kaufleute und Gesandten seit Generationen kommen. Weiter gefasst als die
+// Sicht eines Heeres - Rom kannte Karthago, ohne je einen Legionär dorthin
+// geschickt zu haben.
+export const KNOWN_AT_START = 16;
+
+function factionSites(state, factionId) {
+  const orte = state.cities.filter((c) => c.factionId === factionId);
+  const heere = state.armies.filter((a) => a.factionId === factionId);
+  return [...orte, ...heere];
+}
+
+// Trägt nach, wen diese Fraktion inzwischen kennt. Läuft jede Runde und beim
+// Beginn des Feldzugs.
+export function updateKnowledge(state, factionId) {
+  const known = state.known || (state.known = {});
+  const meine = known[factionId] || (known[factionId] = { [factionId]: true });
+  const eigene = factionSites(state, factionId);
+  for (const other of state.factions) {
+    if (other.isNeutral || other.id === factionId) continue;
+    if (meine[other.id]) continue;
+    if (!atPeace(state, factionId, other.id)) { meine[other.id] = true; continue; }
+    const fremde = factionSites(state, other.id);
+    const nah = eigene.some((a) => fremde.some(
+      (b) => Math.abs(a.col - b.col) + Math.abs(a.row - b.row) <= SIGHT_RANGE
+    ));
+    if (nah) meine[other.id] = true;
+  }
+  return meine;
+}
+
+// Zu Beginn des Feldzugs: jeder kennt seine Nachbarn, niemand die Welt.
+export function seedKnowledge(state) {
+  state.known = {};
+  for (const faction of state.factions) {
+    if (faction.isNeutral) continue;
+    const meine = (state.known[faction.id] = { [faction.id]: true });
+    const eigene = state.cities.filter((c) => c.factionId === faction.id);
+    for (const other of state.factions) {
+      if (other.isNeutral || other.id === faction.id) continue;
+      const fremde = state.cities.filter((c) => c.factionId === other.id);
+      const nah = eigene.some((a) => fremde.some(
+        (b) => Math.abs(a.col - b.col) + Math.abs(a.row - b.row) <= KNOWN_AT_START
+      ));
+      if (nah) meine[other.id] = true;
+    }
+  }
+  return state.known;
+}
+
+export function knowsFaction(state, factionId, otherId) {
+  if (factionId === otherId) return true;
+  const meine = (state.known || {})[factionId];
+  return !!(meine && meine[otherId]);
+}
+
+// Grob, wo ein unbekanntes Reich liegt - mehr als eine Himmelsrichtung weiß
+// man von einem Land, in dem man nie war, auch nicht.
+export function roughDirection(state, fromId, toId) {
+  const von = factionSites(state, fromId);
+  const zu = state.cities.filter((c) => c.factionId === toId);
+  if (!von.length || !zu.length) return 'irgendwo jenseits der bekannten Welt';
+  const mitte = (liste, key) => liste.reduce((s2, x) => s2 + x[key], 0) / liste.length;
+  const dcol = mitte(zu, 'col') - mitte(von, 'col');
+  const drow = mitte(zu, 'row') - mitte(von, 'row');
+  const senkrecht = drow < 0 ? 'im Norden' : 'im Süden';
+  const waagerecht = dcol < 0 ? 'im Westen' : 'im Osten';
+  if (Math.abs(dcol) > Math.abs(drow) * 1.6) return waagerecht;
+  if (Math.abs(drow) > Math.abs(dcol) * 1.6) return senkrecht;
+  return `${senkrecht.replace('im ', 'im ')}${dcol < 0 ? 'westen' : 'osten'}`.replace('im Norden', 'im Nord').replace('im Süden', 'im Süd');
+}
+
 export function relationOf(state, a, b) {
   if (!a || !b || a === b) return null;
   if (a === 'neutral' || b === 'neutral') return null;
@@ -221,12 +303,33 @@ export function sendGift(state, fromId, toId, amount = GIFT_COST) {
 }
 
 // --- Was die Herrscher von sich aus tun ------------------------------------
-// Einmal je Runde sieht jeder Herrscher seine Nachbarn durch: ob er einen
-// Frieden aufkündigt, den er nicht mehr braucht, und ob er einem Krieg ein
-// Ende macht, der ihm nichts mehr bringt.
+// Einmal je Runde sieht jeder Herrscher seine Nachbarn durch. Der Friede ist
+// der Normalfall; wer ihn bricht, tut es aus seinem Charakter heraus und weil
+// er eine Gelegenheit sieht. Drei Dinge entscheiden:
+//
+//   Angriffslust - wie sehr es ihn überhaupt zum Krieg zieht
+//   Ehre         - wie schwer ihm der Bruch eines Friedens fällt
+//   Gelegenheit  - wie schwach der andere gerade dasteht
+//
+// Ein Segimer (Angriffslust 88, Ehre 38) findet fast immer einen Grund, ein
+// Orontes (34/76) so gut wie nie.
 
-// Wie nah sich zwei Fraktionen überhaupt kommen. Wer keinen Ort in der Nähe
-// hat, hat auch keinen Grund, den Krieg zu erklären.
+// Wie weit zwei Fraktionen auseinanderliegen dürfen, damit sie einander
+// überhaupt etwas angehen.
+const NEIGHBOUR_RANGE = 16;
+// Grundwahrscheinlichkeit einer Kriegserklärung je Runde und Nachbarpaar,
+// bevor der Charakter sie hebt oder senkt.
+const WAR_BASE_CHANCE = 0.16;
+// So viele Runden hält ein frisch geschlossener Friede mindestens.
+const WAR_MIN_PEACE = PEACE_GRACE_TURNS;
+
+function fieldStrengthOf(state, factionId) {
+  return state.armies
+    .filter((a) => a.factionId === factionId && !isFleet(a))
+    .reduce((sum, a) => sum + unitTotalCount(a.units), 0);
+}
+
+// Wie nah sich zwei Fraktionen kommen.
 function nearestDistance(state, a, b) {
   let best = Infinity;
   for (const cityA of state.cities) {
@@ -240,10 +343,53 @@ function nearestDistance(state, a, b) {
   return best;
 }
 
-const NEIGHBOUR_RANGE = 16;
+// Wie sehr es diesen Herrscher gerade nach einem Krieg mit jenem verlangt -
+// eine Zahl zwischen 0 und ungefähr 1, und der Satz dazu, den ein Gesandter
+// später im Protokoll liest.
+export function warAppetite(state, fromId, toId) {
+  const relation = relationOf(state, fromId, toId);
+  if (!relation || relation.state === 'krieg') return { wert: 0, grund: null };
+  const ruler = rulerOf(state, fromId);
+  const distance = nearestDistance(state, fromId, toId);
+  if (distance > NEIGHBOUR_RANGE) return { wert: 0, grund: null };
+
+  const lust = ruler.angriffslust / 100;
+  // Ein gegebenes Wort wiegt - aber nicht bei jedem gleich schwer.
+  const wort = 1 - (ruler.ehre / 100) * 0.7;
+  // Die Gelegenheit: wer schwächer ist und nah dran, lockt.
+  const meine = Math.max(1, fieldStrengthOf(state, fromId));
+  const seine = Math.max(1, fieldStrengthOf(state, toId));
+  const uebermacht = Math.max(0.35, Math.min(2.2, meine / seine));
+  const naehe = distance <= 6 ? 1.35 : distance <= 10 ? 1 : 0.6;
+  const stimmung = 1 - (relation.opinion / 100) * 0.8;
+
+  const wert = lust * wort * uebermacht * naehe * stimmung;
+  const grund = uebermacht > 1.4 ? 'er hält sich für den Stärkeren'
+    : relation.opinion < 35 ? 'zwischen euch steht zu viel'
+      : ruler.angriffslust >= 75 ? 'ein Sommer ohne Feldzug ist ihm ein verlorener Sommer'
+        : distance <= 6 ? 'ihr sitzt einander zu nah'
+          : 'er sieht seine Gelegenheit';
+  return { wert, grund, distance, uebermacht };
+}
+
+// Eine Meldung für das Nachrichtenfenster. Sie steht im Spielstand, damit der
+// Undo-Stapel sie mitnimmt und nichts doppelt gemeldet wird.
+function pushNews(state, eintrag) {
+  const news = state.diploNews || (state.diploNews = []);
+  news.push({ turn: state.turn, ...eintrag });
+  if (news.length > 40) news.splice(0, news.length - 40);
+}
+
+export function takeDiploNews(state) {
+  const news = state.diploNews || [];
+  state.diploNews = [];
+  return news;
+}
 
 export function rulersTakeTurn(state, rng = Math.random) {
   const living = state.factions.filter((f) => !f.isNeutral && f.alive);
+  for (const faction of living) updateKnowledge(state, faction.id);
+
   for (let i = 0; i < living.length; i++) {
     for (let j = i + 1; j < living.length; j++) {
       const a = living[i];
@@ -253,57 +399,53 @@ export function rulersTakeTurn(state, rng = Math.random) {
 
       const distance = nearestDistance(state, a.id, b.id);
       const nachbarn = distance <= NEIGHBOUR_RANGE;
-      // Die Zeit arbeitet: ein gehaltener Frieden wärmt das Verhältnis, ein
+      // Die Zeit arbeitet: ein gehaltener Friede wärmt das Verhältnis, ein
       // laufender Krieg kühlt es ab - aber nur, wenn er wirklich geführt wird.
-      // Ein Krieg über den halben Erdkreis hinweg macht keine Feindschaft.
       const drift = relation.state === 'frieden' ? OPINION_PEACE_TURN
         : nachbarn ? OPINION_WAR_TURN : 0;
       relation.opinion = Math.max(OPINION_MIN, Math.min(OPINION_MAX, relation.opinion + drift));
+
       if (relation.state === 'frieden') {
-        if (state.turn - relation.since < PEACE_GRACE_TURNS) continue;
-        if (distance > NEIGHBOUR_RANGE) continue;
-        // Wer den Frieden bricht, tut es aus Angriffslust - und wer sein Wort
-        // hält, tut es fast nie. Der Spieler wird nicht bevorzugt: für ihn
-        // gilt dieselbe Rechnung.
+        if (state.turn - relation.since < WAR_MIN_PEACE) continue;
+        if (!nachbarn) continue;
+        // Beide Seiten prüfen für sich, ob sie zum Schwert greifen. Der
+        // Spieler nicht: über seinen Frieden entscheidet nur er.
         for (const [wer, wen] of [[a, b], [b, a]]) {
           if (wer.isPlayer) continue;
+          // Niemand erklärt einem Reich den Krieg, von dem er nur gehört hat.
+          if (!knowsFaction(state, wer.id, wen.id)) continue;
+          const { wert, grund } = warAppetite(state, wer.id, wen.id);
+          if (wert <= 0 || rng() >= WAR_BASE_CHANCE * wert) continue;
           const ruler = rulerOf(state, wer.id);
-          const lust = (ruler.angriffslust / 100) * (1 - ruler.ehre / 100);
-          const abneigung = (60 - relation.opinion) / 100;
-          // Vor der eigenen Haustür wiegt die Gelegenheit schwerer als das
-          // Wort: wer eng beieinander sitzt, greift eher wieder zum Schwert.
-          const naehe = distance <= 8 ? 3 : 1;
-          const chance = 0.05 * naehe * lust * Math.max(0.2, 1 + abneigung);
-          if (rng() < chance) {
-            declareWar(state, wer.id, wen.id, `${ruler.name} sieht seine Stunde gekommen`);
-            break;
-          }
+          declareWar(state, wer.id, wen.id, grund);
+          pushNews(state, {
+            kind: 'krieg', von: wer.id, gegen: wen.id,
+            ruler: ruler.name, titel: ruler.titel, grund,
+          });
+          break;
         }
         continue;
       }
 
-      // Im Krieg: zwei Herrscher, die beide nicht mehr wollen, hören auf.
-      // Über den Frieden des Spielers entscheidet niemand außer ihm selbst:
-      // er ist der Herrscher, nicht der Zuschauer. Ein fremder Herrscher kann
-      // ihm den Krieg erklären - beenden kann ihn nur er.
+      // Im Krieg: über den Frieden des Spielers entscheidet nur er selbst.
       if (a.isPlayer || b.isPlayer) continue;
-      if (distance > NEIGHBOUR_RANGE && state.turn - relation.since > 4) {
-        // Ein Krieg über den halben Erdkreis hinweg findet gar nicht statt -
-        // er läuft aus, sobald beide Seiten ihn vergessen haben und einander
-        // nichts vorzuwerfen haben.
-        if (relation.opinion >= 35 && rng() < 0.09) {
-          makePeace(state, a.id, b.id, 'der Krieg war nur noch ein Wort');
-        }
-        continue;
-      }
       const rulerA = rulerOf(state, a.id);
       const rulerB = rulerOf(state, b.id);
+      // Kriegsmüdigkeit: je länger er dauert, desto eher hören beide auf.
+      const dauer = Math.min(2.5, (state.turn - relation.since) / 12);
       const willeA = (100 - rulerA.angriffslust) / 100;
       const willeB = (100 - rulerB.angriffslust) / 100;
-      const stimmung = relation.opinion / 100;
-      const chance = 0.05 * willeA * willeB * (0.4 + stimmung);
-      if (state.turn - relation.since >= 8 && rng() < chance) {
-        makePeace(state, a.id, b.id, 'beide Seiten haben genug');
+      const stimmung = 0.4 + (relation.opinion / 100);
+      const chance = 0.05 * willeA * willeB * stimmung * (1 + dauer);
+      const ferne = !nachbarn && state.turn - relation.since > 4;
+      if (ferne ? rng() < 0.09 : (state.turn - relation.since >= 8 && rng() < chance)) {
+        makePeace(state, a.id, b.id,
+          ferne ? 'der Krieg war nur noch ein Wort' : 'beide Seiten haben genug');
+        pushNews(state, {
+          kind: 'frieden', von: a.id, gegen: b.id,
+          ruler: rulerA.name, titel: rulerA.titel,
+          grund: ferne ? 'der Krieg war nur noch ein Wort' : 'beide Seiten haben genug',
+        });
       }
     }
   }

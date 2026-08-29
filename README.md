@@ -314,8 +314,26 @@ den Punkten durchblättern.
   im Fraktionsschirm, bevor die erste Entscheidung fällt, und sie wirken:
   ein angriffslustiger Herrscher lässt wenig Gold in der Truhe und hebt aus, ein
   zurückhaltender baut Mauern, ein habgieriger greift nach jedem Handelsweg.
-  Der Knopf 🕊 öffnet die **Diplomatie**: für jeden Herrscher eine Karte mit
-  seinen Eigenschaften, seinem Ansehen von dir und dem, was zu tun ist –
+  **Der Normalfall ist der Friede.** Niemand beginnt einen Feldzug im Krieg mit
+  aller Welt; Kriege werden erklärt, und wer sie erklärt, entscheidet sein
+  Charakter. Jede Runde wägt jeder Herrscher seine Nachbarn ab: Angriffslust
+  zieht ihn zum Schwert, Ehre hält ihn zurück, und die Gelegenheit – wie schwach
+  der andere gerade dasteht, wie nah er sitzt, was zwischen ihnen steht – gibt
+  den Ausschlag. Ambigatus (82/46) findet fast immer einen Grund, Orontes
+  (34/76) so gut wie nie. Ein frisch geschlossener Friede hält mindestens sechs
+  Runden. Erklärt dir jemand den Krieg, sagt es dir ein **Herold in einem
+  eigenen Fenster**, mit Namen, Titel und Grund; was zwischen anderen geschieht,
+  steht im Protokoll – aber nur, wenn du beide kennst.
+  **Bekannte und unbekannte Reiche** sind getrennt: zu Beginn kennt jede
+  Fraktion nur ihre Nachbarn (Rom weiß von Karthago, Numidien und den Illyrern,
+  nicht von den Parthern). Wer einem fremden Heer oder einer fremden Stadt auf
+  acht Felder nahe kommt, lernt sie kennen. Mit einem Unbekannten lässt sich
+  nicht verhandeln, und er erklärt auch keinen Krieg – im Diplomatiefenster
+  stehen sie hinter einem eigenen Reiter, mit nichts als einer Himmelsrichtung.
+  Der Knopf 🕊 öffnet die **Diplomatie**: zwei Reiter (**Bekannt** und
+  **Unbekannt**), für jeden bekannten Herrscher eine Karte mit
+  seinen Eigenschaften, seinem Ansehen von dir, wie lange Krieg oder Friede
+  schon dauert, und dem, was zu tun ist –
   **Frieden anbieten**, **Frieden mit Tribut** (der Knopf nennt die Summe, die
   gerade dieser Mann verlangt: Orontes von Armenien nimmt sofort an, Segimer
   will 750 Gold, mancher ist für kein Gold zu haben), **Geschenk senden** oder,
@@ -327,6 +345,14 @@ den Punkten durchblättern.
   eigenen Verträge; einen frischen Frieden kündigt niemand vor sechs Runden auf.
   **Über den Frieden des Spielers entscheidet niemand außer ihm selbst** – ein
   fremder Herrscher kann ihm den Krieg erklären, beenden kann ihn nur er.
+- **Orte wachsen**: In jedem Monat werden mehr Kinder geboren als Menschen
+  sterben. Der Satz ist klein (0,35 % je Runde), aber er summiert sich: über ein
+  Jahr gut vier Prozent, über zehn Jahre die Hälfte. Im Frühjahr und Sommer
+  wächst ein Ort schneller als im Winter, und **steht ein feindliches Heer vor
+  dem Tor, wächst gar nichts** – die Felder liegen brach. Über die Obergrenze
+  seines Rangs kommt kein Ort hinaus: ein Dorf bleibt ein Dorf. Das Wachstum
+  wirkt sich aus, denn die Einwohner tragen zu den Einnahmen bei, stellen die
+  Stadtwache nach und bestimmen, wie groß eine Garnison sein darf.
 - **Handel**: Jeder Ort bringt hervor, was sein Land hergibt – Salz aus der
   Wüste, Holz aus dem Wald, Erz aus den Hügeln, Pferde aus der Steppe des
   Ostens, Öl von der afrikanischen Küste, Wein aus Italien und Anatolien,
@@ -353,9 +379,12 @@ den Punkten durchblättern.
   neun Felder statt sechs, und weil Erschöpfung je Punkt anfällt, zehrt ein
   Straßenfeld auch weniger als ein Feld Ebene. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
   als Ganzes und immer nur eine je Stadt;
-  neue Straßen legen sich an das bestehende Netz an. Zu Spielbeginn hängen die
-  Städte jeder Fraktion an ihrer Hauptstadt, die Dörfer noch nicht. Fällt einer
-  der beiden Orte an den Feind, wird der Bau abgebrochen.
+  neue Straßen legen sich an das bestehende Netz an. **Zu Spielbeginn hängen
+  alle Orte jeder Fraktion an ihrer Hauptstadt**, die Dörfer eingeschlossen –
+  ein Reich, das sein Land seit Generationen hält, hat den Weg dorthin längst
+  getreten, und niemand soll eine Straße bauen müssen, die auf der Karte schon
+  liegt. Nur was über See liegt (Salamis auf Zypern) hat keinen Landweg. Fällt
+  einer der beiden Orte an den Feind, wird der Bau abgebrochen.
 - **Bewegung wird in Punkten gerechnet, nicht in Feldern**: offene Ebene kostet
   3, gebrochenes Gelände – Wald, Hügel, Wüste – das Doppelte, eine gepflasterte
   Straße 2, und ein Heer hat 18 Punkte je Runde. Das sind sechs Felder Ebene,

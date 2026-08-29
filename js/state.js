@@ -7,7 +7,7 @@ import {
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
 import { rulerFor } from './rulers.js';
-import { initRelations } from './diplomacy.js';
+import { initRelations, seedKnowledge } from './diplomacy.js';
 import { generateMap, landRoute, riverEdgeKey } from './mapgen.js';
 import { placeWonders } from './wonders.js';
 
@@ -150,9 +150,12 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   // spell of rain rather than rolling a new one.
   const weatherSeed = Math.floor(Math.random() * 1e9);
 
-  // Jede Fraktion beginnt mit Straßen von ihrer Hauptstadt zu den eigenen
-  // Städten - das Netz, das sie über die Jahre schon gebaut hat. Die Dörfer
-  // hängen noch nicht daran: dorthin ist die erste Straße Sache des Spielers.
+  // Jede Fraktion beginnt mit Straßen von ihrer Hauptstadt zu allen eigenen
+  // Orten - das Netz, das sie über die Jahre schon gebaut hat. Auch die
+  // Dörfer hängen daran: eine Fraktion, die ihr Land seit Generationen hält,
+  // hat den Weg dorthin längst getreten, und wer beim ersten Blick in die
+  // Bauliste eine Straße angeboten bekommt, die auf der Karte schon liegt,
+  // hält das mit Recht für einen Fehler.
   const roads = {};
   const markRoute = (route) => {
     for (const tile of route) roads[`${tile.col},${tile.row}`] = true;
@@ -166,13 +169,13 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   for (const own of byFaction.values()) {
     const capital = own.find((c) => c.capital) || own[0];
     for (const city of own) {
-      if (city === capital || city.size === 'village') continue;
+      if (city === capital) continue;
       const route = landRoute(map, capital, city, roads);
       if (route) markRoute(route);
     }
   }
 
-  return {
+  const state = {
     turn: 1,
     weatherSeed,
     // Die Bauwerke der Alten Welt stehen schon, bevor der erste Zug gemacht
@@ -185,6 +188,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     tradeRoutes: [],
     // Wer mit wem im Krieg steht und was man voneinander hält.
     relations: initRelations(factions),
+    // Wer wen überhaupt kennt - wird gleich nach dem Aufbau gesetzt, weil
+    // dafür Städte und Fraktionen schon zusammenstehen müssen.
+    known: {},
     // Bumped whenever the network changes, so the scene knows to redraw it.
     roadVersion: 0,
     weather: rollWeather(1, null, weatherSeed),
@@ -202,6 +208,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     gameOver: null,
     cam: { x: 0, y: 0 },
   };
+  // Wer wen kennt, hängt an den Städten - also erst, wenn der Spielstand steht.
+  seedKnowledge(state);
+  return state;
 }
 
 export function playerFaction(state) {
