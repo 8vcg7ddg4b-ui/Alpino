@@ -9,6 +9,7 @@ import {
   TRANSPORT_NAME, transportCount,
   RIVER_CROSSING_COST,
   HARBOUR_COST, HARBOUR_TURNS,
+  MINE_NAME, MINE_COST, MINE_TURNS, MINE_MIN_ORE, mineIncome,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
   tileImpassable, tileMoveCost, tileAltitude, PASSABLE_ALTITUDE,
   levyStrength,
@@ -27,7 +28,7 @@ import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, roadConnected, cityIncome,
   armyUpkeep, factionIncome,
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
-  tradeRouteRaided,
+  tradeRouteRaided, mineOre, mineIncomeOf,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -402,6 +403,7 @@ function incomeLineHTML(state, city) {
   if (income.people) parts.push(`Einwohner ${income.people}`);
   if (income.wonders) parts.push(`Bauwerk ${income.wonders}`);
   if (income.trade) parts.push(`Handel ${income.trade}`);
+  if (income.mine) parts.push(`${MINE_NAME} ${income.mine}`);
   return `<p class="income-line">💰 Einnahmen
     <strong>${income.total.toLocaleString('de-DE')} Gold je Runde</strong>
     <span class="muted">· ${parts.join(' · ')}</span></p>`;
@@ -531,12 +533,14 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
     <p class="wall-line ${cityWallLevel(city) ? 'wall-done' : 'muted'}">
       ${cityWallLevel(city)
     ? `${wallLevelInfo(cityWallLevel(city)).icon} ${wallLevelName(cityWallLevel(city))}`
-    : 'Keine Befestigung'} · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}</p>
+    : 'Keine Befestigung'} · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}${
+  city.mine ? ` · ⛏️ ${MINE_NAME}` : ''}</p>
     ${roadStatusHTML(state, city)}
     <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>`;
 
   const buildHTML = `
     ${wallHTML(city, isMine, player)}
+    ${mineHTML(state, city, isMine, player)}
     ${harbourHTML(state, city, isMine, player)}
     ${fleetHTML(city, isMine, player)}
     ${roadHTML(state, city, isMine, player)}
@@ -619,6 +623,36 @@ function harbourHTML(state, city, isMine, player) {
       ⚓ Hafen bauen – ${HARBOUR_COST} Gold
       <small>${HARBOUR_TURNS} Runden · ohne Hafen kann hier keine Armee in See stechen${
   tooPoor ? ' · zu wenig Gold' : ''}</small>
+    </button>`;
+}
+
+// Das Bergwerk: die einzige Einnahme, die weder an der Größe des Orts noch an
+// seinen Einwohnern hängt, sondern allein an dem, was im Berg liegt. Was das
+// ist, steht auf dem Knopf - man soll vor dem Bau wissen, was er trägt.
+function mineHTML(state, city, isMine, player) {
+  const erz = mineOre(state, city);
+  if (city.mine) {
+    return `<p class="wall-line wall-done">⛏️ ${MINE_NAME}
+      <span class="muted">· ${mineIncomeOf(state, city)} Gold je Runde aus ${erz} Erz im Umland</span></p>`;
+  }
+  if (city.mineBuilding) {
+    const left = city.mineBuilding.turnsLeft;
+    const done = MINE_TURNS - left;
+    return `<p class="wall-line wall-building">🏗️ ${MINE_NAME} im Bau –
+      noch ${left} ${left === 1 ? 'Runde' : 'Runden'}
+      <span class="wall-track"><span class="wall-fill" style="width:${(done / MINE_TURNS) * 100}%"></span></span>
+    </p>`;
+  }
+  if (!isMine) return '';
+  if (erz < MINE_MIN_ORE) {
+    return `<p class="wall-line muted">⛏️ Kein ${MINE_NAME} – im Umland liegt kein Erz
+      ${erz > 0 ? `(nur ${erz} von ${MINE_MIN_ORE})` : ''}.</p>`;
+  }
+  const tooPoor = player.gold < MINE_COST;
+  return `<button class="mine-btn" ${tooPoor ? 'disabled' : ''}>
+      ⛏️ ${MINE_NAME} anschlagen – ${MINE_COST} Gold
+      <small>${MINE_TURNS} Runden · danach <strong>${mineIncome(erz)} Gold je Runde</strong>
+        aus ${erz} Erz im Umland${tooPoor ? ' · zu wenig Gold' : ''}</small>
     </button>`;
 }
 
@@ -1226,6 +1260,7 @@ export function empireHTML(state) {
       city.capital ? '👑' : '',
       level ? wallLevelInfo(level).icon : '',
       city.harbour ? '⚓' : '',
+      city.mine ? '⛏️' : '',
     ].filter(Boolean).join(' ');
     return `<tr>
       <td>${escapeHTML(city.name)} <span class="emp-marks">${marks}</span></td>
@@ -1235,6 +1270,7 @@ export function empireHTML(state) {
       <td class="emp-num">${entry.people}</td>
       <td class="emp-num">${entry.wonders || '–'}</td>
       <td class="emp-num">${entry.trade || '–'}</td>
+      <td class="emp-num">${entry.mine || '–'}</td>
       <td class="emp-num emp-total">${entry.total.toLocaleString('de-DE')}</td>
     </tr>`;
   }).join('');
@@ -1261,7 +1297,7 @@ export function empireHTML(state) {
         <th>Ort</th><th>Rang</th><th class="emp-num">Einwohner</th>
         <th class="emp-num">Siedlung</th><th class="emp-num">Einwohner</th>
         <th class="emp-num">Bauwerk</th><th class="emp-num">Handel</th>
-        <th class="emp-num">Summe</th>
+        <th class="emp-num">Bergwerk</th><th class="emp-num">Summe</th>
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr>
@@ -1270,6 +1306,7 @@ export function empireHTML(state) {
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.people, 0)}</td>
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.wonders, 0) || '–'}</td>
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.trade, 0) || '–'}</td>
+        <td class="emp-num">${cities.reduce((s, e) => s + e.income.mine, 0) || '–'}</td>
         <td class="emp-num emp-total">${income.toLocaleString('de-DE')}</td>
       </tr></tfoot>
     </table>` : '<p class="muted">Kein Ort mehr in eigener Hand.</p>'}
@@ -1278,7 +1315,8 @@ export function empireHTML(state) {
     `${w.wonder ? '🏛️' : '🗿'} ${escapeHTML(w.name)}`).join(' · ')}</p>` : ''}
     <p class="emp-note muted">Die Spalte „Siedlung" ist die Abgabe des Orts nach seinem Rang,
       „Einwohner" trägt je 200 Einwohner ein Gold bei, „Bauwerk" ein Weltwunder oder
-      Wahrzeichen in seiner Nähe, „Handel" die Wege, die von hier ausgehen.
+      Wahrzeichen in seiner Nähe, „Handel" die Wege, die von hier ausgehen und
+      „Bergwerk", was der Berg im Umland hergibt.
       Der Sold wird beim Rundenwechsel vom Schatz abgezogen.</p>`;
 }
 
@@ -1342,6 +1380,8 @@ export function renderUI(state, handlers) {
       if (wallBtn) wallBtn.addEventListener('click', () => handlers.onBuyWalls(city.id));
       const harbourBtn = panel.querySelector('.harbour-btn:not([disabled])');
       if (harbourBtn) harbourBtn.addEventListener('click', () => handlers.onBuyHarbour(city.id));
+      const mineBtn = panel.querySelector('.mine-btn:not([disabled])');
+      if (mineBtn) mineBtn.addEventListener('click', () => handlers.onBuyMine(city.id));
       panel.querySelectorAll('.fleet-btn:not([disabled])').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onBuildFleet(city.id, btn.dataset.ship));
       });

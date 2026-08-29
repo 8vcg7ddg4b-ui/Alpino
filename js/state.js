@@ -72,6 +72,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       harbour: coastalOnMap(map, colOfLon(def.lon), rowOfLat(def.lat))
         && (!!def.capital || size === 'large'),
       harbourBuilding: null,
+      // Ein Bergwerk hat niemand geerbt: wer eines will, schlägt es an.
+      mine: false,
+      mineBuilding: null,
       garrison,
     };
   });

@@ -14,6 +14,7 @@ import {
   TRANSPORT_NAME, transportCount, shipTypesOf,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
   HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
+  MINE_NAME, MINE_COST, MINE_TURNS, MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
   FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
@@ -1156,6 +1157,70 @@ export function buyHarbour(state, cityId) {
   return { ok: true };
 }
 
+// --- Bergwerk --------------------------------------------------------------
+// Was im Umland liegt, in Punkten: das Gebirge zählt doppelt, das Hügelland
+// einfach, alles andere gar nicht. Gerechnet wird über ein Quadrat von zwei
+// Feldern um den Ort - so weit reicht ein Stollen und der Karren, der das Erz
+// hereinbringt.
+export function mineOre(state, city) {
+  if (!city) return 0;
+  let erz = 0;
+  for (let dr = -MINE_RANGE; dr <= MINE_RANGE; dr++) {
+    const row = state.map.tiles[city.row + dr];
+    if (!row) continue;
+    for (let dc = -MINE_RANGE; dc <= MINE_RANGE; dc++) {
+      const tile = row[city.col + dc];
+      if (tile) erz += MINE_ORE[tile.type] || 0;
+    }
+  }
+  return erz;
+}
+
+// Was das Bergwerk dieses Orts je Runde trägt - null, solange keines steht.
+export function mineIncomeOf(state, city) {
+  if (!city || !city.mine) return 0;
+  return mineIncome(mineOre(state, city));
+}
+
+export function canBuildMine(state, city) {
+  if (!city || city.factionId === 'neutral') return false;
+  if (city.mine || city.mineBuilding) return false;
+  return mineOre(state, city) >= MINE_MIN_ORE;
+}
+
+export function buyMine(state, cityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false };
+  if (city.mine) return { ok: false, reason: 'done' };
+  if (city.mineBuilding) return { ok: false, reason: 'building' };
+  const erz = mineOre(state, city);
+  if (erz < MINE_MIN_ORE) return { ok: false, reason: 'noOre' };
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  if (faction.gold < MINE_COST) return { ok: false, reason: 'gold' };
+
+  faction.gold -= MINE_COST;
+  city.mineBuilding = { turnsLeft: MINE_TURNS };
+  logOwn(state, faction.id, `${city.name}: Ein ${MINE_NAME} wird angeschlagen `
+    + `(${MINE_TURNS} Runden, danach ${mineIncome(erz)} Gold je Runde).`);
+  return { ok: true };
+}
+
+export function advanceMineConstruction(state) {
+  const finished = [];
+  for (const city of state.cities) {
+    if (!city.mineBuilding) continue;
+    city.mineBuilding.turnsLeft -= 1;
+    if (city.mineBuilding.turnsLeft > 0) continue;
+    city.mine = true;
+    city.mineBuilding = null;
+    finished.push(city);
+    logOwn(state, city.factionId, `⛏️ Das ${MINE_NAME} von ${city.name} fördert: `
+      + `${mineIncomeOf(state, city)} Gold je Runde.`);
+  }
+  return finished;
+}
+
 export function advanceHarbourConstruction(state) {
   const finished = [];
   for (const city of state.cities) {
@@ -1504,7 +1569,13 @@ export function cityIncome(state, city) {
   const people = Math.floor(city.population / 200);
   const wonders = wondersOfCity(state, city.id).reduce((sum, w) => sum + w.income, 0);
   const trade = tradeIncomeOf(state, city);
-  return { settlement, people, wonders, trade, total: settlement + people + wonders + trade };
+  // Das Bergwerk trägt für sich: es hängt weder an der Größe des Orts noch an
+  // seinen Einwohnern, sondern allein an dem, was im Berg liegt.
+  const mine = mineIncomeOf(state, city);
+  return {
+    settlement, people, wonders, trade, mine,
+    total: settlement + people + wonders + trade + mine,
+  };
 }
 
 // Was die Heere einer Fraktion in dieser Runde kosten. Steht hier, weil die

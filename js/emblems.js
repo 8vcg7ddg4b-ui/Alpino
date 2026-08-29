@@ -95,6 +95,14 @@ const EMBLEMS = {
     <path d="M74 30 l6 15 16 1 -12 11 4 16 -14 -9 -14 9 4 -16 -12 -11 16 -1 Z"/>`,
   neutral: `<circle cx="50" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="8"/>
     <circle cx="50" cy="50" r="7"/>`,
+  // Die wandernden Stämme führen kein Feldzeichen, sondern das, was vorneweg
+  // fährt: den Planwagen mit dem Ochsengespann.
+  wanderer: `<path d="M18 62 q6 -26 32 -26 q26 0 32 26 Z"/>
+    <rect x="16" y="62" width="68" height="10"/>
+    <circle cx="30" cy="80" r="9" fill="none" stroke="currentColor" stroke-width="5"/>
+    <circle cx="70" cy="80" r="9" fill="none" stroke="currentColor" stroke-width="5"/>
+    <path d="M40 30 l4 -12 l6 10 Z"/>
+    <path d="M54 28 l6 -12 l4 12 Z"/>`,
   // Die Seeräuber führen kein Zeichen. Was hier steht, ist das, was ihre Opfer
   // sahen: der schwarze Wimpel über zwei gekreuzten Entermessern.
   piraten: `<rect x="47" y="12" width="6" height="46"/>

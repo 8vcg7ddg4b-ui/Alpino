@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.5.0';
+export const GAME_VERSION = '1.6.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -311,6 +311,14 @@ export const FACTION_UNITS = {
     cavalry: { name: 'Berittene Wache', icon: '🐎', attack: 8, defense: 4, hp: 85, cost: 140, upkeep: 0.085 },
     ranged: { name: 'Schleuderer', icon: '🪨', attack: 4, defense: 3, hp: 68, cost: 105, upkeep: 0.05, ranged: true },
   },
+  // Ein wanderndes Volk führt keinen Feldzug: es zieht mit allem, was es hat.
+  // Viel Fußvolk, dahinter die Reiter, und ein Bogen für jeden Dritten. Es
+  // schlägt hart zu und hält wenig aus - es hat keine Mauer im Rücken.
+  wanderer: {
+    infantry: { name: 'Wehrhafte Männer', icon: '🪓', attack: 10, defense: 5, hp: 92, cost: 0, upkeep: 0 },
+    cavalry: { name: 'Steppenreiter', icon: '🐎', attack: 13, defense: 5, hp: 96, cost: 0, upkeep: 0 },
+    ranged: { name: 'Hornbogenschützen', icon: '🏹', attack: 9, defense: 3, hp: 70, cost: 0, upkeep: 0, ranged: true },
+  },
 };
 
 // Die Wache ist überall dieselbe: sie kommt aus der Stadt, nicht aus dem Heer.
@@ -439,6 +447,12 @@ export const FACTIONS = [
   {
     id: 'piraten', name: 'Seeräuber', color: '#15161a',
     isNeutral: true, isPirate: true,
+  },
+  // Und die Völker aus der Steppe: auch mit ihnen wird nicht verhandelt. Sie
+  // ziehen, bis sie Land finden, und dann sind sie keine Wanderer mehr.
+  {
+    id: 'wanderer', name: 'Wandernde Stämme', color: '#7a4a1e',
+    isNeutral: true, isHorde: true,
   },
 ];
 
@@ -885,6 +899,33 @@ export const HARBOUR_COST = 300;
 export const HARBOUR_TURNS = 3;
 export const HARBOUR_NAME = 'Hafen';
 
+// --- Bergwerk --------------------------------------------------------------
+// Was ein Ort aus dem Boden holt, holt er nur einmal - und dafür braucht es
+// einen Stollen, Werkzeug und Leute, die hinuntersteigen. Ein Bergwerk ist
+// deshalb kein Geschenk der Lage, sondern ein Bauwerk: teuer, langsam, und
+// danach die beste Einnahmequelle, die ein Ort haben kann.
+//
+// Es lohnt sich nur, wo etwas liegt. Im Gebirge liegt das Erz offen, im
+// Hügelland muss man es suchen, in der Ebene gibt es keines - deshalb zählt
+// nicht der Ort, sondern sein Umland.
+export const MINE_NAME = 'Bergwerk';
+export const MINE_COST = 400;
+export const MINE_TURNS = 4;
+// Wie weit die Stollen ins Umland reichen: zwei Felder, gut 110 km.
+export const MINE_RANGE = 2;
+// Was ein Feld hergibt.
+export const MINE_ORE = { mountain: 2, hills: 1 };
+// Darunter lohnt kein Stollen.
+export const MINE_MIN_ORE = 3;
+// Was ein Punkt Erz je Runde trägt, und wo auch der reichste Berg aufhört.
+export const MINE_INCOME_PER_ORE = 4;
+export const MINE_MAX_ORE = 12;
+
+export function mineIncome(ore) {
+  if (!ore || ore < MINE_MIN_ORE) return 0;
+  return Math.min(MINE_MAX_ORE, ore) * MINE_INCOME_PER_ORE;
+}
+
 // --- Bevölkerung ----------------------------------------------------------
 // Orte wachsen. Nicht durch Zuzug oder Eroberung, sondern schlicht dadurch,
 // dass mehr Kinder geboren werden als Menschen sterben - und das geht in
@@ -959,6 +1000,41 @@ export const PIRATE_BLOCKADE_RANGE = 2;
 export const PIRATE_TOLL = 0.5;
 // Bis hierhin suchen sie sich ein Ziel - weiter fahren sie nicht auf Verdacht.
 export const PIRATE_HUNT_RANGE = 14;
+
+// --- Wandernde Stämme ------------------------------------------------------
+// Der Osten ist nicht der Rand der Welt, sondern ihre Tür. Dahinter liegt die
+// Steppe, und alle paar Jahre setzt sich dort ein Volk in Bewegung: Weiber,
+// Kinder, Karren, Herden - und zwischen alldem so viele wehrhafte Männer, wie
+// kein Reich auf einmal ins Feld stellt.
+//
+// Ein solcher Zug hat kein Kriegsziel. Er hat eine Richtung: nach Westen, auf
+// ein Reich zu, weil dort Land ist. Was ihm im Weg steht, überrennt er; nimmt
+// er einen Ort, bleibt er dort - der Ort wird unabhängig und der Zug ist zu
+// Ende. Er erobert nichts für niemanden und gewinnt nie.
+export const HORDE_FACTION = 'wanderer';
+// Nicht in den ersten Runden: die Eröffnung gehört den Reichen.
+export const HORDE_FIRST_TURN = 18;
+// Mehr als so viele Züge sind nie gleichzeitig unterwegs.
+export const HORDE_MAX = 2;
+// Wie wahrscheinlich sich in einer Runde eines aufmacht.
+export const HORDE_CHANCE = 0.1;
+// Aus welchem Streifen am Ostrand sie kommen.
+export const HORDE_EDGE = 3;
+// Ein Zug wandert weiter als ein Heer marschiert - er hat keine Nachschublinie
+// zu halten und keinen Ort, in den er zurückkehrt.
+export const HORDE_MOVEMENT = 21;
+// Wie stark ein Zug ist. Der Zufall entscheidet, wie viele es sind.
+export const HORDE_MIN_STRENGTH = 520;
+export const HORDE_MAX_STRENGTH = 980;
+// Wie er sich zusammensetzt - Anteile, die zusammen eins ergeben.
+export const HORDE_SHARE = { infantry: 0.55, cavalry: 0.31, ranged: 0.14 };
+
+// Die Völker, die aus dem Osten kamen, mit dem Namen, unter dem sie in den
+// Quellen stehen.
+export const HORDE_NAMES = [
+  'Roxolanen', 'Alanen', 'Massageten', 'Jazygen', 'Bastarner',
+  'Skiren', 'Aorsen', 'Daher', 'Sakaraukai', 'Kimmerier',
+];
 
 // --- Handel ---------------------------------------------------------------
 // Jeder Ort bringt hervor, was sein Land hergibt. Zwei eigene Orte, die eine

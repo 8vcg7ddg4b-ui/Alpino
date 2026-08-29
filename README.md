@@ -348,6 +348,30 @@ den Punkten durchblättern.
   Küstenstadt muss ihn bauen. Erobert man eine Stadt, übernimmt man ihren
   Hafen. Am Ufer steht dann ein Steg mit vertäutem Boot, damit man von weitem
   sieht, wo eine Flotte auslaufen kann.
+- **Bergwerk**: Die beste Einnahmequelle, die ein Ort haben kann – und die
+  einzige, die weder an seiner Größe noch an seinen Einwohnern hängt, sondern
+  allein an dem, was im Berg liegt. Gerechnet wird über ein Quadrat von **zwei
+  Feldern** um den Ort: ein Gebirgsfeld zählt **2**, ein Hügelfeld **1**, alles
+  andere nichts. Ab **3 Erz** lohnt ein Stollen, je Punkt bringt er **4 Gold je
+  Runde**, bei 12 Punkten ist Schluss – also **12 bis 48 Gold**, gegen **400
+  Gold** und **4 Runden** Bauzeit. Von 98 Orten haben 29 genug Erz; der Knopf
+  nennt vor dem Bau, was er tragen wird. Neben der Stadt steht danach ein
+  Fördergerüst mit Schacht und Halde, in der Übersicht hat das Bergwerk eine
+  eigene Spalte, und die KI schlägt eines an, bevor sie die nächste Mauer baut.
+- **Wandernde Stämme**: Der Osten ist nicht der Rand der Welt, sondern ihre
+  Tür. Ab Runde 18 setzt sich dahinter mit einer Wahrscheinlichkeit von 10 % je
+  Runde ein Volk in Bewegung – **520 bis 980 wehrhafte Männer**, dazu Weiber,
+  Kinder, Karren und Herden, unter einem Namen aus den Quellen (Roxolanen,
+  Alanen, Massageten, Jazygen …). Höchstens zwei sind gleichzeitig unterwegs.
+  Ein solcher Zug führt keinen Feldzug: er hat eine Richtung und ein Ziel, das
+  Reich, dessen nächster Ort ihm am nächsten liegt, und er zieht **21
+  Bewegungspunkte** weit, weiter als jedes Heer marschiert. Was im Weg steht,
+  überrennt er. **Nimmt er einen Ort, ist der Zug zu Ende**: das Volk bleibt,
+  der Ort wird unabhängig, seine Einwohnerzahl wächst um die Neuankömmlinge und
+  ein Teil von ihnen steht von da an als Stadtwache auf der Mauer. Jeder
+  Aufbruch meldet sich in einem **Infofenster** – gleich, ob der Zug gegen dich
+  geht oder gegen einen anderen: wer ihn zuerst trifft, ist eine Frage von
+  Runden.
 - **Herrscher und Diplomatie**: Jede Fraktion wird von einem Herrscher geführt,
   und wer eine Fraktion wählt, ist dieser Mann – der Herold im Zelt spricht ihn
   mit seinem Namen an. Drei Eigenschaften von 0 bis 100 machen ihn aus:
@@ -490,9 +514,12 @@ den Punkten durchblättern.
   Geländeauskunft sagt für jedes, woran man ist. Hannibal zog über den
   Alpenhauptkamm auf ungefähr dieser Höhe.
 - **Kartentisch**: Die Karte liegt auf einem Tisch mit Rahmen, Platte und vier
-  gedrechselten Beinen, die auf dem Zeltboden stehen. Das Meer reicht bis unter
-  den Rahmen – vorher endete es kurz hinter dem letzten Feld, und dazwischen
-  sah man auf die Tischplatte.
+  gedrechselten Beinen, die auf dem Zeltboden stehen. **Zwischen dem letzten
+  Feld und dem Rahmen ist kein Meer, sondern Papier** – das Blatt, auf das die
+  Karte gezeichnet ist. Das Meer endet dort, wo die Felder enden; ein Ring aus
+  vier Streifen in Pergamentfarbe füllt den Rand, mit derselben Faserung wie
+  das Gelände darüber. Vorher lief das Wasser bis unter den Rahmen und man
+  segelte am Rand über ein Meer, das es nicht gab.
 - **Grenzen auf der Karte**: Der Knopf ◫ blendet die **Grenzen der
   Herrschaftsgebiete** ein – ein schmales Band in der Farbe der Fraktion,
   überall dort, wo ihr Einflussbereich an einen fremden stößt, gezeichnet auf
@@ -739,6 +766,8 @@ den Punkten durchblättern.
   Handlungen, die Gesandten und was die Herrscher von sich aus beschließen
 - `js/piraten.js` – die Seeräuber: wo sie auslaufen, was sie jagen, was sie dem
   Seehandel kosten und was sie im Laderaum haben
+- `js/staemme.js` – die Züge aus dem Osten: wo sie aufbrechen, wogegen sie
+  ziehen und was geschieht, wenn sie Land finden
 - `js/ai.js` – einfache KI (Wirtschaft + Angriffsverhalten)
 - `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl

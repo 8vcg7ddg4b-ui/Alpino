@@ -1,7 +1,7 @@
 import { createInitialState, playerFaction, unitTotalCount, factionById, logMsg } from './state.js';
 import {
   playableFactions, factionProfile, unitDefs, UNIT_ROLES, ROLE_LABELS,
-  CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION, GAME_VERSION,
+  CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION, GAME_VERSION, MINE_NAME,
 } from './data.js';
 import {
   renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount, empireHTML,
@@ -11,11 +11,13 @@ import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
 import { aiTakeAllTurns } from './ai.js';
 import { pirateFleets } from './piraten.js';
+import { hordes } from './staemme.js';
 import {
   recruitUnit, raiseArmyFromGarrison, reinforceArmy, collectIncome, regenerateGarrisons,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction, buildFleet,
+  buyMine, advanceMineConstruction, mineIncomeOf,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations,
 } from './actions.js';
 import {
@@ -402,6 +404,9 @@ function snapshotOwn() {
     // Welche Seeräuber schon unterwegs waren - ein neues Segel vor der eigenen
     // Küste ist eine Meldung wert, eines am anderen Ende der Welt nicht.
     piraten: new Set(pirateFleets(state).map((p) => p.id)),
+    // Und welche Züge aus dem Osten. Die sind immer eine Meldung wert: ein
+    // Volk in Bewegung geht die ganze Welt an, nicht nur den, gegen den es zieht.
+    staemme: new Set(hordes(state).map((h) => h.id)),
   };
 }
 
@@ -461,6 +466,29 @@ function collectOwnNews(vorher, previousHead) {
       title: `${city.name} ist dein`,
       text: `${city.name} steht unter deiner Herrschaft.`,
       effect: 'Der Ort trägt ab der nächsten Abrechnung zu deinen Einnahmen bei.',
+    });
+  }
+
+  // Ein Volk, das sich in Bewegung gesetzt hat. Das steht im Fenster, gleich
+  // ob es gegen den Spieler zieht oder gegen einen anderen: wer es zuerst
+  // trifft, ist eine Frage von Runden.
+  for (const zug of hordes(state)) {
+    if (vorher.staemme.has(zug.id)) continue;
+    const gegner = factionById(state, zug.gegen);
+    const gegenMich = zug.gegen === me;
+    const staerke = unitTotalCount(zug.units).toLocaleString('de-DE');
+    diploNewsQueue.push({
+      icon: '🐎', kind: 'Ein Volk in Bewegung',
+      title: `${zug.name} zieht aus dem Osten heran`,
+      text: `${staerke} wehrhafte Männer, dazu Weiber, Kinder, Karren und Herden. `
+        + (gegenMich
+          ? 'Der Zug geht gegen dich.'
+          : `Der Zug geht gegen ${gegner ? gegner.name : 'ein Reich im Westen'}.`),
+      effect: gegenMich
+        ? 'Sie überrennen, was im Weg steht. Nehmen sie einen deiner Orte, bleiben '
+          + 'sie dort – und der Ort ist für dich verloren.'
+        : 'Was sie unterwegs nehmen, gehört von da an niemandem mehr. Ihr Weg führt '
+          + 'quer durch die Reiche des Ostens.',
     });
   }
 
@@ -1091,6 +1119,12 @@ function refresh() {
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
+    onBuyMine: (cityId) => {
+      pushUndo();
+      const ok = buyMine(state, cityId).ok;
+      (ok ? sfx.wallBuy : sfx.denied)();
+      refresh();
+    },
     onBuildFleet: (cityId, kind) => {
       pushUndo();
       const result = buildFleet(state, cityId, kind || null);
@@ -1167,6 +1201,7 @@ function endTurn() {
   advanceWallConstruction(state);
   const roadsDone = advanceRoadConstruction(state);
   const harboursDone = advanceHarbourConstruction(state);
+  const minesDone = advanceMineConstruction(state);
   // The season that just passed is what wore the armies down; the next one is
   // rolled once the turn has actually turned.
   applyWeather(state);
@@ -1185,12 +1220,24 @@ function endTurn() {
   // Reihe nach ins Meldefenster - Schlachten, Orte, Heere. Die Herolde der
   // Diplomatie stehen schon in derselben Schlange.
   if (!state.gameOver) {
+    const me = playerFaction(state).id;
+    for (const city of minesDone) {
+      if (city.factionId !== me) continue;
+      diploNewsQueue.push({
+        icon: '⛏️', kind: 'Ein Bergwerk fördert',
+        title: `Das ${MINE_NAME} von ${city.name} ist offen`,
+        text: `Die Stollen sind angeschlagen, die Karren rollen. `
+          + `${city.name} fördert von dieser Runde an Erz.`,
+        effect: `+${mineIncomeOf(state, city)} Gold je Runde – unabhängig von Größe, `
+          + 'Einwohnern und Handel des Orts.',
+      });
+    }
     collectOwnNews(vorher, previousHead);
     if (diploNewsQueue.length) showNextDiploNews();
     else if (myEvent) showEvent(myEvent);
   }
 
-  if (roadsDone.length || harboursDone.length
+  if (roadsDone.length || harboursDone.length || minesDone.length
     || (wallsBuilding && state.cities.filter((c) => c.wallBuilding).length < wallsBuilding)) {
     sfx.wallDone();
   }

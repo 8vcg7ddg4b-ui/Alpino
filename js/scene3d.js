@@ -39,6 +39,10 @@ const TENT_CAMERA_MARGIN = 60;
 let terrainMesh = null;
 let waterMesh = null;
 let deepSeaMesh = null;
+// Der Rand der Karte ist kein Meer, sondern das Blatt, auf dem sie liegt:
+// vier Streifen zwischen dem letzten Feld und dem Rahmen.
+let paperMesh = null;
+const PAPER_COLOR = '#d9c69b';
 let currentMap = null;
 let propsGroup = null;
 let roadsGroup = null;
@@ -522,29 +526,64 @@ export function buildMap(state) {
   terrainMesh = new THREE.Mesh(geometry, material);
   scene.add(terrainMesh);
 
-  // Die Karte liegt auf einem Tisch: das Meer endet am Rahmen, es läuft nicht
-  // mehr ins Unendliche.
-  // Das Wasser reicht bis unter den Rahmen, nicht nur bis kurz hinter das
-  // letzte Feld: dazwischen sah man sonst auf die Tischplatte, und am Rand
-  // schien die Karte im Nichts zu enden. Der Rahmen deckt den Überstand ab.
+  // Die Karte liegt auf einem Tisch, und was auf dem Tisch liegt, ist ein Blatt:
+  // Zwischen dem letzten Feld und dem Rahmen ist kein Meer mehr, sondern das
+  // Papier, auf das die Karte gezeichnet ist. Das Meer endet dort, wo die
+  // Felder enden - sonst führe man am Rand über ein Wasser, das es nicht gibt.
   const boardW = mapCols * TILE_SIZE + TILE_SIZE * 2.9;
   const boardH = mapRows * TILE_SIZE + TILE_SIZE * 2.9;
+  // Genau so weit wie die Felder: die Geländefläche spannt zwischen den
+  // Mittelpunkten des ersten und des letzten Felds.
+  const mapW = (mapCols - 1) * TILE_SIZE;
+  const mapH = (mapRows - 1) * TILE_SIZE;
+  const mapCx = -TILE_SIZE / 2;
+  const mapCz = -TILE_SIZE / 2;
+
+  // Der Rand ist ein Ring aus vier Streifen, keine Fläche unter der ganzen
+  // Karte: so liegt das Papier über dem Wasserspiegel und ist vom Tischrand
+  // aus zu sehen, ohne dass es das Meer verdeckt, wo Meer hingehört.
+  // Die Faserung ist dasselbe Rauschen wie auf dem Gelände, nur eng gekachelt -
+  // sonst sieht man einen Farbfleck und kein Blatt.
+  const paperGrain = makeNoiseTexture();
+  paperGrain.repeat.set(6, 6);
+  const paperMaterial = new THREE.MeshStandardMaterial({
+    color: PAPER_COLOR, roughness: 1, map: paperGrain,
+  });
+  paperMesh = new THREE.Group();
+  const randX = (boardW - mapW) / 2;
+  const randZ = (boardH - mapH) / 2;
+  const paperY = SEA_LEVEL_Y + 0.12;
+  const streifen = [
+    // oben und unten über die ganze Breite, links und rechts dazwischen
+    [boardW, randZ, mapCx, mapCz - mapH / 2 - randZ / 2],
+    [boardW, randZ, mapCx, mapCz + mapH / 2 + randZ / 2],
+    [randX, mapH, mapCx - mapW / 2 - randX / 2, mapCz],
+    [randX, mapH, mapCx + mapW / 2 + randX / 2, mapCz],
+  ];
+  for (const [breite, tiefe, x, z] of streifen) {
+    const blatt = new THREE.Mesh(new THREE.PlaneGeometry(breite, tiefe), paperMaterial);
+    blatt.rotation.x = -Math.PI / 2;
+    blatt.position.set(x, paperY, z);
+    paperMesh.add(blatt);
+  }
+  scene.add(paperMesh);
+
   deepSeaMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(boardW, boardH),
+    new THREE.PlaneGeometry(mapW, mapH),
     new THREE.MeshStandardMaterial({ color: '#1d3f66', roughness: 0.9 })
   );
   deepSeaMesh.rotation.x = -Math.PI / 2;
-  deepSeaMesh.position.y = tileTopY(TILE_TYPES.water.elevation) - 0.6;
+  deepSeaMesh.position.set(mapCx, tileTopY(TILE_TYPES.water.elevation) - 0.6, mapCz);
   scene.add(deepSeaMesh);
 
   waterMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(boardW, boardH),
+    new THREE.PlaneGeometry(mapW, mapH),
     new THREE.MeshStandardMaterial({
       color: TILE_TYPES.water.color, transparent: true, opacity: 0.82, roughness: 0.25,
     })
   );
   waterMesh.rotation.x = -Math.PI / 2;
-  waterMesh.position.y = SEA_LEVEL_Y;
+  waterMesh.position.set(mapCx, SEA_LEVEL_Y, mapCz);
   scene.add(waterMesh);
 
   buildTable(boardW, boardH);
@@ -1602,6 +1641,8 @@ const CITY_MATERIALS = {
   marble: new THREE.MeshStandardMaterial({ color: '#eee6d2', roughness: 0.55 }),
   wood: new THREE.MeshStandardMaterial({ color: '#5a4127', roughness: 1 }),
   gold: new THREE.MeshStandardMaterial({ color: '#d9b451', roughness: 0.4, metalness: 0.35 }),
+  // Bruchstein, wie er am Schacht aufgeschichtet wird.
+  stone: new THREE.MeshStandardMaterial({ color: '#8e8577', roughness: 0.95 }),
 };
 
 // Ein Haus mit Walmdach. Das Dach trägt die Fraktionsfarbe - es ist das, was
@@ -2171,6 +2212,82 @@ function buildHarbour(scale) {
   return harbour;
 }
 
+// Das Bergwerk: ein Fördergerüst über dem Schacht, eine Halde daneben und ein
+// Karren auf der Rampe. Es steht nicht in der Stadt, sondern am Hang daneben -
+// so wie die Stollen im Berg liegen und nicht unter den Häusern.
+function buildMine(scale) {
+  const mine = new THREE.Group();
+
+  // Der Schacht: ein dunkles Loch mit einem Kranz aus Bruchstein.
+  const kranz = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.62 * scale, 0.72 * scale, 0.32 * scale, 8),
+    CITY_MATERIALS.stone
+  );
+  kranz.position.y = 0.16 * scale;
+  mine.add(kranz);
+  const schacht = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.42 * scale, 0.42 * scale, 0.1 * scale, 8),
+    new THREE.MeshStandardMaterial({ color: '#17130f', roughness: 1 })
+  );
+  schacht.position.y = 0.33 * scale;
+  mine.add(schacht);
+
+  // Das Gerüst: zwei schräge Balken und ein Querholz mit der Rolle.
+  for (const side of [-1, 1]) {
+    const balken = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14 * scale, 1.5 * scale, 0.14 * scale),
+      CITY_MATERIALS.timber
+    );
+    balken.position.set(side * 0.5 * scale, 0.85 * scale, 0);
+    balken.rotation.z = side * 0.28;
+    mine.add(balken);
+  }
+  const quer = new THREE.Mesh(
+    new THREE.BoxGeometry(1.1 * scale, 0.13 * scale, 0.13 * scale),
+    CITY_MATERIALS.timber
+  );
+  quer.position.y = 1.6 * scale;
+  mine.add(quer);
+  const rolle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2 * scale, 0.2 * scale, 0.14 * scale, 8),
+    CITY_MATERIALS.wood
+  );
+  rolle.rotation.x = Math.PI / 2;
+  rolle.position.y = 1.6 * scale;
+  mine.add(rolle);
+
+  // Die Halde: taubes Gestein, das seit Jahren neben dem Schacht wächst.
+  const halde = new THREE.Mesh(
+    new THREE.ConeGeometry(0.75 * scale, 0.55 * scale, 7),
+    new THREE.MeshStandardMaterial({ color: '#6b5f4e', roughness: 1 })
+  );
+  halde.position.set(1.15 * scale, 0.27 * scale, 0.55 * scale);
+  mine.add(halde);
+
+  return mine;
+}
+
+// Wohin das Bergwerk gehört: an den höchsten Punkt neben dem Ort - dorthin,
+// wo das Erz liegt. Alles in lokalen Koordinaten der Stadtgruppe.
+function placeMine(mine, city, cityY) {
+  let best = null;
+  let bestY = -Infinity;
+  for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+    const y = surfaceY(city.col + dc, city.row + dr);
+    if (!Number.isFinite(y) || y <= bestY) continue;
+    bestY = y;
+    best = [dc, dr];
+  }
+  const [dc, dr] = best || [1, -1];
+  const laenge = Math.hypot(dc, dr) || 1;
+  mine.position.set(
+    (dc / laenge) * TILE_SIZE * 0.88,
+    Math.max(0, bestY - cityY) * 0.5,
+    (dr / laenge) * TILE_SIZE * 0.88
+  );
+  mine.rotation.y = Math.atan2(-dr, dc);
+}
+
 // Setzt den Steg ans Ufer zwischen Stadt und offenem Wasser, mit dem Kopf zum
 // Meer. Alles in lokalen Koordinaten der Stadtgruppe.
 function placeHarbour(harbour, city, sea, cityY) {
@@ -2563,6 +2680,16 @@ export function syncEntities(state) {
     }
     if (entry.harbour) entry.harbour.visible = !!city.harbour;
 
+    // Das Fördergerüst entsteht mit dem Bergwerk und bleibt, solange es fördert.
+    if (city.mine && !entry.mine) {
+      // Etwas größer als die Häuser: ein Fördergerüst ist kein Schuppen, und
+      // hinter der Palisade wäre es sonst nicht zu sehen.
+      entry.mine = buildMine(entry.scale * 1.35);
+      placeMine(entry.mine, city, surfaceY(city.col, city.row));
+      entry.group.add(entry.mine);
+    }
+    if (entry.mine) entry.mine.visible = !!city.mine;
+
     // Only the stage that actually stands is built, and only when it is built.
     const level = city.wallLevel || 0;
     for (let index = 0; index < entry.walls.length; index++) {
@@ -2860,6 +2987,12 @@ export function setMapMode(mode, state) {
     waterMesh.material.color.set(tactical ? '#33506e' : TILE_TYPES.water.color);
   }
   if (deepSeaMesh) deepSeaMesh.material.color.set(tactical ? '#2b435c' : '#1d3f66');
+  // In der taktischen Ansicht tritt auch das Papier zurück.
+  // In der taktischen Ansicht tritt auch das Papier zurück. Alle vier
+  // Streifen teilen sich ein Material - einer genügt.
+  if (paperMesh && paperMesh.children.length) {
+    paperMesh.children[0].material.color.set(tactical ? '#8d8570' : PAPER_COLOR);
+  }
   return mapMode;
 }
 

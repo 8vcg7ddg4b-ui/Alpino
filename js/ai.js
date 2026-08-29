@@ -1,6 +1,6 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost, shipTypesOf,
-  wallLevelInfo, TRADE_ROUTE_COST,
+  wallLevelInfo, TRADE_ROUTE_COST, MINE_COST,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
@@ -8,12 +8,14 @@ import {
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
   buyHarbour, canBuildHarbour, buildFleet, raiseIndependentArmies,
   buyCityWalls, nextWallLevel, tradePartners, openTradeRoute,
+  canBuildMine, buyMine, mineOre,
 } from './actions.js';
 import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
 } from './state.js';
 import { atWar, rulerOf } from './diplomacy.js';
 import { piratesTakeTurn } from './piraten.js';
+import { hordesTakeTurn } from './staemme.js';
 
 // Keeps enough in the treasury that paying for a fleet never leaves a faction
 // unable to defend what it already has.
@@ -275,6 +277,34 @@ function aiRoads(state, faction, savingForFleet) {
   if (!plan) return false;
   if (faction.gold >= plan.estimate + AI_ROAD_TREASURY) {
     buyRoad(state, plan.from.id, plan.target.id);
+    return false;
+  }
+  return true;
+}
+
+// Ein Bergwerk ist die beste Anlage, die es gibt: einmal bezahlt, trägt es
+// jede Runde, solange der Ort gehalten wird. Die KI schlägt eines an, sobald
+// sie es sich leisten kann - im erzreichsten Ort zuerst. Mehr als eines je
+// Runde nicht: eine leere Truhe verteidigt keine Stadt.
+const AI_MINE_TREASURY = 150;
+
+// Gibt zurück, ob dafür gespart wird: wer ein Bergwerk will und es sich noch
+// nicht leisten kann, hebt in dieser Runde weniger aus. Sonst steht die Kasse
+// jede Runde bei vierhundert und der Stollen wird nie angeschlagen.
+function aiMines(state, faction) {
+  let best = null;
+  let bestOre = 0;
+  for (const city of state.cities) {
+    if (city.factionId !== faction.id) continue;
+    if (!canBuildMine(state, city)) continue;
+    const erz = mineOre(state, city);
+    if (erz <= bestOre) continue;
+    bestOre = erz;
+    best = city;
+  }
+  if (!best) return false;
+  if (faction.gold >= MINE_COST + AI_MINE_TREASURY) {
+    buyMine(state, best.id);
     return false;
   }
   return true;
@@ -569,6 +599,11 @@ export function piratesMove(state) {
   piratesTakeTurn(state, stepArmyTowards);
 }
 
+// Und die Züge aus dem Osten: dasselbe, nur zu Fuß.
+export function hordesMove(state) {
+  hordesTakeTurn(state, stepArmyTowards);
+}
+
 export function independentsTakeTurn(state) {
   raiseIndependentArmies(state);
   for (const army of state.armies.filter((a) => a.factionId === 'neutral')) {
@@ -587,19 +622,27 @@ export function aiTakeTurn(state, faction) {
   // Ein Hafen geht der Flotte voraus: ohne ihn nützt das Schiffsgeld nichts.
   const savingForHarbour = aiHarbours(state, faction, harbourWanted);
   // Die Mauer geht der Straße vor: die eine hält eine Stadt, die andere macht
-  // sie nur schneller erreichbar.
-  const savingForWall = !savingForFleet && !savingForHarbour
+  // sie nur schneller erreichbar. Das Bergwerk geht der Mauer vor: eine Mauer hält eine Stadt, ein Bergwerk
+  // bezahlt die nächsten drei. Es wird ohnehin nur einmal je Ort gebaut, und
+  // nur dort, wo überhaupt Erz liegt - die Mauern kommen gleich danach.
+  const savingForMine = !savingForFleet && !savingForHarbour
+    && aiMines(state, faction);
+  const savingForWall = !savingForFleet && !savingForHarbour && !savingForMine
     && aiWalls(state, faction, threats);
-  const savingForRoad = !savingForHarbour && !savingForWall
+  const savingForRoad = !savingForHarbour && !savingForWall && !savingForMine
     && aiRoads(state, faction, savingForFleet);
-  if (!savingForFleet && !savingForHarbour && !savingForWall) aiNavy(state, faction);
+  if (!savingForFleet && !savingForHarbour && !savingForWall && !savingForMine) {
+    aiNavy(state, faction);
+  }
   // Handel erst, wenn nichts Dringenderes ansteht: eine Mauer hält eine Stadt,
   // ein Handelsweg füllt nur die Truhe.
-  if (!savingForFleet && !savingForHarbour && !savingForWall && !savingForRoad) {
+  if (!savingForFleet && !savingForHarbour && !savingForWall && !savingForMine
+    && !savingForRoad) {
     aiTrade(state, faction);
   }
   let buildReserve = 0;
   if (savingForHarbour) buildReserve = HARBOUR_COST;
+  else if (savingForMine) buildReserve = MINE_COST;
   else if (savingForWall) buildReserve = AI_WALL_SAVE_MAX;
   else if (savingForRoad) buildReserve = AI_ROAD_MAX_COST;
   aiEconomy(state, faction, savingForFleet, buildReserve, threats);
@@ -613,7 +656,9 @@ export function aiTakeAllTurns(state) {
     aiTakeTurn(state, faction);
   }
   independentsTakeTurn(state);
-  // Zuletzt die Seeräuber: sie fahren, nachdem alle anderen gezogen sind -
-  // wer eine Flotte ins Meer gelegt hat, soll sie dort auch antreffen.
+  // Dann die Züge aus dem Osten, dann die Seeräuber: beide ziehen, nachdem
+  // alle anderen gezogen sind - wer ein Heer in den Weg gestellt hat, soll es
+  // dort auch antreffen.
+  hordesMove(state);
   piratesMove(state);
 }
