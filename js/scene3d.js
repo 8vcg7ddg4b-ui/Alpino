@@ -3039,11 +3039,14 @@ const CLASH_DURATION = 1.35;
 
 // A clash where the armies actually meet: a shockwave ring races outward along
 // the ground, sparks are thrown up and fall back, and a light flares and dies.
-export function playBattleClash(col, row, onComplete) {
+export function playBattleClash(col, row, onComplete, options = {}) {
   if (!scene) {
     if (onComplete) onComplete();
     return;
   }
+  // Zur See sieht ein Zusammenstoß anders aus: keine Funken und kein Staub,
+  // sondern Gischt und Trümmer. Dieselbe Bewegung, andere Farben.
+  const naval = !!options.naval;
   const centre = new THREE.Vector3(worldX(col), surfaceY(col, row), worldZ(row));
   const group = new THREE.Group();
   group.position.copy(centre);
@@ -3051,13 +3054,16 @@ export function playBattleClash(col, row, onComplete) {
 
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(0.6, 1.15, 40),
-    new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, side: THREE.DoubleSide, depthWrite: false })
+    new THREE.MeshBasicMaterial({
+      color: naval ? '#cfe9ff' : '#ffd98a',
+      transparent: true, side: THREE.DoubleSide, depthWrite: false,
+    })
   );
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.25;
   group.add(ring);
 
-  const flash = new THREE.PointLight('#ffb347', 0, 26);
+  const flash = new THREE.PointLight(naval ? '#9fd8ff' : '#ffb347', 0, 26);
   flash.position.y = 2.4;
   group.add(flash);
 
@@ -3066,7 +3072,12 @@ export function playBattleClash(col, row, onComplete) {
   for (let i = 0; i < 18; i++) {
     const spark = new THREE.Mesh(
       new THREE.TetrahedronGeometry(0.24 + rng() * 0.2),
-      new THREE.MeshBasicMaterial({ color: rng() < 0.5 ? '#ffd27a' : '#e8663d', transparent: true })
+      new THREE.MeshBasicMaterial({
+        color: naval
+          ? (rng() < 0.5 ? '#e8f4ff' : '#7fb2d8')
+          : (rng() < 0.5 ? '#ffd27a' : '#e8663d'),
+        transparent: true,
+      })
     );
     const angle = rng() * Math.PI * 2;
     const speed = 5 + rng() * 7;

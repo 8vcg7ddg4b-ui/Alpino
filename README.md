@@ -218,6 +218,18 @@ den Punkten durchblättern.
   entsteht. Übermacht bleibt damit ein Vorteil, ist aber kein Freibrief mehr –
   Vorschau und Bericht schreiben in einer eigenen Zeile hin, wie viele Mann
   überhaupt zum Zug kommen.
+- **Meldungen zur eigenen Sache**: Was in der Runde der Gegner mit der eigenen
+  Fraktion geschehen ist, kommt der Reihe nach in ein Fenster – jede Schlacht
+  (Feldschlacht, Belagerung, **Seeschlacht**), jeder verlorene und gewonnene
+  Ort, jedes vernichtete eigene Heer, dazu die Herolde der Diplomatie. Hinter
+  einer Schlacht steht ein Knopf zum vollen Bericht. Vorher stand davon nur die
+  letzte Schlacht in einem Fenster und alles andere im Protokoll – wer eine
+  Stadt verlor, erfuhr es erst, wenn er hinsah.
+- **Seeschlachten**: Zwei Flotten auf offener See fechten wie zwei Heere, nur
+  zählt zur See allein, was das Schiff kann: Landtruppen an Bord kämpfen mit
+  halber Kraft und verlieren gegen eine Kriegsflotte fast immer. Vorschau und
+  Bericht weisen den Kampf als Seegefecht aus, und der Zusammenstoß auf dem
+  Wasser wirft Gischt statt Funken.
 - **Schlachtberichte**: Nach jedem Kampf öffnet sich ein Bericht mit Verlusten
   pro Einheitentyp, Geländevorteil und Rundenverlauf. Ältere Kämpfe lassen sich
   jederzeit über die Einträge in der Ereignisliste wieder öffnen (Esc schließt).

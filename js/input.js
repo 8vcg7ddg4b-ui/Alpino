@@ -255,7 +255,9 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
       stopMarch();
       if (reports.length) {
         sfx.clash();
-        playBattleClash(col, row, settle);
+        // Ob auf See gefochten wurde, sagt der Bericht selbst.
+        const zurSee = reports.some((r) => r.naval);
+        playBattleClash(col, row, settle, { naval: zurSee });
       } else {
         settle();
       }

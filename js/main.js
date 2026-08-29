@@ -260,14 +260,50 @@ let diploNewsQueue = [];
 function hideDiploNews() {
   if (diploNewsOverlay) diploNewsOverlay.classList.add('hidden');
   if (diploNewsQueue.length) {
-    // Mehrere Erklärungen in einer Runde kommen eine nach der anderen.
+    // Mehrere Meldungen in einer Runde kommen eine nach der anderen.
     setTimeout(showNextDiploNews, 120);
   }
+}
+
+// Eine fertige Meldung: Zeichen, Zeile, Überschrift, Text, Folge - und, wenn
+// ein Schlachtbericht dahinterliegt, ein Knopf dorthin.
+function showNotice(meldung) {
+  if (!diploNewsOverlay) return;
+  const icon = document.getElementById('diploNewsIcon');
+  const kind = document.getElementById('diploNewsKind');
+  const title = document.getElementById('diploNewsTitle');
+  const text = document.getElementById('diploNewsText');
+  const effect = document.getElementById('diploNewsEffect');
+  const close = document.getElementById('diploNewsClose');
+  if (icon) icon.textContent = meldung.icon;
+  if (kind) kind.textContent = meldung.kind;
+  if (title) title.textContent = meldung.title;
+  if (text) text.textContent = meldung.text;
+  if (effect) effect.textContent = meldung.effect || '';
+  // Der Bericht liegt hinter einem eigenen Knopf: wer ihn sehen will, klickt.
+  const alt = document.getElementById('diploNewsReport');
+  if (alt) alt.remove();
+  if (meldung.reportId && close) {
+    const button = document.createElement('button');
+    button.id = 'diploNewsReport';
+    button.className = 'event-btn';
+    button.textContent = '📜 Bericht ansehen';
+    button.addEventListener('click', () => {
+      const id = meldung.reportId;
+      hideDiploNews();
+      showBattleReport(id);
+    });
+    close.parentNode.insertBefore(button, close);
+  }
+  diploNewsOverlay.classList.remove('hidden');
+  sfx.raise();
 }
 
 function showNextDiploNews() {
   if (!diploNewsOverlay || !diploNewsQueue.length || !state) return;
   const meldung = diploNewsQueue.shift();
+  // Fertig ausformulierte Meldungen gehen direkt durch.
+  if (meldung.icon) { showNotice(meldung); return; }
   const krieg = meldung.kind === 'krieg';
   const gegner = factionById(state, meldung.von === playerFaction(state).id
     ? meldung.gegen : meldung.von);
@@ -323,7 +359,91 @@ function collectDiploNews() {
       ? `${meldung.ruler} von ${von.name} erklärt ${gegen.name} den Krieg – ${meldung.grund}.`
       : `${von.name} und ${gegen.name} schließen Frieden.`);
   }
-  if (diploNewsQueue.length) showNextDiploNews();
+}
+
+// --- Was in dieser Runde mit dir geschehen ist ----------------------------
+// Nach dem Zug der Gegner wird zusammengetragen, was die eigene Fraktion
+// betrifft: jede Schlacht, jeder verlorene und gewonnene Ort, jedes
+// vernichtete Heer. Vorher stand davon nur die letzte Schlacht in einem
+// Fenster, alles andere im Protokoll - und wer eine Stadt verlor, erfuhr es
+// erst, wenn er hinsah.
+function snapshotOwn() {
+  if (!state) return { orte: new Set(), heere: new Map() };
+  const me = playerFaction(state).id;
+  return {
+    orte: new Set(state.cities.filter((c) => c.factionId === me).map((c) => c.id)),
+    heere: new Map(state.armies.filter((a) => a.factionId === me).map((a) => [a.id, a.name])),
+  };
+}
+
+function collectOwnNews(vorher, previousHead) {
+  if (!state) return;
+  const me = playerFaction(state).id;
+
+  // Schlachten: jede, an der die eigene Fraktion beteiligt war.
+  const schlachten = [];
+  for (const report of state.battleReports) {
+    if (report.id === previousHead) break;
+    if (report.involvesPlayer) schlachten.push(report);
+  }
+  for (const report of schlachten.reverse()) {
+    const angreifer = report.attackerFactionId === me;
+    const gewonnen = angreifer === (report.outcome === 'attacker');
+    const zurSee = !!report.naval;
+    const wo = report.cityName ? report.cityName : `${report.col},${report.row}`;
+    diploNewsQueue.push({
+      icon: zurSee ? '⛵' : report.kind === 'city' ? '🏰' : '⚔',
+      kind: zurSee ? 'Eine Seeschlacht' : report.kind === 'city' ? 'Eine Belagerung' : 'Eine Feldschlacht',
+      title: `${gewonnen ? 'Sieg' : 'Niederlage'} ${zurSee ? 'zur See' : 'bei'} ${
+        zurSee && !report.cityName ? 'auf offener See' : wo}`,
+      text: angreifer
+        ? `Dein Angriff ${gewonnen ? 'hat sich durchgesetzt' : 'ist zurückgeschlagen worden'}.`
+        : `${(factionById(state, report.attackerFactionId) || {}).name || 'Ein Feind'} hat dich angegriffen und ${
+          gewonnen ? 'ist gescheitert' : 'sich durchgesetzt'}.`,
+      effect: zurSee
+        ? 'Zur See kämpft nur, was schwimmt: geschlagene Schiffe sind verloren.'
+        : 'Der Bericht nennt Verluste, Gelände und den Verlauf.',
+      reportId: report.id,
+    });
+  }
+
+  // Orte, die den Besitzer gewechselt haben.
+  const jetzt = new Set(state.cities.filter((c) => c.factionId === me).map((c) => c.id));
+  for (const id of vorher.orte) {
+    if (jetzt.has(id)) continue;
+    const city = state.cities.find((c) => c.id === id);
+    if (!city) continue;
+    const sieger = factionById(state, city.factionId);
+    diploNewsQueue.push({
+      icon: '🏳', kind: 'Ein Ort ist gefallen',
+      title: `${city.name} ist verloren`,
+      text: `${sieger ? sieger.name : 'Ein Feind'} hält ${city.name}.`
+        + ' Was der Ort trug, trägt er für einen anderen.',
+      effect: 'Einnahmen, Garnison und Handelswege des Orts sind damit fort.',
+    });
+  }
+  for (const city of state.cities) {
+    if (city.factionId !== me || vorher.orte.has(city.id)) continue;
+    diploNewsQueue.push({
+      icon: '🏛', kind: 'Ein Ort ist gewonnen',
+      title: `${city.name} ist dein`,
+      text: `${city.name} steht unter deiner Herrschaft.`,
+      effect: 'Der Ort trägt ab der nächsten Abrechnung zu deinen Einnahmen bei.',
+    });
+  }
+
+  // Eigene Heere, die es nicht mehr gibt. Im Zug der Gegner kann ein Heer nur
+  // vernichtet worden sein - vereinigen kann es sich nur, wenn man selbst zieht.
+  const heereJetzt = new Set(state.armies.filter((a) => a.factionId === me).map((a) => a.id));
+  for (const [id, name] of vorher.heere) {
+    if (heereJetzt.has(id)) continue;
+    diploNewsQueue.push({
+      icon: '💀', kind: 'Ein Heer ist gefallen',
+      title: `${name} besteht nicht mehr`,
+      text: `Von ${name} ist nichts übrig, das noch marschieren könnte.`,
+      effect: 'Der Sold für dieses Heer entfällt – und mit ihm sein Schutz.',
+    });
+  }
 }
 
 function setupDiploNews() {
@@ -958,6 +1078,8 @@ function endTurn() {
   // Identify new reports by the previous head, not by length: the list is
   // capped, so once it is full its length stops growing.
   const previousHead = state.battleReports.length ? state.battleReports[0].id : null;
+  // Womit die Runde begann - daran wird nachher gemessen, was dir geschehen ist.
+  const vorher = snapshotOwn();
 
   // Erst reden, dann marschieren: was die Herrscher in dieser Runde
   // beschließen, gilt für die Züge, die gleich folgen.
@@ -994,17 +1116,14 @@ function endTurn() {
   setWeatherSource((col, row) => weatherAt(state, col, row));
   refresh();
 
-  // AI turns can produce a whole string of battles. Surface only the most
-  // recent one Rome was part of, so the player sees what happened to them
-  // without a stack of modals for wars between other factions.
-  let mine = null;
-  for (const report of state.battleReports) {
-    if (report.id === previousHead) break;
-    if (report.involvesPlayer) { mine = report; break; }
+  // Alles, was die eigene Fraktion in dieser Runde betroffen hat, kommt der
+  // Reihe nach ins Meldefenster - Schlachten, Orte, Heere. Die Herolde der
+  // Diplomatie stehen schon in derselben Schlange.
+  if (!state.gameOver) {
+    collectOwnNews(vorher, previousHead);
+    if (diploNewsQueue.length) showNextDiploNews();
+    else if (myEvent) showEvent(myEvent);
   }
-  if (mine && !state.gameOver) showBattleReport(mine);
-  // Der Schlachtbericht geht vor: was einen selbst getroffen hat, kommt danach.
-  else if (myEvent && !state.gameOver) showEvent(myEvent);
 
   if (roadsDone.length || harboursDone.length
     || (wallsBuilding && state.cities.filter((c) => c.wallBuilding).length < wallsBuilding)) {
