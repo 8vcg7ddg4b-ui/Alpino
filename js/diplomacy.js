@@ -39,6 +39,223 @@ export const PEACE_THRESHOLD = 58;
 // mit dem kein Vertrag hält.
 export const OPINION_WARMONGER = -6;
 
+// --- Verträge --------------------------------------------------------------
+// Zwischen Krieg und Frieden liegt mehr als nichts. Drei Verträge lassen sich
+// schließen, alle drei setzen den Frieden voraus, und alle drei enden, wenn
+// er endet:
+//
+//   Nichtangriffspakt - keiner von beiden erklärt dem anderen den Krieg,
+//                       zwanzig Runden lang. Danach läuft er aus.
+//   Handelsabkommen   - beide dürfen Handelswege in die Städte des anderen
+//                       eröffnen; jede Seite verdient an ihrem Ende.
+//   Bündnis           - wie ein Pakt, aber ohne Frist, und mit dem Bündnisfall:
+//                       wer den einen angreift, hat den anderen mit im Feld.
+//
+// Je höher der Vertrag wiegt, desto mehr Ansehen setzt er voraus - und desto
+// mehr wärmt er das Verhältnis, solange er hält.
+export const PACT_TURNS = 20;
+export const TRADE_PACT_TURNS = 30;
+
+export const TREATIES = {
+  pakt: {
+    key: 'pakt',
+    name: 'Nichtangriffspakt',
+    icon: '🤝',
+    opinion: 45,
+    drift: 1,
+    dauer: PACT_TURNS,
+    chance: 0.1,
+    zweck: 'keine Kriegserklärung, solange er läuft',
+    versprechen: `${PACT_TURNS} Runden lang erklärt euch keiner den Krieg`,
+  },
+  handel: {
+    key: 'handel',
+    name: 'Handelsabkommen',
+    icon: '⚖️',
+    opinion: 55,
+    drift: 1,
+    dauer: TRADE_PACT_TURNS,
+    chance: 0.08,
+    zweck: 'Handelswege in die Städte des anderen',
+    versprechen: 'beide Seiten dürfen Handelswege in die Städte des anderen legen',
+  },
+  buendnis: {
+    key: 'buendnis',
+    name: 'Bündnis',
+    icon: '🛡️',
+    opinion: 70,
+    drift: 1,
+    dauer: 0,
+    chance: 0.03,
+    zweck: 'gemeinsame Sache – wer den einen angreift, hat den anderen im Feld',
+    versprechen: 'wer deinen Verbündeten angreift, steht auch mit dir im Krieg',
+  },
+};
+
+export const TREATY_KEYS = Object.keys(TREATIES);
+
+// So lange muss ein Nichtangriffspakt gehalten haben, ehe daraus ein Bündnis
+// wird. Ein Bündnis ist kein Handschlag unter Fremden.
+export const ALLY_PACT_TURNS = 10;
+
+// Was ein gebrochenes Bündnis kostet: beim Verbündeten viel, bei allen, die
+// zusehen, ein Stück.
+export const OPINION_BREAK_ALLIANCE = -30;
+export const OPINION_BREAK_WITNESS = -8;
+
+export function treatyOf(state, a, b, kind) {
+  const relation = relationOf(state, a, b);
+  const eintrag = relation && relation.vertraege && relation.vertraege[kind];
+  if (!eintrag) return null;
+  if (eintrag.bis && eintrag.bis <= state.turn) return null;
+  return eintrag;
+}
+
+export function treatiesOf(state, a, b) {
+  return TREATY_KEYS.map((kind) => (treatyOf(state, a, b, kind) ? TREATIES[kind] : null))
+    .filter(Boolean);
+}
+
+export function hasPact(state, a, b) {
+  return !!treatyOf(state, a, b, 'pakt');
+}
+
+export function hasTradePact(state, a, b) {
+  return !!treatyOf(state, a, b, 'handel');
+}
+
+export function isAllied(state, a, b) {
+  return !!treatyOf(state, a, b, 'buendnis');
+}
+
+// Ein Pakt oder ein Bündnis bindet die Hand: solange einer von beiden steht,
+// wird kein Krieg erklärt.
+export function warBound(state, a, b) {
+  if (isAllied(state, a, b)) return TREATIES.buendnis;
+  if (hasPact(state, a, b)) return TREATIES.pakt;
+  return null;
+}
+
+export function alliesOf(state, factionId) {
+  return state.factions
+    .filter((f) => !f.isNeutral && f.alive && f.id !== factionId
+      && isAllied(state, factionId, f.id))
+    .map((f) => f.id);
+}
+
+// Alle Verträge zwischen zweien fallen, sobald der Krieg erklärt wird - und
+// die Handelswege dazwischen mit ihnen.
+function clearTreaties(state, a, b) {
+  const relation = relationOf(state, a, b);
+  if (relation) relation.vertraege = {};
+}
+
+// Ein abgelaufener Pakt verschwindet von selbst.
+export function expireTreaties(state) {
+  const beendet = [];
+  for (const key of Object.keys(state.relations || {})) {
+    const relation = state.relations[key];
+    if (!relation.vertraege) continue;
+    for (const kind of Object.keys(relation.vertraege)) {
+      const eintrag = relation.vertraege[kind];
+      if (!eintrag.bis || eintrag.bis > state.turn) continue;
+      delete relation.vertraege[kind];
+      const [a, b] = key.split('|');
+      beendet.push({ a, b, kind });
+      logMsg(state, `${TREATIES[kind].icon} Der ${TREATIES[kind].name} zwischen `
+        + `${factionById(state, a).name} und ${factionById(state, b).name} ist ausgelaufen.`,
+      null, [a, b]);
+    }
+  }
+  return beendet;
+}
+
+// Wie ein Herrscher über einen Vertragsvorschlag urteilt. Dieselbe Machart wie
+// beim Frieden: eine Zahl, und ein Satz, den man ihm glaubt.
+export function treatyVerdict(state, fromId, toId, kind) {
+  const def = TREATIES[kind];
+  const relation = relationOf(state, fromId, toId);
+  if (!def || !relation) return { possible: false, grund: 'Mit ihnen lässt sich nicht verhandeln.' };
+  if (relation.state !== 'frieden') {
+    return { possible: false, grund: 'Erst der Friede, dann der Vertrag.' };
+  }
+  if (treatyOf(state, fromId, toId, kind)) {
+    return { possible: false, grund: `Ein ${def.name} steht bereits.` };
+  }
+  // Ein Bündnis kommt nicht aus dem Nichts: erst ein Pakt, dann das Wort.
+  if (kind === 'buendnis') {
+    const pakt = treatyOf(state, fromId, toId, 'pakt');
+    if (!pakt) {
+      return { possible: false, grund: 'Erst ein Nichtangriffspakt, dann ein Bündnis.' };
+    }
+    if (state.turn - pakt.seit < ALLY_PACT_TURNS) {
+      const rest = ALLY_PACT_TURNS - (state.turn - pakt.seit);
+      return { possible: false,
+        grund: `Der Pakt ist zu jung – erst muss er ${rest} ${
+          rest === 1 ? 'Runde' : 'Runden'} gehalten haben.` };
+    }
+  }
+  const ruler = rulerOf(state, toId);
+  // Wer sein Wort hält, schließt gern Verträge; wer den Krieg sucht, ungern.
+  const neigung = ruler.ehre * 0.35 - ruler.angriffslust * 0.2;
+  const score = relation.opinion + neigung;
+  const schwelle = def.opinion + 10;
+  const gruende = [];
+  if (relation.opinion < def.opinion) gruende.push('er hält zu wenig von dir');
+  if (ruler.ehre >= 70) gruende.push('ein Wort gilt ihm etwas');
+  if (ruler.angriffslust >= 70) gruende.push('er sucht den Krieg, nicht den Vertrag');
+  if (relation.opinion >= def.opinion + 15) gruende.push('er steht gut zu dir');
+  return {
+    possible: true,
+    score: Math.round(score),
+    schwelle,
+    accepted: score >= schwelle,
+    gruende,
+  };
+}
+
+// Der Vertrag wird geschlossen. Beide Seiten wissen davon, und alle, die die
+// beiden kennen, hören es.
+export function signTreaty(state, a, b, kind, note) {
+  const def = TREATIES[kind];
+  const relation = relationOf(state, a, b);
+  if (!def || !relation || relation.state !== 'frieden') return { ok: false };
+  const vertraege = relation.vertraege || (relation.vertraege = {});
+  if (vertraege[kind]) return { ok: false, reason: 'done' };
+  vertraege[kind] = { seit: state.turn, bis: def.dauer ? state.turn + def.dauer : null };
+  adjustOpinion(state, a, b, 6);
+  const nameA = factionById(state, a).name;
+  const nameB = factionById(state, b).name;
+  logMsg(state, `${def.icon} ${nameA} und ${nameB} schließen einen ${def.name}`
+    + `${note ? ` – ${note}` : ''}.`, null, [a, b]);
+  return { ok: true };
+}
+
+// Und er lässt sich aufkündigen. Beim Pakt und beim Abkommen kostet das wenig,
+// beim Bündnis den Ruf: wer seinen Verbündeten sitzen lässt, ist keiner.
+export function cancelTreaty(state, a, b, kind) {
+  const def = TREATIES[kind];
+  const relation = relationOf(state, a, b);
+  if (!def || !relation || !relation.vertraege || !relation.vertraege[kind]) {
+    return { ok: false };
+  }
+  delete relation.vertraege[kind];
+  if (kind === 'buendnis') {
+    adjustOpinion(state, a, b, OPINION_BREAK_ALLIANCE);
+    for (const other of state.factions) {
+      if (other.isNeutral || other.id === a || other.id === b) continue;
+      if (!knowsFaction(state, other.id, a)) continue;
+      adjustOpinion(state, a, other.id, OPINION_BREAK_WITNESS);
+    }
+  } else {
+    adjustOpinion(state, a, b, -8);
+  }
+  const nameA = factionById(state, a).name;
+  const nameB = factionById(state, b).name;
+  logMsg(state, `${nameA} kündigt den ${def.name} mit ${nameB} auf.`, null, [a, b]);
+  return { ok: true, text: `Der ${def.name} mit ${nameB} ist aufgekündigt.` };
+}
+
 // --- Bedenkzeit ------------------------------------------------------------
 // Diplomatie ist kein Knopf, den man zweimal drückt. Wer heute den Krieg
 // erklärt, kann nicht in derselben Runde um Frieden bitten; wer eben Frieden
@@ -55,6 +272,8 @@ export const NACHWIRKUNG = {
   friedensschluss: { krieg: PEACE_GRACE_TURNS },
   abgelehnt: { frieden: 4 },
   geschenk: { geschenk: 3 },
+  vertragAbgelehnt: { vertrag: 4 },
+  vertragGekuendigt: { vertrag: 8 },
 };
 
 const SPERRTEXT = {
@@ -64,6 +283,8 @@ const SPERRTEXT = {
     + 'bricht, ist keines',
   abgelehnt: 'Dein Gesandter ist eben erst abgewiesen worden',
   geschenk: 'Das letzte Geschenk liegt noch auf dem Tisch',
+  vertragAbgelehnt: 'Dein Vorschlag ist eben erst ausgeschlagen worden',
+  vertragGekuendigt: 'Ein aufgekündigter Vertrag will erst vergessen sein',
 };
 
 // Legt die Frist auf, die diese Handlung nach sich zieht.
@@ -256,12 +477,21 @@ export function makePeace(state, a, b, note) {
 export function declareWar(state, a, b, note) {
   const relation = relationOf(state, a, b);
   if (!relation || relation.state === 'krieg') return { ok: false };
+  // Ein gegebenes Wort bindet: gegen einen Pakt oder ein Bündnis marschiert
+  // niemand, ohne es vorher aufzukündigen.
+  const bindung = warBound(state, a, b);
+  if (bindung) {
+    return { ok: false, reason: 'vertrag', vertrag: bindung,
+      text: `Ein ${bindung.name} steht zwischen euch – erst aufkündigen, dann marschieren.` };
+  }
   // Ein Friede, der gestern geschlossen wurde, wird nicht heute aufgekündigt.
   const sperre = diploLock(state, a, b, 'krieg');
   if (sperre) return { ok: false, reason: 'sperre', lock: sperre };
   relation.state = 'krieg';
   relation.since = state.turn;
   relation.sperren = {};
+  // Mit dem Krieg fällt alles, was zwischen den beiden galt.
+  clearTreaties(state, a, b);
   applyCooldown(state, a, b, 'kriegserklaerung');
   adjustOpinion(state, a, b, OPINION_WAR_DECLARED);
   // Ein Herold spricht vor Zeugen: wer den Krieg erklärt, verliert bei allen,
@@ -275,7 +505,58 @@ export function declareWar(state, a, b, note) {
   const nameA = factionById(state, a).name;
   const nameB = factionById(state, b).name;
   logMsg(state, `${nameA} erklärt ${nameB} den Krieg${note ? ` – ${note}` : ''}.`, null, [a, b]);
-  return { ok: true };
+  // Der Bündnisfall: wer einen angreift, hat dessen Verbündete mit im Feld.
+  const gerufen = callAllies(state, a, b);
+  return { ok: true, allies: gerufen };
+}
+
+// Die Verbündeten des Angegriffenen treten ein. Nicht durch eine eigene
+// Kriegserklärung - sie haben ihr Wort schon gegeben, als sie das Bündnis
+// schlossen -, sondern unmittelbar. Nur wen sein eigenes Wort an den Angreifer
+// bindet, der bleibt draußen.
+export function callAllies(state, angreifer, angegriffen) {
+  const gerufen = [];
+  for (const allyId of alliesOf(state, angegriffen)) {
+    if (allyId === angreifer) continue;
+    if (atWar(state, allyId, angreifer)) continue;
+    if (warBound(state, allyId, angreifer)) continue;
+    const relation = relationOf(state, allyId, angreifer);
+    if (!relation) continue;
+    // Ein Friede, der eben erst geschlossen wurde, hält auch dem Bündnisfall
+    // stand: der Verbündete kann noch nicht beistehen und sagt es.
+    const sperre = diploLock(state, allyId, angreifer, 'krieg');
+    if (sperre) {
+      logMsg(state, `${factionById(state, allyId).name} kann `
+        + `${factionById(state, angegriffen).name} nicht beistehen: der Friede mit `
+        + `${factionById(state, angreifer).name} ist zu frisch.`, null,
+      [allyId, angreifer, angegriffen]);
+      continue;
+    }
+    relation.state = 'krieg';
+    relation.since = state.turn;
+    relation.sperren = {};
+    relation.vertraege = {};
+    applyCooldown(state, allyId, angreifer, 'kriegserklaerung');
+    adjustOpinion(state, allyId, angreifer, -15);
+    gerufen.push(allyId);
+    const nameAlly = factionById(state, allyId).name;
+    const nameAngreifer = factionById(state, angreifer).name;
+    const nameFreund = factionById(state, angegriffen).name;
+    logMsg(state, `🛡️ Bündnisfall: ${nameAlly} steht ${nameFreund} bei und `
+      + `zieht gegen ${nameAngreifer}.`, null, [allyId, angreifer, angegriffen]);
+    pushNews(state, {
+      kind: 'buendnisfall', von: angreifer, gegen: allyId,
+      icon: '🛡️',
+      kindLabel: `Der Bündnisfall · ${nameAngreifer}`,
+      titel: `${nameAlly} steht im Krieg mit ${nameAngreifer}`,
+      satz: `${nameAngreifer} hat ${nameFreund} angegriffen. Das Bündnis mit `
+        + `${nameFreund} verlangt Beistand – ${nameAlly} zieht mit.`,
+      folge: 'Ein Bündnis ist keine Höflichkeit: es zieht dich in die Kriege '
+        + 'deines Verbündeten. Aufkündigen kannst du es im Diplomatiefenster.',
+      verbuendeter: angegriffen,
+    });
+  }
+  return gerufen;
 }
 
 // --- Wie ein Herrscher über ein Friedensangebot urteilt -------------------
@@ -371,6 +652,41 @@ export function offerPeace(state, fromId, toId, tribute = 0) {
   makePeace(state, fromId, toId, tribute > 0 ? `${to.name} nimmt einen Tribut von ${tribute} Gold` : null);
   return { ok: true, accepted: true, urteil,
     text: `${ruler.name} nimmt an. Zwischen euch ist Friede.` };
+}
+
+// Der Spieler schlägt einen Vertrag vor. Anders als beim Frieden gibt es
+// nichts zu verhandeln: der andere sagt ja oder nein, und zwar sofort.
+export function proposeTreaty(state, fromId, toId, kind) {
+  const def = TREATIES[kind];
+  const from = factionById(state, fromId);
+  const to = factionById(state, toId);
+  if (!def || !from || !to || from.isNeutral || to.isNeutral) return { ok: false };
+  const sperre = diploLock(state, fromId, toId, 'vertrag');
+  if (sperre) return { ok: false, reason: 'sperre', lock: sperre, text: sperre.text };
+  const urteil = treatyVerdict(state, fromId, toId, kind);
+  if (!urteil.possible) return { ok: false, text: urteil.grund };
+  const ruler = rulerOf(state, toId);
+  if (!urteil.accepted) {
+    adjustOpinion(state, fromId, toId, 2);
+    applyCooldown(state, fromId, toId, 'vertragAbgelehnt');
+    const grund = urteil.gruende.length ? ` – ${urteil.gruende[0]}` : '';
+    logMsg(state, `${ruler.name} lehnt einen ${def.name} mit ${from.name} ab${grund}.`,
+      null, [fromId, toId]);
+    return { ok: false, reason: 'abgelehnt', urteil,
+      text: `${ruler.name} schlägt den ${def.name} aus${grund}.` };
+  }
+  const ergebnis = signTreaty(state, fromId, toId, kind);
+  if (!ergebnis.ok) return { ok: false, text: 'Daraus wird nichts.' };
+  return { ok: true, urteil,
+    text: `${ruler.name} setzt sein Siegel darunter. Zwischen euch gilt ein ${def.name}.` };
+}
+
+// Und er kündigt ihn auf - was ihn beim Bündnis den Ruf kostet.
+export function renounceTreaty(state, fromId, toId, kind) {
+  const ergebnis = cancelTreaty(state, fromId, toId, kind);
+  if (!ergebnis.ok) return { ok: false };
+  applyCooldown(state, fromId, toId, 'vertragGekuendigt');
+  return ergebnis;
 }
 
 export function sendGift(state, fromId, toId, amount = GIFT_COST) {
@@ -526,9 +842,12 @@ function nearestDistance(state, a, b) {
 // Wie sehr es diesen Herrscher gerade nach einem Krieg mit jenem verlangt -
 // eine Zahl zwischen 0 und ungefähr 1, und der Satz dazu, den ein Gesandter
 // später im Protokoll liest.
-export function warAppetite(state, fromId, toId) {
+export function warAppetite(state, fromId, toId, opts = {}) {
   const relation = relationOf(state, fromId, toId);
   if (!relation || relation.state === 'krieg') return { wert: 0, grund: null };
+  // Wer durch Pakt oder Bündnis gebunden ist, plant keinen Feldzug - es sei
+  // denn, es wird gerade gefragt, ob er sein Wort brechen will.
+  if (!opts.ignoreTreaty && warBound(state, fromId, toId)) return { wert: 0, grund: null };
   const ruler = rulerOf(state, fromId);
   const distance = nearestDistance(state, fromId, toId);
   if (distance > NEIGHBOUR_RANGE) return { wert: 0, grund: null };
@@ -566,9 +885,30 @@ export function takeDiploNews(state) {
   return news;
 }
 
+// Wie oft ein gebundener Herrscher sein Wort wieder aufkündigt, wenn ihn die
+// Gelegenheit lockt - je nach Angriffslust und Ehre.
+const TREATY_BREAK_CHANCE = 0.07;
+
+// Der nächste Vertrag, der zwischen zweien möglich wäre - vom leichtesten zum
+// schwersten: erst der Pakt, dann das Abkommen, dann das Bündnis.
+function nextTreaty(state, a, b, rng) {
+  for (const kind of TREATY_KEYS) {
+    if (treatyOf(state, a, b, kind)) continue;
+    if (rng() >= TREATIES[kind].chance) continue;
+    const hier = treatyVerdict(state, a, b, kind);
+    const dort = treatyVerdict(state, b, a, kind);
+    if (!hier.possible || !dort.possible) continue;
+    if (!hier.accepted || !dort.accepted) continue;
+    return kind;
+  }
+  return null;
+}
+
 export function rulersTakeTurn(state, rng = Math.random) {
   const living = state.factions.filter((f) => !f.isNeutral && f.alive);
   for (const faction of living) updateKnowledge(state, faction.id);
+  // Was seine Frist erreicht hat, endet - ehe irgendjemand darauf baut.
+  expireTreaties(state);
 
   for (let i = 0; i < living.length; i++) {
     for (let j = i + 1; j < living.length; j++) {
@@ -581,11 +921,61 @@ export function rulersTakeTurn(state, rng = Math.random) {
       const nachbarn = distance <= NEIGHBOUR_RANGE;
       // Die Zeit arbeitet: ein gehaltener Friede wärmt das Verhältnis, ein
       // laufender Krieg kühlt es ab - aber nur, wenn er wirklich geführt wird.
-      const drift = relation.state === 'frieden' ? OPINION_PEACE_TURN
+      // Ein Vertrag wärmt das Verhältnis über den Frieden hinaus - je
+      // schwerer er wiegt, desto mehr.
+      const vertragsDrift = treatiesOf(state, a.id, b.id)
+        .reduce((sum, def) => sum + def.drift, 0);
+      const drift = relation.state === 'frieden' ? OPINION_PEACE_TURN + vertragsDrift
         : nachbarn ? OPINION_WAR_TURN : 0;
       relation.opinion = Math.max(OPINION_MIN, Math.min(OPINION_MAX, relation.opinion + drift));
 
       if (relation.state === 'frieden') {
+        // Zwei Herrscher, die einander schätzen, setzen es aufs Pergament.
+        // Über die eigenen Verträge entscheidet der Spieler selbst.
+        if (!a.isPlayer && !b.isPlayer && nachbarn) {
+          const kind = nextTreaty(state, a.id, b.id, rng);
+          if (kind && signTreaty(state, a.id, b.id, kind).ok) {
+            const def = TREATIES[kind];
+            pushNews(state, {
+              kind: 'vertrag', von: a.id, gegen: b.id,
+              icon: def.icon,
+              kindLabel: `Ein ${def.name} · ${b.name}`,
+              titel: `${a.name} und ${b.name} schließen einen ${def.name}`,
+              satz: `Die Gesandten haben sich geeinigt: zwischen ${a.name} und `
+                + `${b.name} gilt von dieser Runde an ein ${def.name}.`,
+              folge: def.versprechen,
+            });
+            continue;
+          }
+        }
+        // Wer den Krieg will und durch sein Wort gebunden ist, kündigt erst
+        // auf. Ein Bündnis wiegt dabei schwerer als ein Pakt: es zu brechen
+        // kostet das Ansehen bei allen, die davon hören.
+        const bindung = warBound(state, a.id, b.id);
+        if (bindung && nachbarn) {
+          for (const [wer, wen] of [[a, b], [b, a]]) {
+            if (wer.isPlayer || wen.isPlayer) continue;
+            const ruler = rulerOf(state, wer.id);
+            const wortbruch = (ruler.angriffslust / 100) * (1 - ruler.ehre / 100);
+            const { wert } = warAppetite(state, wer.id, wen.id, { ignoreTreaty: true });
+            const chance = TREATY_BREAK_CHANCE * wortbruch * Math.min(1.5, wert)
+              * (bindung.key === 'buendnis' ? 0.35 : 1);
+            if (rng() >= chance) continue;
+            if (!cancelTreaty(state, wer.id, wen.id, bindung.key).ok) continue;
+            pushNews(state, {
+              kind: 'vertragsbruch', von: wer.id, gegen: wen.id,
+              icon: '✋',
+              kindLabel: `Ein gebrochenes Wort · ${wer.name}`,
+              titel: `${wer.name} kündigt den ${bindung.name} mit ${wen.name} auf`,
+              satz: `${ruler.name}, ${ruler.titel}, lässt das Pergament zurückschicken: `
+                + `zwischen ${wer.name} und ${wen.name} gilt der ${bindung.name} nicht mehr.`,
+              folge: 'Ein aufgekündigtes Wort ist noch kein Krieg – aber es geht ihm '
+                + 'meist voraus.',
+            });
+            break;
+          }
+          continue;
+        }
         if (state.turn - relation.since < WAR_MIN_PEACE) continue;
         if (!nachbarn) continue;
         // Beide Seiten prüfen für sich, ob sie zum Schwert greifen. Der

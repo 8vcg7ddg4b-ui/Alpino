@@ -485,6 +485,28 @@ den Punkten durchblättern.
   nach einem **abgewiesenen Gesandten vier Runden kein neues Angebot**, nach
   einem **Geschenk drei Runden kein zweites**. Was gesperrt ist, steht
   ausgegraut im Diplomatiefenster und sagt, warum und wie lange noch.
+- **Verträge**: Zwischen Krieg und Frieden liegt mehr als nichts. Drei
+  Verträge lassen sich schließen; alle drei setzen den Frieden voraus, und alle
+  drei fallen mit ihm.
+  Der **🤝 Nichtangriffspakt** (ab **45 Ansehen**, **20 Runden**) bindet beiden
+  Seiten die Hand: solange er läuft, kann keiner dem anderen den Krieg
+  erklären – auch die KI plant dann keinen Feldzug gegen ihn. Danach läuft er
+  aus.
+  Das **⚖️ Handelsabkommen** (ab **55 Ansehen**, **30 Runden**) öffnet die
+  Grenze für Waren: **beide Seiten dürfen Handelswege in die Städte des anderen
+  legen**, und jede verdient an ihrem Ende. Fällt das Abkommen, fallen die Wege.
+  Das **🛡️ Bündnis** (ab **70 Ansehen**, ohne Frist) setzt einen Pakt voraus,
+  der schon **zehn Runden** gehalten hat – ein Bündnis ist kein Handschlag unter
+  Fremden. Es bindet wie ein Pakt und bringt den **Bündnisfall**: wer deinen
+  Verbündeten angreift, **steht damit auch mit dir im Krieg**. Das gilt für dich
+  wie für alle anderen; der Knopf sagt es, ehe du unterschreibst. Nur wen sein
+  eigenes Wort an den Angreifer bindet, der bleibt draußen.
+  Aufkündigen lässt sich jeder Vertrag. Beim Pakt und beim Abkommen kostet das
+  acht Punkte Ansehen, beim **Bündnis dreißig – und acht bei jedem, der davon
+  hört**: wer seinen Verbündeten sitzen lässt, ist keiner.
+  Die Herrscher schließen auch untereinander Verträge, und ein angriffslustiger
+  Mann von wenig Ehre **kündigt sein Wort wieder auf**, wenn ihn die Gelegenheit
+  lockt – dann steht die Kriegserklärung meist ein paar Runden später da.
 - **Ruf als Kriegstreiber**: Ein Herold spricht vor Zeugen. Wer den Krieg
   erklärt, verliert **bei jedem, der ihn kennt**, sechs Punkte Ansehen – nicht
   nur bei dem, dem die Erklärung gilt. Dreimal im Jahr, und man ist einer, mit
@@ -505,6 +527,25 @@ den Punkten durchblättern.
   sie aus. Nach der Schlacht gehen die Überlebenden zurück in die Gassen: auf
   der Mauer bleibt nur die eigene Stadtwache, und **die gefallenen Bürger
   fehlen dem Ort danach wirklich** – seine Einwohnerzahl sinkt.
+- **Belagerung**: Steht ein feindliches Heer **unmittelbar neben einem Ort**,
+  ist er belagert – und ein Hafenort auch dann, wenn eine feindliche **Flotte
+  vor ihm kreuzt**. Es braucht keinen eigenen Befehl dafür: wer sich davorstellt,
+  belagert. Eine Belagerung nimmt dem Ort alles, was von draußen kommt:
+  **keine Steuer, kein Handel, kein Erz, kein Zuwachs**, die **Stadtwache stellt
+  sich nicht nach**, und **jede Baustelle ruht** – neue lassen sich gar nicht
+  erst eröffnen, auch kein Straßenbau. Ist der Hafen gesperrt, geht dort
+  außerdem **kein Heer an Bord und läuft kein Schiff vom Stapel**.
+  Nach **drei Runden** beginnt der Hunger: jede weitere Runde kostet **6 % der
+  Besatzung** und gut ein Prozent der Einwohner. Wer eine Mauer nicht stürmen
+  will, muss sie also nicht stürmen – er muss nur warten.
+  **Ausheben darf ein belagerter Ort weiterhin**: die Stadt soll sich wehren
+  können, solange ihre Kaserne steht und der Schatz es hergibt.
+  Die Seeräuber sind ausgenommen; sie haben ihre eigene Regel und sollen einem
+  Reich nicht mit einem einzigen Segel die Steuer nehmen.
+  Die Stadtansicht sagt es in einer roten Zeile über allem anderen – wer
+  belagert, mit wie vielen Mann, seit wann und wann der Hunger beginnt –, die
+  Reichsübersicht setzt ein ⚔️ vor den Ort und färbt seine Zeile, und wer eine
+  eigene Stadt eingeschlossen bekommt, erfährt es im Meldefenster.
 - **Orte wachsen**: In jedem Monat werden mehr Kinder geboren als Menschen
   sterben. Der Satz ist klein (0,35 % je Runde), aber er summiert sich: über ein
   Jahr gut vier Prozent, über zehn Jahre die Hälfte. Im Frühjahr und Sommer

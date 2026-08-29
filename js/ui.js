@@ -19,6 +19,7 @@ import {
   atWar, opinionOf, relationOf, rulerOf, peaceVerdict, peacePrice,
   GIFT_COST, knowsFaction, roughDirection,
   diploLock, offerFrom,
+  TREATIES, TREATY_KEYS, treatyOf, treatiesOf, treatyVerdict, isAllied, hasPact,
 } from './diplomacy.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
@@ -28,7 +29,7 @@ import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, roadConnected, cityIncome,
   armyUpkeep, factionIncome,
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
-  tradeRouteRaided, mineOre, mineIncomeOf, canBuildBuilding,
+  tradeRouteRaided, mineOre, mineIncomeOf, canBuildBuilding, siegeInfo, citySieged,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -299,6 +300,7 @@ const EMBARK_REASONS = {
     + `(${buildingDef('harbour').cost} Gold).`,
   gold: `Zu wenig Gold – eine Flotte kostet ${SHIP_COST}.`,
   blocked: 'Der Hafen ist belegt.',
+  blockade: 'Feindliche Schiffe sperren den Hafen – erst müssen sie fort.',
 };
 
 function embarkHTML(state, army) {
@@ -469,6 +471,7 @@ function foreignCityHTML(state, city, intel) {
   return `
     <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(city.name)}
       ${city.capital ? '👑' : ''}</h3>
+    ${siegeHTML(state, city, false)}
     <div class="terrain-facts">${facts.map(([label, value]) =>
     `<div class="terrain-fact"><span>${escapeHTML(label)}</span>
       <strong>${escapeHTML(value)}</strong></div>`).join('')}</div>
@@ -543,13 +546,14 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
 
   const buildHTML = `
     ${buildingsHTML(state, city, isMine, player)}
-    ${wallHTML(city, isMine, player)}
+    ${wallHTML(state, city, isMine, player)}
     ${fleetHTML(city, isMine, player)}
     ${roadHTML(state, city, isMine, player)}
     ${recruitHTML}`;
 
   return `
     <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(city.name)} ${city.capital ? '👑' : ''}</h3>
+    ${siegeHTML(state, city, isMine)}
     <div class="city-tabs" role="tablist">
       <button data-citytab="info" class="${cityTab === 'info' ? 'active' : ''}"
         role="tab" aria-selected="${cityTab === 'info'}">Infos</button>
@@ -563,7 +567,7 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
   `;
 }
 
-function wallHTML(city, isMine, player) {
+function wallHTML(state, city, isMine, player) {
   const level = cityWallLevel(city);
   const built = level
     ? `<p class="wall-line wall-done">${wallLevelInfo(level).icon} ${wallLevelName(level)}
@@ -585,7 +589,7 @@ function wallHTML(city, isMine, player) {
   if (!next) {
     return `${built}<p class="wall-line muted">Höchste Ausbaustufe erreicht.</p>`;
   }
-  if (!isMine) return built;
+  if (!isMine || citySieged(state, city)) return built;
 
   const stage = wallLevelInfo(next);
   const tooPoor = player.gold < stage.cost;
@@ -599,6 +603,29 @@ function wallHTML(city, isMine, player) {
     <p class="wall-note">${escapeHTML(stage.note)}</p>`;
 }
 
+// --- Belagerung -----------------------------------------------------------
+// Steht ein Feind unmittelbar vor dem Ort - oder eine Flotte vor seinem Hafen
+// -, dann ist der Ort eingeschlossen. Das ist die wichtigste Zeile, die eine
+// Stadt haben kann: sie steht deshalb ganz oben, in beiden Reitern.
+function siegeHTML(state, city, isMine) {
+  const info = siegeInfo(state, city);
+  if (!info) return '';
+  const feind = info.factions
+    .map((id) => escapeHTML(factionById(state, id).name)).join(' und ');
+  const art = info.land && info.sea ? 'zu Lande und zur See'
+    : info.sea ? 'vom Meer her' : 'zu Lande';
+  const folgen = isMine
+    ? 'Keine Steuer, kein Nachschub für die Wache, kein Bau.'
+    : 'Der Ort trägt seinem Herrn nichts ein und stellt seine Wache nicht nach.';
+  const hunger = info.hungert
+    ? ' Es wird gehungert: jede Runde kostet Besatzung und Bürger.'
+    : ` Nach ${info.bisHunger} ${info.bisHunger === 1 ? 'Runde' : 'Runden'} beginnt der Hunger.`;
+  return `<p class="siege-line">⚔️ Belagert ${art} – ${feind},
+    ${info.men.toLocaleString('de-DE')} Mann${info.seit > 0
+    ? `, seit ${info.seit} ${info.seit === 1 ? 'Runde' : 'Runden'}` : ''}
+    <span class="muted">· ${folgen}${hunger}</span></p>`;
+}
+
 // --- Bauwerke -------------------------------------------------------------
 // Der Bauen-Reiter zeigt genau dreierlei: was steht, was gerade gebaut wird,
 // und was sich hier und jetzt bauen ließe. Ein Bauwerk, dessen Voraussetzung
@@ -607,7 +634,14 @@ function wallHTML(city, isMine, player) {
 // eigene Funktion hier, und für jedes fehlende ein Satz, warum es nicht geht;
 // beides zusammen war eine Liste, die man überspringen musste.
 function buildingsHTML(state, city, isMine, player) {
-  return BUILDINGS.map((def) => buildingHTML(state, city, isMine, player, def)).join('');
+  const liste = BUILDINGS.map((def) => buildingHTML(state, city, isMine, player, def)).join('');
+  // Unter Belagerung ruht jede Baustelle. Ohne diesen Satz stünde der Reiter
+  // einfach leer da, und man suchte den Fehler bei sich.
+  if (isMine && citySieged(state, city)) {
+    return `${liste}<p class="wall-line muted">🏗️ Unter Belagerung wird nicht gebaut –
+      erst muss der Feind fort.</p>`;
+  }
+  return liste;
 }
 
 // Was ein fertiges Bauwerk hier tut. Beim Bergwerk hängt das am Berg, bei
@@ -766,7 +800,7 @@ function roadHTML(state, city, isMine, player) {
       <span class="wall-track"><span class="wall-fill" style="width:${(done / project.turns) * 100}%"></span></span>
     </p>`;
   }
-  if (!isMine) return '';
+  if (!isMine || citySieged(state, city)) return '';
 
   const targets = roadTargets(state, city);
   if (!targets.length) {
@@ -826,6 +860,7 @@ function cityInfoHTML(state, city) {
       <p class="ti-line">${intel === 'scouted'
     ? `Besatzung ${roughly(total, 50)} Mann · ${garrisonWord(total)}`
     : garrisonWord(total)}</p>
+      ${siegeHTML(state, city, false)}
     </div>`;
   }
   return `
@@ -839,6 +874,7 @@ function cityInfoHTML(state, city) {
         ${watchTarget(city, owner).toLocaleString('de-DE')}</p>
       <p class="ti-line">${level ? `${wallLevelInfo(level).icon} ${wallLevelName(level)}` : 'keine Befestigung'}
         · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}</p>
+      ${siegeHTML(state, city, true)}
       <p class="ti-line">💰 ${cityIncome(state, city).total.toLocaleString('de-DE')} Gold je Runde</p>
       <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>
     </div>`;
@@ -1102,6 +1138,48 @@ export function rulerCardHTML(state, faction, options = {}) {
       </button>
     </div>`;
 
+  // --- Verträge ---------------------------------------------------------
+  // Was zwischen euch gilt, und was sich schließen ließe. Im Krieg steht hier
+  // nichts: erst der Friede, dann das Pergament.
+  const vertraege = own ? [] : treatiesOf(state, player.id, faction.id);
+  const vertragsSperre = own ? null : diploLock(state, player.id, faction.id, 'vertrag');
+  const vertragsZeilen = vertraege.map((def) => {
+    const eintrag = treatyOf(state, player.id, faction.id, def.key);
+    const rest = eintrag && eintrag.bis ? eintrag.bis - state.turn : null;
+    return `<p class="diplo-treaty">${def.icon} ${def.name}
+      <span class="muted">· ${escapeHTML(def.zweck)}${rest !== null
+    ? ` · noch ${rest} ${rest === 1 ? 'Runde' : 'Runden'}` : ''}</span></p>`;
+  }).join('');
+
+  const vertragsKnoepfe = own || krieg ? '' : TREATY_KEYS.map((kind) => {
+    const def = TREATIES[kind];
+    if (treatyOf(state, player.id, faction.id, kind)) {
+      // Was steht, lässt sich aufkündigen - beim Bündnis vor aller Augen.
+      return `<button class="diplo-btn${kind === 'buendnis' ? ' diplo-war' : ''}"
+        data-act="renounce" data-faction="${faction.id}" data-kind="${kind}">
+        ✋ ${def.name} aufkündigen
+        <small>${kind === 'buendnis'
+    ? 'kostet dich sein Ansehen – und das aller, die davon hören'
+    : 'er gilt dann nicht mehr'}</small>
+      </button>`;
+    }
+    const urteil = treatyVerdict(state, player.id, faction.id, kind);
+    if (!urteil.possible) {
+      return `<button class="diplo-btn" disabled>
+        ${def.icon} ${def.name}
+        <small>${escapeHTML(urteil.grund)}</small>
+      </button>`;
+    }
+    return `<button class="diplo-btn" data-act="treaty" data-faction="${faction.id}"
+      data-kind="${kind}" ${vertragsSperre ? 'disabled' : ''}>
+      ${def.icon} ${def.name} vorschlagen
+      <small>${vertragsSperre ? escapeHTML(vertragsSperre.text)
+    : `${escapeHTML(def.versprechen)} · ${urteil.accepted
+      ? 'er würde annehmen' : 'er würde ablehnen'}${urteil.gruende.length
+      ? ` · ${escapeHTML(urteil.gruende[0])}` : ''}`}</small>
+    </button>`;
+  }).join('');
+
   const knoepfe = own ? '' : `${angebotHTML}
     <div class="road-row diplo-actions">
       ${krieg ? `
@@ -1134,6 +1212,7 @@ export function rulerCardHTML(state, faction, options = {}) {
         <small>${geschenkSperre ? escapeHTML(geschenkSperre.text)
     : `${GIFT_COST} Gold · hebt sein Ansehen von dir`}</small>
       </button>
+      ${vertragsKnoepfe}
     </div>`;
 
   return `
@@ -1141,7 +1220,9 @@ export function rulerCardHTML(state, faction, options = {}) {
       <h4><span class="dot" style="background:${faction.color}"></span>
         ${escapeHTML(faction.name)}
         <span class="diplo-state ${own ? '' : krieg ? 'diplo-krieg' : 'diplo-frieden'}">${
-  own ? 'du' : krieg ? '⚔ Krieg' : '🕊 Friede'}</span></h4>
+  own ? 'du' : krieg ? '⚔ Krieg'
+    : isAllied(state, player.id, faction.id) ? '🛡️ Bündnis'
+      : hasPact(state, player.id, faction.id) ? '🤝 Pakt' : '🕊 Friede'}</span></h4>
       <p class="diplo-name"><strong>${escapeHTML(ruler.name)}</strong>,
         ${escapeHTML(ruler.titel)}${own || !relation ? '' : `
         <span class="muted"> · ${krieg ? 'im Krieg' : 'im Frieden'} seit ${
@@ -1159,6 +1240,7 @@ export function rulerCardHTML(state, faction, options = {}) {
     : ansehen >= 30 ? 'misstrauisch' : 'feindselig'}</em></span>
         </div>`}
       </div>
+      ${vertragsZeilen}
       ${options.note ? `<p class="diplo-note">${escapeHTML(options.note)}</p>` : ''}
       ${knoepfe}
     </div>`;
@@ -1251,9 +1333,12 @@ export function empireHTML(state) {
     <div class="emp-tile"><span class="emp-tile-label">${label}</span>
       <strong>${value}</strong>${note ? `<small>${note}</small>` : ''}</div>`;
 
+  const belagerte = cities.filter(({ city }) => siegeInfo(state, city));
   const rows = cities.map(({ city, income: entry }) => {
     const level = cityWallLevel(city);
+    const belagert = !!siegeInfo(state, city);
     const marks = [
+      belagert ? '⚔️' : '',
       city.capital ? '👑' : '',
       level ? wallLevelInfo(level).icon : '',
       city.harbour ? '⚓' : '',
@@ -1263,7 +1348,7 @@ export function empireHTML(state) {
       city.barracks ? '🛡️' : '',
       city.forum ? '🏛️' : '',
     ].filter(Boolean).join(' ');
-    return `<tr>
+    return `<tr class="${belagert ? 'emp-siege' : ''}">
       <td>${escapeHTML(city.name)} <span class="emp-marks">${marks}</span></td>
       <td>${settlementLabel(city)}</td>
       <td class="emp-num">${city.population.toLocaleString('de-DE')}</td>
@@ -1312,8 +1397,13 @@ export function empireHTML(state) {
 
     ${held.length ? `<p class="emp-note">${held.map((w) =>
     `${w.wonder ? '🏛️' : '🗿'} ${escapeHTML(w.name)}`).join(' · ')}</p>` : ''}
-    <p class="emp-note muted">Die Zeichen hinter dem Namen: 👑 Hauptstadt, Mauerstufe,
-      ⚓ Hafen, ⛏️ Bergwerk, 🛡️ Kaserne, 🏛️ Verwaltung.
+    ${belagerte.length ? `<p class="emp-note">⚔️ ${belagerte.length === 1
+    ? `${escapeHTML(belagerte[0].city.name)} ist belagert und trägt nichts`
+    : `${belagerte.length} Orte sind belagert und tragen nichts`} –
+      solange ein Feind davorsteht, gibt es dort weder Steuer noch Nachschub
+      noch Bau.</p>` : ''}
+    <p class="emp-note muted">Die Zeichen hinter dem Namen: ⚔️ belagert, 👑 Hauptstadt,
+      Mauerstufe, ⚓ Hafen, ⛏️ Bergwerk, 🛡️ Kaserne, 🏛️ Verwaltung.
       Die Spalte „Steuer" ist das, was die Einwohner tragen –
       ein Gold je ${TAX_PER_INHABITANTS} Einwohner und Runde; dafür, dass es einen Ort
       gibt, zahlt niemand etwas. „Bauwerk" ist ein Weltwunder oder Wahrzeichen in

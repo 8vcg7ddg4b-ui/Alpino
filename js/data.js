@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.10.0';
+export const GAME_VERSION = '1.11.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1060,6 +1060,20 @@ export function growthFactor(city) {
   return 1 + (city.farm ? FARM_GROWTH : 0) + (city.viaduct ? VIADUCT_GROWTH : 0);
 }
 
+// --- Belagerung ------------------------------------------------------------
+// Ein Ort ist belagert, sobald ein feindliches Heer unmittelbar neben ihm
+// steht - und ein Hafenort auch dann, wenn eine feindliche Flotte vor ihm
+// kreuzt. Es braucht keinen eigenen Befehl dafür: wer sich davorstellt,
+// belagert. Was das bedeutet, steht in actions.js; hier stehen die Zahlen.
+//
+// Eine Belagerung nimmt dem Ort alles, was von draußen kommt: die Ernte, den
+// Handel, das Erz, den Nachschub für die Wache und die Bautrupps. Und nach
+// ein paar Runden fängt sie an zu zehren.
+export const SIEGE_STARVE_AFTER = 3;
+// Was der Hunger je Runde von der Besatzung nimmt - und von den Einwohnern.
+export const SIEGE_ATTRITION = 0.06;
+export const SIEGE_POPULATION_LOSS = 0.012;
+
 // --- Die Bauwerke eines Orts ----------------------------------------------
 // Alle Bauwerke in einer Liste, in der Reihenfolge, in der sie im Bauen-Reiter
 // stehen. Jeder Eintrag sagt, was er kostet, wie lange er dauert, was er
@@ -1180,7 +1194,7 @@ export const BIRTH_RATE = 0.0035;
 // Im Frühjahr und Sommer wird mehr geboren als im Winter.
 export const BIRTH_SEASON = { fruehling: 1.3, sommer: 1.2, herbst: 0.9, winter: 0.6 };
 // Steht ein fremdes Heer vor dem Ort, wächst nichts: die Felder liegen brach.
-export const BIRTH_SIEGE_RANGE = 1;
+export const SIEGE_RANGE = 1;
 // Weiter als bis hierher wächst ein Ort nicht - ein Dorf bleibt ein Dorf,
 // solange es ein Dorf ist. Der Anteil bezieht sich auf die Einwohnerzahl,
 // mit der ein Ort seines Rangs beginnt.

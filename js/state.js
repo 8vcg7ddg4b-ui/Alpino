@@ -96,6 +96,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       granaryBuilding: null,
       viaduct: false,
       viaductBuilding: null,
+      // Seit wann dieser Ort belagert wird - alles andere an einer Belagerung
+      // ergibt sich aus der Lage der Heere, nur die Dauer muss stehen.
+      siege: null,
       garrison,
     };
   });

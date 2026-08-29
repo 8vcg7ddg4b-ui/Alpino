@@ -18,10 +18,12 @@ import {
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, advanceRoadConstruction, buildFleet,
   buyBuilding, advanceConstruction, mineIncomeOf,
+  updateSieges, applySiegeAttrition, siegeInfo,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations,
 } from './actions.js';
 import {
   offerPeace, declareWar, sendGift, rulersTakeTurn, rulerOf, GIFT_COST,
+  proposeTreaty, renounceTreaty,
   takeDiploNews, updateKnowledge, knowsFaction,
   acceptOffer, rejectOffer, expireOffers,
 } from './diplomacy.js';
@@ -376,6 +378,15 @@ function showNextDiploNews() {
   const meldung = diploNewsQueue.shift();
   // Fertig ausformulierte Meldungen gehen direkt durch.
   if (meldung.icon) { showNotice(meldung); return; }
+  // Verträge und Bündnisfälle bringen ihren Text schon mit - sie werden nicht
+  // aus zwei Fällen zusammengesetzt wie Krieg und Frieden.
+  if (meldung.kindLabel) {
+    showNotice({
+      icon: meldung.icon, kind: meldung.kindLabel, title: meldung.titel,
+      text: meldung.satz, effect: meldung.folge,
+    });
+    return;
+  }
   const krieg = meldung.kind === 'krieg';
   const angebot = meldung.kind === 'angebot';
   const gegner = factionById(state, meldung.von === playerFaction(state).id
@@ -448,9 +459,10 @@ function collectDiploNews() {
     const von = factionById(state, meldung.von);
     const gegen = factionById(state, meldung.gegen);
     if (!von || !gegen) continue;
-    logMsg(state, meldung.kind === 'krieg'
-      ? `${meldung.ruler} von ${von.name} erklärt ${gegen.name} den Krieg – ${meldung.grund}.`
-      : `${von.name} und ${gegen.name} schließen Frieden.`);
+    logMsg(state, meldung.titel ? `${meldung.titel}.`
+      : meldung.kind === 'krieg'
+        ? `${meldung.ruler} von ${von.name} erklärt ${gegen.name} den Krieg – ${meldung.grund}.`
+        : `${von.name} und ${gegen.name} schließen Frieden.`);
   }
 }
 
@@ -640,9 +652,20 @@ function renderDiplomacy() {
       } else if (btn.dataset.act === 'war') {
         const ruler = rulerOf(state, target);
         const result = declareWar(state, me, target, 'die Boten sind zurückgeschickt');
+        const gerufen = (result.allies || [])
+          .map((id) => factionById(state, id).name).join(', ');
         answer = result.ok
-          ? `Die Herolde sind unterwegs. ${ruler.name} weiß es vor der nächsten Runde.`
-          : (result.lock ? result.lock.text : 'Dafür ist es zu früh.');
+          ? `Die Herolde sind unterwegs. ${ruler.name} weiß es vor der nächsten Runde.${
+            gerufen ? ` Sein Bündnis ruft ${gerufen} mit ins Feld.` : ''}`
+          : (result.text || (result.lock ? result.lock.text : 'Dafür ist es zu früh.'));
+        sfx.denied();
+      } else if (btn.dataset.act === 'treaty') {
+        const result = proposeTreaty(state, me, target, btn.dataset.kind);
+        answer = result.text;
+        (result.ok ? sfx.wallBuy : sfx.denied)();
+      } else if (btn.dataset.act === 'renounce') {
+        const result = renounceTreaty(state, me, target, btn.dataset.kind);
+        answer = result.ok ? result.text : 'Daran ist nichts aufzukündigen.';
         sfx.denied();
       } else if (btn.dataset.act === 'gift') {
         const result = sendGift(state, me, target, GIFT_COST);
@@ -1261,6 +1284,10 @@ function endTurn() {
   updateKnowledge(state, playerFaction(state).id);
   // Was die Herolde bringen, ehe die neue Runde beginnt.
   collectDiploNews();
+  // Wer wen belagert, steht fest, sobald alle marschiert sind - und ehe
+  // abgerechnet wird: eine belagerte Stadt zahlt keine Steuer.
+  const belagert = updateSieges(state);
+  applySiegeAttrition(state);
   // Eroberungen der KI können Handelswege gekappt haben - das muss stehen,
   // bevor abgerechnet wird, sonst zahlt ein Weg, den es nicht mehr gibt.
   pruneTradeRoutes(state);
@@ -1302,6 +1329,22 @@ function endTurn() {
           + `${city.name} fördert von dieser Runde an Erz.`,
         effect: `+${mineIncomeOf(state, city)} Gold je Runde – unabhängig von Größe, `
           + 'Einwohnern und Handel des Orts.',
+      });
+    }
+    // Eine Belagerung des eigenen Reichs ist eine Meldung wert: sie kostet ab
+    // dieser Runde Steuer, Nachschub und Bauzeit.
+    for (const city of belagert) {
+      if (city.factionId !== me) continue;
+      const info = siegeInfo(state, city);
+      if (!info) continue;
+      const feind = info.factions.map((id) => factionById(state, id).name).join(' und ');
+      diploNewsQueue.push({
+        icon: '⚔️', kind: 'Eine Belagerung',
+        title: `${city.name} ist eingeschlossen`,
+        text: `${feind} steht vor ${city.name}${info.sea && !info.land
+          ? ' – mit Schiffen vor dem Hafen' : ''}: ${info.men.toLocaleString('de-DE')} Mann.`,
+        effect: 'Keine Steuer, kein Nachschub für die Wache, kein Bau. '
+          + `Nach ${info.bisHunger} weiteren Runden beginnt der Hunger.`,
       });
     }
     collectOwnNews(vorher, previousHead);

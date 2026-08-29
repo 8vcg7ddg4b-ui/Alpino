@@ -20,7 +20,8 @@ import {
   FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_BASE_INCOME, TRADE_VARIETY_BONUS,
   TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, tradeSizeFactor,
-  BIRTH_RATE, BIRTH_SEASON, BIRTH_SIEGE_RANGE, populationCeiling,
+  BIRTH_RATE, BIRTH_SEASON, populationCeiling,
+  SIEGE_RANGE, SIEGE_STARVE_AFTER, SIEGE_ATTRITION, SIEGE_POPULATION_LOSS,
   tileImpassable, tileMoveCost, levyStrength, LEVY_SHARE,
 } from './data.js';
 import { landRoute } from './mapgen.js';
@@ -36,7 +37,7 @@ import {
 } from './weather.js';
 import { wondersOfCity } from './wonders.js';
 import {
-  adjustOpinion, atWar, OPINION_PER_BATTLE, OPINION_PER_CITY_TAKEN,
+  adjustOpinion, atWar, hasTradePact, OPINION_PER_BATTLE, OPINION_PER_CITY_TAKEN,
 } from './diplomacy.js';
 
 export function removeArmy(state, armyId) {
@@ -758,6 +759,7 @@ export function embarkStatus(state, army) {
   if (!city.harbour) return { can: false, reason: 'noHarbour', city };
   const faction = factionById(state, army.factionId);
   if (!faction || faction.gold < SHIP_COST) return { can: false, reason: 'gold', city };
+  if (cityBlockaded(state, city)) return { can: false, reason: 'blockade', city };
   const berth = harbourTile(state, city, true);
   if (!berth) return { can: false, reason: 'blocked', city };
   if (weatherAt(state, berth.col, berth.row).blocksEmbark) {
@@ -802,6 +804,8 @@ export function buildFleet(state, cityId, kind = null) {
   if (!city.harbour) return { ok: false, reason: 'noHarbour' };
   // Ohne Helling kein Kiel: die Werft ist Bedingung für jedes Kriegsschiff.
   if (!city.shipyard) return { ok: false, reason: 'noShipyard' };
+  // Und aus einem gesperrten Hafen läuft nichts aus.
+  if (cityBlockaded(state, city)) return { ok: false, reason: 'blockade' };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
   const bauarten = shipTypesOf(city.factionId);
@@ -960,6 +964,9 @@ export function buyCityWalls(state, cityId) {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city) return { ok: false };
   if (city.wallBuilding) return { ok: false, reason: 'building' };
+  // Unter Belagerung wird keine Mauer aufgezogen - dafür müsste man vor sie
+  // treten, und davor steht der Feind.
+  if (citySieged(state, city)) return { ok: false, reason: 'siege' };
   const level = nextWallLevel(city);
   if (!level) return { ok: false, reason: 'complete' };
   const stage = wallLevelInfo(level);
@@ -977,6 +984,7 @@ export function advanceWallConstruction(state) {
   const finished = [];
   for (const city of state.cities) {
     if (!city.wallBuilding) continue;
+    if (citySieged(state, city)) continue;
     city.wallBuilding.turnsLeft -= 1;
     if (city.wallBuilding.turnsLeft > 0) continue;
     city.wallLevel = city.wallBuilding.level;
@@ -1083,6 +1091,9 @@ export function buyRoad(state, cityId, targetCityId) {
   if (roadProjectOf(state, city.id) || roadProjectOf(state, target.id)) {
     return { ok: false, reason: 'building' };
   }
+  if (citySieged(state, city) || citySieged(state, target)) {
+    return { ok: false, reason: 'siege' };
+  }
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
 
@@ -1165,6 +1176,7 @@ export function buildingBlocker(state, city, key) {
   if (!faction || faction.isNeutral) return 'neutral';
   if (city[key]) return 'done';
   if (city[`${key}Building`]) return 'building';
+  if (citySieged(state, city)) return 'siege';
   if (def.requires && !city[def.requires]) return 'requires';
   if (!buildingSiteOk(state, city, def)) return 'site';
   return null;
@@ -1194,6 +1206,8 @@ export function buyBuilding(state, cityId, key) {
 export function advanceConstruction(state) {
   const finished = [];
   for (const city of state.cities) {
+    // Unter Belagerung ruht jede Baustelle - das Material kommt nicht herein.
+    if (citySieged(state, city)) continue;
     for (const def of BUILDINGS) {
       const bau = city[`${def.key}Building`];
       if (!bau) continue;
@@ -1503,6 +1517,16 @@ export function tradeIncomeOf(state, city) {
   );
 }
 
+// Ob zwei Orte überhaupt miteinander handeln dürfen: im eigenen Reich immer,
+// über die Grenze nur mit einem Handelsabkommen. Mit dem Abkommen fällt auch
+// der Weg - deshalb wird beim Rundenwechsel geprüft, ob er noch gilt.
+export function tradeAllowed(state, a, b) {
+  if (!a || !b) return false;
+  if (a.factionId === b.factionId) return true;
+  if (a.factionId === 'neutral' || b.factionId === 'neutral') return false;
+  return hasTradePact(state, a.factionId, b.factionId);
+}
+
 // Ob zwischen zwei Orten überhaupt Waren fließen können - und auf welchem Weg.
 export function tradeLinkKind(state, a, b) {
   if (roadConnected(state, a, b)) return 'road';
@@ -1514,15 +1538,16 @@ function tradeDistance(a, b) {
   return Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
 }
 
-// Die eigenen Orte, mit denen dieser hier noch handeln könnte, samt dem, was
-// der Weg brächte. Was die Bedingung nicht erfüllt, taucht gar nicht erst auf.
+// Die Orte, mit denen dieser hier noch handeln könnte, samt dem, was der Weg
+// brächte: die eigenen immer, die fremden, sobald ein Handelsabkommen steht.
+// Was die Bedingung nicht erfüllt, taucht gar nicht erst auf.
 export function tradePartners(state, city) {
   if (tradeRoutesOf(state, city.id).length >= TRADE_ROUTES_PER_CITY) return [];
   const linked = new Set(tradeRoutesOf(state, city.id)
     .map((r) => (r.aId === city.id ? r.bId : r.aId)));
   return state.cities
     .filter((other) => other.id !== city.id
-      && other.factionId === city.factionId
+      && tradeAllowed(state, city, other)
       && !linked.has(other.id)
       && tradeRoutesOf(state, other.id).length < TRADE_ROUTES_PER_CITY
       && tradeDistance(city, other) <= TRADE_MAX_DISTANCE)
@@ -1541,7 +1566,7 @@ export function openTradeRoute(state, cityId, targetId) {
   const city = state.cities.find((c) => c.id === cityId);
   const other = state.cities.find((c) => c.id === targetId);
   if (!city || !other || city.id === other.id) return { ok: false };
-  if (city.factionId !== other.factionId) return { ok: false, reason: 'fremd' };
+  if (!tradeAllowed(state, city, other)) return { ok: false, reason: 'fremd' };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
   if (!tradePartners(state, city).some((p) => p.city.id === other.id)) {
@@ -1577,7 +1602,7 @@ export function pruneTradeRoutes(state) {
   state.tradeRoutes = (state.tradeRoutes || []).filter((route) => {
     const a = state.cities.find((c) => c.id === route.aId);
     const b = state.cities.find((c) => c.id === route.bId);
-    if (!a || !b || a.factionId !== b.factionId) return false;
+    if (!a || !b || !tradeAllowed(state, a, b)) return false;
     return !!tradeLinkKind(state, a, b);
   });
 }
@@ -1588,6 +1613,11 @@ export function pruneTradeRoutes(state) {
 // Dieselbe Rechnung steht in der Seitenleiste und in der Rundenabrechnung -
 // es soll nicht zwei Wahrheiten darüber geben, was eine Stadt wert ist.
 export function cityIncome(state, city) {
+  // Ein belagerter Ort trägt nichts: die Felder sind abgeerntet, die Wege
+  // gesperrt, die Karren aus dem Stollen kommen nicht durch.
+  if (citySieged(state, city)) {
+    return { people: 0, wonders: 0, trade: 0, mine: 0, total: 0, besieged: true };
+  }
   // Die Steuer der Einwohner ist die Grundlage: ein Ort wirft nichts dafür ab,
   // dass es ihn gibt, sondern nur für die, die in ihm wohnen.
   const people = cityTax(city.population);
@@ -1627,6 +1657,121 @@ export function collectIncome(state) {
   }
 }
 
+// --- Belagerung ------------------------------------------------------------
+// Wer sich vor einen Ort stellt, belagert ihn. Es braucht keinen Befehl und
+// keinen eigenen Zustand dafür: die Lage der Heere sagt es. Ein Landheer
+// unmittelbar neben dem Ort schließt ihn ein; eine Flotte vor einem Hafenort
+// sperrt ihm die See. Beides heißt Belagerung, und beides nimmt dem Ort, was
+// von draußen kommt.
+//
+// Die Seeräuber sind ausgenommen: sie haben ihre eigene Regel (halber Ertrag
+// auf jedem Seeweg in ihrer Reichweite) und sollen einem Reich nicht mit
+// einem einzigen Segel die Steuer nehmen.
+export function siegeForces(state, city) {
+  if (!city) return null;
+  const land = [];
+  const sea = [];
+  for (const army of state.armies) {
+    if (army.factionId === city.factionId) continue;
+    if (isPirate(army)) continue;
+    if (!atWar(state, city.factionId, army.factionId)) continue;
+    if (Math.abs(army.col - city.col) + Math.abs(army.row - city.row) > SIEGE_RANGE) continue;
+    if (isFleet(army) || army.embarked) {
+      // Ein Schiff belagert nur, was einen Hafen hat: vor einer Binnenstadt
+      // liegt keine Flotte, und vor einer Küste ohne Kai nimmt sie nichts.
+      if (city.harbour) sea.push(army);
+    } else {
+      land.push(army);
+    }
+  }
+  if (!land.length && !sea.length) return null;
+  return { land, sea };
+}
+
+// Alles, was die Seitenleiste über eine Belagerung wissen muss - live aus der
+// Lage gerechnet, damit sie dasteht, sobald das Heer danebensteht, und nicht
+// erst nach dem Rundenwechsel.
+export function siegeInfo(state, city) {
+  const forces = siegeForces(state, city);
+  if (!forces) return null;
+  const alle = [...forces.land, ...forces.sea];
+  const factions = [...new Set(alle.map((a) => a.factionId))];
+  const seit = city.siege ? Math.max(0, state.turn - city.siege.since) : 0;
+  return {
+    land: forces.land.length,
+    sea: forces.sea.length,
+    men: alle.reduce((sum, a) => sum + unitTotalCount(a.units), 0),
+    factions,
+    seit,
+    hungert: seit >= SIEGE_STARVE_AFTER,
+    bisHunger: Math.max(0, SIEGE_STARVE_AFTER - seit),
+  };
+}
+
+// Ob einem Hafenort die See gesperrt ist: dann geht kein Heer an Bord und
+// läuft kein Schiff vom Stapel.
+export function cityBlockaded(state, city) {
+  const forces = siegeForces(state, city);
+  return !!forces && forces.sea.length > 0;
+}
+
+// Einmal je Runde festhalten, seit wann ein Ort belagert wird. Nur die Dauer
+// muss im Spielstand stehen - alles andere ergibt sich aus der Lage.
+export function updateSieges(state) {
+  const begonnen = [];
+  for (const city of state.cities) {
+    const forces = siegeForces(state, city);
+    if (!forces) {
+      if (city.siege) {
+        logOwn(state, city.factionId, `🕊 Die Belagerung von ${city.name} ist aufgehoben.`);
+        city.siege = null;
+      }
+      continue;
+    }
+    const factions = [...new Set([...forces.land, ...forces.sea].map((a) => a.factionId))];
+    if (!city.siege) {
+      city.siege = { since: state.turn, factions };
+      begonnen.push(city);
+      const feind = factions.map((id) => factionById(state, id).name).join(' und ');
+      logOwn(state, city.factionId, `⚔️ ${city.name} wird von ${feind} belagert: `
+        + 'keine Steuer, kein Nachschub, kein Bau.');
+    } else {
+      city.siege.factions = factions;
+    }
+  }
+  return begonnen;
+}
+
+export function siegeTurns(state, city) {
+  return city && city.siege ? Math.max(0, state.turn - city.siege.since) : 0;
+}
+
+// Hunger. Eine Belagerung, die ein paar Runden steht, muss keine Mauer
+// stürmen - sie wartet, und die Stadt wird jede Runde schwächer.
+export function applySiegeAttrition(state) {
+  const gelitten = [];
+  for (const city of state.cities) {
+    if (!city.siege) continue;
+    if (state.turn - city.siege.since < SIEGE_STARVE_AFTER) continue;
+    let verloren = 0;
+    for (const role of GARRISON_ROLES) {
+      const zahl = city.garrison[role] || 0;
+      if (zahl <= 0) continue;
+      const weg = Math.max(1, Math.round(zahl * SIEGE_ATTRITION));
+      city.garrison[role] = Math.max(0, zahl - weg);
+      verloren += Math.min(weg, zahl);
+    }
+    const buerger = Math.round(city.population * SIEGE_POPULATION_LOSS);
+    city.population = Math.max(100, city.population - buerger);
+    if (verloren || buerger) {
+      gelitten.push({ city, verloren, buerger });
+      logOwn(state, city.factionId, `🍂 In ${city.name} wird gehungert: `
+        + `${verloren} Mann und ${buerger} Bürger weniger.`);
+    }
+  }
+  return gelitten;
+}
+
 // --- Geburten -------------------------------------------------------------
 // Jede Runde ist ein Monat, und in jedem Monat werden Kinder geboren. Das
 // wirkt sich aus: die Einwohner tragen zu den Einnahmen bei, sie stellen die
@@ -1635,10 +1780,7 @@ export function collectIncome(state) {
 // Zwei Dinge bremsen: der Winter und ein Heer vor dem Tor. Und über die
 // Obergrenze seines Rangs wächst kein Ort hinaus - ein Dorf bleibt ein Dorf.
 export function citySieged(state, city) {
-  return state.armies.some((army) => army.factionId !== city.factionId
-    && !army.embarked
-    && atWar(state, city.factionId, army.factionId)
-    && Math.abs(army.col - city.col) + Math.abs(army.row - city.row) <= BIRTH_SIEGE_RANGE);
+  return !!siegeForces(state, city);
 }
 
 // Was ein Ort in dieser Runde an Menschen gewinnt - null, wenn er belagert
@@ -1663,6 +1805,9 @@ export function growPopulations(state) {
 // deshalb eine Weile, bevor sie sich selbst wieder verteidigt.
 export function regenerateGarrisons(state) {
   for (const city of state.cities) {
+    // Aus einer belagerten Stadt kommt niemand nach: wer draußen ist, bleibt
+    // draußen, und drinnen wird nicht ausgebildet, sondern gehungert.
+    if (citySieged(state, city)) continue;
     const faction = factionById(state, city.factionId);
     const target = watchTarget(city, faction);
     const watch = city.garrison[WATCH_ROLE] || 0;
