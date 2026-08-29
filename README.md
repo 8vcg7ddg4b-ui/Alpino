@@ -417,20 +417,20 @@ den Punkten durchblättern.
   Verbindung schwenkt auf die alte Trasse ein), **neben** einer Straße
   herzulaufen kostet drei Punkte extra (keine zweite Trasse ein Feld daneben),
   und ein **Flussübergang** kostet acht – ein bestehender nichts, so dass eine
-  Straße lieber am Ufer entlangzieht als ein zweites Mal überzusetzen. Das
-  Startnetz wird außerdem gebaut wie ein Netz wächst und nicht wie ein Stern:
-  angeschlossen wird jeweils der Ort, dessen Weg ans bestehende Netz gerade am
-  kürzesten ist. Von achtzehn Stellen mit zwei Straßen nebeneinander bleiben so
-  fünf. **Wo eine Straße am Rand einer Stadt über den Fluss geht, steht kein
+  Straße lieber am Ufer entlangzieht als ein zweites Mal überzusetzen.
+  **Wo eine Straße am Rand einer Stadt über den Fluss geht, steht kein
   Brückenbogen** – der Weg führt durch den Ort, die Stadt ist der Übergang; für
-  die Bewegung zählt er trotzdem. **Auch die unabhängigen Orte** hängen am
-  Netz: jeder bekommt den kurzen Weg zu seinem nächsten Nachbarn, gleich wem
-  der gehört. **Zu Spielbeginn hängen
-  alle Orte jeder Fraktion an ihrer Hauptstadt**, die Dörfer eingeschlossen –
-  ein Reich, das sein Land seit Generationen hält, hat den Weg dorthin längst
-  getreten, und niemand soll eine Straße bauen müssen, die auf der Karte schon
-  liegt. Nur was über See liegt (Salamis auf Zypern) hat keinen Landweg. Fällt
-  einer der beiden Orte an den Feind, wird der Bau abgebrochen.
+  die Bewegung zählt er trotzdem. Fällt einer der beiden Orte an den Feind,
+  wird der Bau abgebrochen.
+
+  **Das Startnetz ist bewusst dünn**: sternförmig von der Hauptstadt jeder
+  Fraktion zu ihren **Städten**, und sonst nichts. Keine Straße zwischen zwei
+  Städten, die nicht über die Hauptstadt liefe; **kein Dorf** ist angebunden
+  und **kein unabhängiger Ort** – dorthin ist die erste Straße Sache dessen,
+  der sie will. Damit eine Trasse nicht nebenbei ein Dorf anschließt, meidet
+  die Wegsuche beim Aufbau die Felder fremder Orte: sie sind nicht gesperrt,
+  nur teuer. In Zahlen: 26 von 26 Städten hängen an ihrer Hauptstadt, 0 von 35
+  Dörfern und 0 von 20 unabhängigen Orten haben eine Straße.
 - **Bewegung wird in Punkten gerechnet, nicht in Feldern**: offene Ebene kostet
   3, gebrochenes Gelände – Wald, Hügel, Wüste – das Doppelte, eine gepflasterte
   Straße 2, und ein Heer hat 18 Punkte je Runde. Das sind sechs Felder Ebene,

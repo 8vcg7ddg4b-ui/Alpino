@@ -495,7 +495,14 @@ const ROUTE_RIVER_COST = 8;
 // Was es kostet, eine neue Trasse neben eine bestehende zu legen.
 const ROUTE_PARALLEL_COST = 3;
 
-export function landRoute(map, from, to, roads = null) {
+// `avoid` nennt Felder, die der Weg möglichst meiden soll - beim Aufbau des
+// Startnetzes sind das die anderen Orte: eine Straße von der Hauptstadt zu
+// einer Stadt soll nicht nebenbei ein Dorf anschließen, das noch keines
+// haben soll. Gesperrt sind sie nicht, nur teuer; führt kein anderer Weg,
+// nimmt die Straße ihn trotzdem.
+const ROUTE_AVOID_COST = 60;
+
+export function landRoute(map, from, to, roads = null, avoid = null) {
   const { cols, rows, tiles } = map;
   const key = (col, row) => row * cols + col;
   const start = key(from.col, from.row);
@@ -545,8 +552,9 @@ export function landRoute(map, from, to, roads = null) {
           const bruecke = roads && roads[`${col},${row}`] && gepflastert;
           step += bruecke ? 0 : ROUTE_RIVER_COST;
         }
-        const next = level + step;
         const nextKey = key(nc, nr);
+        if (avoid && nextKey !== goal && avoid.has(`${nc},${nr}`)) step += ROUTE_AVOID_COST;
+        const next = level + step;
         if (cost[nextKey] !== -1 && cost[nextKey] <= next) continue;
         cost[nextKey] = next;
         prev[nextKey] = currentKey;

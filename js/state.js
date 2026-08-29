@@ -151,12 +151,12 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   // spell of rain rather than rolling a new one.
   const weatherSeed = Math.floor(Math.random() * 1e9);
 
-  // Jede Fraktion beginnt mit Straßen von ihrer Hauptstadt zu allen eigenen
-  // Orten - das Netz, das sie über die Jahre schon gebaut hat. Auch die
-  // Dörfer hängen daran: eine Fraktion, die ihr Land seit Generationen hält,
-  // hat den Weg dorthin längst getreten, und wer beim ersten Blick in die
-  // Bauliste eine Straße angeboten bekommt, die auf der Karte schon liegt,
-  // hält das mit Recht für einen Fehler.
+  // Jede Fraktion beginnt mit Straßen von ihrer Hauptstadt zu ihren Städten -
+  // und sonst mit keiner. Sternförmig von der Hauptstadt aus, nicht als Netz
+  // untereinander: was zwei Städte direkt verbindet, hat der Spieler gebaut,
+  // nicht die Geschichte. Die Dörfer hängen noch nicht daran, die
+  // unabhängigen Orte an gar nichts - dorthin ist die erste Straße Sache
+  // dessen, der sie will.
   const roads = {};
   const markRoute = (route) => {
     for (const tile of route) roads[`${tile.col},${tile.row}`] = true;
@@ -167,47 +167,19 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     if (!byFaction.has(city.factionId)) byFaction.set(city.factionId, []);
     byFaction.get(city.factionId).push(city);
   }
-  // Gebaut wird wie ein Netz wächst, nicht wie ein Stern: angeschlossen wird
-  // jeweils der Ort, dessen Weg ans bestehende Netz gerade am kürzesten ist.
-  // Alles von der Hauptstadt aus einzeln anzubinden legte zwei Trassen
-  // nebeneinander, sobald zwei Orte in dieselbe Richtung lagen.
+  // Alle Ortsfelder: eine Trasse soll nicht nebenbei ein Dorf anschließen,
+  // das noch keine Straße haben soll. Start und Ziel sind davon ausgenommen.
+  const ortsfelder = new Set(cities.map((c) => `${c.col},${c.row}`));
   for (const own of byFaction.values()) {
     const capital = own.find((c) => c.capital) || own[0];
-    const angeschlossen = [capital];
-    const offen = own.filter((c) => c !== capital);
-    while (offen.length) {
-      let bester = null;
-      for (let i = 0; i < offen.length; i++) {
-        for (const quelle of angeschlossen) {
-          const route = landRoute(map, quelle, offen[i], roads);
-          if (!route) continue;
-          if (!bester || route.length < bester.route.length) bester = { index: i, route };
-        }
-      }
-      if (!bester) break;
-      markRoute(bester.route);
-      angeschlossen.push(offen[bester.index]);
-      offen.splice(bester.index, 1);
+    for (const city of own) {
+      if (city === capital || city.size === 'village') continue;
+      const meiden = new Set(ortsfelder);
+      meiden.delete(`${capital.col},${capital.row}`);
+      meiden.delete(`${city.col},${city.row}`);
+      const route = landRoute(map, capital, city, roads, meiden);
+      if (route) markRoute(route);
     }
-  }
-
-  // Die unabhängigen Orte hängen an keiner Hauptstadt - aber ein Ort ohne
-  // jeden Weg sieht auf der Karte verlassen aus, und Tarent und Syrakus waren
-  // alles andere als das. Jeder bekommt deshalb den kurzen Weg zu seinem
-  // nächsten Nachbarn, gleich wem der gehört.
-  const NEUTRAL_ROAD_RANGE = 9;
-  for (const city of cities) {
-    if (city.factionId !== 'neutral') continue;
-    let naechster = null;
-    for (const other of cities) {
-      if (other === city) continue;
-      const d = Math.abs(other.col - city.col) + Math.abs(other.row - city.row);
-      if (d > NEUTRAL_ROAD_RANGE) continue;
-      if (!naechster || d < naechster.d) naechster = { city: other, d };
-    }
-    if (!naechster) continue;
-    const route = landRoute(map, city, naechster.city, roads);
-    if (route) markRoute(route);
   }
 
   const state = {
