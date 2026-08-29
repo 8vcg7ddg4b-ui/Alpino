@@ -1,7 +1,7 @@
 import {
   FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES,
-  CAPITAL_WALL_LEVEL, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
+  CAPITAL_WALL_LEVEL, startingWallLevel, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
   UNIT_ROLES, SHIP_ROLE, RIVER_CROSSING_COST, TRADE_GOODS,
   tileImpassable, tileMoveCost,
 } from './data.js';
@@ -65,7 +65,7 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       population,
       // Capitals are fortified from the outset; every other settlement starts
       // open and has to buy each stage and wait out its construction.
-      wallLevel: def.capital ? CAPITAL_WALL_LEVEL : 0,
+      wallLevel: startingWallLevel(def),
       wallBuilding: null,
       // Wer am Meer liegt, kann einen Hafen haben - Hauptstädte und Große
       // Städte haben ihn von Anfang an, alle anderen müssen ihn bauen.

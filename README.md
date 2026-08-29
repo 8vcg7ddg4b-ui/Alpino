@@ -296,8 +296,12 @@ den Punkten durchblättern.
 - **Befestigungen in drei Stufen**: **Holzpalisade** (200 Gold, 3 Runden,
   +30 % Verteidigung), **Große Holzpalisade** (450 Gold, 4 Runden, +60 %) und
   **Steinmauer** (900 Gold, 6 Runden, +100 %). Gekauft wird immer nur die
-  nächste Stufe, und immer nur eine zur Zeit. Hauptstädte starten mit der
-  Großen Holzpalisade – die Steinmauer bleibt auch ihnen zu bauen. Jede Stufe
+  nächste Stufe, und immer nur eine zur Zeit. **Kein Ort steht offen in der
+  Landschaft**: jede Siedlung einer Fraktion beginnt mit der Holzpalisade,
+  Hauptstädte mit der Großen – die Steinmauer bleibt auch ihnen zu bauen. Die
+  **unabhängigen Städte** haben ebenfalls die Große: sie haben niemanden über
+  sich und müssen sich selbst verteidigen. Ihre Dörfer kommen wie alle anderen
+  mit der einfachen aus. Jede Stufe
   sieht anders aus: angespitzte Stämme, hölzerner Wehrgang mit Türmen,
   Quadermauer mit Rundtürmen.
 - **Hafenbau**: Ohne Hafen kann in einer Stadt keine Armee an Bord gehen –

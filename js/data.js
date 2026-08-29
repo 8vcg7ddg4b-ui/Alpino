@@ -752,6 +752,22 @@ export const MAX_WALL_LEVEL = WALL_LEVELS.length;
 // Capitals are fortified from the first turn, but not to the last stage:
 // there is still something left for their owner to build.
 export const CAPITAL_WALL_LEVEL = 2;
+// Kein Ort steht 264 v. Chr. offen in der Landschaft. Jede Siedlung einer
+// Fraktion hat ihre Holzpalisade; die unabhängigen Städte, die niemanden über
+// sich haben und sich selbst verteidigen müssen, haben die große. Ihre Dörfer
+// kommen wie alle anderen mit der einfachen aus.
+export const START_WALL_LEVEL = 1;
+export const FREE_CITY_WALL_LEVEL = 2;
+
+// Womit ein Ort in den Feldzug geht.
+export function startingWallLevel(def) {
+  if (def.capital) return CAPITAL_WALL_LEVEL;
+  if (def.factionId === 'neutral') {
+    return (def.size || DEFAULT_SETTLEMENT_SIZE) === 'village'
+      ? START_WALL_LEVEL : FREE_CITY_WALL_LEVEL;
+  }
+  return START_WALL_LEVEL;
+}
 
 // Level 0 is an open town; 1..3 index into WALL_LEVELS.
 export function wallLevelInfo(level) {
