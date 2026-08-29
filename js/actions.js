@@ -16,13 +16,15 @@ import {
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
   FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
+  TRADE_GOODS, TRADE_ROUTE_COST, TRADE_BASE_INCOME, TRADE_VARIETY_BONUS,
+  TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, tradeSizeFactor,
 } from './data.js';
 import { landRoute } from './mapgen.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import { resolveBattle, forecastBattle } from './combat.js';
 import {
   makeId, factionById, cityAt, armyAt, unitTotalCount, logMsg, logOwn, playerFaction,
-  isWaterTile, isCoastalCity, harbourTile, isFleet, PORT_RANGE,
+  isWaterTile, isCoastalCity, harbourTile, isFleet, PORT_RANGE, tradeGoodOf,
 } from './state.js';
 import {
   rollWeather, weatherAt, weatherInfo, weatherBattleModifiers, calendarOfTurn, zoneName,
@@ -558,6 +560,9 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     // defenseless against a follow-up attack the same turn.
     city.garrison = { infantry: 30 };
     city.population = Math.round(city.population * 0.92);
+    // Wer die Stadt verliert, verliert ihren Handel: der neue Herr muss die
+    // Wege selbst wieder eröffnen.
+    pruneTradeRoutes(state);
   }
 
   // A promotion is worth saying out loud; it changes how the army fights from
@@ -1291,6 +1296,116 @@ export function recoverArmies(state) {
   }
 }
 
+// --- Handel ---------------------------------------------------------------
+// Ein Handelsweg verbindet zwei eigene Orte. Er wird einmal bezahlt und trägt
+// dann Runde für Runde - beiden Enden, denn Handel ist keine Einbahnstraße.
+// Verbunden sein heißt: eine durchgehende Straße, oder auf beiden Seiten ein
+// Hafen. Ein Karren braucht einen Weg, ein Schiff braucht zwei Häfen.
+
+export function tradeRoutesOf(state, cityId) {
+  return (state.tradeRoutes || []).filter((r) => r.aId === cityId || r.bId === cityId);
+}
+
+export function tradePartnerOf(state, route, cityId) {
+  const otherId = route.aId === cityId ? route.bId : route.aId;
+  return state.cities.find((c) => c.id === otherId) || null;
+}
+
+// Was ein einzelner Weg jeder Seite je Runde einbringt. Verschiedene Waren
+// tragen mehr: wer Salz gegen Wein tauscht, verdient an beidem.
+export function tradeRouteIncome(state, a, b) {
+  if (!a || !b) return 0;
+  const variety = tradeGoodOf(state, a) === tradeGoodOf(state, b) ? 0 : TRADE_VARIETY_BONUS;
+  const size = (tradeSizeFactor(a.size) + tradeSizeFactor(b.size)) / 2;
+  return Math.round((TRADE_BASE_INCOME + variety) * size);
+}
+
+// Was der Handel diesem Ort insgesamt einbringt.
+export function tradeIncomeOf(state, city) {
+  return tradeRoutesOf(state, city.id).reduce(
+    (sum, route) => sum + tradeRouteIncome(state, city, tradePartnerOf(state, route, city.id)), 0
+  );
+}
+
+// Ob zwischen zwei Orten überhaupt Waren fließen können - und auf welchem Weg.
+export function tradeLinkKind(state, a, b) {
+  if (roadConnected(state, a, b)) return 'road';
+  if (a.harbour && b.harbour && isCoastalCity(state, a) && isCoastalCity(state, b)) return 'sea';
+  return null;
+}
+
+function tradeDistance(a, b) {
+  return Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
+}
+
+// Die eigenen Orte, mit denen dieser hier noch handeln könnte, samt dem, was
+// der Weg brächte. Was die Bedingung nicht erfüllt, taucht gar nicht erst auf.
+export function tradePartners(state, city) {
+  if (tradeRoutesOf(state, city.id).length >= TRADE_ROUTES_PER_CITY) return [];
+  const linked = new Set(tradeRoutesOf(state, city.id)
+    .map((r) => (r.aId === city.id ? r.bId : r.aId)));
+  return state.cities
+    .filter((other) => other.id !== city.id
+      && other.factionId === city.factionId
+      && !linked.has(other.id)
+      && tradeRoutesOf(state, other.id).length < TRADE_ROUTES_PER_CITY
+      && tradeDistance(city, other) <= TRADE_MAX_DISTANCE)
+    .map((other) => ({
+      city: other,
+      kind: tradeLinkKind(state, city, other),
+      distance: tradeDistance(city, other),
+      income: tradeRouteIncome(state, city, other),
+      good: tradeGoodOf(state, other),
+    }))
+    .filter((entry) => entry.kind)
+    .sort((a, b) => b.income - a.income || a.distance - b.distance);
+}
+
+export function openTradeRoute(state, cityId, targetId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  const other = state.cities.find((c) => c.id === targetId);
+  if (!city || !other || city.id === other.id) return { ok: false };
+  if (city.factionId !== other.factionId) return { ok: false, reason: 'fremd' };
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  if (!tradePartners(state, city).some((p) => p.city.id === other.id)) {
+    return { ok: false, reason: 'unmöglich' };
+  }
+  if (faction.gold < TRADE_ROUTE_COST) return { ok: false, reason: 'gold' };
+  faction.gold -= TRADE_ROUTE_COST;
+  const kind = tradeLinkKind(state, city, other);
+  state.tradeRoutes.push({ id: makeId('trade'), aId: city.id, bId: other.id, kind });
+  logOwn(state, faction.id, `Handelsweg ${city.name} – ${other.name} eröffnet `
+    + `(${kind === 'sea' ? 'zur See' : 'über Land'}, +${
+      tradeRouteIncome(state, city, other)} Gold je Seite und Runde).`);
+  return { ok: true };
+}
+
+export function closeTradeRoute(state, routeId) {
+  const routes = state.tradeRoutes || [];
+  const index = routes.findIndex((r) => r.id === routeId);
+  if (index < 0) return { ok: false };
+  const route = routes[index];
+  const a = state.cities.find((c) => c.id === route.aId);
+  const b = state.cities.find((c) => c.id === route.bId);
+  routes.splice(index, 1);
+  if (a && b) logOwn(state, a.factionId, `Handelsweg ${a.name} – ${b.name} aufgegeben.`);
+  return { ok: true };
+}
+
+// Ein Handelsweg endet, wenn ein Ende den Besitzer wechselt oder die
+// Verbindung abreißt - eine Straße, die durch fremdes Land führt, wird nicht
+// unterbrochen, aber eine verlorene Stadt handelt nicht mehr für den alten
+// Herrn. Läuft nach jeder Eroberung und zu jedem Rundenwechsel.
+export function pruneTradeRoutes(state) {
+  state.tradeRoutes = (state.tradeRoutes || []).filter((route) => {
+    const a = state.cities.find((c) => c.id === route.aId);
+    const b = state.cities.find((c) => c.id === route.bId);
+    if (!a || !b || a.factionId !== b.factionId) return false;
+    return !!tradeLinkKind(state, a, b);
+  });
+}
+
 // Was ein einzelner Ort in dieser Runde einbringt, aufgeschlüsselt: die
 // Abgaben der Siedlung selbst, was ihre Einwohner darüber hinaus tragen, und
 // was ein Weltwunder vor ihren Toren an Pilgern und Händlern anzieht.
@@ -1300,7 +1415,8 @@ export function cityIncome(state, city) {
   const settlement = INCOME_PER_CITY * settlementTier(city.size).incomeFactor;
   const people = Math.floor(city.population / 200);
   const wonders = wondersOfCity(state, city.id).reduce((sum, w) => sum + w.income, 0);
-  return { settlement, people, wonders, total: settlement + people + wonders };
+  const trade = tradeIncomeOf(state, city);
+  return { settlement, people, wonders, trade, total: settlement + people + wonders + trade };
 }
 
 // Was die Heere einer Fraktion in dieser Runde kosten. Steht hier, weil die

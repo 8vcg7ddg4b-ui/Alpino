@@ -14,6 +14,7 @@ import {
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction, buildFleet,
+  openTradeRoute, closeTradeRoute, pruneTradeRoutes,
 } from './actions.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
@@ -708,6 +709,18 @@ function refresh() {
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
+    onOpenTrade: (cityId, targetId) => {
+      pushUndo();
+      const ok = openTradeRoute(state, cityId, targetId).ok;
+      (ok ? sfx.wallBuy : sfx.denied)();
+      refresh();
+    },
+    onCloseTrade: (routeId) => {
+      pushUndo();
+      closeTradeRoute(state, routeId);
+      sfx.click();
+      refresh();
+    },
     onEmbark: (armyId) => {
       pushUndo();
       const ok = embarkArmy(state, armyId).ok;
@@ -735,6 +748,9 @@ function endTurn() {
   const previousHead = state.battleReports.length ? state.battleReports[0].id : null;
 
   aiTakeAllTurns(state);
+  // Eroberungen der KI können Handelswege gekappt haben - das muss stehen,
+  // bevor abgerechnet wird, sonst zahlt ein Weg, den es nicht mehr gibt.
+  pruneTradeRoutes(state);
   collectIncome(state);
   // Erst die Abrechnung, dann das Schicksal: ein Ereignis greift in denselben
   // Schatz, den die Runde gerade gefüllt hat.

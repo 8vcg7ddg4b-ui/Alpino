@@ -420,6 +420,42 @@ html, body {
 .road-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
 .road-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+/* Der Handelsknopf sieht aus wie der Straßenknopf - es ist dieselbe Art von
+   Entscheidung: einmal zahlen, dann trägt es. */
+.trade-btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-align: left;
+}
+.trade-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
+.trade-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.trade-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+/* Der Weg links, der Knopf am rechten Rand - sonst rutscht "aufgeben" auf
+   eine eigene Zeile, sobald der Ortsname etwas länger ist. */
+.trade-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.trade-close-btn {
+  margin-left: auto;
+  flex: none;
+  align-self: center;
+  background: none;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+.trade-close-btn:hover { border-color: var(--gold); color: var(--gold); }
+
 .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .icon-btn.unavailable { opacity: 0.45; border-style: dashed; }
 .over-strength { color: var(--gold); }

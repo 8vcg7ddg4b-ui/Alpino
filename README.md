@@ -287,6 +287,20 @@ den Punkten durchblättern.
   Küstenstadt muss ihn bauen. Erobert man eine Stadt, übernimmt man ihren
   Hafen. Am Ufer steht dann ein Steg mit vertäutem Boot, damit man von weitem
   sieht, wo eine Flotte auslaufen kann.
+- **Handel**: Jeder Ort bringt hervor, was sein Land hergibt – Salz aus der
+  Wüste, Holz aus dem Wald, Erz aus den Hügeln, Pferde aus der Steppe des
+  Ostens, Öl von der afrikanischen Küste, Wein aus Italien und Anatolien,
+  Getreide aus dem Norden, und wo nichts davon wächst, lebt eine Küstenstadt
+  vom Meer. Die Ware hängt allein an Gelände und Lage, nicht am Zufall.
+  Der Reiter **Handel** in der Stadtansicht zeigt sie an und bietet an, einen
+  **Handelsweg** zu einem anderen eigenen Ort zu eröffnen: einmalig 200 Gold,
+  danach trägt er **beiden Enden** Runde für Runde. Verschiedene Waren tragen
+  mehr als gleiche – Salz gegen Wein lohnt, Getreide gegen Getreide kaum –, und
+  große Städte schlagen mehr um als Dörfer. Verbunden sein heißt: eine
+  durchgehende Straße, oder auf beiden Seiten ein Hafen; weiter als 14 Felder
+  reicht kein Weg, und mehr als zwei trägt ein Ort nicht. Fällt ein Ende an den
+  Feind oder reißt die Verbindung, endet der Weg. Die Reichsübersicht führt den
+  Handel als eigene Spalte, und die KI handelt ebenfalls.
 - **Straßenbau**: Jede eigene Stadt bietet die nächstgelegenen eigenen Orte
   an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
   Bauzeit. Angeboten werden **die zwei nächstgelegenen** eigenen Orte, zu denen
@@ -327,11 +341,13 @@ den Punkten durchblättern.
   ein Gold) und was ein Weltwunder vor ihren Toren einbringt. Dieselbe Rechnung
   läuft in der Rundenabrechnung – es gibt nur eine Wahrheit darüber, was eine
   Stadt wert ist.
-- **Das Stadtfenster hat zwei Reiter**: **Infos** – Rang, Bevölkerung,
-  Einnahmen, Stadtwache, Bauwerke, Befestigung, Garnison – und **Bauen**:
-  Mauern, Hafen, Flotte, Straßen, Rekrutierung und Aushebung. Im Reiter
-  **Bauen** bleibt die Geländeauskunft aus – dort geht es darum, was man tun
-  kann, und die Bauknöpfe sollen nicht unter einer Wand aus Höhenangaben
+- **Das Stadtfenster hat drei Reiter**: **Infos** – Rang, Bevölkerung,
+  Einnahmen, Stadtwache, Bauwerke, Befestigung, Garnison –, **Bauen**:
+  Mauern, Hafen, Flotte, Straßen, Rekrutierung und Aushebung – und **Handel**:
+  die eigene Ware, die bestehenden Handelswege und die Orte, mit denen sich
+  noch einer eröffnen ließe. In **Bauen** und **Handel** bleibt die
+  Geländeauskunft aus – dort geht es darum, was man tun
+  kann, und die Knöpfe sollen nicht unter einer Wand aus Höhenangaben
   verschwinden. Ungetrennt stand
   der Mauerbau zwischen Bevölkerung und Garnison, und wer nur nachsehen wollte,
   was ein Ort trägt, scrollte an drei Bauknöpfen vorbei. Die Wahl bleibt

@@ -2,7 +2,7 @@ import {
   FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES,
   CAPITAL_WALL_LEVEL, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
-  UNIT_ROLES, SHIP_ROLE, RIVER_CROSSING_COST,
+  UNIT_ROLES, SHIP_ROLE, RIVER_CROSSING_COST, TRADE_GOODS,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
@@ -174,6 +174,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     wonders: placeWonders(map, cities),
     roads,
     roadProjects: [],
+    // Handelswege zwischen zwei eigenen Orten. Sie stehen hier und nicht an
+    // der Stadt, weil ein Weg immer zwei Enden hat und beide dasselbe meinen.
+    tradeRoutes: [],
     // Bumped whenever the network changes, so the scene knows to redraw it.
     roadVersion: 0,
     weather: rollWeather(1, null, weatherSeed),
@@ -308,6 +311,54 @@ export function coastalOnMap(map, col, row) {
 
 export function isCoastalCity(state, city) {
   return coastalOnMap(state.map, city.col, city.row);
+}
+
+// Was ein Ort hervorbringt, ergibt sich aus dem Land, auf dem er steht: Salz
+// aus der Wüste, Holz aus dem Wald, Erz aus den Hügeln, Pferde aus der weiten
+// Ebene des Ostens, Wein und Öl aus dem Süden, Getreide aus dem Norden. Wo
+// nichts davon zutrifft, lebt eine Küstenstadt vom Meer.
+//
+// Die Zuordnung hängt nur an Gelände und Lage, nicht am Zufall: derselbe Ort
+// bringt in jedem Feldzug dasselbe hervor.
+// Wie viele Felder im Umland eines Ortes von einer Art sind. Eine Siedlung
+// steht immer auf ebenem Grund - was sie hervorbringt, wächst deshalb nicht
+// auf ihrem Feld, sondern in den Feldern um sie herum.
+const HINTERLAND = 2;
+const HINTERLAND_MIN = 4;
+
+function hinterlandType(state, city) {
+  const counts = {};
+  for (let dr = -HINTERLAND; dr <= HINTERLAND; dr++) {
+    const row = state.map.tiles[city.row + dr];
+    if (!row) continue;
+    for (let dc = -HINTERLAND; dc <= HINTERLAND; dc++) {
+      const tile = row[city.col + dc];
+      if (tile) counts[tile.type] = (counts[tile.type] || 0) + 1;
+    }
+  }
+  // Die Reihenfolge entscheidet, wenn zweierlei ums Umland streitet: das
+  // Auffälligere gewinnt, das Gebirge vor dem Wald.
+  return ['mountain', 'hills', 'forest', 'desert']
+    .find((type) => (counts[type] || 0) >= HINTERLAND_MIN) || null;
+}
+
+export function tradeGoodOf(state, city) {
+  const around = hinterlandType(state, city);
+  if (around === 'mountain' || around === 'hills') return 'erz';
+  if (around === 'forest') return 'holz';
+  if (around === 'desert') return 'salz';
+  const lat = latOfRow(city.row);
+  const lon = lonOfCol(city.col);
+  if (lon > 28 && lat > 44) return 'pferde';
+  if (lat < 38) return 'oel';
+  if (lat < 42) return 'wein';
+  if (isCoastalCity(state, city)) return 'fisch';
+  return 'getreide';
+}
+
+export function tradeGoodInfo(state, city) {
+  const key = tradeGoodOf(state, city);
+  return { key, ...TRADE_GOODS[key] };
 }
 
 // Eine Flotte ist eine Armee, die nur aus Schiffen besteht: sie fährt zur See,

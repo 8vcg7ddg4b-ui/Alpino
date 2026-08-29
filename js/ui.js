@@ -7,14 +7,16 @@ import {
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
   RIVER_CROSSING_COST,
   HARBOUR_COST, HARBOUR_TURNS,
+  TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
 } from './data.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
-  isWaterTile, isCoastalCity, isFleet, riverSidesOf,
+  isWaterTile, isCoastalCity, isFleet, riverSidesOf, tradeGoodInfo,
 } from './state.js';
 import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, cityIncome,
   armyUpkeep, factionIncome,
+  tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -360,9 +362,10 @@ function settlementLabel(city) {
 // Welcher Reiter im Stadtfenster offen liegt. Die Wahl bleibt stehen: wer
 // baut, baut meist mehrmals hintereinander.
 let cityTab = 'info';
+const CITY_TABS = ['info', 'build', 'trade'];
 
 export function setCityTab(tab) {
-  cityTab = tab === 'build' ? 'build' : 'info';
+  cityTab = CITY_TABS.includes(tab) ? tab : 'info';
   return cityTab;
 }
 
@@ -373,6 +376,7 @@ function incomeLineHTML(state, city) {
   const parts = [`Siedlung ${income.settlement}`];
   if (income.people) parts.push(`Einwohner ${income.people}`);
   if (income.wonders) parts.push(`Bauwerk ${income.wonders}`);
+  if (income.trade) parts.push(`Handel ${income.trade}`);
   return `<p class="income-line">💰 Einnahmen
     <strong>${income.total.toLocaleString('de-DE')} Gold je Runde</strong>
     <span class="muted">· ${parts.join(' · ')}</span></p>`;
@@ -512,8 +516,11 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
         role="tab" aria-selected="${cityTab === 'info'}">Infos</button>
       <button data-citytab="build" class="${cityTab === 'build' ? 'active' : ''}"
         role="tab" aria-selected="${cityTab === 'build'}">Bauen</button>
+      <button data-citytab="trade" class="${cityTab === 'trade' ? 'active' : ''}"
+        role="tab" aria-selected="${cityTab === 'trade'}">Handel</button>
     </div>
-    ${cityTab === 'build' ? buildHTML : infoHTML}
+    ${cityTab === 'build' ? buildHTML : cityTab === 'trade'
+    ? tradeHTML(state, city, isMine, player) : infoHTML}
   `;
 }
 
@@ -598,6 +605,59 @@ function fleetHTML(city, isMine, player) {
 // --- Straßenbau ----------------------------------------------------------
 // Die Stadt bietet an, wohin sie als Nächstes eine Straße legen kann: die
 // nächsten eigenen Orte ohne Anschluss, mit Preis und Bauzeit.
+// --- Handel ---------------------------------------------------------------
+// Der dritte Reiter: was der Ort hervorbringt, welche Wege von ihm ausgehen,
+// und mit wem sich noch einer eröffnen ließe. Bewusst knapp - der Handel soll
+// eine Entscheidung von zwei Klicks sein, keine Tabelle.
+function tradeHTML(state, city, isMine, player) {
+  if (!isMine) return '<p class="muted">Über den Handel fremder Orte ist nichts bekannt.</p>';
+  const own = tradeGoodInfo(state, city);
+  const routes = tradeRoutesOf(state, city.id);
+  const partners = tradePartners(state, city);
+  const income = tradeIncomeOf(state, city);
+
+  const head = `
+    <p class="income-line">${own.icon} ${escapeHTML(own.name)}
+      <span class="muted">· was ${escapeHTML(city.name)} hervorbringt</span></p>
+    <p class="wall-line ${income ? 'wall-done' : 'muted'}">⚖️ Handel
+      ${income ? `<strong>+${income} Gold je Runde</strong>` : 'kein Handel'}
+      <span class="muted">· ${routes.length} von ${TRADE_ROUTES_PER_CITY} Wegen</span></p>`;
+
+  const open = routes.map((route) => {
+    const other = tradePartnerOf(state, route, city.id);
+    if (!other) return '';
+    const good = tradeGoodInfo(state, other);
+    return `<p class="wall-line wall-done trade-line"><span>${route.kind === 'sea' ? '⛵' : '🛣️'}
+      ${escapeHTML(other.name)} <span class="muted">· ${good.icon} ${escapeHTML(good.name)} ·
+      +${tradeRouteIncome(state, city, other)} Gold je Runde</span></span>
+      <button class="trade-close-btn" data-route="${route.id}">aufgeben</button></p>`;
+  }).join('');
+
+  if (routes.length >= TRADE_ROUTES_PER_CITY) {
+    return `${head}${open}
+      <p class="wall-line muted">Mehr Wege trägt ${escapeHTML(city.name)} nicht.</p>`;
+  }
+  if (!partners.length) {
+    return `${head}${open}
+      <p class="wall-line muted">Kein Ort in Reichweite, mit dem sich handeln ließe.
+      Es braucht eine durchgehende Straße – oder auf beiden Seiten einen Hafen.</p>`;
+  }
+  return `${head}${open}
+    <p class="road-head">⚖️ Handelsweg eröffnen <span class="muted">· einmalig
+      ${TRADE_ROUTE_COST} Gold, trägt beiden Enden</span></p>
+    <div class="road-row">
+      ${partners.map((p) => {
+        const tooPoor = player.gold < TRADE_ROUTE_COST;
+        const good = TRADE_GOODS[p.good];
+        return `<button class="trade-btn" data-target="${p.city.id}" ${tooPoor ? 'disabled' : ''}>
+          ${p.kind === 'sea' ? '⛵' : '🛣️'} ${escapeHTML(p.city.name)}
+          <small>${good.icon} ${escapeHTML(good.name)} · +${p.income} Gold je Seite${
+  tooPoor ? ' · zu wenig Gold' : ''}</small>
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
 function roadHTML(state, city, isMine, player) {
   const project = roadProjectOf(state, city.id);
   if (project) {
@@ -925,6 +985,7 @@ export function empireHTML(state) {
       <td class="emp-num">${entry.settlement}</td>
       <td class="emp-num">${entry.people}</td>
       <td class="emp-num">${entry.wonders || '–'}</td>
+      <td class="emp-num">${entry.trade || '–'}</td>
       <td class="emp-num emp-total">${entry.total.toLocaleString('de-DE')}</td>
     </tr>`;
   }).join('');
@@ -950,7 +1011,8 @@ export function empireHTML(state) {
       <thead><tr>
         <th>Ort</th><th>Rang</th><th class="emp-num">Einwohner</th>
         <th class="emp-num">Siedlung</th><th class="emp-num">Einwohner</th>
-        <th class="emp-num">Bauwerk</th><th class="emp-num">Summe</th>
+        <th class="emp-num">Bauwerk</th><th class="emp-num">Handel</th>
+        <th class="emp-num">Summe</th>
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr>
@@ -958,6 +1020,7 @@ export function empireHTML(state) {
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.settlement, 0)}</td>
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.people, 0)}</td>
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.wonders, 0) || '–'}</td>
+        <td class="emp-num">${cities.reduce((s, e) => s + e.income.trade, 0) || '–'}</td>
         <td class="emp-num emp-total">${income.toLocaleString('de-DE')}</td>
       </tr></tfoot>
     </table>` : '<p class="muted">Kein Ort mehr in eigener Hand.</p>'}
@@ -966,7 +1029,8 @@ export function empireHTML(state) {
     `${w.wonder ? '🏛️' : '🗿'} ${escapeHTML(w.name)}`).join(' · ')}</p>` : ''}
     <p class="emp-note muted">Die Spalte „Siedlung" ist die Abgabe des Orts nach seinem Rang,
       „Einwohner" trägt je 200 Einwohner ein Gold bei, „Bauwerk" ein Weltwunder oder
-      Wahrzeichen in seiner Nähe. Der Sold wird beim Rundenwechsel vom Schatz abgezogen.</p>`;
+      Wahrzeichen in seiner Nähe, „Handel" die Wege, die von hier ausgehen.
+      Der Sold wird beim Rundenwechsel vom Schatz abgezogen.</p>`;
 }
 
 export function renderUI(state, handlers) {
@@ -1033,6 +1097,12 @@ export function renderUI(state, handlers) {
       panel.querySelectorAll('.road-btn').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onBuildRoad(city.id, btn.dataset.target));
       });
+      panel.querySelectorAll('.trade-btn:not([disabled])').forEach((btn) => {
+        btn.addEventListener('click', () => handlers.onOpenTrade(city.id, btn.dataset.target));
+      });
+      panel.querySelectorAll('.trade-close-btn').forEach((btn) => {
+        btn.addEventListener('click', () => handlers.onCloseTrade(btn.dataset.route));
+      });
       panel.querySelectorAll('[data-citytab]').forEach((btn) => {
         btn.addEventListener('click', () => {
           setCityTab(btn.dataset.citytab);
@@ -1050,7 +1120,7 @@ export function renderUI(state, handlers) {
   // man tun kann, und die Bauknöpfe sollen nicht unter einer Wand aus
   // Höhenangaben verschwinden.
   const terrainPanel = document.getElementById('terrainPanel');
-  const buildingHere = state.selectedCityId && cityTab === 'build';
+  const buildingHere = state.selectedCityId && cityTab !== 'info';
   if (terrainPanel) {
     terrainPanel.innerHTML = state.inspectedTile && !buildingHere
       ? terrainPanelHTML(state, state.inspectedTile)

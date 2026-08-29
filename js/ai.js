@@ -1,13 +1,13 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost,
-  wallLevelInfo,
+  wallLevelInfo, TRADE_ROUTE_COST,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
   moveArmy, recruitUnit, raiseArmyFromGarrison, embarkArmy, embarkStatus,
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
   buyHarbour, canBuildHarbour, buildFleet, raiseIndependentArmies,
-  buyCityWalls, nextWallLevel,
+  buyCityWalls, nextWallLevel, tradePartners, openTradeRoute,
 } from './actions.js';
 import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
@@ -434,6 +434,24 @@ function aiHarbours(state, faction, harbourWanted) {
   return true;
 }
 
+// --- Handel ---------------------------------------------------------------
+// Ein Handelsweg ist die billigste Einnahme, die es gibt, und die KI soll
+// nicht als einzige darauf verzichten. Sie eröffnet höchstens einen je Runde
+// und nimmt den einträglichsten - mehr Umstände macht sie damit nicht.
+const AI_TRADE_TREASURY = 300;
+
+function aiTrade(state, faction) {
+  if (faction.gold < TRADE_ROUTE_COST + AI_TRADE_TREASURY) return;
+  let best = null;
+  for (const city of state.cities) {
+    if (city.factionId !== faction.id) continue;
+    for (const partner of tradePartners(state, city)) {
+      if (!best || partner.income > best.income) best = { cityId: city.id, partner };
+    }
+  }
+  if (best) openTradeRoute(state, best.cityId, best.partner.city.id);
+}
+
 // --- Mauern ---------------------------------------------------------------
 // Nur Hauptstädte sind von Anfang an befestigt (CAPITAL_WALL_LEVEL); jede
 // andere Stadt der KI blieb bisher das ganze Spiel über offen, weil
@@ -540,6 +558,11 @@ export function aiTakeTurn(state, faction) {
   const savingForRoad = !savingForHarbour && !savingForWall
     && aiRoads(state, faction, savingForFleet);
   if (!savingForFleet && !savingForHarbour && !savingForWall) aiNavy(state, faction);
+  // Handel erst, wenn nichts Dringenderes ansteht: eine Mauer hält eine Stadt,
+  // ein Handelsweg füllt nur die Truhe.
+  if (!savingForFleet && !savingForHarbour && !savingForWall && !savingForRoad) {
+    aiTrade(state, faction);
+  }
   let buildReserve = 0;
   if (savingForHarbour) buildReserve = HARBOUR_COST;
   else if (savingForWall) buildReserve = AI_WALL_SAVE_MAX;

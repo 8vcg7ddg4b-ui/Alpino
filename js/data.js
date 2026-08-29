@@ -776,6 +776,38 @@ export const HARBOUR_COST = 300;
 export const HARBOUR_TURNS = 3;
 export const HARBOUR_NAME = 'Hafen';
 
+// --- Handel ---------------------------------------------------------------
+// Jeder Ort bringt hervor, was sein Land hergibt. Zwei eigene Orte, die eine
+// Straße verbindet oder die beide einen Hafen haben, können einen Handelsweg
+// eröffnen: beide Seiten tragen dann Runde für Runde mehr, und am meisten,
+// wenn sie Verschiedenes anzubieten haben - Salz gegen Wein lohnt, Getreide
+// gegen Getreide kaum.
+export const TRADE_GOODS = {
+  getreide: { name: 'Getreide', icon: '🌾' },
+  wein: { name: 'Wein', icon: '🍇' },
+  oel: { name: 'Olivenöl', icon: '🫒' },
+  salz: { name: 'Salz', icon: '🧂' },
+  erz: { name: 'Erz', icon: '⛏️' },
+  holz: { name: 'Holz', icon: '🪵' },
+  pferde: { name: 'Pferde', icon: '🐎' },
+  fisch: { name: 'Fisch und Purpur', icon: '🐟' },
+};
+
+// Was ein Handelsweg einmalig kostet und was er beiden Seiten je Runde bringt.
+export const TRADE_ROUTE_COST = 200;
+export const TRADE_BASE_INCOME = 3;
+export const TRADE_VARIETY_BONUS = 4;
+// Mehr als zwei Wege trägt ein Ort nicht: sonst hängt am Ende jede Stadt an
+// jeder, und der Handel wäre nur noch eine Zahl, die immer weiter wächst.
+export const TRADE_ROUTES_PER_CITY = 2;
+// Weiter als das reicht kein regelmäßiger Warenverkehr.
+export const TRADE_MAX_DISTANCE = 14;
+
+// Große Städte schlagen mehr um als ein Dorf.
+export function tradeSizeFactor(size) {
+  return size === 'large' ? 1.6 : size === 'village' ? 0.6 : 1;
+}
+
 // --- Straßenbau ----------------------------------------------------------
 // Eine gepflasterte Straße kostet zwei Drittel dessen, was offene Ebene
 // kostet, und ein Drittel dessen, was Wald, Hügel oder Wüste kosten: ein Heer
