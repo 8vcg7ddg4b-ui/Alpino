@@ -16,6 +16,7 @@ import {
   HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
   MINE_NAME, MINE_COST, MINE_TURNS, MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
   SHIPYARD_NAME, SHIPYARD_COST, SHIPYARD_TURNS,
+  BARRACKS_COST, BARRACKS_TURNS, FORUM_COST, FORUM_TURNS, barracksName, forumName,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
   FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
@@ -770,6 +771,9 @@ export function embarkStatus(state, army) {
 export function recruitUnit(state, cityId, unitKey) {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city) return { ok: false };
+  // Ohne Kaserne wird niemand ausgebildet: ein Ort ohne Ausbildungsstätte
+  // stellt keine Truppen, er hat nur seine Wache.
+  if (!city.barracks) return { ok: false, reason: 'noBarracks' };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
   const def = unitDef(city.factionId, unitKey);
@@ -868,6 +872,8 @@ export function reinforceArmy(state, armyId, unitKey) {
   if (!UNIT_ROLES.includes(unitKey)) return { ok: false, reason: 'role' };
   const city = cityAt(state, army.col, army.row);
   if (!city || city.factionId !== army.factionId) return { ok: false, reason: 'noCity' };
+  // Auch die Verstärkung im Feld kommt aus der Kaserne des Orts.
+  if (!city.barracks) return { ok: false, reason: 'noBarracks' };
   const faction = factionById(state, army.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
   const def = unitDef(city.factionId, unitKey);
@@ -884,6 +890,9 @@ export function reinforceArmy(state, armyId, unitKey) {
 export function raiseArmyFromGarrison(state, cityId) {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city) return { ok: false };
+  // Ein Heer aufzustellen ist Sache der Kaserne: sie sammelt, rüstet aus und
+  // gibt die Fahne aus. Ohne sie bleibt, was da ist, auf der Mauer stehen.
+  if (!city.barracks) return { ok: false, reason: 'noBarracks' };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
   // Die Wache bleibt, wo sie hingehört: auf der Mauer. Ausrücken kann nur,
@@ -1076,6 +1085,9 @@ export function buyRoad(state, cityId, targetCityId) {
   if (roadProjectOf(state, city.id) || roadProjectOf(state, target.id)) {
     return { ok: false, reason: 'building' };
   }
+  // Vermessung, Fronarbeit, Abrechnung: ohne Verwaltung wird keine Trasse
+  // gelegt und keine Brücke geschlagen.
+  if (!city.forum) return { ok: false, reason: 'noForum' };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
 
@@ -1160,6 +1172,78 @@ export function buyHarbour(state, cityId) {
   return { ok: true };
 }
 
+// --- Kaserne und Verwaltung ------------------------------------------------
+// Zwei Bauwerke, die nichts einbringen und trotzdem alles entscheiden: ohne
+// Kaserne hebt ein Ort keine Truppen aus, ohne Verwaltung vermisst er keine
+// Straße und schlägt keinen Stollen an. Beide werden gebaut wie eine Mauer -
+// einmal bezahlt, ein paar Runden gewartet, dann stehen sie.
+export function canBuildBarracks(state, city) {
+  if (!city || city.factionId === 'neutral') return false;
+  return !city.barracks && !city.barracksBuilding;
+}
+
+export function buyBarracks(state, cityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false };
+  if (city.barracks) return { ok: false, reason: 'done' };
+  if (city.barracksBuilding) return { ok: false, reason: 'building' };
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  if (faction.gold < BARRACKS_COST) return { ok: false, reason: 'gold' };
+  faction.gold -= BARRACKS_COST;
+  city.barracksBuilding = { turnsLeft: BARRACKS_TURNS };
+  logOwn(state, faction.id, `${city.name}: ${barracksName(faction.id)} wird angelegt `
+    + `(${BARRACKS_TURNS} Runden).`);
+  return { ok: true };
+}
+
+export function canBuildForum(state, city) {
+  if (!city || city.factionId === 'neutral') return false;
+  return !city.forum && !city.forumBuilding;
+}
+
+export function buyForum(state, cityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false };
+  if (city.forum) return { ok: false, reason: 'done' };
+  if (city.forumBuilding) return { ok: false, reason: 'building' };
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  if (faction.gold < FORUM_COST) return { ok: false, reason: 'gold' };
+  faction.gold -= FORUM_COST;
+  city.forumBuilding = { turnsLeft: FORUM_TURNS };
+  logOwn(state, faction.id, `${city.name}: ${forumName(faction.id)} wird angelegt `
+    + `(${FORUM_TURNS} Runden).`);
+  return { ok: true };
+}
+
+export function advanceCivicConstruction(state) {
+  const finished = [];
+  for (const city of state.cities) {
+    if (city.barracksBuilding) {
+      city.barracksBuilding.turnsLeft -= 1;
+      if (city.barracksBuilding.turnsLeft <= 0) {
+        city.barracks = true;
+        city.barracksBuilding = null;
+        finished.push({ city, kind: 'barracks' });
+        logOwn(state, city.factionId, `🛡️ ${barracksName(city.factionId)} in ${city.name} `
+          + 'steht: hier lassen sich Truppen ausheben.');
+      }
+    }
+    if (city.forumBuilding) {
+      city.forumBuilding.turnsLeft -= 1;
+      if (city.forumBuilding.turnsLeft <= 0) {
+        city.forum = true;
+        city.forumBuilding = null;
+        finished.push({ city, kind: 'forum' });
+        logOwn(state, city.factionId, `🏛️ ${forumName(city.factionId)} in ${city.name} `
+          + 'steht: von hier aus werden Straßen und Stollen vermessen.');
+      }
+    }
+  }
+  return finished;
+}
+
 // --- Werft -----------------------------------------------------------------
 // Sie setzt einen Hafen voraus: wo nichts anlegt, wird auch nichts gebaut.
 export function canBuildShipyard(state, city) {
@@ -1228,6 +1312,9 @@ export function mineIncomeOf(state, city) {
 export function canBuildMine(state, city) {
   if (!city || city.factionId === 'neutral') return false;
   if (city.mine || city.mineBuilding) return false;
+  // Ein Stollen wird vermessen, verzeichnet und abgerechnet - das kann nur
+  // ein Ort, der eine Verwaltung hat.
+  if (!city.forum) return false;
   return mineOre(state, city) >= MINE_MIN_ORE;
 }
 
@@ -1236,6 +1323,7 @@ export function buyMine(state, cityId) {
   if (!city) return { ok: false };
   if (city.mine) return { ok: false, reason: 'done' };
   if (city.mineBuilding) return { ok: false, reason: 'building' };
+  if (!city.forum) return { ok: false, reason: 'noForum' };
   const erz = mineOre(state, city);
   if (erz < MINE_MIN_ORE) return { ok: false, reason: 'noOre' };
   const faction = factionById(state, city.factionId);

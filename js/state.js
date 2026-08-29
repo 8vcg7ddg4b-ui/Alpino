@@ -79,6 +79,15 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       // Ein Bergwerk hat niemand geerbt: wer eines will, schlägt es an.
       mine: false,
       mineBuilding: null,
+      // Die Kaserne steht zu Beginn nur in den Hauptstädten - dort wurde
+      // schon immer ausgehoben. Jeder andere Ort muss eine bauen, ehe er
+      // Truppen stellt.
+      barracks: !!def.capital && !isNeutral,
+      barracksBuilding: null,
+      // Eine Verwaltung hat niemand: die erste Straße und der erste Stollen
+      // kosten jedes Reich erst einmal einen Umweg.
+      forum: false,
+      forumBuilding: null,
       garrison,
     };
   });

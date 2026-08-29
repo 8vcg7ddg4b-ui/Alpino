@@ -1,6 +1,7 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost, shipTypesOf,
   wallLevelInfo, TRADE_ROUTE_COST, MINE_COST, SHIPYARD_COST,
+  BARRACKS_COST, FORUM_COST,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
@@ -8,7 +9,7 @@ import {
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
   buyHarbour, canBuildHarbour, buildFleet, raiseIndependentArmies,
   buyCityWalls, nextWallLevel, tradePartners, openTradeRoute,
-  canBuildMine, buyMine, mineOre, buyShipyard,
+  canBuildMine, buyMine, mineOre, buyShipyard, buyBarracks, buyForum,
 } from './actions.js';
 import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
@@ -280,6 +281,46 @@ function aiRoads(state, faction, savingForFleet) {
     return false;
   }
   return true;
+}
+
+// Kaserne und Verwaltung: ohne sie kann eine Fraktion weder Truppen ausheben
+// noch Straßen und Stollen anlegen. Die KI baut deshalb früh - und in dieser
+// Reihenfolge: erst eine Kaserne dort, wo der Feind schon steht, dann die
+// erste Verwaltung des Reiches, dann Kasernen in den größten Orten.
+const AI_CIVIC_TREASURY = 120;
+
+function aiCivic(state, faction, threats) {
+  const eigene = state.cities.filter((c) => c.factionId === faction.id);
+  if (!eigene.length) return false;
+  if (eigene.some((c) => c.barracksBuilding || c.forumBuilding)) return false;
+
+  // Ein Ort, vor dem ein Feind steht und der keine Truppen stellen kann,
+  // geht allem anderen vor.
+  const bedroht = threats
+    .filter((t) => t.distance <= AI_ALARM_RANGE && !t.city.barracks)
+    .map((t) => t.city)[0];
+  if (bedroht) {
+    if (faction.gold < BARRACKS_COST + AI_CIVIC_TREASURY) return true;
+    buyBarracks(state, bedroht.id);
+    return false;
+  }
+
+  // Die erste Verwaltung: ohne sie gibt es weder Straße noch Bergwerk.
+  if (!eigene.some((c) => c.forum)) {
+    if (faction.gold < FORUM_COST + AI_CIVIC_TREASURY) return true;
+    const sitz = eigene.find((c) => c.capital) || eigene[0];
+    buyForum(state, sitz.id);
+    return false;
+  }
+
+  // Und dann Kasernen, im größten Ort zuerst: dort ist die Garnison am
+  // größten und die Aushebung am schnellsten wieder voll.
+  const ohne = eigene.filter((c) => !c.barracks);
+  if (!ohne.length) return false;
+  if (faction.gold < BARRACKS_COST + AI_CIVIC_TREASURY) return true;
+  const bester = ohne.reduce((a, b) => (b.population > a.population ? b : a));
+  buyBarracks(state, bester.id);
+  return false;
 }
 
 // Ein Bergwerk ist die beste Anlage, die es gibt: einmal bezahlt, trägt es
@@ -635,13 +676,18 @@ export function aiTakeTurn(state, faction) {
   // sie nur schneller erreichbar. Das Bergwerk geht der Mauer vor: eine Mauer hält eine Stadt, ein Bergwerk
   // bezahlt die nächsten drei. Es wird ohnehin nur einmal je Ort gebaut, und
   // nur dort, wo überhaupt Erz liegt - die Mauern kommen gleich danach.
-  const savingForMine = !savingForFleet && !savingForHarbour
+  // Kaserne und Verwaltung stehen vor allem anderen Bauwerk: ohne sie stellt
+  // ein Ort keine Truppen und legt keine Straße an.
+  const savingForCivic = !savingForFleet && !savingForHarbour
+    && aiCivic(state, faction, threats);
+  const savingForMine = !savingForFleet && !savingForHarbour && !savingForCivic
     && aiMines(state, faction);
   const savingForWall = !savingForFleet && !savingForHarbour && !savingForMine
-    && aiWalls(state, faction, threats);
+    && !savingForCivic && aiWalls(state, faction, threats);
   const savingForRoad = !savingForHarbour && !savingForWall && !savingForMine
-    && aiRoads(state, faction, savingForFleet);
-  if (!savingForFleet && !savingForHarbour && !savingForWall && !savingForMine) {
+    && !savingForCivic && aiRoads(state, faction, savingForFleet);
+  if (!savingForFleet && !savingForHarbour && !savingForWall && !savingForMine
+    && !savingForCivic) {
     aiNavy(state, faction);
   }
   // Handel erst, wenn nichts Dringenderes ansteht: eine Mauer hält eine Stadt,
@@ -652,6 +698,7 @@ export function aiTakeTurn(state, faction) {
   }
   let buildReserve = 0;
   if (savingForHarbour) buildReserve = HARBOUR_COST;
+  else if (savingForCivic) buildReserve = FORUM_COST;
   else if (savingForMine) buildReserve = MINE_COST;
   else if (savingForWall) buildReserve = AI_WALL_SAVE_MAX;
   else if (savingForRoad) buildReserve = AI_ROAD_MAX_COST;

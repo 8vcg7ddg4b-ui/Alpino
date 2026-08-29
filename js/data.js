@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.8.0';
+export const GAME_VERSION = '1.9.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -914,6 +914,78 @@ export function starMarks(experience) {
 export const HARBOUR_COST = 300;
 export const HARBOUR_TURNS = 3;
 export const HARBOUR_NAME = 'Hafen';
+
+// --- Kaserne und Verwaltung ------------------------------------------------
+// Ein Reich baut nicht aus dem Nichts. Wer Truppen aushebt, braucht einen Ort,
+// an dem sie ausgebildet und untergebracht werden; wer Straßen, Brücken und
+// Stollen anlegt, braucht eine Verwaltung, die Vermessung, Fronarbeit und
+// Abrechnung ordnet. Beides sind Bauwerke wie Mauer und Hafen - und beides
+// heißt nicht überall gleich: was in Rom das Forum ist, ist bei den Griechen
+// die Agora, bei den Germanen der Thingplatz und bei den Sarmaten das Zelt
+// des Fürsten.
+//
+// Zu Spielbeginn steht die Kaserne nur in den Hauptstädten; eine Verwaltung
+// hat niemand. Die erste Straße und das erste Bergwerk kosten deshalb einen
+// Umweg - und die Entscheidung, wo dieser Umweg sich lohnt.
+export const BARRACKS_COST = 250;
+export const BARRACKS_TURNS = 3;
+export const FORUM_COST = 300;
+export const FORUM_TURNS = 3;
+
+// Wie die Ausbildungsstätte einer Fraktion heißt.
+export const BARRACKS_NAMES = {
+  rom: 'Castra',
+  karthago: 'Söldnerlager',
+  numidien: 'Reiterhof',
+  parther: 'Kataphraktenhof',
+  armenien: 'Waffenhof',
+  pontus: 'Exerzierplatz',
+  gallier: 'Kriegerhalle',
+  griechen: 'Gymnasion',
+  germanen: 'Gefolgschaftshalle',
+  britannier: 'Wagenhof',
+  iberer: 'Kriegerhof',
+  illyrer: 'Waffenhalle',
+  sarmaten: 'Reiterlager',
+  daker: 'Waffenplatz',
+  seleukiden: 'Phalanxlager',
+  // Die Ptolemäer siedelten ihre Soldaten auf Königsland an - der Kleruch war
+  // Bauer und Phalangit in einem.
+  ptolemaeer: 'Kleruchenland',
+  neutral: 'Kaserne',
+};
+
+// Und wie ihr Verwaltungsbau heißt: das Haus oder der Platz, an dem entschieden
+// wird, wo eine Straße langgeht und wer sie baut.
+export const FORUM_NAMES = {
+  rom: 'Forum',
+  // Zwei Sufeten standen Karthago vor; in ihrem Haus wurde verwaltet.
+  karthago: 'Suffetenhaus',
+  numidien: 'Königshof',
+  parther: 'Satrapensitz',
+  armenien: 'Königshalle',
+  pontus: 'Basilikon',
+  gallier: 'Versammlungsplatz',
+  griechen: 'Agora',
+  germanen: 'Thingplatz',
+  britannier: 'Ratsplatz',
+  iberer: 'Ältestenrat',
+  illyrer: 'Fürstenhof',
+  // Ein Volk, das nicht wohnt, verwaltet aus dem Zelt.
+  sarmaten: 'Fürstenzelt',
+  daker: 'Adelsrat',
+  seleukiden: 'Satrapenpalast',
+  ptolemaeer: 'Kanzlei',
+  neutral: 'Ratshaus',
+};
+
+export function barracksName(factionId) {
+  return BARRACKS_NAMES[factionId] || BARRACKS_NAMES.neutral;
+}
+
+export function forumName(factionId) {
+  return FORUM_NAMES[factionId] || FORUM_NAMES.neutral;
+}
 
 // --- Werft -----------------------------------------------------------------
 // Ein Hafen ist ein Kai, an dem etwas anlegt. Ein Kriegsschiff entsteht dort

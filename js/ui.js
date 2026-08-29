@@ -9,6 +9,7 @@ import {
   TRANSPORT_NAME, transportCount,
   RIVER_CROSSING_COST,
   HARBOUR_COST, HARBOUR_TURNS, SHIPYARD_NAME, SHIPYARD_COST, SHIPYARD_TURNS,
+  BARRACKS_COST, BARRACKS_TURNS, FORUM_COST, FORUM_TURNS, barracksName, forumName,
   MINE_NAME, MINE_COST, MINE_TURNS, MINE_MIN_ORE, mineIncome, TAX_PER_INHABITANTS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
   tileImpassable, tileMoveCost, tileAltitude, PASSABLE_ALTITUDE,
@@ -491,7 +492,12 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
   const watchGoal = watchTarget(city, faction);
 
   let recruitHTML = '';
-  if (isMine) {
+  if (isMine && !city.barracks) {
+    // Ohne Kaserne gibt es hier nichts zu rekrutieren - das steht als Satz da,
+    // nicht als Reihe ausgegrauter Knöpfe.
+    recruitHTML = `<p class="wall-line muted">⚔️ Keine Aushebung –
+      ${escapeHTML(barracksName(city.factionId))} fehlt.</p>`;
+  } else if (isMine) {
     recruitHTML = `
       <div class="recruit-row">
         ${UNIT_ROLES.map((k) => {
@@ -535,10 +541,15 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
     : 'Keine Befestigung'} · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}${
   city.shipyard ? ` · 🔨 ${SHIPYARD_NAME}` : ''}${
   city.mine ? ` · ⛏️ ${MINE_NAME}` : ''}</p>
+    <p class="wall-line ${city.barracks || city.forum ? 'wall-done' : 'muted'}">
+      ${city.barracks ? `🛡️ ${escapeHTML(barracksName(city.factionId))}` : 'keine Kaserne'} ·
+      ${city.forum ? `🏛️ ${escapeHTML(forumName(city.factionId))}` : 'keine Verwaltung'}</p>
     ${roadStatusHTML(state, city)}
     <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>`;
 
   const buildHTML = `
+    ${civicHTML(city, isMine, player, 'barracks')}
+    ${civicHTML(city, isMine, player, 'forum')}
     ${wallHTML(city, isMine, player)}
     ${mineHTML(state, city, isMine, player)}
     ${harbourHTML(state, city, isMine, player)}
@@ -649,6 +660,11 @@ function mineHTML(state, city, isMine, player) {
     return `<p class="wall-line muted">⛏️ Kein ${MINE_NAME} – im Umland liegt kein Erz
       ${erz > 0 ? `(nur ${erz} von ${MINE_MIN_ORE})` : ''}.</p>`;
   }
+  // Erz genug, aber niemand, der den Stollen verzeichnet.
+  if (!city.forum) {
+    return `<p class="wall-line muted">⛏️ ${MINE_NAME} möglich (${erz} Erz) –
+      es fehlt ${escapeHTML(forumName(city.factionId))}.</p>`;
+  }
   const tooPoor = player.gold < MINE_COST;
   return `<button class="mine-btn" ${tooPoor ? 'disabled' : ''}>
       ⛏️ ${MINE_NAME} anschlagen – ${MINE_COST} Gold
@@ -660,6 +676,44 @@ function mineHTML(state, city, isMine, player) {
 // Im Hafen liegt die Werft: hier entstehen Kriegsschiffe, die als eigene
 // Flotte auslaufen - kein Transport für ein Heer, sondern ein Verband, der das
 // Meer selbst hält.
+// Kaserne und Verwaltung: zwei Bauwerke, die nichts einbringen und trotzdem
+// alles freischalten. Sie stehen ganz oben im Bauen-Reiter, weil ohne sie die
+// Hälfte der übrigen Knöpfe gar nicht erst erscheint.
+function civicHTML(city, isMine, player, art) {
+  const kaserne = art === 'barracks';
+  const name = kaserne ? barracksName(city.factionId) : forumName(city.factionId);
+  const icon = kaserne ? '🛡️' : '🏛️';
+  const kosten = kaserne ? BARRACKS_COST : FORUM_COST;
+  const dauer = kaserne ? BARRACKS_TURNS : FORUM_TURNS;
+  const steht = kaserne ? city.barracks : city.forum;
+  const bau = kaserne ? city.barracksBuilding : city.forumBuilding;
+  const zweck = kaserne
+    ? 'hier lassen sich Truppen ausheben'
+    : 'von hier aus werden Straßen und Stollen vermessen';
+
+  if (steht) {
+    return `<p class="wall-line wall-done">${icon} ${escapeHTML(name)}
+      <span class="muted">· ${zweck}</span></p>`;
+  }
+  if (bau) {
+    const left = bau.turnsLeft;
+    const done = dauer - left;
+    return `<p class="wall-line wall-building">🏗️ ${escapeHTML(name)} im Bau –
+      noch ${left} ${left === 1 ? 'Runde' : 'Runden'}
+      <span class="wall-track"><span class="wall-fill" style="width:${(done / dauer) * 100}%"></span></span>
+    </p>`;
+  }
+  if (!isMine) return `<p class="wall-line muted">${icon} ${escapeHTML(name)}: keine</p>`;
+  const tooPoor = player.gold < kosten;
+  return `<button class="${kaserne ? 'barracks-btn' : 'forum-btn'}" ${tooPoor ? 'disabled' : ''}>
+      ${icon} ${escapeHTML(name)} bauen – ${kosten} Gold
+      <small>${dauer} Runden · ${kaserne
+    ? 'ohne sie stellt dieser Ort keine Truppen'
+    : 'ohne sie legt dieser Ort keine Straße und kein Bergwerk an'}${
+  tooPoor ? ' · zu wenig Gold' : ''}</small>
+    </button>`;
+}
+
 // Die Werft: Bedingung für jedes Kriegsschiff. Sie steht im Bauen-Reiter
 // zwischen Hafen und Flottenbau, weil sie genau dazwischen gehört.
 function shipyardHTML(city, isMine, player) {
@@ -796,6 +850,11 @@ function roadHTML(state, city, isMine, player) {
     </p>`;
   }
   if (!isMine) return '';
+  // Ohne Verwaltung wird nicht vermessen - und ohne Vermessung nicht gebaut.
+  if (!city.forum) {
+    return `<p class="wall-line muted">🛣️ Kein Straßenbau –
+      ${escapeHTML(forumName(city.factionId))} fehlt.</p>`;
+  }
 
   const targets = roadTargets(state, city);
   if (!targets.length) {
@@ -1287,6 +1346,10 @@ export function empireHTML(state) {
       level ? wallLevelInfo(level).icon : '',
       city.harbour ? '⚓' : '',
       city.mine ? '⛏️' : '',
+      // Woran es fehlt, ist so wichtig wie das, was steht: ohne Kaserne
+      // stellt der Ort keine Truppen, ohne Verwaltung baut er nichts.
+      city.barracks ? '🛡️' : '',
+      city.forum ? '🏛️' : '',
     ].filter(Boolean).join(' ');
     return `<tr>
       <td>${escapeHTML(city.name)} <span class="emp-marks">${marks}</span></td>
@@ -1337,7 +1400,9 @@ export function empireHTML(state) {
 
     ${held.length ? `<p class="emp-note">${held.map((w) =>
     `${w.wonder ? '🏛️' : '🗿'} ${escapeHTML(w.name)}`).join(' · ')}</p>` : ''}
-    <p class="emp-note muted">Die Spalte „Steuer" ist das, was die Einwohner tragen –
+    <p class="emp-note muted">Die Zeichen hinter dem Namen: 👑 Hauptstadt, Mauerstufe,
+      ⚓ Hafen, ⛏️ Bergwerk, 🛡️ Kaserne, 🏛️ Verwaltung.
+      Die Spalte „Steuer" ist das, was die Einwohner tragen –
       ein Gold je ${TAX_PER_INHABITANTS} Einwohner und Runde; dafür, dass es einen Ort
       gibt, zahlt niemand etwas. „Bauwerk" ist ein Weltwunder oder Wahrzeichen in
       seiner Nähe, „Handel" sind die Wege, die von hier ausgehen, und „Bergwerk"
@@ -1409,6 +1474,10 @@ export function renderUI(state, handlers) {
       if (mineBtn) mineBtn.addEventListener('click', () => handlers.onBuyMine(city.id));
       const yardBtn = panel.querySelector('.shipyard-btn:not([disabled])');
       if (yardBtn) yardBtn.addEventListener('click', () => handlers.onBuyShipyard(city.id));
+      const barracksBtn = panel.querySelector('.barracks-btn:not([disabled])');
+      if (barracksBtn) barracksBtn.addEventListener('click', () => handlers.onBuyBarracks(city.id));
+      const forumBtn = panel.querySelector('.forum-btn:not([disabled])');
+      if (forumBtn) forumBtn.addEventListener('click', () => handlers.onBuyForum(city.id));
       panel.querySelectorAll('.fleet-btn:not([disabled])').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onBuildFleet(city.id, btn.dataset.ship));
       });
