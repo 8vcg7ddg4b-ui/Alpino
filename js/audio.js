@@ -703,7 +703,18 @@ export function currentAnthem() {
 // nichts; läuft eine andere (oder die Titelmusik), wird gewechselt.
 export function startAnthem(factionId, { fadeIn = 3 } = {}) {
   if (muted || !musicEnabled) return;
-  if (anthemHandle !== null && anthemId === factionId) return;
+  if (anthemHandle !== null && anthemId === factionId) {
+    // Dasselbe Stück läuft schon. Es kann aber sein, dass jemand den Regler
+    // inzwischen zugedreht hat - dann wird er hier wieder aufgezogen, statt
+    // dass ein laufendes Stück stumm weiterspielt.
+    if (musicBus && ctx) {
+      const jetzt = ctx.currentTime;
+      musicBus.gain.cancelScheduledValues(jetzt);
+      musicBus.gain.setValueAtTime(musicBus.gain.value, jetzt);
+      musicBus.gain.linearRampToValueAtTime(1, jetzt + 0.6);
+    }
+    return;
+  }
   stopTheme({ fadeOut: 0.8 });
   stopAnthem({ fadeOut: 0.8 });
   const context = ensureContext();
@@ -739,10 +750,11 @@ export function startAnthem(factionId, { fadeIn = 3 } = {}) {
 }
 
 export function stopAnthem({ fadeOut = 3 } = {}) {
-  if (anthemHandle !== null) {
-    clearInterval(anthemHandle);
-    anthemHandle = null;
-  }
+  // Wie bei der Titelmusik: nur wer spielt, darf den gemeinsamen Regler
+  // zurückdrehen.
+  if (anthemHandle === null) return;
+  clearInterval(anthemHandle);
+  anthemHandle = null;
   anthemId = null;
   if (!musicBus || !ctx) return;
   const now = ctx.currentTime;
@@ -796,10 +808,13 @@ export function startTheme({ fadeIn = 2.5 } = {}) {
 // Blendet die Musik aus und hört auf, neue Takte zu planen. Was schon in der
 // Zukunft liegt, läuft still weiter aus.
 export function stopTheme({ fadeOut = 3 } = {}) {
-  if (musicHandle !== null) {
-    clearInterval(musicHandle);
-    musicHandle = null;
-  }
+  // Titelmusik und Fraktionsmusik teilen sich einen Regler. Wer nichts spielt,
+  // fasst ihn deshalb nicht an: sonst dreht ein "hör auf" für das eine Stück
+  // das andere mit ab - und dessen Planer läuft weiter, ohne dass noch etwas
+  // zu hören wäre.
+  if (musicHandle === null) return;
+  clearInterval(musicHandle);
+  musicHandle = null;
   if (!musicBus || !ctx) return;
   const now = ctx.currentTime;
   musicBus.gain.cancelScheduledValues(now);
