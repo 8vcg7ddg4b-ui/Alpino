@@ -12,6 +12,7 @@ import {
 import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
 } from './state.js';
+import { atWar, rulerOf } from './diplomacy.js';
 
 // Keeps enough in the treasury that paying for a fleet never leaves a faction
 // unable to defend what it already has.
@@ -26,13 +27,15 @@ function tileDistance(a, b) {
 
 function nearestTarget(state, army, walkable) {
   const candidates = [];
+  // Ein Ziel ist nur, womit man im Krieg steht. Steht der Friede, marschiert
+  // dieses Heer daran vorbei - oder gar nicht erst los.
   for (const city of state.cities) {
-    if (city.factionId !== army.factionId) {
+    if (city.factionId !== army.factionId && atWar(state, army.factionId, city.factionId)) {
       candidates.push({ col: city.col, row: city.row, weight: unitTotalCount(city.garrison) + 5 });
     }
   }
   for (const other of state.armies) {
-    if (other.factionId !== army.factionId) {
+    if (other.factionId !== army.factionId && atWar(state, army.factionId, other.factionId)) {
       candidates.push({ col: other.col, row: other.row, weight: unitTotalCount(other.units) });
     }
   }
@@ -181,9 +184,15 @@ function aiEconomy(state, faction, savingForFleet, buildReserve = 0, threats = [
   // An army waiting in a harbour for want of coin will wait for ever if the
   // treasury is spent on recruits every turn. When a crossing is pending, the
   // floor rises until the fleet is paid for.
+  // Wer den Krieg sucht, lässt wenig in der Truhe liegen; wer aufs Gold sieht,
+  // hebt später aus und behält mehr. Zwischen einem Segimer und einem
+  // Ptolemaios liegt hier fast das Doppelte.
+  const ruler = rulerOf(state, faction.id);
+  const truhe = Math.round(AI_TREASURY_FLOOR
+    * (1.3 - ruler.angriffslust / 200 + ruler.habgier / 250));
   let floor = savingForFleet
-    ? Math.max(AI_TREASURY_FLOOR, SHIP_COST + AI_FLEET_RESERVE)
-    : AI_TREASURY_FLOOR;
+    ? Math.max(truhe, SHIP_COST + AI_FLEET_RESERVE)
+    : truhe;
   // Auch eine Mauer oder eine Straße will erst bezahlt sein, bevor die nächste
   // Aushebung kommt.
   if (buildReserve > 0) floor = Math.max(floor, AI_TREASURY_FLOOR + buildReserve);
@@ -276,6 +285,7 @@ function nearestSeaTarget(state, fleet) {
   let bestDistance = Infinity;
   for (const other of state.armies) {
     if (other.factionId === fleet.factionId || !other.embarked) continue;
+    if (!atWar(state, fleet.factionId, other.factionId)) continue;
     const distance = Math.abs(other.col - fleet.col) + Math.abs(other.row - fleet.row);
     if (distance < bestDistance) {
       bestDistance = distance;
@@ -319,6 +329,7 @@ function threatsAgainst(state, faction) {
     let distance = Infinity;
     for (const enemy of state.armies) {
       if (enemy.factionId === faction.id || isFleet(enemy)) continue;
+      if (!atWar(state, faction.id, enemy.factionId)) continue;
       const away = tileDistance(enemy, city);
       if (away > HOME_GUARD_RANGE) continue;
       strength += unitTotalCount(enemy.units);
@@ -441,7 +452,10 @@ function aiHarbours(state, faction, harbourWanted) {
 const AI_TRADE_TREASURY = 300;
 
 function aiTrade(state, faction) {
-  if (faction.gold < TRADE_ROUTE_COST + AI_TRADE_TREASURY) return;
+  // Ein Ptolemaios greift nach jedem Handelsweg, ein Areus lässt ihn liegen.
+  const ruler = rulerOf(state, faction.id);
+  const reserve = Math.round(AI_TRADE_TREASURY * (1.6 - ruler.habgier / 100));
+  if (faction.gold < TRADE_ROUTE_COST + reserve) return;
   let best = null;
   for (const city of state.cities) {
     if (city.factionId !== faction.id) continue;
@@ -480,11 +494,17 @@ function wallPlan(state, faction, threats) {
 function aiWalls(state, faction, threats) {
   const plan = wallPlan(state, faction, threats);
   if (!plan) return false;
-  if (faction.gold >= plan.cost + AI_WALL_TREASURY) {
+  // Vorsicht ist Angriffslust von der anderen Seite: wer nicht angreifen will,
+  // baut, und er spart auch länger darauf.
+  const ruler = rulerOf(state, faction.id);
+  const vorsicht = (100 - ruler.angriffslust) / 100;
+  const reserve = Math.round(AI_WALL_TREASURY * (1.4 - vorsicht * 0.8));
+  const sparGrenze = Math.round(AI_WALL_SAVE_MAX * (0.7 + vorsicht * 0.8));
+  if (faction.gold >= plan.cost + reserve) {
     buyCityWalls(state, plan.city.id);
     return false;
   }
-  return plan.cost <= AI_WALL_SAVE_MAX;
+  return plan.cost <= sparGrenze;
 }
 
 // The closest own harbour this army could actually walk to. A town with a

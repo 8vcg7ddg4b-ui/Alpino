@@ -134,6 +134,7 @@
       <button id="undoBtn" class="icon-btn" title="Letzten Zug rückgängig machen" disabled>↩</button>
       <button id="mapModeBtn" class="icon-btn" title="Taktische Sicht: Gebiete nach Fraktionen">🗺</button>
       <button id="empireBtn" class="icon-btn" title="Reichsübersicht: Orte, Einnahmen, Heere">🏛</button>
+      <button id="diploBtn" class="icon-btn" title="Diplomatie: Herrscher, Krieg und Frieden">🕊</button>
       <button id="settingsBtn" class="icon-btn" title="Einstellungen">⚙</button>
       <button id="muteBtn" class="icon-btn" title="Ton an/aus">🔊</button>
       <button id="sidebarBtn" class="icon-btn" title="Seitenleiste ein-/ausblenden">⇥</button>
@@ -245,13 +246,22 @@
     </div>
   </div>
 
+  <!-- Die Diplomatie: wer wen führt, wer mit wem im Krieg steht, und was sich
+       daran ändern lässt. -->
+  <div id="diploOverlay" class="hidden">
+    <div class="report-box empire-box">
+      <button id="diploClose" class="report-close" aria-label="Schließen">×</button>
+      <div id="diploBody"></div>
+    </div>
+  </div>
+
   <!-- Der Empfang im Zelt: die erste Ansprache, bevor der erste Zug fällt.
        Sie legt sich über die Karte, damit man sie im Zelt stehen sieht. -->
   <div id="heraldOverlay" class="hidden">
     <div class="herald-box">
       <p class="herald-where">Im Feldherrnzelt</p>
-      <p class="herald-line">„Ich grüße dich, Herr. Lass uns die Schlachtkarte
-        betrachten."</p>
+      <p class="herald-line" id="heraldLine">„Ich grüße dich, Herr. Lass uns die
+        Schlachtkarte betrachten."</p>
       <p class="herald-who" id="heraldWho"></p>
       <button id="heraldClose" class="herald-btn">Zur Karte ▶</button>
     </div>

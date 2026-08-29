@@ -287,6 +287,27 @@ den Punkten durchblättern.
   Küstenstadt muss ihn bauen. Erobert man eine Stadt, übernimmt man ihren
   Hafen. Am Ufer steht dann ein Steg mit vertäutem Boot, damit man von weitem
   sieht, wo eine Flotte auslaufen kann.
+- **Herrscher und Diplomatie**: Jede Fraktion wird von einem Herrscher geführt,
+  und wer eine Fraktion wählt, ist dieser Mann – der Herold im Zelt spricht ihn
+  mit seinem Namen an. Drei Eigenschaften von 0 bis 100 machen ihn aus:
+  **Angriffslust** (wie bereitwillig er Krieg führt), **Ehre** (wie verlässlich
+  er ein Wort hält) und **Habgier** (wie schwer Gold für ihn wiegt). Sie stehen
+  im Fraktionsschirm, bevor die erste Entscheidung fällt, und sie wirken:
+  ein angriffslustiger Herrscher lässt wenig Gold in der Truhe und hebt aus, ein
+  zurückhaltender baut Mauern, ein habgieriger greift nach jedem Handelsweg.
+  Der Knopf 🕊 öffnet die **Diplomatie**: für jeden Herrscher eine Karte mit
+  seinen Eigenschaften, seinem Ansehen von dir und dem, was zu tun ist –
+  **Frieden anbieten**, **Frieden mit Tribut** (der Knopf nennt die Summe, die
+  gerade dieser Mann verlangt: Orontes von Armenien nimmt sofort an, Segimer
+  will 750 Gold, mancher ist für kein Gold zu haben), **Geschenk senden** oder,
+  im Frieden, **Krieg erklären**. Ein Friede sperrt beiden Seiten die Waffen:
+  die Heere gehen aneinander vorbei, ihre Kontrollzonen greifen nicht mehr, und
+  Städte lassen sich nicht angreifen. Ansehen bewegt sich mit dem, was geschieht –
+  eine Schlacht −7, eine genommene Stadt −22, ein Geschenk +12, ein gehaltener
+  Friede +1 je Runde. Die Herrscher untereinander schließen und brechen ihre
+  eigenen Verträge; einen frischen Frieden kündigt niemand vor sechs Runden auf.
+  **Über den Frieden des Spielers entscheidet niemand außer ihm selbst** – ein
+  fremder Herrscher kann ihm den Krieg erklären, beenden kann ihn nur er.
 - **Handel**: Jeder Ort bringt hervor, was sein Land hergibt – Salz aus der
   Wüste, Holz aus dem Wald, Erz aus den Hügeln, Pferde aus der Steppe des
   Ostens, Öl von der afrikanischen Küste, Wein aus Italien und Anatolien,
@@ -549,6 +570,9 @@ den Punkten durchblättern.
   die Vorschau-Simulation mit eigenem Zufallsstrom
 - `js/actions.js` – Bewegen, Einschiffen, Rekrutieren, Armee ausheben,
   Rundenwechsel, Kampfvorschau
+- `js/rulers.js` – die Herrscher der Fraktionen mit ihren drei Eigenschaften
+- `js/diplomacy.js` – Krieg, Frieden und Ansehen; was die Herrscher von sich
+  aus beschließen
 - `js/ai.js` – einfache KI (Wirtschaft + Angriffsverhalten)
 - `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl

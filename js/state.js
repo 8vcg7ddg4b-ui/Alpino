@@ -6,6 +6,8 @@ import {
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
+import { rulerFor } from './rulers.js';
+import { initRelations } from './diplomacy.js';
 import { generateMap, landRoute, riverEdgeKey } from './mapgen.js';
 import { placeWonders } from './wonders.js';
 
@@ -28,6 +30,10 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     isPlayer: f.id === chosen,
     gold: f.isNeutral ? 0 : STARTING_GOLD,
     alive: true,
+    // Jede Fraktion hat einen Herrscher. Der Spieler ist nicht Zuschauer einer
+    // Fraktion, sondern dieser eine Mann - seine Eigenschaften stehen ihm im
+    // Diplomatiefenster gegenüber wie die aller anderen.
+    ruler: f.isNeutral ? null : { ...rulerFor(f.id) },
   }));
   const playerName = factions.find((f) => f.isPlayer).name;
 
@@ -177,6 +183,8 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     // Handelswege zwischen zwei eigenen Orten. Sie stehen hier und nicht an
     // der Stadt, weil ein Weg immer zwei Enden hat und beide dasselbe meinen.
     tradeRoutes: [],
+    // Wer mit wem im Krieg steht und was man voneinander hält.
+    relations: initRelations(factions),
     // Bumped whenever the network changes, so the scene knows to redraw it.
     roadVersion: 0,
     weather: rollWeather(1, null, weatherSeed),

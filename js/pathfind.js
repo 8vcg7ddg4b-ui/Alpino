@@ -1,5 +1,6 @@
 import { TILE_TYPES, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST } from './data.js';
 import { armyAt, cityAt, isFleet, riverCrossingCost } from './state.js';
+import { atWar } from './diplomacy.js';
 import { weatherMoveCost } from './weather.js';
 
 const NEIGHBORS = [
@@ -43,6 +44,16 @@ function classifyTile(state, col, row, movingFactionId, embarked, fleet) {
   const occupant = armyAt(state, col, row);
   const city = cityAt(state, col, row);
 
+  // Im Frieden wird nicht gefochten: ein fremdes Heer und eine fremde Stadt
+  // sperren dann das Feld, statt eine Schlacht anzubieten. Wer angreifen will,
+  // muss erst den Krieg erklären.
+  const enemyArmy = occupant && occupant.factionId !== movingFactionId
+    && atWar(state, movingFactionId, occupant.factionId);
+  const enemyCity = city && city.factionId !== movingFactionId
+    && atWar(state, movingFactionId, city.factionId);
+  if (occupant && occupant.factionId !== movingFactionId && !enemyArmy) return { blocked: true };
+  if (city && city.factionId !== movingFactionId && !enemyCity) return { blocked: true };
+
   // Auf ein eigenes Heer zu ziehen heißt, sich mit ihm zu vereinigen: zwei
   // halbe Heere nehmen keine Stadt, ein ganzes schon. Durchziehen geht nicht.
   if (occupant && occupant.factionId === movingFactionId) {
@@ -71,6 +82,9 @@ export function zoneOfControl(state, army) {
   const { cols, rows, tiles } = state.map;
   for (const other of state.armies) {
     if (other.factionId === army.factionId) continue;
+    // Nur ein Feind hält Boden. Ein Heer, mit dem man im Frieden steht, steht
+    // im Weg - aber es bedroht niemanden.
+    if (!atWar(state, army.factionId, other.factionId)) continue;
     const otherAtSea = !!other.embarked;
     for (const [dc, dr] of NEIGHBORS) {
       const col = other.col + dc;

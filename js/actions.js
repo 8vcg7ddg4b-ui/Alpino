@@ -30,6 +30,7 @@ import {
   rollWeather, weatherAt, weatherInfo, weatherBattleModifiers, calendarOfTurn, zoneName,
 } from './weather.js';
 import { wondersOfCity } from './wonders.js';
+import { adjustOpinion, OPINION_PER_BATTLE, OPINION_PER_CITY_TAKEN } from './diplomacy.js';
 
 export function removeArmy(state, armyId) {
   const idx = state.armies.findIndex((a) => a.id === armyId);
@@ -419,6 +420,14 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   let attackerUnits = { ...army.units };
   let capturedCity = false;
   let bounced = false;
+
+  // Ein Schlagabtausch bleibt in Erinnerung: wer heute angegriffen wurde,
+  // verhandelt morgen schlechter.
+  const defenderFactionId = defence.city ? defence.city.factionId
+    : defence.defendingArmies.length ? defence.defendingArmies[0].factionId : null;
+  if (defenderFactionId && defenderFactionId !== army.factionId) {
+    adjustOpinion(state, army.factionId, defenderFactionId, OPINION_PER_BATTLE);
+  }
   const reports = [];
   const promotions = [];
 
@@ -563,6 +572,8 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     // Wer die Stadt verliert, verliert ihren Handel: der neue Herr muss die
     // Wege selbst wieder eröffnen.
     pruneTradeRoutes(state);
+    // Eine genommene Stadt vergisst kein Herrscher.
+    adjustOpinion(state, army.factionId, lostTo, OPINION_PER_CITY_TAKEN);
   }
 
   // A promotion is worth saying out loud; it changes how the army fights from

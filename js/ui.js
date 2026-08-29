@@ -9,6 +9,11 @@ import {
   HARBOUR_COST, HARBOUR_TURNS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
 } from './data.js';
+import { TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
+import {
+  atWar, opinionOf, relationOf, rulerOf, peaceVerdict, peacePrice,
+  GIFT_COST, PEACE_GRACE_TURNS,
+} from './diplomacy.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
   isWaterTile, isCoastalCity, isFleet, riverSidesOf, tradeGoodInfo,
@@ -945,6 +950,107 @@ function logConcernsPlayer(entry, playerId) {
 // Summe darunter, und was die Heere davon wieder auffressen. Gerechnet wird
 // mit denselben Funktionen wie beim Rundenwechsel - die Übersicht zeigt keine
 // Schätzung, sondern die Abrechnung selbst.
+// --- Diplomatie -----------------------------------------------------------
+// Das Fenster zeigt jeden lebenden Herrscher: wer er ist, was für einer er
+// ist, wie er zu dir steht - und was sich daran tun lässt. Der Spieler steht
+// mit oben in der Liste: er ist einer von ihnen, nicht die Ausnahme.
+
+function traitBarHTML(trait, value) {
+  return `
+    <div class="cond-row">
+      <span class="cond-name">${TRAIT_NAMES[trait]}</span>
+      <span class="cond-track"><span class="cond-fill cond-trait"
+        style="width:${Math.round(value)}%"></span></span>
+      <span class="cond-value">${Math.round(value)} <em>${traitLabel(trait, value)}</em></span>
+    </div>`;
+}
+
+export function rulerCardHTML(state, faction, options = {}) {
+  const ruler = rulerOf(state, faction.id);
+  const player = playerFaction(state);
+  const own = faction.id === player.id;
+  const krieg = !own && atWar(state, player.id, faction.id);
+  const ansehen = own ? null : opinionOf(state, player.id, faction.id);
+  const relation = own ? null : relationOf(state, player.id, faction.id);
+  const urteil = own || !krieg ? null : peaceVerdict(state, player.id, faction.id, 0);
+  // Was ihn ein Frieden kostet, steht auf dem Knopf: bei dem einen ein Beutel
+  // Gold, bei dem anderen gar nichts - und bei manchem ist kein Preis genug.
+  const preis = own || !krieg ? null : peacePrice(state, player.id, faction.id);
+  const bezahlbar = preis !== null && preis > 0 && player.gold >= preis;
+
+  const knoepfe = own ? '' : `
+    <div class="road-row diplo-actions">
+      ${krieg ? `
+        <button class="diplo-btn" data-act="peace" data-faction="${faction.id}" data-tribute="0">
+          🕊 Frieden anbieten
+          <small>${urteil && urteil.accepted ? 'er würde annehmen' : 'er würde ablehnen'}${
+  urteil && urteil.gruende.length ? ` · ${urteil.gruende[0]}` : ''}</small>
+        </button>
+        ${preis === 0 ? '' : `
+        <button class="diplo-btn" data-act="peace" data-faction="${faction.id}"
+          data-tribute="${preis || 0}" ${bezahlbar ? '' : 'disabled'}>
+          🕊 Frieden mit Tribut
+          <small>${preis === null
+    ? 'für kein Gold der Welt zu haben'
+    : `${preis.toLocaleString('de-DE')} Gold · ${bezahlbar
+      ? 'so viel verlangt er' : 'so viel verlangt er – der Schatz gibt es nicht her'}`}</small>
+        </button>`}`
+    : `
+        <button class="diplo-btn diplo-war" data-act="war" data-faction="${faction.id}">
+          ⚔ Krieg erklären
+          <small>${state.turn - (relation ? relation.since : 0) < PEACE_GRACE_TURNS
+    ? 'ein frischer Friede – das kostet dein Ansehen' : 'der Friede endet sofort'}</small>
+        </button>`}
+      <button class="diplo-btn" data-act="gift" data-faction="${faction.id}"
+        ${player.gold < GIFT_COST ? 'disabled' : ''}>
+        🎁 Geschenk senden
+        <small>${GIFT_COST} Gold · hebt sein Ansehen von dir</small>
+      </button>
+    </div>`;
+
+  return `
+    <div class="diplo-card${own ? ' diplo-own' : ''}">
+      <h4><span class="dot" style="background:${faction.color}"></span>
+        ${escapeHTML(faction.name)}
+        <span class="diplo-state ${own ? '' : krieg ? 'diplo-krieg' : 'diplo-frieden'}">${
+  own ? 'du' : krieg ? '⚔ Krieg' : '🕊 Friede'}</span></h4>
+      <p class="diplo-name"><strong>${escapeHTML(ruler.name)}</strong>,
+        ${escapeHTML(ruler.titel)}</p>
+      <p class="muted diplo-wort">${escapeHTML(ruler.wort)}</p>
+      <div class="cond-block">
+        ${TRAITS.map((t) => traitBarHTML(t, ruler[t])).join('')}
+        ${own ? '' : `
+        <div class="cond-row">
+          <span class="cond-name">Ansehen</span>
+          <span class="cond-track"><span class="cond-fill cond-morale"
+            style="width:${Math.round(ansehen)}%"></span></span>
+          <span class="cond-value">${Math.round(ansehen)} <em>${
+  ansehen >= 70 ? 'gewogen' : ansehen >= 50 ? 'neutral'
+    : ansehen >= 30 ? 'misstrauisch' : 'feindselig'}</em></span>
+        </div>`}
+      </div>
+      ${options.note ? `<p class="diplo-note">${escapeHTML(options.note)}</p>` : ''}
+      ${knoepfe}
+    </div>`;
+}
+
+export function diplomacyHTML(state, note) {
+  const player = playerFaction(state);
+  const others = state.factions.filter((f) => !f.isNeutral && f.alive && f.id !== player.id);
+  const kriege = others.filter((f) => atWar(state, player.id, f.id)).length;
+  const { season, year } = calendarOfTurn(state.turn);
+  return `
+    <h2 class="report-title">🕊 Diplomatie · ${season.icon} ${season.name} ${year} v. Chr.</h2>
+    <p class="emp-note muted">Du führst ${escapeHTML(rulerOf(state, player.id).name)}.
+      Im Krieg mit ${kriege} von ${others.length} Herrschern. Ein Friede sperrt beiden
+      Seiten die Waffen: eure Heere gehen aneinander vorbei, bis einer ihn aufkündigt.</p>
+    ${note ? `<p class="diplo-answer">${escapeHTML(note)}</p>` : ''}
+    <div class="diplo-grid">
+      ${rulerCardHTML(state, player)}
+      ${others.map((f) => rulerCardHTML(state, f)).join('')}
+    </div>`;
+}
+
 export function empireHTML(state) {
   const player = playerFaction(state);
   const cities = state.cities

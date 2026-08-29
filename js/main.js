@@ -5,6 +5,7 @@ import {
 } from './data.js';
 import {
   renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount, empireHTML,
+  diplomacyHTML,
 } from './ui.js';
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
@@ -16,6 +17,10 @@ import {
   buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction, buildFleet,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes,
 } from './actions.js';
+import {
+  offerPeace, declareWar, sendGift, rulersTakeTurn, rulerOf, GIFT_COST,
+} from './diplomacy.js';
+import { rulerFor, TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
@@ -160,6 +165,13 @@ function showHerald() {
   const player = playerFaction(state);
   const who = document.getElementById('heraldWho');
   if (who) who.textContent = `${HERALD_TITLES[player.id] || 'Dein Gefolgsmann'} · ${player.name}`;
+  // Der Spieler ist nicht "der Herr" im Allgemeinen, sondern dieser eine Mann.
+  // Der Herold spricht ihn deshalb mit seinem Namen an.
+  const line = document.getElementById('heraldLine');
+  const ruler = rulerOf(state, player.id);
+  if (line && ruler) {
+    line.textContent = `„Ich grüße dich, ${ruler.name}. Lass uns die Schlachtkarte betrachten."`;
+  }
   heraldOverlay.classList.remove('hidden');
   sfx.raise();
   // Wer weiterlesen will, hat Zeit; wer die Partie kennt, klickt weg.
@@ -225,6 +237,71 @@ function showEmpire() {
   empireOverlay.classList.remove('hidden');
   sfx.select();
 }
+
+// --- Diplomatie ------------------------------------------------------------
+// Ein eigenes Fenster, weil hier nichts auf der Karte passiert: hier wird
+// geredet. Was gesagt wurde, steht als Antwort über der Liste, bis das
+// Fenster wieder zugeht.
+const diploOverlay = document.getElementById('diploOverlay');
+let diploNote = '';
+
+function hideDiplomacy() {
+  if (diploOverlay) diploOverlay.classList.add('hidden');
+  diploNote = '';
+}
+
+function renderDiplomacy() {
+  const body = document.getElementById('diploBody');
+  if (!body || !state) return;
+  body.innerHTML = diplomacyHTML(state, diploNote);
+  body.querySelectorAll('.diplo-btn:not([disabled])').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.faction;
+      const me = playerFaction(state).id;
+      pushUndo();
+      let answer = null;
+      if (btn.dataset.act === 'peace') {
+        const tribute = Number(btn.dataset.tribute) || 0;
+        const result = offerPeace(state, me, target, tribute);
+        answer = result.text;
+        (result.ok ? sfx.wallBuy : sfx.denied)();
+      } else if (btn.dataset.act === 'war') {
+        const ruler = rulerOf(state, target);
+        declareWar(state, me, target, 'die Boten sind zurückgeschickt');
+        answer = `Die Herolde sind unterwegs. ${ruler.name} weiß es vor der nächsten Runde.`;
+        sfx.denied();
+      } else if (btn.dataset.act === 'gift') {
+        const result = sendGift(state, me, target, GIFT_COST);
+        answer = result.text;
+        (result.ok ? sfx.wallBuy : sfx.denied)();
+      }
+      diploNote = answer || '';
+      refresh();
+      renderDiplomacy();
+    });
+  });
+}
+
+function showDiplomacy() {
+  if (!diploOverlay || !state) return;
+  diploNote = '';
+  renderDiplomacy();
+  diploOverlay.classList.remove('hidden');
+  sfx.select();
+}
+
+function setupDiplomacyButton() {
+  const button = document.getElementById('diploBtn');
+  if (button) button.addEventListener('click', showDiplomacy);
+  const close = document.getElementById('diploClose');
+  if (close) close.addEventListener('click', hideDiplomacy);
+  if (diploOverlay) {
+    diploOverlay.addEventListener('click', (e) => {
+      if (e.target === diploOverlay) hideDiplomacy();
+    });
+  }
+}
+setupDiplomacyButton();
 
 function setupEmpireButton() {
   const button = document.getElementById('empireBtn');
@@ -747,6 +824,9 @@ function endTurn() {
   // capped, so once it is full its length stops growing.
   const previousHead = state.battleReports.length ? state.battleReports[0].id : null;
 
+  // Erst reden, dann marschieren: was die Herrscher in dieser Runde
+  // beschließen, gilt für die Züge, die gleich folgen.
+  rulersTakeTurn(state);
   aiTakeAllTurns(state);
   // Eroberungen der KI können Handelswege gekappt haben - das muss stehen,
   // bevor abgerechnet wird, sonst zahlt ein Weg, den es nicht mehr gibt.
@@ -990,6 +1070,9 @@ function factionFacts(faction) {
 
 function factionDetailHTML(faction) {
   const profile = factionProfile(faction.id) || {};
+  // Wer diese Fraktion wählt, wählt diesen Mann: seine Eigenschaften stehen
+  // hier, ehe der erste Zug fällt.
+  const ruler = rulerFor(faction.id);
   const art = factionArt(faction.id);
   const facts = factionFacts(faction);
   const defs = unitDefs(faction.id);
@@ -1004,6 +1087,12 @@ function factionDetailHTML(faction) {
       ${faction.name}</h3>
     <p class="fd-motto">„${art.motto}"</p>
     <p class="fd-blurb">${profile.blurb || ''}</p>
+    <div class="fd-ruler">
+      <strong>${ruler.name}</strong>, ${ruler.titel}
+      <div class="fd-traits">${TRAITS.map((t) =>
+    `<span>${TRAIT_NAMES[t]} ${ruler[t]} · ${traitLabel(t, ruler[t])}</span>`).join('')}</div>
+      <p class="fd-blurb">${ruler.wort}</p>
+    </div>
     <div class="fd-facts">
       <div class="fd-fact"><span>Hauptstadt</span><strong>${facts.capital}</strong></div>
       <div class="fd-fact"><span>Siedlungen</span><strong>${facts.settlements}</strong></div>

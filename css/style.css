@@ -456,6 +456,79 @@ html, body {
 }
 .trade-close-btn:hover { border-color: var(--gold); color: var(--gold); }
 
+/* --- Diplomatie: eine Karte je Herrscher ------------------------------- */
+.diplo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.diplo-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+}
+.diplo-card.diplo-own { border-color: var(--gold); }
+.diplo-card h4 {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.diplo-state {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: normal;
+  color: var(--muted);
+}
+.diplo-state.diplo-krieg { color: #d97a6c; }
+.diplo-state.diplo-frieden { color: #8fc79a; }
+.diplo-name { margin: 0 0 4px; font-size: 0.82rem; }
+.diplo-wort { font-size: 0.74rem; line-height: 1.35; margin: 0 0 8px; }
+.diplo-note { font-size: 0.74rem; color: var(--muted); margin: 6px 0 0; }
+.diplo-answer {
+  border-left: 3px solid var(--gold);
+  padding: 6px 10px;
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  background: var(--panel-2);
+}
+.diplo-actions { margin-top: 8px; }
+.diplo-btn {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  text-align: left;
+}
+.diplo-btn small { display: block; color: var(--muted); font-size: 0.68rem; margin-top: 2px; }
+.diplo-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.diplo-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.diplo-btn.diplo-war:hover { border-color: #d97a6c; color: #d97a6c; }
+.cond-fill.cond-trait { background: linear-gradient(90deg, #8a6f3c, #d9b25f); }
+
+/* Der Herrscher auf dem Fraktionsschirm. */
+.fd-ruler {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+.fd-ruler strong { color: var(--gold); }
+.fd-ruler .fd-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 5px;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
 .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .icon-btn.unavailable { opacity: 0.45; border-style: dashed; }
 .over-strength { color: var(--gold); }
@@ -1788,7 +1861,8 @@ html, body {
 }
 
 /* --- Reichsübersicht ------------------------------------------------------ */
-#empireOverlay {
+#empireOverlay,
+#diploOverlay {
   position: fixed;
   inset: 0;
   z-index: 30;
@@ -1798,7 +1872,8 @@ html, body {
   padding: 24px;
   background: rgba(0, 0, 0, 0.72);
 }
-#empireOverlay.hidden { display: none; }
+#empireOverlay.hidden,
+#diploOverlay.hidden { display: none; }
 .empire-box { width: min(900px, 100%); }
 
 .emp-tiles {
