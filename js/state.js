@@ -84,10 +84,18 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       // Truppen stellt.
       barracks: !!def.capital && !isNeutral,
       barracksBuilding: null,
-      // Eine Verwaltung hat niemand: die erste Straße und der erste Stollen
+      // Eine Verwaltung hat niemand: das erste Viadukt und der erste Stollen
       // kosten jedes Reich erst einmal einen Umweg.
       forum: false,
       forumBuilding: null,
+      // Feld, Speicher und Wasserleitung: alles drei wird gebaut, nichts
+      // davon steht zu Beginn irgendwo.
+      farm: false,
+      farmBuilding: null,
+      granary: false,
+      granaryBuilding: null,
+      viaduct: false,
+      viaductBuilding: null,
       garrison,
     };
   });

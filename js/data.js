@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.9.0';
+export const GAME_VERSION = '1.10.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1024,6 +1024,149 @@ export function mineIncome(ore) {
   return Math.min(MINE_MAX_ORE, ore) * MINE_INCOME_PER_ORE;
 }
 
+// --- Feld und Speicher -----------------------------------------------------
+// Ein Ort lebt von dem, was um ihn herum wächst. Die Farm legt das Ackerland
+// an, das ihn ernährt: mehr Kinder kommen durch, mehr Menschen bleiben. Der
+// Kornspeicher kommt danach - er bewahrt die Ernte über den Winter, und erst
+// dadurch kann ein Ort dauerhaft mehr Menschen tragen, als seine Felder in
+// einem schlechten Jahr hergeben.
+export const FARM_NAME = 'Farm';
+export const FARM_COST = 180;
+export const FARM_TURNS = 2;
+export const GRANARY_NAME = 'Kornspeicher';
+export const GRANARY_COST = 260;
+export const GRANARY_TURNS = 3;
+
+// --- Viadukt ---------------------------------------------------------------
+// Wasser über das Tal, auf Bögen, über Meilen. Wo es ankommt, wächst der Ort
+// schneller und hält eine größere Besatzung aus - Wasser ist das, woran eine
+// Belagerung zuerst scheitert. Gebaut wird es nur, wo eine Verwaltung die
+// Strecke vermisst.
+export const VIADUCT_NAME = 'Viadukt';
+export const VIADUCT_COST = 480;
+export const VIADUCT_TURNS = 5;
+
+// Was die drei Versorgungsbauten bewirken. Alles hängt an diesen drei Zahlen -
+// sie stehen hier zusammen, damit man die Wirkung vergleichen kann, ohne drei
+// Dateien aufzuschlagen.
+export const FARM_GROWTH = 0.5;
+export const VIADUCT_GROWTH = 0.25;
+export const GRANARY_CEILING = 0.25;
+export const VIADUCT_GARRISON = 0.2;
+
+// Um wie viel schneller ein Ort wächst, als er es ohne Bauwerke täte.
+export function growthFactor(city) {
+  if (!city) return 1;
+  return 1 + (city.farm ? FARM_GROWTH : 0) + (city.viaduct ? VIADUCT_GROWTH : 0);
+}
+
+// --- Die Bauwerke eines Orts ----------------------------------------------
+// Alle Bauwerke in einer Liste, in der Reihenfolge, in der sie im Bauen-Reiter
+// stehen. Jeder Eintrag sagt, was er kostet, wie lange er dauert, was er
+// voraussetzt und was er danach kann. Der Reiter zeigt nur, was jetzt gebaut
+// werden kann oder schon steht - die Liste entscheidet das, nicht sechs
+// beinahe gleiche Funktionen in der Oberfläche.
+//
+// `requires` ist das Bauwerk, das vorher stehen muss; `site` eine Bedingung
+// an den Ort selbst, die erst der Spielstand beantworten kann (Küste, Erz).
+export const BUILDINGS = [
+  {
+    key: 'barracks',
+    icon: '🛡️',
+    cost: BARRACKS_COST,
+    turns: BARRACKS_TURNS,
+    name: barracksName,
+    purpose: 'hier lassen sich Truppen ausheben',
+    promise: 'ohne sie stellt dieser Ort keine Truppen',
+  },
+  {
+    key: 'farm',
+    icon: '🌾',
+    cost: FARM_COST,
+    turns: FARM_TURNS,
+    name: () => FARM_NAME,
+    purpose: `Ackerland: ${Math.round(FARM_GROWTH * 100)} % mehr Zuwachs`,
+    promise: `${Math.round(FARM_GROWTH * 100)} % mehr Zuwachs; danach lässt sich `
+      + `der ${GRANARY_NAME} bauen`,
+  },
+  {
+    key: 'granary',
+    icon: '🏺',
+    cost: GRANARY_COST,
+    turns: GRANARY_TURNS,
+    requires: 'farm',
+    name: () => GRANARY_NAME,
+    purpose: `die Ernte hält über den Winter: ${Math.round(GRANARY_CEILING * 100)} % `
+      + 'mehr Einwohner möglich',
+    promise: `${Math.round(GRANARY_CEILING * 100)} % höhere Obergrenze für die Einwohner`,
+  },
+  {
+    key: 'forum',
+    icon: '🏛️',
+    cost: FORUM_COST,
+    turns: FORUM_TURNS,
+    name: forumName,
+    purpose: 'von hier aus werden Viadukt und Stollen vermessen',
+    promise: `Voraussetzung für ${VIADUCT_NAME} und ${MINE_NAME}`,
+  },
+  {
+    key: 'viaduct',
+    icon: '🌉',
+    cost: VIADUCT_COST,
+    turns: VIADUCT_TURNS,
+    requires: 'forum',
+    name: () => VIADUCT_NAME,
+    purpose: `frisches Wasser: ${Math.round(VIADUCT_GROWTH * 100)} % mehr Zuwachs, `
+      + `${Math.round(VIADUCT_GARRISON * 100)} % größere Garnison`,
+    promise: `${Math.round(VIADUCT_GROWTH * 100)} % mehr Zuwachs und `
+      + `${Math.round(VIADUCT_GARRISON * 100)} % mehr Platz für die Garnison`,
+  },
+  {
+    key: 'mine',
+    icon: '⛏️',
+    cost: MINE_COST,
+    turns: MINE_TURNS,
+    requires: 'forum',
+    site: 'ore',
+    name: () => MINE_NAME,
+    purpose: 'fördert Erz aus dem Umland',
+    promise: 'die beste Einnahme, die ein Ort haben kann',
+  },
+  {
+    key: 'harbour',
+    icon: '⚓',
+    cost: HARBOUR_COST,
+    turns: HARBOUR_TURNS,
+    site: 'coast',
+    name: () => HARBOUR_NAME,
+    purpose: 'Truppentransporte und Handelsschiffe laufen von hier aus',
+    promise: 'Truppentransporte, Handelswege über See – und die Werft',
+  },
+  {
+    key: 'shipyard',
+    icon: '🔨',
+    cost: SHIPYARD_COST,
+    turns: SHIPYARD_TURNS,
+    requires: 'harbour',
+    name: () => SHIPYARD_NAME,
+    purpose: 'hier laufen Kriegsschiffe vom Stapel',
+    promise: 'ohne sie läuft hier kein Kriegsschiff vom Stapel',
+  },
+];
+
+export const BUILDING_KEYS = BUILDINGS.map((b) => b.key);
+
+export function buildingDef(key) {
+  return BUILDINGS.find((b) => b.key === key) || null;
+}
+
+// Wie das Bauwerk in diesem Reich heißt - Kaserne und Verwaltung tragen in
+// jeder Fraktion einen eigenen Namen, die übrigen überall denselben.
+export function buildingName(key, factionId) {
+  const def = buildingDef(key);
+  return def ? def.name(factionId) : '';
+}
+
 // --- Bevölkerung ----------------------------------------------------------
 // Orte wachsen. Nicht durch Zuzug oder Eroberung, sondern schlicht dadurch,
 // dass mehr Kinder geboren werden als Menschen sterben - und das geht in
@@ -1047,7 +1190,10 @@ export const POPULATION_CEILING = 1.6;
 export function populationCeiling(city) {
   const tier = settlementTier(city.size);
   const basis = city.capital ? tier.populationCapital : tier.population;
-  return Math.round(basis * POPULATION_CEILING);
+  // Wer die Ernte einlagert, ernährt auch die, die in einem mageren Jahr
+  // sonst fortgezogen wären.
+  const speicher = city.granary ? 1 + GRANARY_CEILING : 1;
+  return Math.round(basis * POPULATION_CEILING * speicher);
 }
 
 // --- Aufgebot der freien Orte ---------------------------------------------
@@ -1308,6 +1454,9 @@ export function factionGarrisonFactor(faction) {
 
 // How large a garrison a settlement can hold and feed.
 export function garrisonCapacity(city, faction) {
-  return Math.floor((city.population / GARRISON_POP_RATIO) * factionGarrisonFactor(faction));
+  // Das Viadukt bringt das Wasser, an dem eine große Besatzung sonst scheitert.
+  const wasser = city.viaduct ? 1 + VIADUCT_GARRISON : 1;
+  return Math.floor((city.population / GARRISON_POP_RATIO)
+    * factionGarrisonFactor(faction) * wasser);
 }
 export const RECRUIT_BATCH = 100;

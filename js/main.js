@@ -16,10 +16,8 @@ import {
   recruitUnit, raiseArmyFromGarrison, reinforceArmy, collectIncome, regenerateGarrisons,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
-  buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction, buildFleet,
-  buyMine, advanceMineConstruction, mineIncomeOf,
-  buyShipyard, advanceShipyardConstruction,
-  buyBarracks, buyForum, advanceCivicConstruction,
+  buyRoad, advanceRoadConstruction, buildFleet,
+  buyBuilding, advanceConstruction, mineIncomeOf,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations,
 } from './actions.js';
 import {
@@ -1193,33 +1191,10 @@ function refresh() {
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
-    onBuyHarbour: (cityId) => {
+    // Ein Handler für alle Bauwerke - welches gemeint ist, steht am Knopf.
+    onBuild: (cityId, key) => {
       pushUndo();
-      const ok = buyHarbour(state, cityId).ok;
-      (ok ? sfx.wallBuy : sfx.denied)();
-      refresh();
-    },
-    onBuyMine: (cityId) => {
-      pushUndo();
-      const ok = buyMine(state, cityId).ok;
-      (ok ? sfx.wallBuy : sfx.denied)();
-      refresh();
-    },
-    onBuyShipyard: (cityId) => {
-      pushUndo();
-      const ok = buyShipyard(state, cityId).ok;
-      (ok ? sfx.wallBuy : sfx.denied)();
-      refresh();
-    },
-    onBuyBarracks: (cityId) => {
-      pushUndo();
-      const ok = buyBarracks(state, cityId).ok;
-      (ok ? sfx.wallBuy : sfx.denied)();
-      refresh();
-    },
-    onBuyForum: (cityId) => {
-      pushUndo();
-      const ok = buyForum(state, cityId).ok;
+      const ok = buyBuilding(state, cityId, key).ok;
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
@@ -1298,10 +1273,7 @@ function endTurn() {
   regenerateGarrisons(state);
   advanceWallConstruction(state);
   const roadsDone = advanceRoadConstruction(state);
-  const harboursDone = advanceHarbourConstruction(state);
-  const minesDone = advanceMineConstruction(state);
-  const yardsDone = advanceShipyardConstruction(state);
-  const civicDone = advanceCivicConstruction(state);
+  const builtDone = advanceConstruction(state);
   // The season that just passed is what wore the armies down; the next one is
   // rolled once the turn has actually turned.
   applyWeather(state);
@@ -1321,8 +1293,8 @@ function endTurn() {
   // Diplomatie stehen schon in derselben Schlange.
   if (!state.gameOver) {
     const me = playerFaction(state).id;
-    for (const city of minesDone) {
-      if (city.factionId !== me) continue;
+    for (const { city, key } of builtDone) {
+      if (key !== 'mine' || city.factionId !== me) continue;
       diploNewsQueue.push({
         icon: '⛏️', kind: 'Ein Bergwerk fördert',
         title: `Das ${MINE_NAME} von ${city.name} ist offen`,
@@ -1337,8 +1309,7 @@ function endTurn() {
     else if (myEvent) showEvent(myEvent);
   }
 
-  if (roadsDone.length || harboursDone.length || minesDone.length || yardsDone.length
-    || civicDone.length
+  if (roadsDone.length || builtDone.length
     || (wallsBuilding && state.cities.filter((c) => c.wallBuilding).length < wallsBuilding)) {
     sfx.wallDone();
   }

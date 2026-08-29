@@ -1,7 +1,7 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost, shipTypesOf,
   wallLevelInfo, TRADE_ROUTE_COST, MINE_COST, SHIPYARD_COST,
-  BARRACKS_COST, FORUM_COST,
+  BUILDINGS, buildingDef,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
@@ -9,7 +9,8 @@ import {
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
   buyHarbour, canBuildHarbour, buildFleet, raiseIndependentArmies,
   buyCityWalls, nextWallLevel, tradePartners, openTradeRoute,
-  canBuildMine, buyMine, mineOre, buyShipyard, buyBarracks, buyForum,
+  canBuildMine, buyMine, mineOre, buyShipyard,
+  buyBuilding, canBuildBuilding,
 } from './actions.js';
 import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
@@ -283,43 +284,56 @@ function aiRoads(state, faction, savingForFleet) {
   return true;
 }
 
-// Kaserne und Verwaltung: ohne sie kann eine Fraktion weder Truppen ausheben
-// noch Straßen und Stollen anlegen. Die KI baut deshalb früh - und in dieser
-// Reihenfolge: erst eine Kaserne dort, wo der Feind schon steht, dann die
-// erste Verwaltung des Reiches, dann Kasernen in den größten Orten.
+// Was ein Reich baut, wenn es gerade nicht kämpfen muss - und in welcher
+// Reihenfolge. Ohne Kaserne hebt ein Ort keine Truppen aus, ohne Verwaltung
+// vermisst er kein Viadukt und keinen Stollen, ohne Farm ernährt er niemanden
+// dazu. Die KI arbeitet diese Kette von oben nach unten ab und baut je Reich
+// höchstens ein Bauwerk in der Runde: eine leere Truhe verteidigt keine Stadt.
 const AI_CIVIC_TREASURY = 120;
 
-function aiCivic(state, faction, threats) {
-  const eigene = state.cities.filter((c) => c.factionId === faction.id);
-  if (!eigene.length) return false;
-  if (eigene.some((c) => c.barracksBuilding || c.forumBuilding)) return false;
+// Der größte Ort einer Auswahl - dort wirkt jedes Bauwerk am meisten.
+function groessterOrt(cities) {
+  if (!cities.length) return null;
+  return cities.reduce((a, b) => (b.population > a.population ? b : a));
+}
+
+function civicWish(state, faction, eigene, threats) {
+  const baubar = (key) => eigene.filter((c) => canBuildBuilding(state, c, key));
 
   // Ein Ort, vor dem ein Feind steht und der keine Truppen stellen kann,
   // geht allem anderen vor.
   const bedroht = threats
-    .filter((t) => t.distance <= AI_ALARM_RANGE && !t.city.barracks)
+    .filter((t) => t.distance <= AI_ALARM_RANGE && t.city.factionId === faction.id
+      && canBuildBuilding(state, t.city, 'barracks'))
     .map((t) => t.city)[0];
-  if (bedroht) {
-    if (faction.gold < BARRACKS_COST + AI_CIVIC_TREASURY) return true;
-    buyBarracks(state, bedroht.id);
-    return false;
-  }
+  if (bedroht) return { city: bedroht, key: 'barracks' };
 
-  // Die erste Verwaltung: ohne sie gibt es weder Straße noch Bergwerk.
+  // Die erste Verwaltung des Reiches: ohne sie gibt es weder Wasser noch Erz.
   if (!eigene.some((c) => c.forum)) {
-    if (faction.gold < FORUM_COST + AI_CIVIC_TREASURY) return true;
     const sitz = eigene.find((c) => c.capital) || eigene[0];
-    buyForum(state, sitz.id);
-    return false;
+    if (canBuildBuilding(state, sitz, 'forum')) return { city: sitz, key: 'forum' };
   }
 
-  // Und dann Kasernen, im größten Ort zuerst: dort ist die Garnison am
-  // größten und die Aushebung am schnellsten wieder voll.
-  const ohne = eigene.filter((c) => !c.barracks);
-  if (!ohne.length) return false;
-  if (faction.gold < BARRACKS_COST + AI_CIVIC_TREASURY) return true;
-  const bester = ohne.reduce((a, b) => (b.population > a.population ? b : a));
-  buyBarracks(state, bester.id);
+  // Dann der Reihe nach: Truppen, Brot, Vorrat, Verwaltung, Wasser.
+  const kette = ['barracks', 'farm', 'granary', 'forum', 'viaduct'];
+  for (const key of kette) {
+    const ort = groessterOrt(baubar(key));
+    if (ort) return { city: ort, key };
+  }
+  return null;
+}
+
+function aiCivic(state, faction, threats) {
+  const eigene = state.cities.filter((c) => c.factionId === faction.id);
+  if (!eigene.length) return false;
+  if (eigene.some((c) => BUILDINGS.some((def) => c[`${def.key}Building`]))) return false;
+
+  const wunsch = civicWish(state, faction, eigene, threats);
+  if (!wunsch) return false;
+  const def = buildingDef(wunsch.key);
+  // Reicht es noch nicht, wird dafür gespart statt weiter ausgehoben.
+  if (faction.gold < def.cost + AI_CIVIC_TREASURY) return true;
+  buyBuilding(state, wunsch.city.id, wunsch.key);
   return false;
 }
 
@@ -698,7 +712,7 @@ export function aiTakeTurn(state, faction) {
   }
   let buildReserve = 0;
   if (savingForHarbour) buildReserve = HARBOUR_COST;
-  else if (savingForCivic) buildReserve = FORUM_COST;
+  else if (savingForCivic) buildReserve = buildingDef('forum').cost;
   else if (savingForMine) buildReserve = MINE_COST;
   else if (savingForWall) buildReserve = AI_WALL_SAVE_MAX;
   else if (savingForRoad) buildReserve = AI_ROAD_MAX_COST;

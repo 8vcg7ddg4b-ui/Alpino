@@ -370,26 +370,42 @@ den Punkten durchblättern.
   Küstenstadt muss ihn bauen. Erobert man eine Stadt, übernimmt man ihren
   Hafen. Am Ufer steht dann ein Steg mit vertäutem Boot, damit man von weitem
   sieht, wo eine Flotte auslaufen kann.
+- **Der Bauen-Reiter zeigt nur, was gilt**: was in diesem Ort steht, was
+  gerade gebaut wird, und was sich hier und jetzt bauen ließe. Ein Bauwerk,
+  dessen Voraussetzung fehlt – der Kornspeicher ohne Farm, das Viadukt ohne
+  Verwaltung, die Werft ohne Hafen –, erscheint **gar nicht**. Zu Spielbeginn
+  stehen deshalb genau fünf Dinge zur Wahl: **Kaserne, Farm, Forum, Straßenbau**
+  und, am Meer, der **Hafen**. Alle Bauwerke stehen in einer Tabelle
+  (`BUILDINGS` in `js/data.js`) und laufen durch einen einzigen Knopf, eine
+  Kaufregel und eine Bauschleife – ein neues Bauwerk ist ein Eintrag, keine
+  neue Funktion.
 - **Kaserne und Verwaltung**: Ein Reich baut nicht aus dem Nichts. Wer Truppen
   aushebt, braucht einen Ort, an dem sie ausgebildet und untergebracht werden;
-  wer Straßen, Brücken und Stollen anlegt, braucht eine Verwaltung, die
+  wer Wasserleitungen und Stollen anlegt, braucht eine Verwaltung, die
   Vermessung, Fronarbeit und Abrechnung ordnet.
   Die **Kaserne** kostet **250 Gold** und **3 Runden** und ist Bedingung für
   **jede Aushebung, jede Verstärkung im Feld und jedes neu aufgestellte Heer**.
   Zu Spielbeginn steht sie **nur in den sechzehn Hauptstädten**; jeder andere
   Ort – auch jeder eroberte – muss eine bauen, ehe er Truppen stellt.
   Die **Verwaltung** kostet **300 Gold** und **3 Runden** und ist Bedingung für
-  **Straßen, Brücken und Bergwerke**. **Niemand beginnt mit einer**: die erste
-  Straße und der erste Stollen kosten jedes Reich erst einmal einen Umweg – und
-  die Entscheidung, wo dieser Umweg sich lohnt.
+  **Viadukt und Bergwerk**. **Niemand beginnt mit einer.**
   Beide heißen nicht überall gleich. Was in Rom das **Castra** und das **Forum**
   ist, ist bei den Griechen das **Gymnasion** und die **Agora**, bei Karthago
   das **Söldnerlager** und das **Suffetenhaus**, bei den Germanen die
   **Gefolgschaftshalle** und der **Thingplatz**, bei den Ptolemäern das
   **Kleruchenland** und die **Kanzlei** und bei den Sarmaten, die nicht wohnen,
   das **Reiterlager** und das **Fürstenzelt** – sechzehn Namenspaare, für jede
-  Fraktion eines. Wo etwas fehlt, sagt der Bauen-Reiter es im Klartext:
-  „Keine Aushebung – Castra fehlt", „Bergwerk möglich (5 Erz) – es fehlt Forum".
+  Fraktion eines.
+- **Farm und Kornspeicher**: Ein Ort lebt von dem, was um ihn herum wächst.
+  Die **Farm** (**180 Gold**, **2 Runden**) legt das Ackerland an: **50 % mehr
+  Zuwachs** je Runde. Der **Kornspeicher** (**260 Gold**, **3 Runden**) setzt
+  die Farm voraus und bewahrt die Ernte über den Winter – er hebt die
+  **Obergrenze der Einwohner um 25 %**. Da die Schatzkammer allein von der
+  Kopfsteuer lebt, ist beides bares Geld, nur später.
+- **Viadukt**: Wasser über das Tal, auf Bögen, über Meilen. Es kostet **480
+  Gold** und **5 Runden**, setzt eine **Verwaltung** voraus und bringt **25 %
+  mehr Zuwachs** und eine um **ein Fünftel größere Garnison** – Wasser ist das,
+  woran eine Belagerung zuerst scheitert.
 - **Werft**: Ein Hafen ist ein Kai, an dem etwas anlegt – ein Kriegsschiff
   entsteht dort nicht. Dafür braucht es eine Helling, Bauholz, Pech, Werg und
   Leute, die es können: die **Werft** kostet **350 Gold** und **3 Runden**,
@@ -397,7 +413,9 @@ den Punkten durchblättern.
   Niemand beginnt mit einer. Ein Heer auf gecharterten Transportern geht
   weiterhin an jedem Hafen an Bord – die Werft braucht nur, wer eine eigene
   Flotte bauen will. Ohne sie zeigt der Bauen-Reiter statt der Bauarten den
-  Werftbau; steht sie, erscheinen die bis zu drei Bauarten der Fraktion.
+  Werftbau; steht sie, erscheinen die bis zu drei Bauarten der Fraktion. Die
+  Arbeitsteilung ist damit klar: **der Hafen trägt Handelsschiffe und
+  Truppentransporte, die Werft die Kriegsschiffe**.
 - **Bergwerk**: Die beste Einnahmequelle, die ein Ort haben kann – und die
   einzige, die weder an seiner Größe noch an seinen Einwohnern hängt, sondern
   allein an dem, was im Berg liegt. Gerechnet wird über ein Quadrat von **zwei
@@ -405,7 +423,7 @@ den Punkten durchblättern.
   andere nichts. Ab **3 Erz** lohnt ein Stollen, je Punkt bringt er **4 Gold je
   Runde**, bei 12 Punkten ist Schluss – also **12 bis 48 Gold**, gegen **400
   Gold** und **4 Runden** Bauzeit, und es setzt eine **Verwaltung** im Ort
-  voraus. Von 107 Orten haben 32 genug Erz; der Knopf
+  voraus. Wo im Umland kein Erz liegt, steht der Knopf gar nicht erst da. Von 107 Orten haben 32 genug Erz; der Knopf
   nennt vor dem Bau, was er tragen wird. Neben der Stadt steht danach ein
   Fördergerüst mit Schacht und Halde, in der Übersicht hat das Bergwerk eine
   eigene Spalte, und die KI schlägt eines an, bevor sie die nächste Mauer baut.
@@ -492,7 +510,9 @@ den Punkten durchblättern.
   Jahr gut vier Prozent, über zehn Jahre die Hälfte. Im Frühjahr und Sommer
   wächst ein Ort schneller als im Winter, und **steht ein feindliches Heer vor
   dem Tor, wächst gar nichts** – die Felder liegen brach. Über die Obergrenze
-  seines Rangs kommt kein Ort hinaus: ein Dorf bleibt ein Dorf. Das Wachstum
+  seines Rangs kommt kein Ort hinaus: ein Dorf bleibt ein Dorf – es sei denn,
+  ein **Kornspeicher** hebt sie. **Farm** und **Viadukt** beschleunigen den
+  Zuwachs um die Hälfte beziehungsweise ein Viertel. Das Wachstum
   wirkt sich aus, denn die Einwohner tragen zu den Einnahmen bei, stellen die
   Stadtwache nach und bestimmen, wie groß eine Garnison sein darf.
 - **Straßenanschluss steht im Ort**: Die Stadtansicht sagt, ob der Ort am
@@ -512,9 +532,8 @@ den Punkten durchblättern.
   reicht kein Weg, und mehr als zwei trägt ein Ort nicht. Fällt ein Ende an den
   Feind oder reißt die Verbindung, endet der Weg. Die Reichsübersicht führt den
   Handel als eigene Spalte, und die KI handelt ebenfalls.
-- **Straßenbau**: Setzt eine **Verwaltung** in der bauenden Stadt voraus – ohne
-  sie wird nichts vermessen und nichts abgerechnet. Danach bietet jede eigene
-  Stadt die nächstgelegenen eigenen Orte
+- **Straßenbau**: Von Anfang an möglich – jede eigene
+  Stadt bietet die nächstgelegenen eigenen Orte
   an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
   Bauzeit. Angeboten werden **die zwei nächstgelegenen** eigenen Orte, zu denen
   noch keine Straße führt – weiter reicht der Straßenbau von einem Ort aus

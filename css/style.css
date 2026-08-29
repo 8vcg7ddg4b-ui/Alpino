@@ -349,22 +349,14 @@ html, body {
 }
 .wall-fill { display: block; height: 100%; background: var(--gold); }
 
-.wall-btn {
-  margin-top: 8px;
-  width: 100%;
-  background: var(--panel-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px;
-  cursor: pointer;
-  font-size: 0.82rem;
-}
-.wall-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
-.wall-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
-.wall-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-
-.fleet-btn {
+/* Ein Bauknopf sieht überall gleich aus: dunkles Panel, goldener Rand beim
+   Überfahren, Kleingedrucktes darunter. Vorher hatte jedes Bauwerk seine
+   eigene Regel - und wer eine vergaß, bekam einen weißen Systemknopf mitten
+   in die Seitenleiste. */
+.build-btn,
+.wall-btn,
+.fleet-btn,
+.harbour-btn {
   margin-top: 8px;
   width: 100%;
   background: var(--panel-2);
@@ -376,9 +368,23 @@ html, body {
   font-size: 0.82rem;
   text-align: left;
 }
-.fleet-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
-.fleet-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
-.fleet-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.build-btn small,
+.wall-btn small,
+.fleet-btn small,
+.harbour-btn small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-top: 2px;
+}
+.build-btn:hover:not(:disabled),
+.wall-btn:hover:not(:disabled),
+.fleet-btn:hover:not(:disabled),
+.harbour-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.build-btn:disabled,
+.wall-btn:disabled,
+.fleet-btn:disabled,
+.harbour-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .reinforce-btn {
   background: var(--panel-2);
@@ -393,22 +399,6 @@ html, body {
 .reinforce-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
 .reinforce-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .raise-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; font-weight: normal; }
-
-.harbour-btn {
-  margin-top: 8px;
-  width: 100%;
-  background: var(--panel-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  text-align: left;
-}
-.harbour-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
-.harbour-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
-.harbour-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .road-head {
   font-size: 0.82rem;
@@ -1303,13 +1293,6 @@ kbd {
 }
 
 /* --- Ausbaustufen der Befestigung --------------------------------------- */
-.wall-btn small {
-  display: block;
-  font-size: 0.7rem;
-  color: var(--gold);
-  margin-top: 3px;
-  letter-spacing: 0.3px;
-}
 
 .wall-note {
   margin: 6px 0 0;

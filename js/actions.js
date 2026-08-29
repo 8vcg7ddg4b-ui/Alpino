@@ -13,10 +13,8 @@ import {
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_UNIT_SCALE, SHIP_ROLE, WARSHIP_BATCH,
   TRANSPORT_NAME, transportCount, shipTypesOf,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
-  HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
-  MINE_NAME, MINE_COST, MINE_TURNS, MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
-  SHIPYARD_NAME, SHIPYARD_COST, SHIPYARD_TURNS,
-  BARRACKS_COST, BARRACKS_TURNS, FORUM_COST, FORUM_TURNS, barracksName, forumName,
+  MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
+  BUILDINGS, buildingDef, buildingName, growthFactor,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
   FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
@@ -1085,9 +1083,6 @@ export function buyRoad(state, cityId, targetCityId) {
   if (roadProjectOf(state, city.id) || roadProjectOf(state, target.id)) {
     return { ok: false, reason: 'building' };
   }
-  // Vermessung, Fronarbeit, Abrechnung: ohne Verwaltung wird keine Trasse
-  // gelegt und keine Brücke geschlagen.
-  if (!city.forum) return { ok: false, reason: 'noForum' };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
 
@@ -1146,143 +1141,97 @@ export function advanceRoadConstruction(state) {
   return finished;
 }
 
-// --- Hafenbau ------------------------------------------------------------
-// Ein Hafen ist die Bedingung fürs Einschiffen, nicht der Kaufpreis der
-// Flotte: gebaut wird er einmal, die Schiffe kosten weiter je Fahrt.
+// --- Bauwerke --------------------------------------------------------------
+// Alle Bauwerke eines Orts laufen durch dieselben drei Funktionen: prüfen,
+// kaufen, Runde für Runde weiterbauen. Was ein einzelnes Bauwerk kostet, was
+// es voraussetzt und was es danach kann, steht in BUILDINGS - hier steht nur
+// noch, wie gebaut wird. Vorher war das sechsmal fast derselbe Absatz.
 
-export function canBuildHarbour(state, city) {
-  if (!city || city.factionId === 'neutral') return false;
-  if (city.harbour || city.harbourBuilding) return false;
-  return isCoastalCity(state, city);
+// Manche Bauwerke setzen nicht ein anderes Bauwerk voraus, sondern den Ort
+// selbst: einen Hafen gibt es nur an der Küste, ein Bergwerk nur dort, wo im
+// Umland etwas liegt.
+export function buildingSiteOk(state, city, def) {
+  if (!def || !def.site) return true;
+  if (def.site === 'coast') return isCoastalCity(state, city);
+  if (def.site === 'ore') return mineOre(state, city) >= MINE_MIN_ORE;
+  return true;
 }
 
-export function buyHarbour(state, cityId) {
-  const city = state.cities.find((c) => c.id === cityId);
-  if (!city) return { ok: false };
-  if (city.harbour) return { ok: false, reason: 'done' };
-  if (city.harbourBuilding) return { ok: false, reason: 'building' };
-  if (!isCoastalCity(state, city)) return { ok: false, reason: 'inland' };
+// Warum hier gerade nicht gebaut werden kann - null heißt: es kann.
+export function buildingBlocker(state, city, key) {
+  const def = buildingDef(key);
+  if (!def || !city) return 'unknown';
   const faction = factionById(state, city.factionId);
-  if (!faction || faction.isNeutral) return { ok: false };
-  if (faction.gold < HARBOUR_COST) return { ok: false, reason: 'gold' };
+  if (!faction || faction.isNeutral) return 'neutral';
+  if (city[key]) return 'done';
+  if (city[`${key}Building`]) return 'building';
+  if (def.requires && !city[def.requires]) return 'requires';
+  if (!buildingSiteOk(state, city, def)) return 'site';
+  return null;
+}
 
-  faction.gold -= HARBOUR_COST;
-  city.harbourBuilding = { turnsLeft: HARBOUR_TURNS };
-  logOwn(state, faction.id, `${city.name}: Bau eines ${HARBOUR_NAME}s begonnen (${HARBOUR_TURNS} Runden).`);
+export function canBuildBuilding(state, city, key) {
+  return buildingBlocker(state, city, key) === null;
+}
+
+export function buyBuilding(state, cityId, key) {
+  const city = state.cities.find((c) => c.id === cityId);
+  const def = buildingDef(key);
+  if (!city || !def) return { ok: false };
+  const blocker = buildingBlocker(state, city, key);
+  if (blocker) return { ok: false, reason: blocker };
+  const faction = factionById(state, city.factionId);
+  if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
+
+  faction.gold -= def.cost;
+  city[`${key}Building`] = { turnsLeft: def.turns };
+  logOwn(state, faction.id, `${city.name}: ${buildingName(key, faction.id)} wird gebaut `
+    + `(${def.turns} ${def.turns === 1 ? 'Runde' : 'Runden'}).`);
   return { ok: true };
 }
 
-// --- Kaserne und Verwaltung ------------------------------------------------
-// Zwei Bauwerke, die nichts einbringen und trotzdem alles entscheiden: ohne
-// Kaserne hebt ein Ort keine Truppen aus, ohne Verwaltung vermisst er keine
-// Straße und schlägt keinen Stollen an. Beide werden gebaut wie eine Mauer -
-// einmal bezahlt, ein paar Runden gewartet, dann stehen sie.
-export function canBuildBarracks(state, city) {
-  if (!city || city.factionId === 'neutral') return false;
-  return !city.barracks && !city.barracksBuilding;
-}
-
-export function buyBarracks(state, cityId) {
-  const city = state.cities.find((c) => c.id === cityId);
-  if (!city) return { ok: false };
-  if (city.barracks) return { ok: false, reason: 'done' };
-  if (city.barracksBuilding) return { ok: false, reason: 'building' };
-  const faction = factionById(state, city.factionId);
-  if (!faction || faction.isNeutral) return { ok: false };
-  if (faction.gold < BARRACKS_COST) return { ok: false, reason: 'gold' };
-  faction.gold -= BARRACKS_COST;
-  city.barracksBuilding = { turnsLeft: BARRACKS_TURNS };
-  logOwn(state, faction.id, `${city.name}: ${barracksName(faction.id)} wird angelegt `
-    + `(${BARRACKS_TURNS} Runden).`);
-  return { ok: true };
-}
-
-export function canBuildForum(state, city) {
-  if (!city || city.factionId === 'neutral') return false;
-  return !city.forum && !city.forumBuilding;
-}
-
-export function buyForum(state, cityId) {
-  const city = state.cities.find((c) => c.id === cityId);
-  if (!city) return { ok: false };
-  if (city.forum) return { ok: false, reason: 'done' };
-  if (city.forumBuilding) return { ok: false, reason: 'building' };
-  const faction = factionById(state, city.factionId);
-  if (!faction || faction.isNeutral) return { ok: false };
-  if (faction.gold < FORUM_COST) return { ok: false, reason: 'gold' };
-  faction.gold -= FORUM_COST;
-  city.forumBuilding = { turnsLeft: FORUM_TURNS };
-  logOwn(state, faction.id, `${city.name}: ${forumName(faction.id)} wird angelegt `
-    + `(${FORUM_TURNS} Runden).`);
-  return { ok: true };
-}
-
-export function advanceCivicConstruction(state) {
+// Eine Runde Bauzeit für alles, was in irgendeinem Ort im Bau ist.
+export function advanceConstruction(state) {
   const finished = [];
   for (const city of state.cities) {
-    if (city.barracksBuilding) {
-      city.barracksBuilding.turnsLeft -= 1;
-      if (city.barracksBuilding.turnsLeft <= 0) {
-        city.barracks = true;
-        city.barracksBuilding = null;
-        finished.push({ city, kind: 'barracks' });
-        logOwn(state, city.factionId, `🛡️ ${barracksName(city.factionId)} in ${city.name} `
-          + 'steht: hier lassen sich Truppen ausheben.');
-      }
-    }
-    if (city.forumBuilding) {
-      city.forumBuilding.turnsLeft -= 1;
-      if (city.forumBuilding.turnsLeft <= 0) {
-        city.forum = true;
-        city.forumBuilding = null;
-        finished.push({ city, kind: 'forum' });
-        logOwn(state, city.factionId, `🏛️ ${forumName(city.factionId)} in ${city.name} `
-          + 'steht: von hier aus werden Straßen und Stollen vermessen.');
-      }
+    for (const def of BUILDINGS) {
+      const bau = city[`${def.key}Building`];
+      if (!bau) continue;
+      bau.turnsLeft -= 1;
+      if (bau.turnsLeft > 0) continue;
+      city[def.key] = true;
+      city[`${def.key}Building`] = null;
+      finished.push({ city, key: def.key });
+      // Das Bergwerk meldet, was es trägt; alle anderen, wozu sie da sind.
+      const wirkung = def.key === 'mine'
+        ? `${mineIncomeOf(state, city)} Gold je Runde`
+        : def.purpose;
+      logOwn(state, city.factionId, `${def.icon} ${buildingName(def.key, city.factionId)} `
+        + `in ${city.name} steht: ${wirkung}.`);
     }
   }
   return finished;
 }
 
-// --- Werft -----------------------------------------------------------------
-// Sie setzt einen Hafen voraus: wo nichts anlegt, wird auch nichts gebaut.
-export function canBuildShipyard(state, city) {
-  if (!city || city.factionId === 'neutral') return false;
-  if (city.shipyard || city.shipyardBuilding) return false;
-  return !!city.harbour;
-}
+// Die alten Namen, damit ein Aufrufer nicht wissen muss, dass es eine Tabelle
+// gibt: sie tun alle dasselbe, nur mit festem Schlüssel.
+export const canBuildHarbour = (state, city) => canBuildBuilding(state, city, 'harbour');
+export const canBuildBarracks = (state, city) => canBuildBuilding(state, city, 'barracks');
+export const canBuildForum = (state, city) => canBuildBuilding(state, city, 'forum');
+export const canBuildShipyard = (state, city) => canBuildBuilding(state, city, 'shipyard');
+export const canBuildMine = (state, city) => canBuildBuilding(state, city, 'mine');
+export const canBuildFarm = (state, city) => canBuildBuilding(state, city, 'farm');
+export const canBuildGranary = (state, city) => canBuildBuilding(state, city, 'granary');
+export const canBuildViaduct = (state, city) => canBuildBuilding(state, city, 'viaduct');
 
-export function buyShipyard(state, cityId) {
-  const city = state.cities.find((c) => c.id === cityId);
-  if (!city) return { ok: false };
-  if (city.shipyard) return { ok: false, reason: 'done' };
-  if (city.shipyardBuilding) return { ok: false, reason: 'building' };
-  if (!city.harbour) return { ok: false, reason: 'noHarbour' };
-  const faction = factionById(state, city.factionId);
-  if (!faction || faction.isNeutral) return { ok: false };
-  if (faction.gold < SHIPYARD_COST) return { ok: false, reason: 'gold' };
-
-  faction.gold -= SHIPYARD_COST;
-  city.shipyardBuilding = { turnsLeft: SHIPYARD_TURNS };
-  logOwn(state, faction.id, `${city.name}: Die Helling für eine ${SHIPYARD_NAME} `
-    + `wird gelegt (${SHIPYARD_TURNS} Runden).`);
-  return { ok: true };
-}
-
-export function advanceShipyardConstruction(state) {
-  const finished = [];
-  for (const city of state.cities) {
-    if (!city.shipyardBuilding) continue;
-    city.shipyardBuilding.turnsLeft -= 1;
-    if (city.shipyardBuilding.turnsLeft > 0) continue;
-    city.shipyard = true;
-    city.shipyardBuilding = null;
-    finished.push(city);
-    logOwn(state, city.factionId, `🔨 Die ${SHIPYARD_NAME} von ${city.name} steht: `
-      + 'hier laufen von nun an Kriegsschiffe vom Stapel.');
-  }
-  return finished;
-}
+export const buyHarbour = (state, cityId) => buyBuilding(state, cityId, 'harbour');
+export const buyBarracks = (state, cityId) => buyBuilding(state, cityId, 'barracks');
+export const buyForum = (state, cityId) => buyBuilding(state, cityId, 'forum');
+export const buyShipyard = (state, cityId) => buyBuilding(state, cityId, 'shipyard');
+export const buyMine = (state, cityId) => buyBuilding(state, cityId, 'mine');
+export const buyFarm = (state, cityId) => buyBuilding(state, cityId, 'farm');
+export const buyGranary = (state, cityId) => buyBuilding(state, cityId, 'granary');
+export const buyViaduct = (state, cityId) => buyBuilding(state, cityId, 'viaduct');
 
 // --- Bergwerk --------------------------------------------------------------
 // Was im Umland liegt, in Punkten: das Gebirge zählt doppelt, das Hügelland
@@ -1307,63 +1256,6 @@ export function mineOre(state, city) {
 export function mineIncomeOf(state, city) {
   if (!city || !city.mine) return 0;
   return mineIncome(mineOre(state, city));
-}
-
-export function canBuildMine(state, city) {
-  if (!city || city.factionId === 'neutral') return false;
-  if (city.mine || city.mineBuilding) return false;
-  // Ein Stollen wird vermessen, verzeichnet und abgerechnet - das kann nur
-  // ein Ort, der eine Verwaltung hat.
-  if (!city.forum) return false;
-  return mineOre(state, city) >= MINE_MIN_ORE;
-}
-
-export function buyMine(state, cityId) {
-  const city = state.cities.find((c) => c.id === cityId);
-  if (!city) return { ok: false };
-  if (city.mine) return { ok: false, reason: 'done' };
-  if (city.mineBuilding) return { ok: false, reason: 'building' };
-  if (!city.forum) return { ok: false, reason: 'noForum' };
-  const erz = mineOre(state, city);
-  if (erz < MINE_MIN_ORE) return { ok: false, reason: 'noOre' };
-  const faction = factionById(state, city.factionId);
-  if (!faction || faction.isNeutral) return { ok: false };
-  if (faction.gold < MINE_COST) return { ok: false, reason: 'gold' };
-
-  faction.gold -= MINE_COST;
-  city.mineBuilding = { turnsLeft: MINE_TURNS };
-  logOwn(state, faction.id, `${city.name}: Ein ${MINE_NAME} wird angeschlagen `
-    + `(${MINE_TURNS} Runden, danach ${mineIncome(erz)} Gold je Runde).`);
-  return { ok: true };
-}
-
-export function advanceMineConstruction(state) {
-  const finished = [];
-  for (const city of state.cities) {
-    if (!city.mineBuilding) continue;
-    city.mineBuilding.turnsLeft -= 1;
-    if (city.mineBuilding.turnsLeft > 0) continue;
-    city.mine = true;
-    city.mineBuilding = null;
-    finished.push(city);
-    logOwn(state, city.factionId, `⛏️ Das ${MINE_NAME} von ${city.name} fördert: `
-      + `${mineIncomeOf(state, city)} Gold je Runde.`);
-  }
-  return finished;
-}
-
-export function advanceHarbourConstruction(state) {
-  const finished = [];
-  for (const city of state.cities) {
-    if (!city.harbourBuilding) continue;
-    city.harbourBuilding.turnsLeft -= 1;
-    if (city.harbourBuilding.turnsLeft > 0) continue;
-    city.harbour = true;
-    city.harbourBuilding = null;
-    finished.push(city);
-    logOwn(state, city.factionId, `⚓ Der ${HARBOUR_NAME} von ${city.name} ist fertig.`);
-  }
-  return finished;
 }
 
 // What a season in the field costs. An army under snow or in the desert sun
@@ -1756,7 +1648,7 @@ export function birthsIn(state, city) {
   if (city.population >= grenze) return 0;
   if (citySieged(state, city)) return 0;
   const { season } = calendarOfTurn(state.turn);
-  const rate = BIRTH_RATE * (BIRTH_SEASON[season.key] ?? 1);
+  const rate = BIRTH_RATE * (BIRTH_SEASON[season.key] ?? 1) * growthFactor(city);
   return Math.min(Math.round(city.population * rate), grenze - city.population);
 }
 
