@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.7.0';
+export const GAME_VERSION = '1.8.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -750,6 +750,22 @@ export const CITY_DEFS = [
   // --- Unabhängig: Kleinasien --------------------------------------------
   { name: 'Tarsos', lon: 34.90, lat: 36.92, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Ankyra', lon: 32.86, lat: 39.93, factionId: 'neutral', capital: false, size: 'village' },
+  // --- Unabhängig: der Nordosten -----------------------------------------
+  // Die Steppe nördlich des Schwarzen und des Kaspischen Meeres und die
+  // Küste von Kolchis waren auf der Karte leer - 648 Landfelder und fünf
+  // Orte. Die Namen stehen bei Herodot, Strabon und Ptolemaios: Kremnoi am
+  // Maiotischen See, Azagarion und Karrodounon im Binnenland, Naubaris und
+  // Exopolis im asiatischen Sarmatien, Rha an dem Strom, der bei Ptolemaios
+  // so heißt, und Phasis, Pityus und Harmozica in Kolchis und Iberien.
+  { name: 'Kremnoi', lon: 37.50, lat: 47.40, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Azagarion', lon: 34.00, lat: 49.50, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Karrodounon', lon: 31.50, lat: 50.50, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Naubaris', lon: 44.00, lat: 47.50, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Exopolis', lon: 47.00, lat: 49.50, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Rha', lon: 47.00, lat: 46.00, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Pityus', lon: 40.32, lat: 43.15, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Phasis', lon: 41.67, lat: 42.15, factionId: 'neutral', capital: false, size: 'city' },
+  { name: 'Harmozica', lon: 44.72, lat: 41.85, factionId: 'neutral', capital: false, size: 'village' },
 ];
 
 // Morale and exhaustion scale a force's fighting power. Both are 0-100 and
@@ -898,6 +914,16 @@ export function starMarks(experience) {
 export const HARBOUR_COST = 300;
 export const HARBOUR_TURNS = 3;
 export const HARBOUR_NAME = 'Hafen';
+
+// --- Werft -----------------------------------------------------------------
+// Ein Hafen ist ein Kai, an dem etwas anlegt. Ein Kriegsschiff entsteht dort
+// nicht: dafür braucht es eine Helling, Bauholz, Pech, Werg und Leute, die es
+// können. Die Werft ist deshalb ein eigenes Bauwerk und Bedingung für jedes
+// Schiff, das vom Stapel läuft - gechartertes Transportgut fährt weiter ab
+// jedem Hafen, aber eine Flotte baut nur, wer eine Werft hat.
+export const SHIPYARD_NAME = 'Werft';
+export const SHIPYARD_COST = 350;
+export const SHIPYARD_TURNS = 3;
 
 // --- Bergwerk --------------------------------------------------------------
 // Was ein Ort aus dem Boden holt, holt er nur einmal - und dafür braucht es
@@ -1189,7 +1215,17 @@ export const FREE_STATE_NAMES = [
 ];
 
 export const STARTING_GOLD = 500;
-export const INCOME_PER_CITY = 40;
+// Die Schatzkammer lebt von den Menschen, nicht von den Mauern: ein Ort wirft
+// nichts dafür ab, dass es ihn gibt, sondern nur für die, die in ihm wohnen.
+// Ein Gold je achtzig Einwohner und Runde - eine Große Stadt trägt damit
+// achtzig, ein Dorf siebzehn, und wer seine Orte wachsen lässt, verdient
+// daran. Vorher gab es dieselbe Abgabe je Ort, gleich wie viele darin lebten.
+export const TAX_PER_INHABITANTS = 80;
+
+// Was ein Ort an Steuer abwirft.
+export function cityTax(population) {
+  return Math.floor((population || 0) / TAX_PER_INHABITANTS);
+}
 // One garrison soldier is supportable per this many inhabitants, before a
 // faction's own levy tradition is taken into account.
 export const GARRISON_POP_RATIO = 8;

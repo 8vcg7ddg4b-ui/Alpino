@@ -72,6 +72,10 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       harbour: coastalOnMap(map, colOfLon(def.lon), rowOfLat(def.lat))
         && (!!def.capital || size === 'large'),
       harbourBuilding: null,
+      // Und eine Werft hat niemand geerbt: der Hafen kommt mit dem Ort, die
+      // Helling für Kriegsschiffe muss gebaut werden.
+      shipyard: false,
+      shipyardBuilding: null,
       // Ein Bergwerk hat niemand geerbt: wer eines will, schlägt es an.
       mine: false,
       mineBuilding: null,
@@ -186,6 +190,10 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   const ortsfelder = new Set(cities.map((c) => `${c.col},${c.row}`));
   for (const own of byFaction.values()) {
     const capital = own.find((c) => c.capital) || own[0];
+    // Genau eine Straße je Fraktion: die kürzeste, die von der Hauptstadt zu
+    // einer eigenen Stadt führt. Was sonst noch nahe liegt, verbindet der
+    // Spieler selbst - eine zweite Trasse ist eine Entscheidung, kein Erbe.
+    let kuerzeste = null;
     for (const city of own) {
       if (city === capital || city.size === 'village') continue;
       if (!gleicheLandmasse(capital, city)) continue;
@@ -199,8 +207,10 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       meiden.delete(`${city.col},${city.row}`);
       const route = landRoute(map, capital, city, roads, meiden);
       if (!route || route.length - 1 > START_ROAD_MAX_TILES) continue;
-      markRoute(route);
+      if (kuerzeste && route.length >= kuerzeste.length) continue;
+      kuerzeste = route;
     }
+    if (kuerzeste) markRoute(kuerzeste);
   }
 
   const state = {

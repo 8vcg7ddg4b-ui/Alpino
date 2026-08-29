@@ -8,8 +8,8 @@ import {
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
   TRANSPORT_NAME, transportCount,
   RIVER_CROSSING_COST,
-  HARBOUR_COST, HARBOUR_TURNS,
-  MINE_NAME, MINE_COST, MINE_TURNS, MINE_MIN_ORE, mineIncome,
+  HARBOUR_COST, HARBOUR_TURNS, SHIPYARD_NAME, SHIPYARD_COST, SHIPYARD_TURNS,
+  MINE_NAME, MINE_COST, MINE_TURNS, MINE_MIN_ORE, mineIncome, TAX_PER_INHABITANTS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
   tileImpassable, tileMoveCost, tileAltitude, PASSABLE_ALTITUDE,
   levyStrength,
@@ -399,8 +399,7 @@ export function setCityTab(tab) {
 // kann, warum eine Große Stadt mehr wert ist als zwei Dörfer.
 function incomeLineHTML(state, city) {
   const income = cityIncome(state, city);
-  const parts = [`Siedlung ${income.settlement}`];
-  if (income.people) parts.push(`Einwohner ${income.people}`);
+  const parts = [`Steuer ${income.people}`];
   if (income.wonders) parts.push(`Bauwerk ${income.wonders}`);
   if (income.trade) parts.push(`Handel ${income.trade}`);
   if (income.mine) parts.push(`${MINE_NAME} ${income.mine}`);
@@ -450,7 +449,7 @@ function foreignCityHTML(state, city, intel) {
     ['Rang', `${settlementLabel(city)}${city.capital ? ' · Hauptstadt' : ''}`],
     ['Herr', faction.name],
     ['Befestigung', level ? `${wallLevelInfo(level).icon} ${wallLevelName(level)}` : 'offen'],
-    ['Hafen', city.harbour ? '⚓ vorhanden' : 'keiner'],
+    ['Hafen', city.harbour ? `⚓ vorhanden${city.shipyard ? ' · 🔨 Werft' : ''}` : 'keiner'],
     ['Besatzung', intel === 'scouted'
       ? `${roughly(total, 50)} Mann · ${garrisonWord(total)}`
       : garrisonWord(total)],
@@ -534,6 +533,7 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
       ${cityWallLevel(city)
     ? `${wallLevelInfo(cityWallLevel(city)).icon} ${wallLevelName(cityWallLevel(city))}`
     : 'Keine Befestigung'} · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}${
+  city.shipyard ? ` · 🔨 ${SHIPYARD_NAME}` : ''}${
   city.mine ? ` · ⛏️ ${MINE_NAME}` : ''}</p>
     ${roadStatusHTML(state, city)}
     <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>`;
@@ -542,6 +542,7 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
     ${wallHTML(city, isMine, player)}
     ${mineHTML(state, city, isMine, player)}
     ${harbourHTML(state, city, isMine, player)}
+    ${shipyardHTML(city, isMine, player)}
     ${fleetHTML(city, isMine, player)}
     ${roadHTML(state, city, isMine, player)}
     ${recruitHTML}`;
@@ -659,8 +660,33 @@ function mineHTML(state, city, isMine, player) {
 // Im Hafen liegt die Werft: hier entstehen Kriegsschiffe, die als eigene
 // Flotte auslaufen - kein Transport für ein Heer, sondern ein Verband, der das
 // Meer selbst hält.
+// Die Werft: Bedingung für jedes Kriegsschiff. Sie steht im Bauen-Reiter
+// zwischen Hafen und Flottenbau, weil sie genau dazwischen gehört.
+function shipyardHTML(city, isMine, player) {
+  if (!city.harbour) return '';
+  if (city.shipyard) {
+    return `<p class="wall-line wall-done">🔨 ${SHIPYARD_NAME}
+      <span class="muted">· hier laufen Kriegsschiffe vom Stapel</span></p>`;
+  }
+  if (city.shipyardBuilding) {
+    const left = city.shipyardBuilding.turnsLeft;
+    const done = SHIPYARD_TURNS - left;
+    return `<p class="wall-line wall-building">🏗️ ${SHIPYARD_NAME} im Bau –
+      noch ${left} ${left === 1 ? 'Runde' : 'Runden'}
+      <span class="wall-track"><span class="wall-fill" style="width:${(done / SHIPYARD_TURNS) * 100}%"></span></span>
+    </p>`;
+  }
+  if (!isMine) return `<p class="wall-line muted">🔨 Keine ${SHIPYARD_NAME}</p>`;
+  const tooPoor = player.gold < SHIPYARD_COST;
+  return `<button class="shipyard-btn" ${tooPoor ? 'disabled' : ''}>
+      🔨 ${SHIPYARD_NAME} bauen – ${SHIPYARD_COST} Gold
+      <small>${SHIPYARD_TURNS} Runden · ohne sie läuft hier kein Kriegsschiff vom
+        Stapel; Truppen an Bord gehen auch ohne sie${tooPoor ? ' · zu wenig Gold' : ''}</small>
+    </button>`;
+}
+
 function fleetHTML(city, isMine, player) {
-  if (!isMine || !city.harbour) return '';
+  if (!isMine || !city.harbour || !city.shipyard) return '';
   // Bis zu drei Bauarten je Fraktion, und die Werft baut die, die man wählt.
   // Die erste ist die, mit der dieses Reich in den Krieg zieht; die anderen
   // sind billiger oder schneller, aber nicht besser.
@@ -1266,7 +1292,6 @@ export function empireHTML(state) {
       <td>${escapeHTML(city.name)} <span class="emp-marks">${marks}</span></td>
       <td>${settlementLabel(city)}</td>
       <td class="emp-num">${city.population.toLocaleString('de-DE')}</td>
-      <td class="emp-num">${entry.settlement}</td>
       <td class="emp-num">${entry.people}</td>
       <td class="emp-num">${entry.wonders || '–'}</td>
       <td class="emp-num">${entry.trade || '–'}</td>
@@ -1295,14 +1320,13 @@ export function empireHTML(state) {
     <table class="emp-table">
       <thead><tr>
         <th>Ort</th><th>Rang</th><th class="emp-num">Einwohner</th>
-        <th class="emp-num">Siedlung</th><th class="emp-num">Einwohner</th>
+        <th class="emp-num">Steuer</th>
         <th class="emp-num">Bauwerk</th><th class="emp-num">Handel</th>
         <th class="emp-num">Bergwerk</th><th class="emp-num">Summe</th>
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr>
         <td colspan="3">${cities.length} ${cities.length === 1 ? 'Ort' : 'Orte'}</td>
-        <td class="emp-num">${cities.reduce((s, e) => s + e.income.settlement, 0)}</td>
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.people, 0)}</td>
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.wonders, 0) || '–'}</td>
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.trade, 0) || '–'}</td>
@@ -1313,10 +1337,11 @@ export function empireHTML(state) {
 
     ${held.length ? `<p class="emp-note">${held.map((w) =>
     `${w.wonder ? '🏛️' : '🗿'} ${escapeHTML(w.name)}`).join(' · ')}</p>` : ''}
-    <p class="emp-note muted">Die Spalte „Siedlung" ist die Abgabe des Orts nach seinem Rang,
-      „Einwohner" trägt je 200 Einwohner ein Gold bei, „Bauwerk" ein Weltwunder oder
-      Wahrzeichen in seiner Nähe, „Handel" die Wege, die von hier ausgehen und
-      „Bergwerk", was der Berg im Umland hergibt.
+    <p class="emp-note muted">Die Spalte „Steuer" ist das, was die Einwohner tragen –
+      ein Gold je ${TAX_PER_INHABITANTS} Einwohner und Runde; dafür, dass es einen Ort
+      gibt, zahlt niemand etwas. „Bauwerk" ist ein Weltwunder oder Wahrzeichen in
+      seiner Nähe, „Handel" sind die Wege, die von hier ausgehen, und „Bergwerk"
+      ist, was der Berg im Umland hergibt.
       Der Sold wird beim Rundenwechsel vom Schatz abgezogen.</p>`;
 }
 
@@ -1382,6 +1407,8 @@ export function renderUI(state, handlers) {
       if (harbourBtn) harbourBtn.addEventListener('click', () => handlers.onBuyHarbour(city.id));
       const mineBtn = panel.querySelector('.mine-btn:not([disabled])');
       if (mineBtn) mineBtn.addEventListener('click', () => handlers.onBuyMine(city.id));
+      const yardBtn = panel.querySelector('.shipyard-btn:not([disabled])');
+      if (yardBtn) yardBtn.addEventListener('click', () => handlers.onBuyShipyard(city.id));
       panel.querySelectorAll('.fleet-btn:not([disabled])').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onBuildFleet(city.id, btn.dataset.ship));
       });

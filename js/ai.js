@@ -1,6 +1,6 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost, shipTypesOf,
-  wallLevelInfo, TRADE_ROUTE_COST, MINE_COST,
+  wallLevelInfo, TRADE_ROUTE_COST, MINE_COST, SHIPYARD_COST,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
@@ -8,7 +8,7 @@ import {
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
   buyHarbour, canBuildHarbour, buildFleet, raiseIndependentArmies,
   buyCityWalls, nextWallLevel, tradePartners, openTradeRoute,
-  canBuildMine, buyMine, mineOre,
+  canBuildMine, buyMine, mineOre, buyShipyard,
 } from './actions.js';
 import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
@@ -345,7 +345,17 @@ function aiNavy(state, faction) {
   const fleets = state.armies.filter((a) => a.factionId === faction.id && isFleet(a)).length;
   const coastal = state.cities.filter((c) => c.factionId === faction.id && isCoastalCity(state, c));
   if (fleets >= Math.max(1, Math.round(coastal.length / 3))) return;
-  buildFleet(state, harbours[Math.floor(Math.random() * harbours.length)].id, ship.key);
+  // Ohne Helling kein Kiel: steht noch keine Werft, wird zuerst die gebaut -
+  // eine je Fraktion genügt, sie liegt am besten im größten Hafen.
+  const werften = harbours.filter((c) => c.shipyard);
+  if (!werften.length) {
+    if (harbours.some((c) => c.shipyardBuilding)) return;
+    if (faction.gold < SHIPYARD_COST + AI_TREASURY_FLOOR) return;
+    const platz = harbours.reduce((a, b) => (b.population > a.population ? b : a));
+    buyShipyard(state, platz.id);
+    return;
+  }
+  buildFleet(state, werften[Math.floor(Math.random() * werften.length)].id, ship.key);
 }
 
 // How close an enemy army has to be before a settlement counts as threatened.

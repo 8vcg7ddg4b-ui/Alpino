@@ -370,6 +370,14 @@ den Punkten durchblättern.
   Küstenstadt muss ihn bauen. Erobert man eine Stadt, übernimmt man ihren
   Hafen. Am Ufer steht dann ein Steg mit vertäutem Boot, damit man von weitem
   sieht, wo eine Flotte auslaufen kann.
+- **Werft**: Ein Hafen ist ein Kai, an dem etwas anlegt – ein Kriegsschiff
+  entsteht dort nicht. Dafür braucht es eine Helling, Bauholz, Pech, Werg und
+  Leute, die es können: die **Werft** kostet **350 Gold** und **3 Runden**,
+  setzt einen Hafen voraus und ist **Bedingung für jedes Kriegsschiff**.
+  Niemand beginnt mit einer. Ein Heer auf gecharterten Transportern geht
+  weiterhin an jedem Hafen an Bord – die Werft braucht nur, wer eine eigene
+  Flotte bauen will. Ohne sie zeigt der Bauen-Reiter statt der Bauarten den
+  Werftbau; steht sie, erscheinen die bis zu drei Bauarten der Fraktion.
 - **Bergwerk**: Die beste Einnahmequelle, die ein Ort haben kann – und die
   einzige, die weder an seiner Größe noch an seinen Einwohnern hängt, sondern
   allein an dem, was im Berg liegt. Gerechnet wird über ein Quadrat von **zwei
@@ -510,19 +518,19 @@ den Punkten durchblättern.
   die Bewegung zählt er trotzdem. Fällt einer der beiden Orte an den Feind,
   wird der Bau abgebrochen.
 
-  **Das Startnetz ist bewusst dünn**: gepflastert ist nur, was **nahe
-  beieinanderliegt und kein Meer dazwischen hat** – der kurze Weg von der
-  Hauptstadt jeder Fraktion zu ihren eigenen **Städten**, höchstens acht Felder
-  lang (gut 440 km) und nur auf derselben Landmasse. Keine Straße zwischen zwei
-  Städten, die nicht über die Hauptstadt liefe; **kein Dorf** ist angebunden
-  und **kein unabhängiger Ort** – dorthin ist die erste Straße Sache dessen,
-  der sie will. Gemessen wird der gelaufene Weg, nicht die Luftlinie: zwischen
-  Athen und Pergamon liegen acht Felder und die halbe Ägäis, zwischen Ekbatana
-  und Susa sechs Felder und der Zagros – beide bleiben ohne Straße. Damit eine
-  Trasse nicht nebenbei ein Dorf anschließt, meidet die Wegsuche beim Aufbau
-  die Felder fremder Orte: sie sind nicht gesperrt, nur teuer. In Zahlen:
-  23 von 32 Städten hängen an ihrer Hauptstadt, 0 von 32 Dörfern und 0 von 18
-  unabhängigen Orten haben eine Straße; 118 Straßenfelder liegen auf der Karte.
+  **Das Startnetz ist eine einzige Straße je Fraktion**: die kürzeste, die von
+  der Hauptstadt zu einer eigenen **Stadt** führt – höchstens acht Felder lang
+  (gut 440 km), auf derselben Landmasse und ohne Meer dazwischen. Was sonst
+  noch nahe liegt, verbindet der Spieler selbst; eine zweite Trasse ist eine
+  Entscheidung, kein Erbe. **Kein Dorf** ist angebunden und **kein
+  unabhängiger Ort**. Gemessen wird der gelaufene Weg, nicht die Luftlinie:
+  zwischen Athen und Pergamon liegen acht Felder und die halbe Ägäis, zwischen
+  Ekbatana und Susa sechs Felder und der Zagros. Damit eine Trasse nicht
+  nebenbei ein Dorf anschließt, meidet die Wegsuche beim Aufbau die Felder
+  fremder Orte: sie sind nicht gesperrt, nur teuer. In Zahlen: 15 der 16
+  Fraktionen beginnen mit genau einer Straße (den Sarmaten liegt keine eigene
+  Stadt nahe genug), kein Dorf und kein unabhängiger Ort hängt daran, und auf
+  der ganzen Karte liegen **73 Straßenfelder**.
 - **Bewegung wird in Punkten gerechnet, nicht in Feldern**: offene Ebene kostet
   3, gebrochenes Gelände – Wald, Hügel, Wüste – das Doppelte, eine gepflasterte
   Straße 2, und ein Heer hat 18 Punkte je Runde. Das sind sechs Felder Ebene,
@@ -566,12 +574,16 @@ den Punkten durchblättern.
   gerammt – was ein Trupp Pioniere an einem Tag hinbekommt. Zu Spielbeginn tragen die
   Startstraßen acht solcher Übergänge. Ein Rechtsklick sagt für jedes Feld, auf
   welchen Seiten ein Fluss liegt und wo eine Brücke hinüberführt.
-- **Einnahmen jedes Orts** stehen in seiner Anzeige, aufgeschlüsselt nach dem,
-  was die Siedlung selbst abwirft (40 Gold, mal 1,7 für eine Große Stadt, mal
-  0,5 für ein Dorf), was ihre Einwohner darüber hinaus tragen (je 200 Einwohner
-  ein Gold) und was ein Weltwunder vor ihren Toren einbringt. Dieselbe Rechnung
-  läuft in der Rundenabrechnung – es gibt nur eine Wahrheit darüber, was eine
-  Stadt wert ist.
+- **Die Schatzkammer lebt von den Menschen, nicht von den Mauern**: Ein Ort
+  wirft nichts dafür ab, dass es ihn gibt. Was er trägt, ist die **Steuer
+  seiner Einwohner – ein Gold je 80 Einwohner und Runde**; dazu kommt, was ein
+  Weltwunder vor seinen Toren, ein Handelsweg von ihm aus und ein Bergwerk in
+  seinem Umland einbringen. Eine Große Stadt mit 6400 Einwohnern trägt damit
+  80 Gold, ein Dorf mit 1400 siebzehn – und wer seine Orte wachsen lässt,
+  verdient daran. Vorher gab es dieselbe Abgabe je Ort, gleich wie viele darin
+  lebten; ein Reich nahm zu Beginn 274 Gold je Runde ein, jetzt 206.
+  Dieselbe Rechnung läuft in der Rundenabrechnung – es gibt nur eine Wahrheit
+  darüber, was eine Stadt wert ist.
 - **Das Stadtfenster hat drei Reiter**: **Infos** – Rang, Bevölkerung,
   Einnahmen, Stadtwache, Bauwerke, Befestigung, Garnison –, **Bauen**:
   Mauern, Hafen, Flotte, Straßen, Rekrutierung und Aushebung – und **Handel**:
@@ -749,13 +761,19 @@ den Punkten durchblättern.
   Schwarzen Meeres. Weite Wege, kaum Nachbarn, kaum Einkommen.
 - Die **Daker** halten die Karpaten um Sarmizegetusa – Bergland, das sich gut
   verteidigen lässt, mit der Donau als Sprungbrett nach Süden.
-- **98 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
-  Garnison, 1,7-faches Grundeinkommen), **Stadt** (Normalmaß) und **Dorf**
-  (klein, halbes Grundeinkommen – leicht zu nehmen und gute Sprungbretter).
-  **Jede Fraktion beginnt mit denselben fünf Orten**: der Hauptstadt als Große
-  Stadt, zwei Städten und zwei Dörfern. Wo einer sitzt, sagt die Geschichte; wie
-  viel er hat, sagt diese Regel – kein Reich beginnt reicher als das andere.
-  18 Orte gehören niemandem und sind frei zu erobern – von Gades bis Ankyra. Sizilien, Sardinien, Kreta, Zypern, Rhodos, die Balearen und
+- **107 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
+  Garnison), **Stadt** (Normalmaß) und **Dorf** (klein – leicht zu nehmen und
+  gute Sprungbretter). Was ein Ort trägt, hängt an seinen Einwohnern, nicht an
+  seinem Rang. **Jede Fraktion beginnt mit denselben fünf Orten**: der
+  Hauptstadt als Große Stadt, zwei Städten und zwei Dörfern. Wo einer sitzt,
+  sagt die Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt
+  reicher als das andere. **27 Orte gehören niemandem** und sind frei zu
+  erobern – von Gades bis Exopolis. Neun davon liegen im **Nordosten**, wo die
+  Karte bisher leer war: Kremnoi am Maiotischen See, Azagarion und Karrodounon
+  im Binnenland, Naubaris und Exopolis im asiatischen Sarmatien, Rha an dem
+  Strom, der bei Ptolemaios so heißt, und Pityus, Phasis und Harmozica in
+  Kolchis und Iberien – Namen aus Herodot, Strabon und Ptolemaios, wie Amadoka
+  und Tanais auch. Sizilien, Sardinien, Kreta, Zypern, Rhodos, die Balearen und
   Britannien sind nur mit Schiffen erreichbar.
 - **Gelände**: Ebene, Wald und Hügel wie bisher, dazu die **Wüste** – die
   Sahara und das arabische Binnenland sind zäh zu durchqueren und halten den

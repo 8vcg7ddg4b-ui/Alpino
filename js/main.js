@@ -18,6 +18,7 @@ import {
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, advanceRoadConstruction, buyHarbour, advanceHarbourConstruction, buildFleet,
   buyMine, advanceMineConstruction, mineIncomeOf,
+  buyShipyard, advanceShipyardConstruction,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations,
 } from './actions.js';
 import {
@@ -1203,6 +1204,12 @@ function refresh() {
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
+    onBuyShipyard: (cityId) => {
+      pushUndo();
+      const ok = buyShipyard(state, cityId).ok;
+      (ok ? sfx.wallBuy : sfx.denied)();
+      refresh();
+    },
     onBuildFleet: (cityId, kind) => {
       pushUndo();
       const result = buildFleet(state, cityId, kind || null);
@@ -1280,6 +1287,7 @@ function endTurn() {
   const roadsDone = advanceRoadConstruction(state);
   const harboursDone = advanceHarbourConstruction(state);
   const minesDone = advanceMineConstruction(state);
+  const yardsDone = advanceShipyardConstruction(state);
   // The season that just passed is what wore the armies down; the next one is
   // rolled once the turn has actually turned.
   applyWeather(state);
@@ -1315,7 +1323,7 @@ function endTurn() {
     else if (myEvent) showEvent(myEvent);
   }
 
-  if (roadsDone.length || harboursDone.length || minesDone.length
+  if (roadsDone.length || harboursDone.length || minesDone.length || yardsDone.length
     || (wallsBuilding && state.cities.filter((c) => c.wallBuilding).length < wallsBuilding)) {
     sfx.wallDone();
   }

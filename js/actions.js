@@ -1,6 +1,6 @@
 import {
   UNIT_ROLES, GARRISON_ROLES, COMBAT_ROLES, WATCH_ROLE, watchTarget, watchGrowth,
-  unitDef, MAX_MOVEMENT, INCOME_PER_CITY,
+  unitDef, MAX_MOVEMENT, cityTax,
   RECRUIT_BATCH, TILE_TYPES, settlementTier, garrisonCapacity,
   MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
   MORALE_REST, MORALE_REST_IN_CITY, EXHAUSTION_PER_MOVE, EXHAUSTION_REST,
@@ -15,6 +15,7 @@ import {
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
   HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
   MINE_NAME, MINE_COST, MINE_TURNS, MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
+  SHIPYARD_NAME, SHIPYARD_COST, SHIPYARD_TURNS,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
   FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
@@ -797,11 +798,13 @@ export function buildFleet(state, cityId, kind = null) {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city) return { ok: false };
   if (!city.harbour) return { ok: false, reason: 'noHarbour' };
+  // Ohne Helling kein Kiel: die Werft ist Bedingung für jedes Kriegsschiff.
+  if (!city.shipyard) return { ok: false, reason: 'noShipyard' };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
   const bauarten = shipTypesOf(city.factionId);
   const ship = (kind && bauarten.find((t) => t.key === kind)) || bauarten[0];
-  if (!ship) return { ok: false, reason: 'noYard' };
+  if (!ship) return { ok: false, reason: 'keineBauart' };
   // Eine Werft baut nur, was ihre Leute bauen können.
   if (kind && ship.key !== kind) return { ok: false, reason: 'fremdeBauart' };
   if (faction.gold < ship.cost) return { ok: false, reason: 'gold' };
@@ -1155,6 +1158,46 @@ export function buyHarbour(state, cityId) {
   city.harbourBuilding = { turnsLeft: HARBOUR_TURNS };
   logOwn(state, faction.id, `${city.name}: Bau eines ${HARBOUR_NAME}s begonnen (${HARBOUR_TURNS} Runden).`);
   return { ok: true };
+}
+
+// --- Werft -----------------------------------------------------------------
+// Sie setzt einen Hafen voraus: wo nichts anlegt, wird auch nichts gebaut.
+export function canBuildShipyard(state, city) {
+  if (!city || city.factionId === 'neutral') return false;
+  if (city.shipyard || city.shipyardBuilding) return false;
+  return !!city.harbour;
+}
+
+export function buyShipyard(state, cityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false };
+  if (city.shipyard) return { ok: false, reason: 'done' };
+  if (city.shipyardBuilding) return { ok: false, reason: 'building' };
+  if (!city.harbour) return { ok: false, reason: 'noHarbour' };
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  if (faction.gold < SHIPYARD_COST) return { ok: false, reason: 'gold' };
+
+  faction.gold -= SHIPYARD_COST;
+  city.shipyardBuilding = { turnsLeft: SHIPYARD_TURNS };
+  logOwn(state, faction.id, `${city.name}: Die Helling für eine ${SHIPYARD_NAME} `
+    + `wird gelegt (${SHIPYARD_TURNS} Runden).`);
+  return { ok: true };
+}
+
+export function advanceShipyardConstruction(state) {
+  const finished = [];
+  for (const city of state.cities) {
+    if (!city.shipyardBuilding) continue;
+    city.shipyardBuilding.turnsLeft -= 1;
+    if (city.shipyardBuilding.turnsLeft > 0) continue;
+    city.shipyard = true;
+    city.shipyardBuilding = null;
+    finished.push(city);
+    logOwn(state, city.factionId, `🔨 Die ${SHIPYARD_NAME} von ${city.name} steht: `
+      + 'hier laufen von nun an Kriegsschiffe vom Stapel.');
+  }
+  return finished;
 }
 
 // --- Bergwerk --------------------------------------------------------------
@@ -1565,16 +1608,17 @@ export function pruneTradeRoutes(state) {
 // Dieselbe Rechnung steht in der Seitenleiste und in der Rundenabrechnung -
 // es soll nicht zwei Wahrheiten darüber geben, was eine Stadt wert ist.
 export function cityIncome(state, city) {
-  const settlement = INCOME_PER_CITY * settlementTier(city.size).incomeFactor;
-  const people = Math.floor(city.population / 200);
+  // Die Steuer der Einwohner ist die Grundlage: ein Ort wirft nichts dafür ab,
+  // dass es ihn gibt, sondern nur für die, die in ihm wohnen.
+  const people = cityTax(city.population);
   const wonders = wondersOfCity(state, city.id).reduce((sum, w) => sum + w.income, 0);
   const trade = tradeIncomeOf(state, city);
   // Das Bergwerk trägt für sich: es hängt weder an der Größe des Orts noch an
   // seinen Einwohnern, sondern allein an dem, was im Berg liegt.
   const mine = mineIncomeOf(state, city);
   return {
-    settlement, people, wonders, trade, mine,
-    total: settlement + people + wonders + trade + mine,
+    people, wonders, trade, mine,
+    total: people + wonders + trade + mine,
   };
 }
 
