@@ -169,6 +169,28 @@ den Punkten durchblättern.
 
 ## Bedienung
 
+- **Die Kopfzeile**: links Titel, Runde, Wetter und Schatz, rechts der Knopf
+  „Runde beenden". Dazwischen stehen die vier Werkzeuge, die man jede Runde
+  braucht – ↩ **Rückgängig**, 🏛 **Reich**, 🕊 **Diplomatie**, 🗺 **Taktische
+  Sicht** –, und dahinter ☰ mit dem Rest: ◫ Grenzen, ⇥ Seitenleiste,
+  ⛶ Vollbild, 🔊 Ton, ⚙ Einstellungen, 🏳 Feldzug beenden. In der Klappliste
+  trägt jedes Werkzeug seinen Namen; was gerade an ist, steht in Gold.
+  **Wird der Schirm schmal (unter 1150 Punkten), wandern auch die vier in die
+  Liste** – verschoben werden dabei die Knöpfe selbst, nicht Kopien von ihnen.
+  So bleibt „Runde beenden" auf jeder Breite sichtbar; vorher schob die
+  Werkzeugreihe ihn unter 980 Punkten aus dem Bild.
+- **Tastenkürzel**: <kbd>Leertaste</kbd> beendet die Runde, <kbd>1</kbd> öffnet
+  das Reich, <kbd>2</kbd> die Diplomatie, <kbd>3</kbd> schaltet die taktische
+  Sicht um, <kbd>4</kbd> die Grenzen, <kbd>5</kbd> die Einstellungen,
+  <kbd>U</kbd> macht rückgängig, <kbd>M</kbd> schaltet den Ton.
+  <kbd>W A S D</kbd> und die Pfeiltasten schieben die Karte, <kbd>Q</kbd> und
+  <kbd>E</kbd> drehen sie, <kbd>Esc</kbd> schließt das oberste Fenster. Solange
+  ein Fenster offen steht, gehört ihm die Tastatur – die Leertaste beendet dann
+  keine Runde.
+- **Auf dem Telefon**: Die Kopfzeile bricht in zwei Zeilen um, statt etwas
+  abzuschneiden, und die Seitenleiste legt sich über die Karte statt neben sie.
+  Sie beginnt dort eingeklappt – ⇥ im Menü holt sie hervor. Vorher nahm sie von
+  430 Punkten Breite 260 für sich.
 - **Armee bewegen**: anklicken, dann ein grün markiertes Feld (freie Bewegung)
   oder ein rot markiertes Feld (Angriff) wählen. Die Armee marschiert sichtbar
   die gefundene Route entlang.

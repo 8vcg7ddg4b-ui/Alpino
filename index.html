@@ -83,6 +83,11 @@
           Holzpalisade, Große Holzpalisade, Steinmauer.</p>
         <p>Vor jedem Angriff zeigt die <strong>Kampfvorschau</strong> Siegchance und erwartete Verluste.</p>
         <p>In einer Hafenstadt kann eine Armee <strong>in See stechen</strong> und über das Meer angreifen.</p>
+        <p><strong>Tasten:</strong> <kbd>Leertaste</kbd> beendet die Runde ·
+          <kbd>1</kbd> Reich · <kbd>2</kbd> Diplomatie · <kbd>3</kbd> taktische Sicht ·
+          <kbd>4</kbd> Grenzen · <kbd>5</kbd> Einstellungen · <kbd>U</kbd> rückgängig ·
+          <kbd>M</kbd> Ton · <kbd>W A S D</kbd> und Pfeile schieben die Karte ·
+          <kbd>Q</kbd> <kbd>E</kbd> drehen sie · <kbd>Esc</kbd> schließt ein Fenster.</p>
       </div>
     </div>
 
@@ -131,24 +136,45 @@
       <div id="turnLabel" class="pill">Runde 1</div>
       <div id="weatherLabel" class="pill weather-pill" title="Wetter im gezeigten Ausschnitt"></div>
       <div id="goldLabel" class="pill">💰 0 Gold</div>
-      <button id="undoBtn" class="icon-btn" title="Letzten Zug rückgängig machen" disabled>↩</button>
-      <button id="mapModeBtn" class="icon-btn" title="Taktische Sicht: Gebiete nach Fraktionen">🗺</button>
-      <button id="empireBtn" class="icon-btn" title="Reichsübersicht: Orte, Einnahmen, Heere">🏛</button>
-      <button id="diploBtn" class="icon-btn" title="Diplomatie: Herrscher, Krieg und Frieden">🕊</button>
-      <button id="borderBtn" class="icon-btn" title="Grenzen der Herrschaftsgebiete ein- und ausblenden">◫</button>
-      <button id="settingsBtn" class="icon-btn" title="Einstellungen">⚙</button>
-      <button id="muteBtn" class="icon-btn" title="Ton an/aus">🔊</button>
-      <button id="sidebarBtn" class="icon-btn" title="Seitenleiste ein-/ausblenden">⇥</button>
-      <button id="quitBtn" class="icon-btn" title="Feldzug beenden – zurück zum Hauptmenü">🏳</button>
-      <button id="fullscreenBtn" class="icon-btn" title="Vollbildmodus">⛶</button>
-      <button id="endTurnBtn" class="end-turn">Runde beenden ▶</button>
+      <!-- Die vier Werkzeuge, die man jede Runde braucht, stehen offen in der
+           Leiste; alles Übrige liegt hinter dem ☰. Wird der Schirm schmal,
+           wandern auch die vier dorthin - dieselben Knöpfe, nur anders
+           angeordnet, nichts doppelt angelegt. -->
+      <div id="toolbar" role="group" aria-label="Werkzeuge">
+        <button id="undoBtn" class="icon-btn" title="Letzten Zug rückgängig machen (U)"
+          aria-label="Letzten Zug rückgängig machen" disabled><span class="btn-icon">↩</span><span class="btn-text">Rückgängig</span></button>
+        <button id="empireBtn" class="icon-btn" title="Reichsübersicht: Orte, Einnahmen, Heere (1)"
+          aria-label="Reichsübersicht"><span class="btn-icon">🏛</span><span class="btn-text">Reich</span></button>
+        <button id="diploBtn" class="icon-btn" title="Diplomatie: Herrscher, Krieg und Frieden (2)"
+          aria-label="Diplomatie"><span class="btn-icon">🕊</span><span class="btn-text">Diplomatie</span></button>
+        <button id="mapModeBtn" class="icon-btn" title="Taktische Sicht: Gebiete nach Fraktionen (3)"
+          aria-label="Taktische Sicht"><span class="btn-icon">🗺</span><span class="btn-text">Taktische Sicht</span></button>
+      </div>
+      <button id="menuBtn" class="icon-btn menu-toggle" title="Weitere Werkzeuge"
+        aria-label="Weitere Werkzeuge" aria-expanded="false" aria-controls="toolMenu">☰</button>
+      <div id="toolMenu" role="group" aria-label="Weitere Werkzeuge">
+        <button id="borderBtn" class="icon-btn" title="Grenzen der Herrschaftsgebiete ein- und ausblenden (4)"
+          aria-label="Grenzen anzeigen"><span class="btn-icon">◫</span><span class="btn-text">Grenzen</span></button>
+        <button id="sidebarBtn" class="icon-btn" title="Seitenleiste ein-/ausblenden"
+          aria-label="Seitenleiste ein- oder ausblenden"><span class="btn-icon">⇥</span><span class="btn-text">Seitenleiste</span></button>
+        <button id="fullscreenBtn" class="icon-btn" title="Vollbildmodus"
+          aria-label="Vollbildmodus"><span class="btn-icon">⛶</span><span class="btn-text">Vollbild</span></button>
+        <span class="tool-sep" aria-hidden="true"></span>
+        <button id="muteBtn" class="icon-btn" title="Ton an/aus (M)"
+          aria-label="Ton an oder aus"><span class="btn-icon">🔊</span><span class="btn-text">Ton</span></button>
+        <button id="settingsBtn" class="icon-btn" title="Einstellungen (5)"
+          aria-label="Einstellungen"><span class="btn-icon">⚙</span><span class="btn-text">Einstellungen</span></button>
+        <button id="quitBtn" class="icon-btn" title="Feldzug beenden – zurück zum Hauptmenü"
+          aria-label="Feldzug beenden"><span class="btn-icon">🏳</span><span class="btn-text">Feldzug beenden</span></button>
+      </div>
+      <button id="endTurnBtn" class="end-turn" title="Runde beenden (Leertaste)">Runde beenden ▶</button>
     </header>
 
     <main id="layout">
       <div id="mapWrap">
         <canvas id="gameCanvas"></canvas>
         <div id="weatherVeil" data-effect="clear" aria-hidden="true"></div>
-        <div id="mapHint">Ziehen verschiebt · Mausrad gedrückt schwenkt die Kamera (mit Umschalt verschiebt sie) · Rechtsklick zeigt das Feld · zwei Finger drehen und zoomen</div>
+        <div id="mapHint">Ziehen verschiebt · Mausrad gedrückt schwenkt die Kamera (mit Umschalt verschiebt sie) · Rechtsklick zeigt das Feld · <kbd>Leertaste</kbd> beendet die Runde</div>
         <div id="toast" class="hidden"></div>
         <!-- Rechtsklick auf ein Feld: nachschlagen, ohne etwas auszuwählen. -->
         <div id="tileInfo" class="hidden" role="dialog" aria-label="Feldauskunft">

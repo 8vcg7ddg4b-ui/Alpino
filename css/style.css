@@ -41,8 +41,8 @@ html, body {
 #topbar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 10px 16px;
+  gap: 10px;
+  padding: 8px 14px;
   background: linear-gradient(180deg, #3a2c1d, #241a10);
   border-bottom: 2px solid var(--gold);
 }
@@ -52,6 +52,10 @@ html, body {
   font-weight: bold;
   color: var(--gold);
   letter-spacing: 1px;
+  /* Der Titel darf nicht umbrechen: er zog die Kopfzeile sonst auf zwei
+     Zeilen auseinander und nahm der Karte zwanzig Punkte Höhe. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .brand small {
   font-size: 0.65rem;
@@ -66,6 +70,12 @@ html, body {
   border-radius: 999px;
   padding: 6px 14px;
   font-size: 0.9rem;
+  /* Wird es eng, gibt die Anzeige nach und kürzt ab - die Knöpfe daneben
+     dürfen nicht aus dem Bild geschoben werden. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .end-turn {
@@ -79,6 +89,10 @@ html, body {
   font-weight: bold;
   cursor: pointer;
   letter-spacing: 0.5px;
+  /* „Runde beenden ▶" gehört auf eine Zeile - umgebrochen zog es die ganze
+     Kopfzeile in die Höhe. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .end-turn:hover { filter: brightness(1.1); }
 .end-turn:active { transform: translateY(1px); }
@@ -789,14 +803,109 @@ html, body {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  font-size: 1.1rem;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .icon-btn:hover { border-color: var(--gold); }
 .icon-btn.active { background: var(--gold); color: #241a10; }
+
+/* Eine Taste im Fließtext: die Hilfe und der Kartenhinweis nennen sie, und
+   man soll sehen, dass eine Taste gemeint ist und kein Wort. */
+kbd {
+  font-family: inherit;
+  font-size: 0.85em;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+/* --- Werkzeugleiste ------------------------------------------------------ */
+/* Vier Werkzeuge stehen offen in der Leiste - die, die man jede Runde
+   braucht. Alles Übrige liegt hinter dem ☰ als Liste mit Namen. Wird der
+   Schirm schmal, wandern auch die vier dorthin: dieselben Knöpfe, nur anders
+   angeordnet. */
+#toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Ein feiner Strich trennt in der Liste, was die Ansicht angeht, von dem, was
+   das Spiel selbst angeht. */
+.tool-sep {
+  height: 1px;
+  background: rgba(212, 175, 55, 0.32);
+  margin: 2px 0;
+}
+
+/* Die Klappliste: sie hängt unter dem ☰ und ist die einzige Stelle, an der
+   ein Werkzeug seinen Namen trägt. */
+#toolMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 10px;
+  z-index: 40;
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 8px;
+  background: linear-gradient(180deg, #3a2c1d, #241a10);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+}
+#toolMenu.open { display: flex; }
+#toolMenu .icon-btn {
+  width: auto;
+  height: auto;
+  min-height: 38px;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-size: 1rem;
+}
+#toolMenu .btn-text {
+  display: inline;
+  font-family: inherit;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+/* In der Liste wäre eine ganz goldene Fläche zu laut - dort genügt der
+   goldene Rahmen, um zu sagen: das ist gerade an. */
+#toolMenu .icon-btn.active {
+  background: rgba(212, 175, 55, 0.14);
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+/* Der Name steht nur in der Klappliste. */
+.btn-text { display: none; }
+
+#topbar { position: relative; }
+
+@media (max-width: 1180px) {
+  #topbar { gap: 8px; padding: 8px 12px; }
+  .brand small { display: none; }
+  .pill { padding: 5px 10px; font-size: 0.82rem; }
+}
+
+/* Ab hier wandert auch die offene Reihe in die Liste: sonst schöbe sie den
+   wichtigsten Knopf des Spiels - „Runde beenden" - aus dem Bild. */
+@media (max-width: 1150px) {
+  #toolbar { display: none; }
+  #topbar .brand span { display: none; }
+}
 
 #mapControls {
   position: absolute;
@@ -935,9 +1044,42 @@ html, body {
 .start-help strong { color: var(--text); }
 
 @media (max-width: 800px) {
-  #sidebar { width: 260px; }
+  #sidebar { width: 280px; }
   .brand small { display: none; }
   .start-title { font-size: 2.4rem; letter-spacing: 3px; }
+}
+
+/* --- Auf dem Telefon ------------------------------------------------------ */
+/* Auf 430 Punkten Breite fraß die Seitenleiste die halbe Karte, und die
+   Kopfzeile schob den Knopf „Runde beenden" aus dem Bild. Beides ist hier
+   geregelt: die Leiste legt sich über die Karte statt neben sie, und sie
+   beginnt eingeklappt - wer sie braucht, holt sie über ⇥ aus dem Menü. */
+@media (max-width: 620px) {
+  /* Hier ist Breite knapp und Höhe reichlich: was nicht in eine Zeile passt,
+     rutscht in die zweite, statt abgeschnitten zu werden. */
+  #topbar { gap: 6px; padding: 6px 8px; flex-wrap: wrap; }
+  .pill { flex-shrink: 0; }
+  .brand { font-size: 1rem; }
+  #turnLabel, #weatherLabel, #goldLabel { font-size: 0.72rem; padding: 4px 8px; }
+  /* Das Wetter steht auch auf der Karte - in der Kopfzeile ist dafür kein
+     Platz mehr, wenn die Runde und der Schatz hineinsollen. */
+  #weatherLabel { display: none; }
+  .end-turn { padding: 8px 12px; font-size: 0.85rem; }
+
+  #layout { position: relative; }
+  #sidebar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(86vw, 320px);
+    z-index: 25;
+    box-shadow: -12px 0 30px rgba(0, 0, 0, 0.55);
+  }
+  /* Der Hinweistext zur Maussteuerung nützt am Finger nichts und lag über
+     dem Steuerkreuz. */
+  #mapHint { display: none; }
+  #sidebarTabs .tab-btn { padding: 6px 6px; font-size: 0.72rem; }
 }
 
 /* --- Seefahrt ------------------------------------------------------------ */

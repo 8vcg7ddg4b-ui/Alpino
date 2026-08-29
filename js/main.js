@@ -257,6 +257,71 @@ function showEmpire() {
   sfx.select();
 }
 
+// --- Werkzeugleiste --------------------------------------------------------
+// Ein Knopf trägt sein Zeichen und, wenn die Leiste aufgeklappt ist, seinen
+// Namen daneben. Wechselt das Zeichen - vom Lautsprecher zum durchgestrichenen,
+// von der Karte zum Gebirge -, darf die Beschriftung nicht mitverschwinden.
+function setButtonIcon(button, icon) {
+  const span = button.querySelector('.btn-icon');
+  if (span) span.textContent = icon;
+  else button.textContent = icon;
+}
+
+// Hinter dem ☰ liegt, was man selten braucht - und auf schmalem Schirm auch
+// das, wofür die Leiste keinen Platz mehr hat. Verschoben werden dabei die
+// Knöpfe selbst, nicht Kopien davon: ihre Klickbehandlung reist mit.
+const toolbarEl = document.getElementById('toolbar');
+const toolMenuEl = document.getElementById('toolMenu');
+const menuToggleEl = document.getElementById('menuBtn');
+// Die vier, die offen in der Leiste stehen, solange sie hineinpassen.
+const PRIMARY_TOOLS = ['undoBtn', 'empireBtn', 'diploBtn', 'mapModeBtn'];
+const wideBar = window.matchMedia('(min-width: 1151px)');
+
+function setToolMenuOpen(open) {
+  if (!toolMenuEl || !menuToggleEl) return;
+  toolMenuEl.classList.toggle('open', open);
+  menuToggleEl.classList.toggle('active', open);
+  menuToggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+// Räumt die vier Hauptwerkzeuge dorthin, wo sie hingehören: in die Leiste,
+// solange sie breit genug ist, sonst an den Anfang der Klappliste.
+function arrangeTools() {
+  if (!toolbarEl || !toolMenuEl) return;
+  const inDerLeiste = wideBar.matches;
+  const knoepfe = PRIMARY_TOOLS.map((id) => document.getElementById(id)).filter(Boolean);
+  if (inDerLeiste) {
+    for (const button of knoepfe) toolbarEl.appendChild(button);
+  } else {
+    // Rückwärts einfügen, damit die Reihenfolge stimmt.
+    for (const button of [...knoepfe].reverse()) {
+      toolMenuEl.insertBefore(button, toolMenuEl.firstChild);
+    }
+  }
+}
+
+function setupToolbar() {
+  if (!toolMenuEl || !menuToggleEl) return;
+  arrangeTools();
+  if (wideBar.addEventListener) wideBar.addEventListener('change', arrangeTools);
+  else if (wideBar.addListener) wideBar.addListener(arrangeTools);
+  menuToggleEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setToolMenuOpen(!toolMenuEl.classList.contains('open'));
+    sfx.select();
+  });
+  // Ein Werkzeug gewählt: die Liste geht zu, damit man sieht, was es tat.
+  toolMenuEl.addEventListener('click', (e) => {
+    if (e.target.closest('.icon-btn')) setToolMenuOpen(false);
+  });
+  document.addEventListener('click', (e) => {
+    if (!toolMenuEl.classList.contains('open')) return;
+    if (e.target.closest('#toolMenu') || e.target.closest('#menuBtn')) return;
+    setToolMenuOpen(false);
+  });
+}
+setupToolbar();
+
 // --- Nachrichten aus der Diplomatie ----------------------------------------
 // Wenn ein Herrscher dir den Krieg erklärt, sollst du es nicht im Protokoll
 // entdecken, sondern gesagt bekommen. Meldungen, die andere betreffen, stehen
@@ -788,17 +853,30 @@ function setupSidebarTabs() {
   showSidebarTab('selection');
 }
 
+// Auf einem schmalen Schirm legt sich die Seitenleiste über die Karte statt
+// neben sie - offen bliebe von der Karte kaum etwas übrig. Sie beginnt deshalb
+// dort eingeklappt; ⇥ im Menü holt sie hervor.
+const NARROW_SCREEN = 620;
+
+function setSidebarCollapsed(collapsed) {
+  const button = document.getElementById('sidebarBtn');
+  appEl.classList.toggle('sidebar-collapsed', collapsed);
+  if (button) {
+    button.classList.toggle('active', collapsed);
+    // Nur das Zeichen wechselt - die Beschriftung daneben bleibt stehen.
+    setButtonIcon(button, collapsed ? '⇤' : '⇥');
+  }
+  // ResizeObserver picks the new size up, but resize now so the very next
+  // frame is already correct.
+  resizeScene();
+  render();
+}
+
 function setupSidebarToggle() {
   const button = document.getElementById('sidebarBtn');
   if (!button) return;
   button.addEventListener('click', () => {
-    const collapsed = appEl.classList.toggle('sidebar-collapsed');
-    button.classList.toggle('active', collapsed);
-    button.textContent = collapsed ? '⇤' : '⇥';
-    // ResizeObserver picks the new size up, but resize now so the very next
-    // frame is already correct.
-    resizeScene();
-    render();
+    setSidebarCollapsed(!appEl.classList.contains('sidebar-collapsed'));
   });
 }
 
@@ -828,10 +906,10 @@ function refreshMapModeButton() {
   if (!button) return;
   const tactical = getMapMode() === 'tactical';
   button.classList.toggle('active', tactical);
-  button.textContent = tactical ? '🏔️' : '🗺';
+  setButtonIcon(button, tactical ? '🏔️' : '🗺');
   button.title = tactical
-    ? 'Zurück zur Geländekarte'
-    : 'Taktische Sicht: Gebiete nach Fraktionen';
+    ? 'Zurück zur Geländekarte (3)'
+    : 'Taktische Sicht: Gebiete nach Fraktionen (3)';
 }
 
 // --- Chronik im Startbildschirm ------------------------------------------
@@ -934,8 +1012,8 @@ function refreshBorderButton() {
   const an = areBordersVisible();
   button.classList.toggle('active', an);
   button.title = an
-    ? 'Grenzen ausblenden'
-    : 'Grenzen der Herrschaftsgebiete einblenden';
+    ? 'Grenzen ausblenden (4)'
+    : 'Grenzen der Herrschaftsgebiete einblenden (4)';
 }
 
 function setupBorderButton() {
@@ -953,7 +1031,7 @@ function setupBorderButton() {
 function refreshMuteButton() {
   const button = document.getElementById('muteBtn');
   if (!button) return;
-  button.textContent = isMuted() ? '🔇' : '🔊';
+  setButtonIcon(button, isMuted() ? '🔇' : '🔊');
   button.classList.toggle('active', !isMuted());
 }
 
@@ -1578,6 +1656,8 @@ function startNewGame(factionId = chosenFaction) {
 
   if (getSetting('startMapMode') === 'tactical') setMapMode('tactical', state);
   refreshMapModeButton();
+  // Auf dem Telefon fängt die Karte mit voller Breite an.
+  if (window.innerWidth <= NARROW_SCREEN) setSidebarCollapsed(true);
 
   // The scene asks the game what the weather is wherever the camera looks, and
   // reports back so the topbar can name it.
@@ -1641,11 +1721,67 @@ window.addEventListener('keydown', (e) => {
   // is the browser's own way out of fullscreen, and that is a decision too.
   if (heraldOverlay && !heraldOverlay.classList.contains('hidden')) hideHerald();
   else if (eventOverlay && !eventOverlay.classList.contains('hidden')) hideEvent();
+  else if (diploNewsOverlay && !diploNewsOverlay.classList.contains('hidden')) hideDiploNews();
   else if (empireOverlay && !empireOverlay.classList.contains('hidden')) hideEmpire();
+  // Das Diplomatiefenster fehlte hier: es ließ sich nur über sein ✕ schließen,
+  // und solange es offen stand, ging kein Tastenkürzel mehr.
+  else if (diploOverlay && !diploOverlay.classList.contains('hidden')) hideDiplomacy();
   else if (!settingsOverlay.classList.contains('hidden')) hideSettings();
   else if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();
   else if (!reportOverlay.classList.contains('hidden')) hideBattleReport();
+  else if (!document.getElementById('quitOverlay').classList.contains('hidden')) {
+    hideQuitDialog();
+  }
   else if (document.fullscreenElement) wantsFullscreen = false;
+});
+
+// --- Tastenkürzel ----------------------------------------------------------
+// Wer einen Feldzug führt, klickt sonst jede Runde dieselben vier Knöpfe. Die
+// Zifferntasten öffnen die Fenster, die Leertaste beendet die Runde. Q/E
+// drehen die Karte und WASD schiebt sie - das macht input.js, deshalb bleiben
+// diese Buchstaben hier unberührt.
+const SHORTCUT_BUTTONS = {
+  1: 'empireBtn',
+  2: 'diploBtn',
+  3: 'mapModeBtn',
+  4: 'borderBtn',
+  5: 'settingsBtn',
+  u: 'undoBtn',
+  m: 'muteBtn',
+};
+
+// Steht ein Fenster offen, gehört die Tastatur ihm.
+const OVERLAY_IDS = [
+  'heraldOverlay', 'eventOverlay', 'empireOverlay', 'diploOverlay',
+  'diploNewsOverlay', 'settingsOverlay', 'battlePreview', 'battleReport',
+  'quitOverlay', 'gameOverOverlay',
+];
+
+function anyOverlayOpen() {
+  return OVERLAY_IDS.some((id) => {
+    const el = document.getElementById(id);
+    return el && !el.classList.contains('hidden');
+  });
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  // Nur auf der Karte, und nur wenn nichts darüber liegt.
+  if (appEl.classList.contains('hidden') || anyOverlayOpen()) return;
+
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    endTurn();
+    return;
+  }
+  const id = SHORTCUT_BUTTONS[e.key.toLowerCase()];
+  if (!id) return;
+  const button = document.getElementById(id);
+  if (!button || button.disabled) return;
+  e.preventDefault();
+  button.click();
 });
 
 document.getElementById('settingsClose').addEventListener('click', hideSettings);
