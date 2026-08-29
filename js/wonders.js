@@ -10,6 +10,7 @@
 // darauf - die Hängenden Gärten von Babylon lagen vorher jenseits des Randes.
 
 import { colOfLon, rowOfLat } from './geodata.js';
+import { riverEdgeKey } from './mapgen.js';
 import { TILE_TYPES } from './data.js';
 
 // Was ein Bauwerk der Fraktion einbringt, die den nächstgelegenen Ort hält.
@@ -188,6 +189,35 @@ function snapToLand(map, col, row) {
   return null;
 }
 
+// Ob zwischen zwei Feldern ein Fluss läuft. Felder außerhalb der Karte haben
+// keine Kante und damit auch keinen Fluss.
+function flussKante(map, ac, ar, bc, br) {
+  if (!map.rivers) return false;
+  if (ac < 0 || ac >= map.cols || bc < 0 || bc >= map.cols) return false;
+  if (ar < 0 || ar >= map.rows || br < 0 || br >= map.rows) return false;
+  return map.rivers.has(riverEdgeKey(ac, ar, bc, br));
+}
+
+// In welche Ecke seines Felds ein Bauwerk ausweicht, das sich das Feld mit
+// einer Stadt teilt. In einer Ecke laufen vier Feldkanten zusammen; führt auch
+// nur über eine davon ein Fluss, steht das Bauwerk im Wasser. Die Pyramiden
+// gehören auf die Wüstenterrasse westlich des Nils, nicht in den Strom - und
+// dorthin gehen sie von selbst, sobald man die Ecken abzählt.
+const ECKEN = [[1, -1], [-1, -1], [1, 1], [-1, 1]];
+
+function freieEcke(map, col, row) {
+  for (const [sx, sz] of ECKEN) {
+    const nx = col + sx;
+    const nz = row + sz;
+    const frei = !flussKante(map, col, row, nx, row)
+      && !flussKante(map, col, nz, nx, nz)
+      && !flussKante(map, col, row, col, nz)
+      && !flussKante(map, nx, row, nx, nz);
+    if (frei) return { sx, sz };
+  }
+  return { sx: 1, sz: -1 };
+}
+
 // Setzt die Bauwerke auf die Karte und schreibt jedem den Ort zu, der ihm am
 // nächsten liegt. Wem der Ort gehört, entscheidet sich später von Runde zu
 // Runde - der Besitz wechselt mit der Stadt, nicht mit dem Bauwerk.
@@ -210,6 +240,8 @@ export function placeWonders(map, cities) {
       model: def.model,
       // Reisen mit: die Szene weiß sonst nicht, ob ein Felsen darunter gehört.
       perch: AUF_FELS.has(def.id) ? 'fels' : 'ebene',
+      // Und in welche Ecke es rückt, wenn eine Stadt auf demselben Feld steht.
+      versatz: freieEcke(map, spot.col, spot.row),
       wonder: def.wonder,
       built: def.built,
       note: def.note,

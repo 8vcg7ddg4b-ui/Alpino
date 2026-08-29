@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.3.0';
+export const GAME_VERSION = '1.4.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -406,7 +406,7 @@ export const FACTIONS = [
 export const FACTION_PROFILES = {
   rom: {
     difficulty: 'mittel',
-    blurb: 'Vier Städte in Italien, kein Feind in acht Feldern und drei freie Städte vor der Tür.',
+    blurb: 'Fünf Orte in Italien – Roma, Capua, Arretium und Tarent als Tor nach Osten.',
     strength: 'Legionäre sind das zäheste Fußvolk der Karte.',
     weakness: 'Ein kleines Reich: alles Weitere muss erobert werden.',
   },
@@ -442,13 +442,13 @@ export const FACTION_PROFILES = {
   },
   gallier: {
     difficulty: 'schwer',
-    blurb: 'Sechs Städte in Gallien – und als Einzige drei feindliche Nachbarn zugleich. Dafür hebt der Heerbann zwei Heere aus.',
+    blurb: 'Fünf Orte in Gallien – und als Einzige drei feindliche Nachbarn zugleich. Dafür hebt der Heerbann zwei Heere aus.',
     strength: 'Schwertkämpfer mit dem härtesten Angriff unter dem Fußvolk – und zwei Heere, um an zwei Fronten zu stehen.',
     weakness: 'Kein Hafen, wenig freies Land, Feinde an drei Seiten.',
   },
   griechen: {
     difficulty: 'mittel',
-    blurb: 'Athen, Sparta, Pergamon: fünf Städte um die Ägäis, alle am Wasser.',
+    blurb: 'Athen, Sparta, Pergamon: fünf Orte um die Ägäis, alle am Wasser.',
     strength: 'Hopliten – die beste Verteidigung im Spiel.',
     weakness: 'Über das Meer verstreut: jede Stadt steht für sich.',
   },
@@ -462,41 +462,41 @@ export const FACTION_PROFILES = {
     difficulty: 'mittel',
     blurb: 'Die Insel gehört dir allein – niemand kommt ohne Schiffe herüber.',
     strength: 'Streitwagen: die stärkste Reiterei der Karte, und eine sichere Heimat.',
-    weakness: 'Keine Große Stadt, das niedrigste Einkommen, und jeder Krieg beginnt mit einer Überfahrt.',
+    weakness: 'Abseits von allem, und jeder Krieg beginnt mit einer Überfahrt.',
   },
   iberer: {
     difficulty: 'leicht',
-    blurb: 'Nur drei Städte, aber ganz Hispanien liegt offen und unbesetzt vor dir.',
+    blurb: 'Fünf Orte über die ganze Halbinsel verstreut – von Tarraco bis Olisipo, mit weiten Wegen dazwischen.',
     strength: 'Caetrati und Schleuderer: mehr Fernkampf als jede andere Fraktion.',
-    weakness: 'Zu Beginn wenig Einkommen und nur ein Ort am Meer.',
+    weakness: 'Weite Wege zwischen den eigenen Orten und Karthago Nova als Pfahl im Fleisch.',
   },
   daker: {
     difficulty: 'mittel',
-    blurb: 'Sarmizegetusa in den Karpaten, die Donau als Sprungbrett nach Süden.',
+    blurb: 'Sarmizegetusa in den Karpaten, Serdica jenseits der Donau als Sprungbrett nach Süden.',
     strength: 'Die Falx schlägt härter zu als jedes andere Fußvolk, das Bergland deckt den Rücken.',
     weakness: 'Kein einziger Ort am Meer: Schiffe wirst du nie stellen können.',
   },
   seleukiden: {
     difficulty: 'schwer',
-    blurb: 'Das größte Diadochenreich: sechs Städte von Kilikien bis an den Euphrat – und zwei Heere von Anfang an.',
+    blurb: 'Das Diadochenreich zwischen Orontes und Euphrat – fünf Orte, Babylon darunter, und zwei Heere von Anfang an.',
     strength: 'Kriegselefanten und die Silberschilde-Phalanx.',
     weakness: 'Die längsten Grenzen der Karte und die Ptolemäer im Süden.',
   },
   ptolemaeer: {
     difficulty: 'leicht',
-    blurb: 'Ägypten, Zypern, Koilesyrien und die Kyrenaika – sechs Städte um das reichste Tal der Welt.',
+    blurb: 'Ägypten, Koilesyrien und die Kyrenaika – fünf Orte um das reichste Tal der Welt.',
     strength: 'Nubische Bogenschützen, die besten der Karte, und billiges Fußvolk in Masse.',
-    weakness: 'Kaum Reiterei, und Zypern hängt allein am Meer.',
+    weakness: 'Kaum Reiterei, und die Kyrenaika liegt weit ab vom Niltal.',
   },
   illyrer: {
     difficulty: 'schwer',
-    blurb: 'Vier Orte an der Adria, zwischen den Bergen und dem Meer eingeklemmt.',
-    strength: 'Billige, angriffslustige Sicaträger – und jeder Ort liegt am Wasser.',
+    blurb: 'Fünf Orte an der Adria und an der Save, zwischen den Bergen und dem Meer eingeklemmt.',
+    strength: 'Billige, angriffslustige Sicaträger – und fast jeder Ort liegt am Wasser.',
     weakness: 'Wenig Land, wenig Einkommen, und Rom, Griechen und Daker als Nachbarn.',
   },
   sarmaten: {
     difficulty: 'mittel',
-    blurb: 'Die Steppe nördlich des Schwarzen Meeres: vier Orte, weite Wege und kaum ein Nachbar in Reichweite.',
+    blurb: 'Die Steppe nördlich des Schwarzen Meeres: fünf Orte, weite Wege und kaum ein Nachbar in Reichweite.',
     strength: 'Kataphrakten – die stärkste Reiterei der Karte – und berittene Bogenschützen dazu.',
     weakness: 'Teure Reiterei, schwaches Fußvolk und ein Land, das kaum etwas einbringt.',
   },
@@ -555,20 +555,28 @@ export function settlementTier(size) {
 // Settlements sit at the coordinates of the real towns; mapgen.js turns those
 // into tiles. `size` picks a tier above; capitals are the seat of a faction
 // and are fortified from the first turn.
+// Jede Fraktion beginnt mit fünf Orten: der Hauptstadt als Großer Stadt, zwei
+// Städten und zwei Dörfern. Wo einer sitzt, sagt die Geschichte; wie viel er
+// hat, sagt diese Regel. Kein Reich beginnt reicher als das andere - was sich
+// eines herausnimmt, muss es sich nehmen. Alles Übrige auf der Karte ist
+// unabhängig und wartet darauf, dass jemand danach greift.
 export const CITY_DEFS = [
   // --- Rom: Italien -------------------------------------------------------
   { name: 'Roma', lon: 12.48, lat: 41.90, factionId: 'rom', capital: true, size: 'large' },
   { name: 'Capua', lon: 14.25, lat: 41.08, factionId: 'rom', capital: false, size: 'city' },
   { name: 'Arretium', lon: 11.88, lat: 43.46, factionId: 'rom', capital: false, size: 'city' },
   { name: 'Ravenna', lon: 12.20, lat: 44.42, factionId: 'rom', capital: false, size: 'village' },
+  // Tarent kam 272 v. Chr. an Rom - der Hafen im Stiefelabsatz, von dem aus
+  // eine Flotte nach Osten übersetzt.
+  { name: 'Tarentum', lon: 17.24, lat: 40.47, factionId: 'rom', capital: false, size: 'village' },
   // --- Karthago: Nordafrika ----------------------------------------------
   { name: 'Karthago', lon: 10.32, lat: 36.85, factionId: 'karthago', capital: true, size: 'large' },
   { name: 'Hadrumetum', lon: 10.64, lat: 35.83, factionId: 'karthago', capital: false, size: 'city' },
-  { name: 'Tingis', lon: -5.81, lat: 35.78, factionId: 'karthago', capital: false, size: 'village' },
-  { name: 'Leptis Magna', lon: 14.29, lat: 32.64, factionId: 'karthago', capital: false, size: 'village' },
   // Karthagos Brückenkopf in Iberien: die Silberminen der Halbinsel und der
   // Hafen, von dem aus ein Heer nach Norden zieht statt über die See.
   { name: 'Karthago Nova', lon: -0.98, lat: 37.60, factionId: 'karthago', capital: false, size: 'city' },
+  { name: 'Tingis', lon: -5.81, lat: 35.78, factionId: 'karthago', capital: false, size: 'village' },
+  { name: 'Leptis Magna', lon: 14.29, lat: 32.64, factionId: 'karthago', capital: false, size: 'village' },
   // --- Numidien: das Reiterland westlich von Karthago --------------------
   { name: 'Cirta', lon: 6.61, lat: 36.37, factionId: 'numidien', capital: true, size: 'large' },
   // Hippo Regius heißt "das königliche Hippo", weil dort die numidischen
@@ -601,7 +609,6 @@ export const CITY_DEFS = [
   { name: 'Lutetia', lon: 2.35, lat: 48.86, factionId: 'gallier', capital: false, size: 'city' },
   { name: 'Tolosa', lon: 1.44, lat: 43.60, factionId: 'gallier', capital: false, size: 'village' },
   { name: 'Burdigala', lon: -0.58, lat: 44.84, factionId: 'gallier', capital: false, size: 'village' },
-  { name: 'Gesoriacum', lon: 1.61, lat: 50.73, factionId: 'gallier', capital: false, size: 'village' },
   // --- Griechen: Ägäis und Westkleinasien --------------------------------
   { name: 'Athen', lon: 23.73, lat: 37.98, factionId: 'griechen', capital: true, size: 'large' },
   { name: 'Sparta', lon: 22.43, lat: 37.07, factionId: 'griechen', capital: false, size: 'city' },
@@ -611,22 +618,67 @@ export const CITY_DEFS = [
   // --- Germanen: zwischen Rhein, Nordsee und Elbe ------------------------
   { name: 'Mattium', lon: 9.28, lat: 51.13, factionId: 'germanen', capital: true, size: 'large' },
   { name: 'Treva', lon: 9.99, lat: 53.55, factionId: 'germanen', capital: false, size: 'city' },
-  { name: 'Asciburgium', lon: 6.63, lat: 51.45, factionId: 'germanen', capital: false, size: 'village' },
+  // Der Übergang über den Rhein: kein Steinbau, aber der Platz, an dem sich
+  // trifft, wer nach Westen will.
+  { name: 'Asciburgium', lon: 6.63, lat: 51.45, factionId: 'germanen', capital: false, size: 'city' },
   { name: 'Calisia', lon: 18.08, lat: 51.76, factionId: 'germanen', capital: false, size: 'village' },
   { name: 'Amisia', lon: 7.20, lat: 53.35, factionId: 'germanen', capital: false, size: 'village' },
+  // --- Iberer: die Meseta und die Küsten -----------------------------------
+  { name: 'Numantia', lon: -2.45, lat: 41.81, factionId: 'iberer', capital: true, size: 'large' },
+  { name: 'Corduba', lon: -4.78, lat: 37.89, factionId: 'iberer', capital: false, size: 'city' },
+  { name: 'Tarraco', lon: 1.25, lat: 41.12, factionId: 'iberer', capital: false, size: 'city' },
+  { name: 'Olisipo', lon: -9.14, lat: 38.72, factionId: 'iberer', capital: false, size: 'village' },
+  { name: 'Malaca', lon: -4.42, lat: 36.72, factionId: 'iberer', capital: false, size: 'village' },
+  // --- Illyrer: die Adriaküste zwischen Bergen und Meer -------------------
+  { name: 'Scodra', lon: 19.51, lat: 42.07, factionId: 'illyrer', capital: true, size: 'large' },
+  { name: 'Salona', lon: 16.44, lat: 43.51, factionId: 'illyrer', capital: false, size: 'city' },
+  { name: 'Epidamnos', lon: 19.45, lat: 41.32, factionId: 'illyrer', capital: false, size: 'city' },
+  { name: 'Narona', lon: 17.62, lat: 43.05, factionId: 'illyrer', capital: false, size: 'village' },
+  // Pannonien an der Save: das Hinterland, über das die Illyrer zur Donau
+  // hinaufreichen.
+  { name: 'Sirmium', lon: 19.61, lat: 44.97, factionId: 'illyrer', capital: false, size: 'village' },
+  // --- Sarmaten: die Steppe nördlich des Schwarzen Meeres ----------------
+  { name: 'Tanais', lon: 39.28, lat: 47.21, factionId: 'sarmaten', capital: true, size: 'large' },
+  { name: 'Olbia', lon: 31.90, lat: 46.63, factionId: 'sarmaten', capital: false, size: 'city' },
+  { name: 'Gelonos', lon: 34.50, lat: 49.70, factionId: 'sarmaten', capital: false, size: 'city' },
+  { name: 'Amadoka', lon: 34.50, lat: 48.00, factionId: 'sarmaten', capital: false, size: 'village' },
+  { name: 'Chersonesos', lon: 33.49, lat: 44.61, factionId: 'sarmaten', capital: false, size: 'village' },
+  // --- Daker: nördlich der Donau, in den Karpaten ------------------------
+  { name: 'Sarmizegetusa', lon: 22.79, lat: 45.62, factionId: 'daker', capital: true, size: 'large' },
+  { name: 'Napoca', lon: 23.60, lat: 46.77, factionId: 'daker', capital: false, size: 'city' },
+  { name: 'Sucidava', lon: 24.26, lat: 43.78, factionId: 'daker', capital: false, size: 'city' },
+  { name: 'Piroboridava', lon: 27.40, lat: 46.00, factionId: 'daker', capital: false, size: 'village' },
+  // Der Brückenkopf südlich der Donau - das Sprungbrett nach Thrakien.
+  { name: 'Serdica', lon: 23.32, lat: 42.70, factionId: 'daker', capital: false, size: 'village' },
+  // --- Britannier: die Insel ----------------------------------------------
+  { name: 'Camulodunum', lon: 0.90, lat: 51.89, factionId: 'britannier', capital: true, size: 'large' },
+  { name: 'Londinium', lon: -0.13, lat: 51.51, factionId: 'britannier', capital: false, size: 'city' },
+  { name: 'Eburacum', lon: -1.08, lat: 53.96, factionId: 'britannier', capital: false, size: 'city' },
+  { name: 'Isca Dumnoniorum', lon: -3.53, lat: 50.72, factionId: 'britannier', capital: false, size: 'village' },
+  // Der Hauptort der Demetae im Westen - weit genug von der Themse, dass die
+  // Insel nicht nur aus ihrem Südosten besteht.
+  { name: 'Moridunum', lon: -4.30, lat: 51.86, factionId: 'britannier', capital: false, size: 'village' },
+  // --- Seleukiden: Syrien und das Zweistromland --------------------------
+  { name: 'Antiochia', lon: 36.16, lat: 36.20, factionId: 'seleukiden', capital: true, size: 'large' },
+  { name: 'Damaskus', lon: 36.30, lat: 33.51, factionId: 'seleukiden', capital: false, size: 'city' },
+  { name: 'Babylon', lon: 44.42, lat: 32.54, factionId: 'seleukiden', capital: false, size: 'city' },
+  { name: 'Edessa', lon: 38.79, lat: 37.15, factionId: 'seleukiden', capital: false, size: 'village' },
+  { name: 'Dura Europos', lon: 40.73, lat: 34.75, factionId: 'seleukiden', capital: false, size: 'village' },
+  // --- Ptolemäer: Ägypten, Koilesyrien und die Kyrenaika -----------------
+  { name: 'Alexandria', lon: 29.92, lat: 31.20, factionId: 'ptolemaeer', capital: true, size: 'large' },
+  { name: 'Memphis', lon: 31.25, lat: 29.85, factionId: 'ptolemaeer', capital: false, size: 'city' },
+  { name: 'Hierosolyma', lon: 35.22, lat: 31.78, factionId: 'ptolemaeer', capital: false, size: 'city' },
+  { name: 'Tyrus', lon: 35.20, lat: 33.27, factionId: 'ptolemaeer', capital: false, size: 'village' },
+  { name: 'Kyrene', lon: 21.86, lat: 32.82, factionId: 'ptolemaeer', capital: false, size: 'village' },
+
   // --- Unabhängig: Hispanien ---------------------------------------------
   { name: 'Gades', lon: -6.29, lat: 36.53, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Malaca', lon: -4.42, lat: 36.72, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Corduba', lon: -4.78, lat: 37.89, factionId: 'iberer', capital: false, size: 'city' },
-  { name: 'Numantia', lon: -2.45, lat: 41.81, factionId: 'iberer', capital: true, size: 'large' },
-  { name: 'Tarraco', lon: 1.25, lat: 41.12, factionId: 'neutral', capital: false, size: 'city' },
-  { name: 'Olisipo', lon: -9.14, lat: 38.72, factionId: 'iberer', capital: false, size: 'village' },
   // --- Unabhängig: Gallien, Alpen, Italien -------------------------------
   { name: 'Massilia', lon: 5.37, lat: 43.30, factionId: 'neutral', capital: false, size: 'large' },
+  { name: 'Gesoriacum', lon: 1.61, lat: 50.73, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Argentorate', lon: 7.75, lat: 48.58, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Mediolanum', lon: 9.19, lat: 45.46, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Aquileia', lon: 13.37, lat: 45.77, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Tarentum', lon: 17.24, lat: 40.47, factionId: 'neutral', capital: false, size: 'village' },
   // --- Unabhängig: die Inseln --------------------------------------------
   { name: 'Syrakus', lon: 15.29, lat: 37.07, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Panormus', lon: 13.36, lat: 38.12, factionId: 'neutral', capital: false, size: 'village' },
@@ -634,50 +686,14 @@ export const CITY_DEFS = [
   { name: 'Aleria', lon: 9.52, lat: 42.10, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Palma', lon: 2.65, lat: 39.57, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Knossos', lon: 25.16, lat: 35.30, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Salamis', lon: 33.90, lat: 35.18, factionId: 'ptolemaeer', capital: false, size: 'village' },
-  // --- Unabhängig: Illyrien und die Donau --------------------------------
-  { name: 'Sirmium', lon: 19.61, lat: 44.97, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Salamis', lon: 33.90, lat: 35.18, factionId: 'neutral', capital: false, size: 'village' },
+  // --- Unabhängig: Donau, Makedonien, Thrakien ---------------------------
   { name: 'Vindobona', lon: 16.37, lat: 48.21, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Serdica', lon: 23.32, lat: 42.70, factionId: 'neutral', capital: false, size: 'village' },
-  // --- Illyrer: die Adriaküste zwischen Bergen und Meer -------------------
-  { name: 'Scodra', lon: 19.51, lat: 42.07, factionId: 'illyrer', capital: true, size: 'city' },
-  { name: 'Salona', lon: 16.44, lat: 43.51, factionId: 'illyrer', capital: false, size: 'city' },
-  { name: 'Epidamnos', lon: 19.45, lat: 41.32, factionId: 'illyrer', capital: false, size: 'village' },
-  { name: 'Narona', lon: 17.62, lat: 43.05, factionId: 'illyrer', capital: false, size: 'village' },
-  // --- Sarmaten: die Steppe nördlich des Schwarzen Meeres ----------------
-  { name: 'Tanais', lon: 39.28, lat: 47.21, factionId: 'sarmaten', capital: true, size: 'city' },
-  { name: 'Olbia', lon: 31.90, lat: 46.63, factionId: 'sarmaten', capital: false, size: 'village' },
-  { name: 'Gelonos', lon: 34.50, lat: 49.70, factionId: 'sarmaten', capital: false, size: 'village' },
-  { name: 'Amadoka', lon: 34.50, lat: 48.00, factionId: 'sarmaten', capital: false, size: 'village' },
-  // --- Daker: nördlich der Donau, in den Karpaten ------------------------
-  { name: 'Sarmizegetusa', lon: 22.79, lat: 45.62, factionId: 'daker', capital: true, size: 'large' },
-  { name: 'Napoca', lon: 23.60, lat: 46.77, factionId: 'daker', capital: false, size: 'city' },
-  { name: 'Sucidava', lon: 24.26, lat: 43.78, factionId: 'daker', capital: false, size: 'village' },
-  { name: 'Piroboridava', lon: 27.40, lat: 46.00, factionId: 'daker', capital: false, size: 'village' },
-  // --- Unabhängig: Makedonien, Thrakien, Osten ---------------------------
   { name: 'Thessalonike', lon: 22.94, lat: 40.64, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Byzantion', lon: 28.98, lat: 41.01, factionId: 'neutral', capital: false, size: 'city' },
-
-  // --- Seleukiden: Syrien, Kilikien und das Zweistromland ----------------
-  { name: 'Antiochia', lon: 36.16, lat: 36.20, factionId: 'seleukiden', capital: true, size: 'large' },
-  { name: 'Tarsos', lon: 34.90, lat: 36.92, factionId: 'seleukiden', capital: false, size: 'city' },
-  { name: 'Ankyra', lon: 32.86, lat: 39.93, factionId: 'seleukiden', capital: false, size: 'village' },
-  { name: 'Damaskus', lon: 36.30, lat: 33.51, factionId: 'seleukiden', capital: false, size: 'city' },
-  { name: 'Edessa', lon: 38.79, lat: 37.15, factionId: 'seleukiden', capital: false, size: 'village' },
-  { name: 'Babylon', lon: 44.42, lat: 32.54, factionId: 'seleukiden', capital: false, size: 'city' },
-  { name: 'Dura Europos', lon: 40.73, lat: 34.75, factionId: 'seleukiden', capital: false, size: 'village' },
-  // --- Ptolemäer: Ägypten, Zypern, Koilesyrien und die Kyrenaika ---------
-  { name: 'Alexandria', lon: 29.92, lat: 31.20, factionId: 'ptolemaeer', capital: true, size: 'large' },
-  { name: 'Memphis', lon: 31.25, lat: 29.85, factionId: 'ptolemaeer', capital: false, size: 'city' },
-  { name: 'Hierosolyma', lon: 35.22, lat: 31.78, factionId: 'ptolemaeer', capital: false, size: 'city' },
-  { name: 'Tyrus', lon: 35.20, lat: 33.27, factionId: 'ptolemaeer', capital: false, size: 'village' },
-  { name: 'Kyrene', lon: 21.86, lat: 32.82, factionId: 'ptolemaeer', capital: false, size: 'village' },
-  { name: 'Chersonesos', lon: 33.49, lat: 44.61, factionId: 'neutral', capital: false, size: 'village' },
-  // --- Unabhängig: Britannien --------------------------------------------
-  { name: 'Camulodunum', lon: 0.90, lat: 51.89, factionId: 'britannier', capital: true, size: 'city' },
-  { name: 'Londinium', lon: -0.13, lat: 51.51, factionId: 'britannier', capital: false, size: 'city' },
-  { name: 'Eburacum', lon: -1.08, lat: 53.96, factionId: 'britannier', capital: false, size: 'village' },
-  { name: 'Isca Dumnoniorum', lon: -3.53, lat: 50.72, factionId: 'britannier', capital: false, size: 'village' },
+  // --- Unabhängig: Kleinasien --------------------------------------------
+  { name: 'Tarsos', lon: 34.90, lat: 36.92, factionId: 'neutral', capital: false, size: 'city' },
+  { name: 'Ankyra', lon: 32.86, lat: 39.93, factionId: 'neutral', capital: false, size: 'village' },
 ];
 
 // Morale and exhaustion scale a force's fighting power. Both are 0-100 and
@@ -924,6 +940,13 @@ export const ROAD_MIN_TURNS = 2;
 // nicht in einem Zug quer durchs Land.
 export const ROAD_TARGET_CHOICES = 2;
 
+// Was zu Spielbeginn schon gepflastert ist: die kurzen Wege von der
+// Hauptstadt zu den eigenen Städten, mehr nicht. "Kurz" heißt hier acht
+// Felder, gut 440 km - so weit reichte eine Straße, die eine Hauptstadt
+// unterhalten konnte. Was weiter auseinanderliegt, verbindet keine Straße,
+// sondern ein Marsch; was ein Meer trennt, ohnehin nur ein Schiff.
+export const START_ROAD_MAX_TILES = 8;
+
 export function roadCost(length) {
   return Math.round(length * ROAD_COST_PER_TILE);
 }
@@ -950,6 +973,18 @@ export const ZOC_EXTRA_COST = 4;
 // line, and troops wading ashore meet a prepared enemy.
 // Was die Überfahrt eines Landheeres kostet: gecharterte Transporter.
 export const SHIP_COST = 250;
+// Ein Heer fährt nicht auf seinen Kriegsschiffen - die Ruderbänke sind besetzt,
+// und wer rudert, kämpft nicht. Es geht auf Transportschiffen an Bord: breite,
+// bauchige Segler ohne Rammsporn, wie sie sonst Getreide und Öl fahren. Wie
+// viele es sind, sagt die Stärke des Heeres; fünfzig Mann samt Gepäck gehen
+// auf einen Rumpf.
+export const TRANSPORT_NAME = 'Transportschiff';
+export const TRANSPORT_CAPACITY = 50;
+
+// Wie viele Rümpfe dieses Heer braucht.
+export function transportCount(men) {
+  return Math.max(1, Math.ceil((men || 0) / TRANSPORT_CAPACITY));
+}
 // Wie viele Schiffe ein Bautrupp umfasst; was sie kosten, sagt die Bauart.
 export const WARSHIP_BATCH = 60;
 export const NAVAL_MOVEMENT = 30;

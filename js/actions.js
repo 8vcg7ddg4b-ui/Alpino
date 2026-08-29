@@ -11,6 +11,7 @@ import {
   experienceBonus, experienceStars, starMarks, starTitle,
   SHIP_COST, NAVAL_MOVEMENT, EXHAUSTION_PER_SEA_MOVE,
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_UNIT_SCALE, SHIP_ROLE, WARSHIP_BATCH,
+  TRANSPORT_NAME, transportCount,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
   HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
@@ -724,7 +725,10 @@ export function embarkArmy(state, armyId) {
   army.embarked = true;
   army.maxMovement = NAVAL_MOVEMENT;
   army.movement = 0;
-  logOwn(state, faction.id, `${army.name} sticht in ${city.name} in See (${SHIP_COST} Gold).`);
+  const ruempfe = transportCount(unitTotalCount(army.units));
+  logOwn(state, faction.id,
+    `${army.name} geht in ${city.name} auf ${ruempfe} ${TRANSPORT_NAME}e und sticht in See `
+    + `(${SHIP_COST} Gold).`);
   return { ok: true };
 }
 

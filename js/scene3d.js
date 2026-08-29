@@ -1,7 +1,7 @@
 import {
   TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars, shipTypeOf, tileImpassable,
 } from './data.js';
-import { unitTotalCount, factionById, harbourTile } from './state.js';
+import { unitTotalCount, factionById, harbourTile, isFleet } from './state.js';
 import { emblemSVG } from './emblems.js';
 
 export const TILE_SIZE = 6;
@@ -2100,8 +2100,11 @@ function buildWonders(state) {
     // und stehen auf dem Boden, auf dem sie stehen.
     const aufFels = shared && wonder.perch === 'fels';
     const abstand = aufFels ? 0.38 : shared ? 0.62 : 0;
-    const dx = abstand;
-    const dz = -abstand;
+    // Und in welche Ecke: in die, an der kein Fluss liegt. Die Pyramiden
+    // rücken so nach Westen, weg vom Nil, statt auf ihm zu stehen.
+    const ecke = wonder.versatz || { sx: 1, sz: -1 };
+    const dx = abstand * ecke.sx;
+    const dz = abstand * ecke.sz;
     const scale = wonder.wonder ? 0.72 : 0.58;
     // Hoch genug, um über die Dächer zu ragen: Kapitol und Akropolis sind
     // Burgberge, und nur so ist das Bauwerk in der Stadt überhaupt zu sehen.
@@ -2215,8 +2218,12 @@ function buildShip(color, kind = 'lembos') {
   const ship = new THREE.Group();
   const heavy = kind === 'quinquereme';
   const sailer = kind === 'keltenschiff';
-  const length = heavy ? 4.2 : sailer ? 3.3 : 3.6;
-  const beam = heavy ? 0.78 : sailer ? 0.86 : 0.58;
+  // Der Transporter ist kein Kriegsschiff: kurz, bauchig, hochbordig, ein
+  // einziges Rahsegel und kein Rammsporn. Man erkennt ihn von oben daran,
+  // dass er breiter aussieht, als er lang ist.
+  const hulk = kind === 'transport';
+  const length = hulk ? 2.9 : heavy ? 4.2 : sailer ? 3.3 : 3.6;
+  const beam = hulk ? 0.92 : heavy ? 0.78 : sailer ? 0.86 : 0.58;
 
   const hull = new THREE.Mesh(
     new THREE.CylinderGeometry(beam, beam * 0.55, length, 8, 1, false, 0, Math.PI),
@@ -2234,7 +2241,31 @@ function buildShip(color, kind = 'lembos') {
   deck.position.y = beam + 0.06;
   ship.add(deck);
 
-  if (sailer) {
+  if (hulk) {
+    // Hohe Bordwände, ein gebogener Achtersteven und Fracht an Deck: Kisten,
+    // Fässer, Zelte. Ein Heer reist mit allem, was es besitzt.
+    for (const side of [-1, 1]) {
+      const board = new THREE.Mesh(
+        new THREE.BoxGeometry(0.13, 0.5, length * 0.9),
+        SHIP_TIMBER
+      );
+      board.position.set(side * beam * 0.92, beam + 0.3, 0);
+      ship.add(board);
+    }
+    const steven = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.95, 0.28), SHIP_TIMBER);
+    steven.position.set(0, beam + 0.5, length * 0.44);
+    steven.rotation.x = -0.3;
+    ship.add(steven);
+    for (const [cx, cz, h] of [[-0.3, -0.5, 0.34], [0.28, -0.1, 0.28], [-0.1, 0.5, 0.3]]) {
+      const cargo = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, h, 0.42),
+        SHIP_DECK
+      );
+      cargo.position.set(cx, beam + 0.06 + h / 2, cz);
+      cargo.rotation.y = cx * 1.4;
+      ship.add(cargo);
+    }
+  } else if (sailer) {
     // Der Kelten-Segler: hohe Bordwände, keine Ruder, ein breites Ledersegel.
     for (const side of [-1, 1]) {
       const board = new THREE.Mesh(
@@ -2288,7 +2319,7 @@ function buildShip(color, kind = 'lembos') {
     ship.add(corvus);
   }
 
-  const mastHeight = sailer ? 2.9 : 2.4;
+  const mastHeight = hulk ? 2.2 : sailer ? 2.9 : 2.4;
   const mast = new THREE.Mesh(
     new THREE.CylinderGeometry(0.07, 0.09, mastHeight, 6),
     SHIP_MAST
@@ -2297,7 +2328,7 @@ function buildShip(color, kind = 'lembos') {
   ship.add(mast);
 
   const sail = new THREE.Mesh(
-    new THREE.PlaneGeometry(sailer ? 2.3 : 1.7, sailer ? 1.9 : 1.4),
+    new THREE.PlaneGeometry(hulk ? 1.9 : sailer ? 2.3 : 1.7, hulk ? 1.5 : sailer ? 1.9 : 1.4),
     new THREE.MeshStandardMaterial({ color, roughness: 0.75, side: THREE.DoubleSide })
   );
   sail.position.set(0, beam + mastHeight * 0.66, 0);
@@ -2318,7 +2349,29 @@ function buildShip(color, kind = 'lembos') {
   ship.add(wake);
 
   ship.userData.kind = kind;
+  ship.userData.sails = [sail];
   return ship;
+}
+
+// Ein Heer auf See ist ein Geleitzug, kein einzelnes Schiff: drei Rümpfe in
+// loser Kiellinie, damit auf der Karte zu sehen ist, dass hier eine Armee
+// verschifft wird und keine Flotte kreuzt.
+const CONVOY_OFFSETS = [[0, 0], [-0.95, 1.5], [0.9, -1.4]];
+
+function buildConvoy(color) {
+  const convoy = new THREE.Group();
+  const sails = [];
+  CONVOY_OFFSETS.forEach(([dx, dz], index) => {
+    const hull = buildShip(color, 'transport');
+    hull.position.set(dx, 0, dz);
+    hull.rotation.y = (index - 1) * 0.16;
+    hull.scale.setScalar(index === 0 ? 1 : 0.82);
+    sails.push(...hull.userData.sails);
+    convoy.add(hull);
+  });
+  convoy.userData.kind = 'transport';
+  convoy.userData.sails = sails;
+  return convoy;
 }
 
 function buildArmyGroup() {
@@ -2370,19 +2423,21 @@ function syncArmyGroup(state, army, entry) {
     group.position.set(worldX(army.col), surfaceY(army.col, army.row), worldZ(army.row));
   }
 
-  // At sea the army is its fleet: the camp strikes its tents and boards.
+  // Auf See schlägt das Lager die Zelte ab und geht an Bord. Womit, hängt
+  // davon ab, wer da fährt: ein Geschwader fährt seine eigenen Kriegsschiffe,
+  // ein Landheer wird auf gecharterten Transportern übergesetzt.
   const afloat = !!army.embarked;
-  const kind = shipTypeOf(army.factionId).key;
+  const kind = isFleet(army) ? shipTypeOf(army.factionId).key : 'transport';
   let ship = group.userData.ship;
   if (afloat && (!ship || ship.userData.kind !== kind)) {
     if (ship) group.remove(ship);
-    ship = buildShip(faction.color, kind);
+    ship = kind === 'transport' ? buildConvoy(faction.color) : buildShip(faction.color, kind);
     group.add(ship);
     group.userData.ship = ship;
   }
   if (ship) {
     ship.visible = afloat;
-    ship.userData.sail.material.color.set(faction.color);
+    for (const sail of ship.userData.sails) sail.material.color.set(faction.color);
   }
   group.userData.tents.visible = !afloat;
   if (group.userData.pole) group.userData.pole.visible = !afloat;

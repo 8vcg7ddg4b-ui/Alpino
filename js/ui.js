@@ -5,6 +5,7 @@ import {
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
+  TRANSPORT_NAME, transportCount,
   RIVER_CROSSING_COST,
   HARBOUR_COST, HARBOUR_TURNS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
@@ -301,17 +302,21 @@ function embarkHTML(state, army) {
       <span class="muted">Sie hält das Meer: sie greift feindliche Flotten und
       Transporte an, geht aber nie an Land.</span></p>`;
   }
+  const ruempfe = transportCount(unitTotalCount(army.units));
   if (army.embarked) {
-    return `<p class="sea-line">⛵ Auf See – ${NAVAL_MOVEMENT} Bewegungspunkte.
-      <span class="muted">Ein gelbes Feld ist eine Landung; sie beendet die Fahrt.</span></p>`;
+    return `<p class="sea-line">⛵ Auf See – ${ruempfe} ${TRANSPORT_NAME}e,
+      ${NAVAL_MOVEMENT} Bewegungspunkte.
+      <span class="muted">Das Heer liegt auf Transportern; ein gelbes Feld ist eine
+      Landung und beendet die Fahrt.</span></p>`;
   }
   const status = embarkStatus(state, army);
   if (status.can) {
-    return `<button class="embark-btn" data-army="${army.id}">⛵ In See stechen – ${SHIP_COST} Gold
-      <small>aus ${escapeHTML(status.city.name)}; die Einschiffung kostet die Runde</small></button>`;
+    return `<button class="embark-btn" data-army="${army.id}">⛵ Auf Transporter verladen – ${SHIP_COST} Gold
+      <small>${ruempfe} ${TRANSPORT_NAME}e aus ${escapeHTML(status.city.name)};
+        die Einschiffung kostet die Runde</small></button>`;
   }
   if (status.reason === 'noCity') return '';
-  return `<button class="embark-btn" disabled>⛵ In See stechen – ${SHIP_COST} Gold
+  return `<button class="embark-btn" disabled>⛵ Auf Transporter verladen – ${SHIP_COST} Gold
     <small>${escapeHTML(EMBARK_REASONS[status.reason] || '')}</small></button>`;
 }
 
@@ -344,7 +349,9 @@ function renderSelectedArmy(state, army) {
     && !isFleet(army);
   return `
     <h3><span class="dot" style="background:${faction.color}"></span>${escapeHTML(army.name)}
-      ${army.embarked ? '<span class="afloat-tag">⛵ Flotte</span>' : ''}</h3>
+      ${army.embarked
+    ? `<span class="afloat-tag">⛵ ${isFleet(army) ? 'Flotte' : 'auf Transportern'}</span>`
+    : ''}</h3>
     <p class="muted">${escapeHTML(faction.name)} · Bewegung: ${army.movement} / ${army.maxMovement}</p>
     ${veterancyHTML(army)}
     <div class="cond-block">

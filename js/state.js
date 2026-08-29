@@ -2,7 +2,7 @@ import {
   FACTIONS, CITY_DEFS, MAX_MOVEMENT, STARTING_GOLD, MORALE_START,
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES,
   CAPITAL_WALL_LEVEL, startingWallLevel, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
-  UNIT_ROLES, SHIP_ROLE, RIVER_CROSSING_COST, TRADE_GOODS,
+  UNIT_ROLES, SHIP_ROLE, RIVER_CROSSING_COST, TRADE_GOODS, START_ROAD_MAX_TILES,
   tileImpassable, tileMoveCost,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
@@ -151,12 +151,14 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   // spell of rain rather than rolling a new one.
   const weatherSeed = Math.floor(Math.random() * 1e9);
 
-  // Jede Fraktion beginnt mit Straßen von ihrer Hauptstadt zu ihren Städten -
-  // und sonst mit keiner. Sternförmig von der Hauptstadt aus, nicht als Netz
-  // untereinander: was zwei Städte direkt verbindet, hat der Spieler gebaut,
-  // nicht die Geschichte. Die Dörfer hängen noch nicht daran, die
-  // unabhängigen Orte an gar nichts - dorthin ist die erste Straße Sache
-  // dessen, der sie will.
+  // Zu Spielbeginn ist nur gepflastert, was nahe beieinanderliegt und kein
+  // Meer dazwischen hat: die kurzen Wege von der Hauptstadt zu ihren eigenen
+  // Städten. Sternförmig von der Hauptstadt aus, nicht als Netz untereinander -
+  // was zwei Städte direkt verbindet, hat der Spieler gebaut, nicht die
+  // Geschichte. Was mehr als acht Felder auseinanderliegt, hat keine Straße,
+  // und was auf der anderen Seite eines Meeres liegt, erst recht nicht: dorthin
+  // fährt man, man fährt nicht auf einer Straße. Die Dörfer hängen an nichts,
+  // die unabhängigen Orte auch nicht.
   const roads = {};
   const markRoute = (route) => {
     for (const tile of route) roads[`${tile.col},${tile.row}`] = true;
@@ -167,6 +169,15 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     if (!byFaction.has(city.factionId)) byFaction.set(city.factionId, []);
     byFaction.get(city.factionId).push(city);
   }
+  // Zwei Orte auf derselben Landmasse sind zu Fuß erreichbar; alles andere
+  // trennt Wasser, und über Wasser führt keine Straße.
+  const gleicheLandmasse = (a, b) => {
+    const feld = map.landmass;
+    if (!feld) return true;
+    const ia = feld[a.row * map.cols + a.col];
+    const ib = feld[b.row * map.cols + b.col];
+    return ia !== -1 && ia === ib;
+  };
   // Alle Ortsfelder: eine Trasse soll nicht nebenbei ein Dorf anschließen,
   // das noch keine Straße haben soll. Start und Ziel sind davon ausgenommen.
   const ortsfelder = new Set(cities.map((c) => `${c.col},${c.row}`));
@@ -174,11 +185,18 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     const capital = own.find((c) => c.capital) || own[0];
     for (const city of own) {
       if (city === capital || city.size === 'village') continue;
+      if (!gleicheLandmasse(capital, city)) continue;
+      // Die Luftlinie sieht die Straße nicht: erst der gelaufene Weg sagt, ob
+      // zwei Orte wirklich nahe beieinanderliegen. Athen und Pergamon trennen
+      // acht Felder Luftlinie und die halbe Ägäis.
+      if (Math.abs(capital.col - city.col) + Math.abs(capital.row - city.row)
+        > START_ROAD_MAX_TILES) continue;
       const meiden = new Set(ortsfelder);
       meiden.delete(`${capital.col},${capital.row}`);
       meiden.delete(`${city.col},${city.row}`);
       const route = landRoute(map, capital, city, roads, meiden);
-      if (route) markRoute(route);
+      if (!route || route.length - 1 > START_ROAD_MAX_TILES) continue;
+      markRoute(route);
     }
   }
 

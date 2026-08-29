@@ -204,10 +204,16 @@ den Punkten durchblättern.
   Feld), werden beide eines. Erfahrung, Moral und Erschöpfung mitteln sich nach
   Kopfzahl. Auch die KI legt zusammen, statt mit zwei halben Heeren vor einer
   Stadt zu warten, die keines von beiden nehmen kann.
-- **Schiffe**: In einer eigenen Stadt **mit Hafen** kann eine Armee für 250 Gold
-  **in See stechen** – ohne Hafen geht sie nirgends an Bord, auch nicht in
-  einer Stadt direkt am Wasser. Auf dem Wasser hat sie 15 Bewegungspunkte; gelb
-  markierte Felder sind Landungen und beenden die Fahrt. Angriffe direkt vom
+- **Transportschiffe**: Ein Heer fährt nicht auf seinen Kriegsschiffen – die
+  Ruderbänke sind besetzt, und wer rudert, kämpft nicht. In einer eigenen Stadt
+  **mit Hafen** wird es für 250 Gold **auf Transporter verladen**: breite,
+  bauchige Segler ohne Rammsporn, wie sie sonst Getreide und Öl fahren. Wie
+  viele es sind, sagt die Stärke des Heeres – fünfzig Mann samt Gepäck gehen auf
+  einen Rumpf, und die Seitenleiste nennt die Zahl. Ohne Hafen geht niemand an
+  Bord, auch nicht in einer Stadt direkt am Wasser. Auf dem Wasser hat der
+  Geleitzug 30 Bewegungspunkte; gelb markierte Felder sind Landungen und beenden
+  die Fahrt. Auf der Karte ist der Unterschied zu sehen: ein Landheer zur See
+  ist ein Zug aus drei Transportern, eine Flotte fährt ihre eigene Bauart. Angriffe direkt vom
   Schiff kosten 30 % Angriffskraft, auf offener See verteidigt es sich 25 %
   schlechter. Nur so sind die Inseln (Caralis, Rhodos, Knossos) zu erreichen.
 - **Frontbreite**: Eine Schlacht wird an einer Linie geschlagen, nicht als
@@ -423,14 +429,19 @@ den Punkten durchblättern.
   die Bewegung zählt er trotzdem. Fällt einer der beiden Orte an den Feind,
   wird der Bau abgebrochen.
 
-  **Das Startnetz ist bewusst dünn**: sternförmig von der Hauptstadt jeder
-  Fraktion zu ihren **Städten**, und sonst nichts. Keine Straße zwischen zwei
+  **Das Startnetz ist bewusst dünn**: gepflastert ist nur, was **nahe
+  beieinanderliegt und kein Meer dazwischen hat** – der kurze Weg von der
+  Hauptstadt jeder Fraktion zu ihren eigenen **Städten**, höchstens acht Felder
+  lang (gut 440 km) und nur auf derselben Landmasse. Keine Straße zwischen zwei
   Städten, die nicht über die Hauptstadt liefe; **kein Dorf** ist angebunden
   und **kein unabhängiger Ort** – dorthin ist die erste Straße Sache dessen,
-  der sie will. Damit eine Trasse nicht nebenbei ein Dorf anschließt, meidet
-  die Wegsuche beim Aufbau die Felder fremder Orte: sie sind nicht gesperrt,
-  nur teuer. In Zahlen: 26 von 26 Städten hängen an ihrer Hauptstadt, 0 von 35
-  Dörfern und 0 von 20 unabhängigen Orten haben eine Straße.
+  der sie will. Gemessen wird der gelaufene Weg, nicht die Luftlinie: zwischen
+  Athen und Pergamon liegen acht Felder und die halbe Ägäis, zwischen Ekbatana
+  und Susa sechs Felder und der Zagros – beide bleiben ohne Straße. Damit eine
+  Trasse nicht nebenbei ein Dorf anschließt, meidet die Wegsuche beim Aufbau
+  die Felder fremder Orte: sie sind nicht gesperrt, nur teuer. In Zahlen:
+  23 von 32 Städten hängen an ihrer Hauptstadt, 0 von 32 Dörfern und 0 von 18
+  unabhängigen Orten haben eine Straße; 118 Straßenfelder liegen auf der Karte.
 - **Bewegung wird in Punkten gerechnet, nicht in Feldern**: offene Ebene kostet
   3, gebrochenes Gelände – Wald, Hügel, Wüste – das Doppelte, eine gepflasterte
   Straße 2, und ein Heer hat 18 Punkte je Runde. Das sind sechs Felder Ebene,
@@ -648,17 +659,19 @@ den Punkten durchblättern.
 - Die **Ptolemäer** sitzen auf Ägypten, Zypern, Koilesyrien und der Kyrenaika.
   Das Niltal trägt viel Fußvolk, ihre nubischen Bogen sind die besten der
   Karte, an Reiterei fehlt es ihnen.
-- Die **Illyrer** sitzen mit vier Orten an der Adria, eingeklemmt zwischen den
+- Die **Illyrer** sitzen an der Adria und an der Save, eingeklemmt zwischen den
   Dinariden und dem Meer – wenig Land, aber lauter Häfen.
 - Die **Sarmaten** ziehen mit ihren Kataphrakten durch die Steppe nördlich des
   Schwarzen Meeres. Weite Wege, kaum Nachbarn, kaum Einkommen.
 - Die **Daker** halten die Karpaten um Sarmizegetusa – Bergland, das sich gut
   verteidigen lässt, mit der Donau als Sprungbrett nach Süden.
-- **77 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
+- **98 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
   Garnison, 1,7-faches Grundeinkommen), **Stadt** (Normalmaß) und **Dorf**
   (klein, halbes Grundeinkommen – leicht zu nehmen und gute Sprungbretter).
-  20 davon gehören niemandem und sind frei zu erobern – von Olisipo bis
-  Chersonesos. Sizilien, Sardinien, Kreta, Zypern, Rhodos, die Balearen und
+  **Jede Fraktion beginnt mit denselben fünf Orten**: der Hauptstadt als Große
+  Stadt, zwei Städten und zwei Dörfern. Wo einer sitzt, sagt die Geschichte; wie
+  viel er hat, sagt diese Regel – kein Reich beginnt reicher als das andere.
+  18 Orte gehören niemandem und sind frei zu erobern – von Gades bis Ankyra. Sizilien, Sardinien, Kreta, Zypern, Rhodos, die Balearen und
   Britannien sind nur mit Schiffen erreichbar.
 - **Gelände**: Ebene, Wald und Hügel wie bisher, dazu die **Wüste** – die
   Sahara und das arabische Binnenland sind zäh zu durchqueren und halten den
