@@ -305,7 +305,8 @@ den Punkten durchblättern.
   vollen 37 und nach zweien 3.
 - **Armee auflösen**: Steht eine Armee in einer eigenen Stadt, kann sie sich
   auflösen; ihre Soldaten treten der Garnison bei.
-- **Befestigungen in drei Stufen**: **Holzpalisade** (200 Gold, 3 Runden,
+- **Befestigungen in drei Stufen** (ein **Dorf** legt seinen Wall als Ring um
+  die Häuser, eine Stadt baut geradeaus und mit Ecken): **Holzpalisade** (200 Gold, 3 Runden,
   +30 % Verteidigung), **Große Holzpalisade** (450 Gold, 4 Runden, +60 %) und
   **Steinmauer** (900 Gold, 6 Runden, +100 %). Gekauft wird immer nur die
   nächste Stufe, und immer nur eine zur Zeit. **Kein Ort steht offen in der
@@ -395,7 +396,11 @@ den Punkten durchblättern.
   neun Felder statt sechs, und weil Erschöpfung je Punkt anfällt, zehrt ein
   Straßenfeld auch weniger als ein Feld Ebene. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
   als Ganzes und immer nur eine je Stadt;
-  neue Straßen legen sich an das bestehende Netz an. Drei Regeln fassen sie
+  Gezeichnet wird eine Straße in Stücken statt als ein Band über das ganze
+  Feld: als eine Fläche zwischen zwei Feldmitten schnitt sie in hügeligem Land
+  in den Boden, und der Weg sah aus, als wäre er unterbrochen – dasselbe
+  Mittel, das schon die Flüsse durchgängig macht.
+  Neue Straßen legen sich an das bestehende Netz an. Drei Regeln fassen sie
   zusammen: ein vorhandenes Straßenfeld ist der billigste Schritt (die neue
   Verbindung schwenkt auf die alte Trasse ein), **neben** einer Straße
   herzulaufen kostet drei Punkte extra (keine zweite Trasse ein Feld daneben),
@@ -426,6 +431,10 @@ den Punkten durchblättern.
   unpassierbar. Von 122 Gebirgsfeldern der Karte sind damit 48 begehbar; die
   Geländeauskunft sagt für jedes, woran man ist. Hannibal zog über den
   Alpenhauptkamm auf ungefähr dieser Höhe.
+- **Kartentisch**: Die Karte liegt auf einem Tisch mit Rahmen, Platte und vier
+  gedrechselten Beinen, die auf dem Zeltboden stehen. Das Meer reicht bis unter
+  den Rahmen – vorher endete es kurz hinter dem letzten Feld, und dazwischen
+  sah man auf die Tischplatte.
 - **Grenzen auf der Karte**: Der Knopf ◫ blendet die **Grenzen der
   Herrschaftsgebiete** ein – ein schmales Band in der Farbe der Fraktion,
   überall dort, wo ihr Einflussbereich an einen fremden stößt, gezeichnet auf

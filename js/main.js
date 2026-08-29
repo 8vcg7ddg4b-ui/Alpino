@@ -182,7 +182,10 @@ function showHerald() {
   const line = document.getElementById('heraldLine');
   const ruler = rulerOf(state, player.id);
   if (line && ruler) {
-    line.textContent = `„Ich grüße dich, ${ruler.name}. Lass uns die Schlachtkarte betrachten."`;
+    // Manche Namen enden schon auf einen Punkt ("Antiochos I."), und zwei
+    // hintereinander sehen aus wie ein Tippfehler.
+    const anrede = ruler.name.endsWith('.') ? ruler.name : `${ruler.name}.`;
+    line.textContent = `„Ich grüße dich, ${anrede} Lass uns die Schlachtkarte betrachten."`;
   }
   heraldOverlay.classList.remove('hidden');
   sfx.raise();

@@ -27,6 +27,13 @@ const OWNER_RANGE = 6;
 // Meer oder im Hochgebirge liegt - bei 55 km je Feld sind das gut 110 km.
 const SNAP_RANGE = 2;
 
+// Auf welchem Grund ein Bauwerk steht, wenn es sich sein Feld mit einer Stadt
+// teilt. 'fels' ist ein Burgberg über den Dächern - beim Kapitol und bei der
+// Akropolis ist genau das der historische Ort. Alles andere steht neben dem
+// Ort auf ebenem Grund: die Pyramiden liegen auf der Wüstenterrasse westlich
+// des Nils, nicht auf einem Sockel mitten in Memphis.
+const AUF_FELS = new Set(['kapitol', 'akropolis']);
+
 const WONDER_DEFS = [
   {
     id: 'gizeh',
@@ -201,6 +208,8 @@ export function placeWonders(map, cities) {
       id: def.id,
       name: def.name,
       model: def.model,
+      // Reisen mit: die Szene weiß sonst nicht, ob ein Felsen darunter gehört.
+      perch: AUF_FELS.has(def.id) ? 'fels' : 'ebene',
       wonder: def.wonder,
       built: def.built,
       note: def.note,

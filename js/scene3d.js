@@ -524,8 +524,11 @@ export function buildMap(state) {
 
   // Die Karte liegt auf einem Tisch: das Meer endet am Rahmen, es läuft nicht
   // mehr ins Unendliche.
-  const boardW = mapCols * TILE_SIZE + TILE_SIZE * 0.6;
-  const boardH = mapRows * TILE_SIZE + TILE_SIZE * 0.6;
+  // Das Wasser reicht bis unter den Rahmen, nicht nur bis kurz hinter das
+  // letzte Feld: dazwischen sah man sonst auf die Tischplatte, und am Rand
+  // schien die Karte im Nichts zu enden. Der Rahmen deckt den Überstand ab.
+  const boardW = mapCols * TILE_SIZE + TILE_SIZE * 2.9;
+  const boardH = mapRows * TILE_SIZE + TILE_SIZE * 2.9;
   deepSeaMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(boardW, boardH),
     new THREE.MeshStandardMaterial({ color: '#1d3f66', roughness: 0.9 })
@@ -560,6 +563,9 @@ export function buildMap(state) {
 
 const TABLE_WOOD = new THREE.MeshStandardMaterial({ color: '#5a3d24', roughness: 0.85 });
 const TABLE_WOOD_DARK = new THREE.MeshStandardMaterial({ color: '#3f2a17', roughness: 0.9 });
+// Wie weit die Beine unter die Platte reichen. Der Zeltboden liegt tiefer,
+// als man von der Karte aus sieht - sie dürfen ruhig lang sein.
+const TABLE_LEG_HEIGHT = 42;
 
 function buildTable(boardW, boardH) {
   if (tableGroup) scene.remove(tableGroup);
@@ -589,6 +595,41 @@ function buildTable(boardW, boardH) {
     const beam = new THREE.Mesh(new THREE.BoxGeometry(w, rimHeight, d), TABLE_WOOD);
     beam.position.set(x, rimTop - rimHeight / 2 + 1.4, z);
     tableGroup.add(beam);
+  }
+
+  // Vier Beine. Sie stehen ein Stück von der Ecke eingerückt, wie bei einem
+  // Tisch, der etwas tragen soll, und laufen nach unten leicht zusammen -
+  // gedrechselt, nicht gezimmert. Ohne sie schwebte die Platte im Zelt.
+  const legRadius = TILE_SIZE * 0.62;
+  const legHeight = TABLE_LEG_HEIGHT;
+  const inset = rim * 1.6;
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const leg = new THREE.Mesh(
+        new THREE.CylinderGeometry(legRadius * 0.78, legRadius, legHeight, 10),
+        TABLE_WOOD_DARK
+      );
+      leg.position.set(
+        sx * ((boardW + rim * 2) / 2 - inset),
+        slabY - 0.8 - legHeight / 2,
+        sz * ((boardH + rim * 2) / 2 - inset)
+      );
+      tableGroup.add(leg);
+      // Ein Wulst oben am Bein, wo es die Platte trägt.
+      const collar = new THREE.Mesh(
+        new THREE.CylinderGeometry(legRadius * 1.15, legRadius * 1.15, TILE_SIZE * 0.5, 10),
+        TABLE_WOOD
+      );
+      collar.position.set(leg.position.x, slabY - 0.8 - TILE_SIZE * 0.25, leg.position.z);
+      tableGroup.add(collar);
+      // Und ein breiter Fuß unten, damit er nicht einsinkt.
+      const foot = new THREE.Mesh(
+        new THREE.CylinderGeometry(legRadius * 1.35, legRadius * 1.5, TILE_SIZE * 0.55, 10),
+        TABLE_WOOD
+      );
+      foot.position.set(leg.position.x, slabY - 0.8 - legHeight + TILE_SIZE * 0.27, leg.position.z);
+      tableGroup.add(foot);
+    }
   }
 
   scene.add(tableGroup);
@@ -1080,7 +1121,9 @@ function buildTent(state) {
     new THREE.MeshStandardMaterial({ color: '#4a3b26', roughness: 1 })
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = tileTopY(TILE_TYPES.water.elevation) - 2.6;
+  // Der Boden liegt so tief unter der Tischplatte, wie die Tischbeine lang
+  // sind: nur dann steht der Tisch auf etwas, statt im Raum zu schweben.
+  floor.position.y = tileTopY(TILE_TYPES.water.elevation) - 2.6 - TABLE_LEG_HEIGHT;
   tentGroup.add(floor);
 
   // Das Dach: ein Kegel von innen gesehen.
@@ -1364,6 +1407,11 @@ function buildBridge(parent, bridge) {
 const BRIDGE_TIMBER = new THREE.MeshStandardMaterial({ color: '#a97c46', roughness: 0.95 });
 const BRIDGE_TIMBER_DARK = new THREE.MeshStandardMaterial({ color: '#6f4d29', roughness: 1 });
 
+// In so viele Stücke wird ein Straßenabschnitt zerlegt, und so weit liegt er
+// über dem Boden.
+const ROAD_PIECES = 4;
+const ROAD_LIFT = 0.22;
+
 function buildRoadNetwork(state) {
   while (roadsGroup.children.length) {
     const child = roadsGroup.children.pop();
@@ -1378,11 +1426,25 @@ function buildRoadNetwork(state) {
     const [col, row] = key.split(',').map(Number);
     const x = worldX(col);
     const z = worldZ(row);
-    pushQuad(positions, x - half, z, x + half, z, half);
-    pushQuad(positions, x, z - half, x, z + half, half);
+    pushQuad(positions, x - half, z, x + half, z, half, ROAD_LIFT);
+    pushQuad(positions, x, z - half, x, z + half, half, ROAD_LIFT);
     for (const [dc, dr] of [[1, 0], [0, 1]]) {
       if (!roads[`${col + dc},${row + dr}`]) continue;
-      pushQuad(positions, x, z, worldX(col + dc), worldZ(row + dr), half);
+      // In Stücke zerlegt, damit das Band dem Gelände folgt. Ein ganzes Feld
+      // lang läuft es über den diagonalen Knick des Geländedreiecks hinweg
+      // und schnitt dort in den Boden - genau daran sah eine Straße in
+      // hügeligem Land aus, als wäre sie unterbrochen. Dasselbe Mittel wie
+      // bei den Flüssen.
+      const bx = worldX(col + dc);
+      const bz = worldZ(row + dr);
+      for (let piece = 0; piece < ROAD_PIECES; piece++) {
+        const t0 = piece / ROAD_PIECES;
+        const t1 = (piece + 1) / ROAD_PIECES;
+        pushQuad(positions,
+          x + (bx - x) * t0, z + (bz - z) * t0,
+          x + (bx - x) * t1, z + (bz - z) * t1,
+          half, ROAD_LIFT);
+      }
     }
   }
   if (!positions.length) return;
@@ -1400,10 +1462,43 @@ function buildRoadNetwork(state) {
 // One ring of fortification. `span` is the same for all three so a settlement
 // keeps its footprint as it is upgraded; what changes is the material, the
 // height and whether there are towers.
-function buildFortification(kind, scale) {
+function buildFortification(kind, scale, options = {}) {
   const ring = new THREE.Group();
   const span = 4.4 * scale;
   const half = span / 2;
+
+  // Ein Dorf zieht keinen Wall im Geviert: es legt einen Ring um die Häuser,
+  // so weit die Stämme reichen. Erst eine Stadt baut geradeaus und mit Ecken.
+  if (kind === 'palisade' && options.round) {
+    const wood = new THREE.MeshStandardMaterial({ color: '#7a5433', roughness: 1 });
+    const height = 0.86 * scale;
+    const radius = 0.12 * scale;
+    const ringRadius = half * 0.92;
+    // Die geschlossene Wand hinter den Stämmen, als offener Zylinder.
+    const wall = new THREE.Mesh(
+      new THREE.CylinderGeometry(ringRadius - radius * 0.6, ringRadius - radius * 0.6,
+        height * 0.84, 28, 1, true),
+      wood
+    );
+    wall.position.y = height * 0.42;
+    ring.add(wall);
+    const anzahl = Math.max(20, Math.round((2 * Math.PI * ringRadius) / (radius * 1.7)));
+    for (let i = 0; i < anzahl; i++) {
+      const angle = (i / anzahl) * Math.PI * 2;
+      const x = Math.cos(angle) * ringRadius;
+      const z = Math.sin(angle) * ringRadius;
+      const stake = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius * 0.82, radius, height, 5),
+        wood
+      );
+      stake.position.set(x, height / 2, z);
+      ring.add(stake);
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(radius, 0.2 * scale, 5), wood);
+      tip.position.set(x, height + 0.1 * scale, z);
+      ring.add(tip);
+    }
+    return ring;
+  }
 
   if (kind === 'palisade') {
     // Eine Palisade ist eine Wand, kein Zaun: die Stämme stehen dicht an
@@ -1999,13 +2094,19 @@ function buildWonders(state) {
     // verschwände das Bauwerk hinter den Dächern, nach vorn verdeckte sein
     // Felsen die Stadt. So stehen beide nebeneinander.
     const shared = cityTiles.has(`${wonder.col},${wonder.row}`);
-    const dx = shared ? 0.38 : 0;
-    const dz = shared ? -0.38 : 0;
+    // Nur wer auf einem Burgberg steht, bekommt einen: Kapitol und Akropolis.
+    // Die Pyramiden liegen auf der Wüstenterrasse neben Memphis, nicht auf
+    // einem Sockel mitten in der Stadt - sie rücken deshalb weiter zur Seite
+    // und stehen auf dem Boden, auf dem sie stehen.
+    const aufFels = shared && wonder.perch === 'fels';
+    const abstand = aufFels ? 0.38 : shared ? 0.62 : 0;
+    const dx = abstand;
+    const dz = -abstand;
     const scale = wonder.wonder ? 0.72 : 0.58;
     // Hoch genug, um über die Dächer zu ragen: Kapitol und Akropolis sind
     // Burgberge, und nur so ist das Bauwerk in der Stadt überhaupt zu sehen.
-    const lift = shared ? 3.4 : 0;
-    if (shared) {
+    const lift = aufFels ? 3.4 : 0;
+    if (aufFels) {
       const rock = new THREE.Mesh(
         new THREE.CylinderGeometry(2.5, 3.4, (lift + 3) / scale, 7, 1), WONDER_MATERIALS.rock
       );
@@ -2021,7 +2122,7 @@ function buildWonders(state) {
 
     // Über den Stadtnamen, sonst überschreiben sich beide.
     const label = makeLabelSprite(wonder.name, { scale: 0.78, color: '#ffe4a6' });
-    label.position.y = shared ? 13.5 : 12;
+    label.position.y = aufFels ? 13.5 : 12;
     group.add(label);
     wondersGroup.add(group);
   }
@@ -2390,7 +2491,8 @@ export function syncEntities(state) {
     const level = city.wallLevel || 0;
     for (let index = 0; index < entry.walls.length; index++) {
       if (index + 1 === level && !entry.walls[index]) {
-        entry.walls[index] = buildFortification(WALL_LEVELS[index].key, entry.scale);
+        entry.walls[index] = buildFortification(WALL_LEVELS[index].key, entry.scale,
+          { round: city.size === 'village' });
         entry.group.add(entry.walls[index]);
       }
       if (entry.walls[index]) entry.walls[index].visible = index + 1 === level;
