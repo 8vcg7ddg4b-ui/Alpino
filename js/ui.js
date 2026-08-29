@@ -6,6 +6,7 @@ import {
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
   shipTypesOf, shipTypeByKey,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
+  CAMP_NAME, CAMP_COST, CAMP_DEFENCE,
   TRANSPORT_NAME, transportCount,
   RIVER_CROSSING_COST,
   MINE_NAME,
@@ -31,6 +32,7 @@ import {
   armyUpkeep, factionIncome,
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
   tradeRouteRaided, mineOre, mineIncomeOf, canBuildBuilding, siegeInfo, citySieged,
+  campStatus, campSiegeTarget,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -184,6 +186,11 @@ function modifierNotesHTML(info) {
   if (info.amphibious || (info.attackerMultiplier ?? 1) < 1) {
     notes.push(`<span class="mod-note mod-sea">🌊 Landung vom Meer: −${
       Math.round((1 - (info.attackerMultiplier ?? 1)) * 100)}% Angriffskraft</span>`);
+  }
+  // Graben, Wall, Palisade: wer ein Lager stürmt, stürmt über den Wall.
+  if ((info.defenderMultiplier ?? 1) > 1) {
+    notes.push(`<span class="mod-note mod-wall">⛺ ${CAMP_NAME}: +${
+      Math.round(((info.defenderMultiplier ?? 1) - 1) * 100)}% Verteidigung</span>`);
   }
   if ((info.defenderMultiplier ?? 1) < 1) {
     notes.push(`<span class="mod-note mod-sea">⛵ Auf offener See: −${
@@ -362,6 +369,47 @@ function reinforceHTML(state, army, city) {
     </div>`;
 }
 
+// --- Das Lager -------------------------------------------------------------
+// Graben, Wall, Palisade - und vor einer fremden Stadt aufgeschlagen die
+// Belagerung selbst. Der Knopf steht bei der Armee, weil das Lager zu ihr
+// gehört und nicht zum Ort.
+const CAMP_REASONS = {
+  atSea: 'Auf See wird kein Lager aufgeschlagen.',
+  fleet: 'Eine Flotte schlägt kein Lager auf.',
+  inCity: 'In einer Stadt braucht es kein Lager – sie ist eines.',
+  movement: 'Dafür ist der Tag zu weit fortgeschritten – ein Lager kostet, was an Bewegung übrig ist.',
+  gold: `Dafür fehlt das Gold (${CAMP_COST}).`,
+};
+
+function campHTML(state, army) {
+  if (isFleet(army) || army.embarked) return '';
+  const belagert = campSiegeTarget(state, army);
+  if (army.camp) {
+    return `<p class="camp-line">⛺ ${CAMP_NAME}
+      <span class="muted">· +${Math.round((CAMP_DEFENCE - 1) * 100)}% Verteidigung,
+      Rast wie in der eigenen Stadt, halbes Wetter${belagert
+    ? ` · Belagerungslager vor ${escapeHTML(belagert.name)}: der Ort ist abgeschnitten `
+      + 'und hungert von der nächsten Runde an' : ''}</span></p>
+      <button class="camp-btn" data-army="${army.id}" data-camp="break">
+        ⛏️ ${CAMP_NAME} abbrechen
+        <small>Der Wall bleibt stehen, aber er zählt nicht mehr für dich.</small>
+      </button>`;
+  }
+  const status = campStatus(state, army);
+  if (!status.can) {
+    const grund = CAMP_REASONS[status.reason];
+    return grund ? `<p class="wall-line muted">⛺ Kein ${CAMP_NAME} – ${grund}</p>` : '';
+  }
+  return `<button class="camp-btn" data-army="${army.id}" data-camp="build">
+      ⛺ ${CAMP_NAME} aufschlagen – ${CAMP_COST} Gold
+      <small>${belagert
+    ? `Belagert ${escapeHTML(belagert.name)}, ohne es zu stürmen: der Ort wird abgeschnitten `
+      + 'und hungert von der nächsten Runde an'
+    : `+${Math.round((CAMP_DEFENCE - 1) * 100)}% Verteidigung, Rast wie in der eigenen Stadt`}
+        · kostet den Rest des Tages</small>
+    </button>`;
+}
+
 function renderSelectedArmy(state, army) {
   const faction = factionById(state, army.factionId);
   const city = state.cities.find((c) => c.col === army.col && c.row === army.row);
@@ -379,6 +427,7 @@ function renderSelectedArmy(state, army) {
       ${conditionBarHTML('Erschöpfung', army.exhaustion ?? 0, EXHAUSTION_SCALE, 'fatigue')}
     </div>
     <div class="unit-list">${unitBreakdownHTML(army.units, army.factionId)}</div>
+    ${campHTML(state, army)}
     ${reinforceHTML(state, army, city)}
     ${canDisband
       ? `<button class="disband-btn" data-army="${army.id}">🏰 In ${escapeHTML(city.name)} auflösen – Garnison verstärken
@@ -623,8 +672,9 @@ function siegeHTML(state, city, isMine) {
   if (!info) return '';
   const feind = info.factions
     .map((id) => escapeHTML(factionById(state, id).name)).join(' und ');
-  const art = info.land && info.sea ? 'zu Lande und zur See'
-    : info.sea ? 'vom Meer her' : 'zu Lande';
+  const art = info.camp ? 'aus einem Belagerungslager'
+    : info.land && info.sea ? 'zu Lande und zur See'
+      : info.sea ? 'vom Meer her' : 'zu Lande';
   const folgen = isMine
     ? 'Keine Steuer, kein Nachschub für die Wache, kein Bau.'
     : 'Der Ort trägt seinem Herrn nichts ein und stellt seine Wache nicht nach.';
@@ -1476,6 +1526,11 @@ export function renderUI(state, handlers) {
     const disbandBtn = panel.querySelector('.disband-btn');
     if (disbandBtn) {
       disbandBtn.addEventListener('click', () => handlers.onDisband(disbandBtn.dataset.army));
+    }
+    const campBtn = panel.querySelector('.camp-btn');
+    if (campBtn) {
+      campBtn.addEventListener('click', () => handlers.onCamp(campBtn.dataset.army,
+        campBtn.dataset.camp === 'break'));
     }
     const embarkBtn = panel.querySelector('.embark-btn:not([disabled])');
     if (embarkBtn) {

@@ -559,6 +559,29 @@ den Punkten durchblättern.
   sie aus. Nach der Schlacht gehen die Überlebenden zurück in die Gassen: auf
   der Mauer bleibt nur die eigene Stadtwache, und **die gefallenen Bürger
   fehlen dem Ort danach wirklich** – seine Einwohnerzahl sinkt.
+- **Das Lager**: Ein römisches Heer schlug jeden Abend ein Lager auf – Graben,
+  Wall, Palisade, die Zelte in festen Gassen dahinter. Im Spiel kostet es
+  **90 Gold** und **den Rest des Tages** (alle verbliebenen Bewegungspunkte)
+  und gibt dafür dreierlei:
+  **+40 % Verteidigung**, wenn das Heer im Lager angegriffen wird;
+  **Rast wie in der eigenen Stadt** (Moral und Erschöpfung erholen sich
+  schneller) und **halbes Wetter** – Schnee und Gluthitze zehren nur zur
+  Hälfte;
+  und, vor einer fremden Stadt aufgeschlagen, **die Belagerung selbst**.
+  Wer abmarschiert, lässt Wall und Palisade stehen: das Lager gilt dann nicht
+  mehr. Auf See und in einer eigenen Stadt gibt es keines – die Stadt ist eines.
+  Der Wall ist kein Freibrief: gegen ein anderthalbfach überlegenes Heer fällt
+  auch ein Lager. Er entscheidet den Kampf unter Gleichen.
+  Auf der Karte steht dann ein Erdwall mit angespitzten Stämmen um die Zelte.
+- **Das Belagerungslager**: Ein Lager **auf einem Feld neben einer feindlichen
+  Stadt** löst die Belagerung aus, **ohne dass ein Sturm nötig wäre**: der Ort
+  ist abgeschnitten, und der Hunger beginnt schon **nach einer Runde** statt
+  nach dreien und zehrt stärker – **10 % der Besatzung** und **2 % der
+  Einwohner** je Runde statt 6 % und 1,2 %. Damit gibt es zwei Wege über eine
+  Mauer: den Sturm, der Männer kostet, und das Lager, das Zeit kostet.
+  Auch die KI kennt ihn: was sie nicht stürmen kann, gräbt sie sich davor ein –
+  über vierzig Runden gemessen liegen ihre Heere achtmal so oft vor einer
+  fremden Stadt wie vorher, statt vergeblich gegen dasselbe Tor zu laufen.
 - **Belagerung**: Steht ein feindliches Heer **unmittelbar neben einem Ort**,
   ist er belagert – und ein Hafenort auch dann, wenn eine feindliche **Flotte
   vor ihm kreuzt**. Es braucht keinen eigenen Befehl dafür: wer sich davorstellt,
@@ -568,7 +591,8 @@ den Punkten durchblättern.
   erst eröffnen, auch kein Straßenbau. Ist der Hafen gesperrt, geht dort
   außerdem **kein Heer an Bord und läuft kein Schiff vom Stapel**.
   Nach **drei Runden** beginnt der Hunger: jede weitere Runde kostet **6 % der
-  Besatzung** und gut ein Prozent der Einwohner. Wer eine Mauer nicht stürmen
+  Besatzung** und gut ein Prozent der Einwohner – aus einem **Belagerungslager**
+  heraus schon nach einer Runde und mit 10 %. Wer eine Mauer nicht stürmen
   will, muss sie also nicht stürmen – er muss nur warten.
   **Ausheben darf ein belagerter Ort weiterhin**: die Stadt soll sich wehren
   können, solange ihre Kaserne steht und der Schatz es hergibt.

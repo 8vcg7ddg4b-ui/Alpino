@@ -1,6 +1,6 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost, shipTypesOf,
-  wallLevelInfo, TRADE_ROUTE_COST, MINE_COST, SHIPYARD_COST,
+  wallLevelInfo, TRADE_ROUTE_COST, MINE_COST, SHIPYARD_COST, CAMP_COST,
   BUILDINGS, buildingDef,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
@@ -10,11 +10,11 @@ import {
   buyHarbour, canBuildHarbour, buildFleet, raiseIndependentArmies,
   buyCityWalls, nextWallLevel, tradePartners, openTradeRoute,
   canBuildMine, buyMine, mineOre, buyShipyard,
-  buyBuilding, canBuildBuilding,
+  buyBuilding, canBuildBuilding, buildCamp, campStatus,
 } from './actions.js';
 import { borderViolation } from './territory.js';
 import {
-  unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
+  unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet, cityAt,
 } from './state.js';
 import { atWar, rulerOf } from './diplomacy.js';
 import { piratesTakeTurn } from './piraten.js';
@@ -124,6 +124,24 @@ function worthAttacking(state, army, col, row) {
   return preview.forecast.attackerWinChance >= aiMinWinChance;
 }
 
+// So viel bleibt in der Truhe, ehe ein Lager davon bezahlt wird.
+const AI_CAMP_RESERVE = 150;
+
+// Ein Lager vor einer Stadt, die sich nicht stürmen lässt: die Belagerung ist
+// der zweite Weg über eine Mauer, und für die KI oft der einzige.
+function lagerWennBelagerung(state, army) {
+  if (!army || army.camp || army.embarked || isFleet(army)) return false;
+  if (factionById(state, army.factionId).gold < CAMP_COST + AI_CAMP_RESERVE) return false;
+  if (!campStatus(state, army).can) return false;
+  const ziel = state.cities.find((c) => c.factionId !== army.factionId
+    && atWar(state, army.factionId, c.factionId)
+    && tileDistance(army, c) <= 1);
+  if (!ziel) return false;
+  // Was sie stürmen kann, stürmt sie - dafür braucht es kein Lager.
+  if (worthAttacking(state, army, ziel.col, ziel.row)) return false;
+  return buildCamp(state, army.id).ok;
+}
+
 // Kein Feldherr stolpert in einen Krieg, den sein Herrscher nicht erklärt
 // hat: Wege, die fremdes Land ohne Betretungsrecht schneiden, kommen für die
 // KI gar nicht erst infrage. Wer dort hindurch will, schließt vorher einen
@@ -161,6 +179,19 @@ function stepArmyTowards(state, army, target) {
     }
     if (merge) {
       moveArmy(state, army.id, merge.col, merge.row);
+      return;
+    }
+
+    // Was sich nicht stürmen lässt, lässt sich aushungern. Wer schon vor der
+    // Stadt steht und sie nicht nehmen kann, gräbt sich ein: das Lager
+    // schneidet sie ab, und der Hunger öffnet die Mauer, die kein Sturm
+    // geöffnet hätte. Vorher lief dieselbe Armee jede Runde vergeblich gegen
+    // dasselbe Tor - oder stand daneben und tat gar nichts.
+    const stadt = cityAt(state, target.col, target.row);
+    if (stadt && !army.camp && tileDistance(army, stadt) <= 1
+      && factionById(state, army.factionId).gold >= CAMP_COST + AI_CAMP_RESERVE
+      && campStatus(state, army).can) {
+      buildCamp(state, army.id);
       return;
     }
   }
@@ -562,6 +593,9 @@ function aiMilitary(state, faction, threats) {
       }
     }
     stepArmyTowards(state, army, target);
+    // Und wer nach seinem Zug vor einer Stadt steht, die er nicht nehmen kann,
+    // gräbt sich davor ein, statt danebenzustehen.
+    lagerWennBelagerung(state, army);
   }
   return { savingForFleet, harbourWanted };
 }

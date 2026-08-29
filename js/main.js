@@ -18,7 +18,7 @@ import {
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, advanceRoadConstruction, buildFleet,
   buyBuilding, advanceConstruction, mineIncomeOf,
-  updateSieges, applySiegeAttrition, siegeInfo,
+  updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations,
 } from './actions.js';
 import {
@@ -1308,6 +1308,13 @@ function refresh() {
       pushUndo();
       closeTradeRoute(state, routeId);
       sfx.select();
+      refresh();
+    },
+    // Graben, Wall, Palisade - und vor einer fremden Stadt die Belagerung.
+    onCamp: (armyId, abbrechen) => {
+      pushUndo();
+      const result = abbrechen ? breakCamp(state, armyId) : buildCamp(state, armyId);
+      (result.ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
     onEmbark: (armyId) => {

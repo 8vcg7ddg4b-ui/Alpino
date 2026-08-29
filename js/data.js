@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.12.0';
+export const GAME_VERSION = '1.13.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1087,6 +1087,30 @@ export function growthFactor(city) {
   if (!city) return 1;
   return 1 + (city.farm ? FARM_GROWTH : 0) + (city.viaduct ? VIADUCT_GROWTH : 0);
 }
+
+// --- Das Lager -------------------------------------------------------------
+// Ein römisches Heer schlug jeden Abend ein Lager auf: Graben, Wall, Palisade,
+// die Zelte in festen Gassen dahinter. Das kostet einen halben Tag Arbeit und
+// gibt dafür drei Dinge - einen Ort, an dem sich das Heer erholt, einen Wall,
+// hinter dem es sich verteidigt, und, vor einer fremden Stadt aufgeschlagen,
+// die Belagerung selbst.
+//
+// Das Lager ist deshalb der Weg, eine Stadt zu nehmen, ohne sie zu stürmen:
+// wer davor liegt, schneidet sie ab und wartet, bis der Hunger die Mauer
+// öffnet, die kein Sturm geöffnet hätte.
+export const CAMP_NAME = 'Lager';
+export const CAMP_COST = 90;
+// Was der Wall im Gefecht trägt - weniger als eine Mauer, aber genug, dass ein
+// Gegenangriff auf ein Lager teuer wird.
+export const CAMP_DEFENCE = 1.4;
+// Hinter dem Wall ruht es sich wie in der eigenen Stadt, und das Wetter kommt
+// nur halb durch die Zeltbahnen.
+export const CAMP_SHELTER = 0.5;
+// Ein Belagerungslager wartet nicht drei Runden, bis der Hunger anfängt: es
+// schneidet vom ersten Tag an ab, und es zehrt schneller.
+export const CAMP_SIEGE_STARVE_AFTER = 1;
+export const CAMP_SIEGE_ATTRITION = 0.1;
+export const CAMP_SIEGE_POPULATION_LOSS = 0.02;
 
 // --- Belagerung ------------------------------------------------------------
 // Ein Ort ist belagert, sobald ein feindliches Heer unmittelbar neben ihm

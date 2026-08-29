@@ -138,6 +138,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
         experience: 0,
         // Every army starts on foot; it only puts to sea once it takes ship.
         embarked: false,
+        // Und im offenen Feld: Graben und Wall werden aufgeschlagen, nicht
+        // mitgebracht.
+        camp: false,
         name: rosters.length > 1 ? `${faction.name} ${label} ${index + 1}` : `${faction.name} ${label}`,
       });
     });

@@ -2555,6 +2555,32 @@ function buildArmyGroup() {
   return group;
 }
 
+// Graben, Wall und Palisade um die Zelte: ein Ring aus Erde mit angespitzten
+// Stämmen darauf. Er entsteht erst, wenn ein Lager aufgeschlagen wird - die
+// meisten Heere stehen im offenen Feld.
+const CAMP_STAKES = 16;
+
+function buildCampRing() {
+  const ring = new THREE.Group();
+  const wall = new THREE.Mesh(
+    new THREE.TorusGeometry(2.5, 0.3, 6, 22),
+    new THREE.MeshStandardMaterial({ color: '#6b5638', roughness: 0.95 })
+  );
+  wall.rotation.x = -Math.PI / 2;
+  wall.position.y = 0.22;
+  ring.add(wall);
+  const stakeGeometry = new THREE.CylinderGeometry(0.06, 0.1, 0.9, 4);
+  const stakeMaterial = new THREE.MeshStandardMaterial({ color: '#4a3a2a', roughness: 1 });
+  for (let i = 0; i < CAMP_STAKES; i++) {
+    const angle = (i / CAMP_STAKES) * Math.PI * 2;
+    const stake = new THREE.Mesh(stakeGeometry, stakeMaterial);
+    stake.position.set(Math.cos(angle) * 2.5, 0.62, Math.sin(angle) * 2.5);
+    stake.rotation.z = (i % 2 ? 1 : -1) * 0.08;
+    ring.add(stake);
+  }
+  return ring;
+}
+
 function syncArmyGroup(state, army, entry) {
   const { group } = entry;
   const faction = factionById(state, army.factionId);
@@ -2578,6 +2604,14 @@ function syncArmyGroup(state, army, entry) {
     ship.visible = afloat;
     for (const sail of ship.userData.sails) sail.material.color.set(faction.color);
   }
+  // Das Lager: es steht um die Zelte, solange das Heer darin liegt.
+  const camped = !!army.camp && !afloat;
+  if (camped && !group.userData.camp) {
+    group.userData.camp = buildCampRing();
+    group.add(group.userData.camp);
+  }
+  if (group.userData.camp) group.userData.camp.visible = camped;
+
   group.userData.tents.visible = !afloat;
   if (group.userData.pole) group.userData.pole.visible = !afloat;
   group.userData.flag.visible = !afloat;
@@ -2612,6 +2646,7 @@ function syncArmyGroup(state, army, entry) {
 
   // Das ganze Lager - Zelte, Stange, Banner, Schiff - wächst mit der Stärke.
   tents.scale.setScalar(scale);
+  if (group.userData.camp) group.userData.camp.scale.setScalar(scale);
   if (ship) ship.scale.setScalar(0.8 + (scale - 0.68) * 0.55);
   if (group.userData.pole) {
     group.userData.pole.scale.set(1, scale, 1);

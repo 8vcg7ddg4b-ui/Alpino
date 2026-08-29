@@ -22,6 +22,8 @@ import {
   TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, tradeSizeFactor,
   BIRTH_RATE, BIRTH_SEASON, populationCeiling,
   SIEGE_RANGE, SIEGE_STARVE_AFTER, SIEGE_ATTRITION, SIEGE_POPULATION_LOSS,
+  CAMP_NAME, CAMP_COST, CAMP_DEFENCE, CAMP_SHELTER,
+  CAMP_SIEGE_STARVE_AFTER, CAMP_SIEGE_ATTRITION, CAMP_SIEGE_POPULATION_LOSS,
   tileImpassable, tileMoveCost, levyStrength, LEVY_SHARE,
 } from './data.js';
 import { landRoute } from './mapgen.js';
@@ -347,7 +349,9 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       defenderMorale: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'morale'),
       defenderExhaustion: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'exhaustion'),
       wallMultiplier: wallDefenceMultiplier(wallLevel),
-      defenderMultiplier: 1,
+      // Wer ein Lager stürmt, stürmt über Graben und Palisade - weniger als
+      // eine Mauer, aber genug, dass es teuer wird.
+      defenderMultiplier: !atSea && defendingArmies.some((a) => a.camp) ? CAMP_DEFENCE : 1,
       // Storming a shore straight off the ships is the hardest attack there is.
       attackerMultiplier: amphibious ? AMPHIBIOUS_ATTACK_MULTIPLIER : 1,
       attackerVeterancy: experienceBonus(army.experience),
@@ -736,6 +740,9 @@ export function moveArmy(state, armyId, destCol, destRow) {
 
   army.movement = Math.max(0, army.movement - entry.cost);
   adjustExhaustion(army, moveExhaustion(army, entry.cost));
+  // Wer abmarschiert, lässt Graben und Palisade stehen - für ihn zählen sie
+  // nicht mehr.
+  army.camp = false;
 
   // Zwei eigene Heere auf einem Feld werden eines.
   if (entry.merge) {
@@ -976,7 +983,7 @@ export function raiseArmyFromGarrison(state, cityId) {
     movement: 0, maxMovement: MAX_MOVEMENT, units: marching,
     // Fresh out of the barracks: rested, steady from having been paid, and
     // with nothing at all behind them.
-    morale: GARRISON_MORALE, exhaustion: 0, experience: 0,
+    morale: GARRISON_MORALE, exhaustion: 0, experience: 0, camp: false,
     name: `${faction.name} Armee`,
   };
   state.armies.push(newArmy);
@@ -1327,7 +1334,8 @@ export function applyWeather(state) {
     const weather = weatherAt(state, army.col, army.row);
     if (!weather.wear && !weather.spirit) continue;
     const city = cityAt(state, army.col, army.row);
-    const shelter = city && city.factionId === army.factionId ? 0.4 : 1;
+    const shelter = city && city.factionId === army.factionId ? 0.4
+      : army.camp ? CAMP_SHELTER : 1;
     if (weather.wear) adjustExhaustion(army, weather.wear * shelter);
     if (weather.spirit) adjustMorale(army, weather.spirit * shelter);
     if (army.factionId === player.id && weather.wear >= 6) {
@@ -1515,9 +1523,10 @@ export function recoverArmies(state) {
     const share = army.maxMovement > 0 ? army.movement / army.maxMovement : 1;
     if (share <= 0) continue;
     const city = cityAt(state, army.col, army.row);
-    const inOwnCity = city && city.factionId === army.factionId;
-    adjustMorale(army, (inOwnCity ? MORALE_REST_IN_CITY : MORALE_REST) * share);
-    adjustExhaustion(army, (inOwnCity ? EXHAUSTION_REST_IN_CITY : EXHAUSTION_REST) * share);
+    // Im eigenen Lager ruht es sich wie hinter eigenen Mauern.
+    const geschuetzt = (city && city.factionId === army.factionId) || army.camp;
+    adjustMorale(army, (geschuetzt ? MORALE_REST_IN_CITY : MORALE_REST) * share);
+    adjustExhaustion(army, (geschuetzt ? EXHAUSTION_REST_IN_CITY : EXHAUSTION_REST) * share);
   }
 }
 
@@ -1703,6 +1712,62 @@ export function collectIncome(state) {
   }
 }
 
+// --- Das Lager -------------------------------------------------------------
+// Graben, Wall, Palisade: ein halber Tag Arbeit, und das Heer steht nicht mehr
+// im offenen Feld. Gebaut wird mit dem, was an Bewegung übrig ist - wer schon
+// marschiert ist, schlägt heute kein Lager mehr auf.
+export function campStatus(state, army) {
+  if (!army) return { can: false, reason: 'none' };
+  if (army.camp) return { can: false, reason: 'done' };
+  if (army.embarked) return { can: false, reason: 'atSea' };
+  if (isFleet(army)) return { can: false, reason: 'fleet' };
+  const city = cityAt(state, army.col, army.row);
+  // In einer Stadt braucht niemand ein Lager: sie ist eines.
+  if (city) return { can: false, reason: 'inCity' };
+  if (army.movement <= 0) return { can: false, reason: 'movement' };
+  const faction = factionById(state, army.factionId);
+  if (!faction || faction.isNeutral) return { can: false, reason: 'none' };
+  if (faction.gold < CAMP_COST) return { can: false, reason: 'gold' };
+  return { can: true };
+}
+
+export function buildCamp(state, armyId) {
+  const army = state.armies.find((a) => a.id === armyId);
+  if (!army) return { ok: false };
+  const status = campStatus(state, army);
+  if (!status.can) return { ok: false, reason: status.reason };
+  const faction = factionById(state, army.factionId);
+  faction.gold -= CAMP_COST;
+  army.camp = true;
+  // Der Rest des Tages gehört dem Spaten.
+  army.movement = 0;
+  const belagert = campSiegeTarget(state, army);
+  logOwn(state, army.factionId, belagert
+    ? `⛺ ${army.name} schlägt ein Belagerungslager vor ${belagert.name} auf.`
+    : `⛺ ${army.name} schlägt ein ${CAMP_NAME} auf.`);
+  return { ok: true, siege: belagert || null };
+}
+
+export function breakCamp(state, armyId) {
+  const army = state.armies.find((a) => a.id === armyId);
+  if (!army || !army.camp) return { ok: false };
+  army.camp = false;
+  logOwn(state, army.factionId, `${army.name} bricht das ${CAMP_NAME} ab.`);
+  return { ok: true };
+}
+
+// Der feindliche Ort, vor dem dieses Lager liegt - falls es vor einem liegt.
+export function campSiegeTarget(state, army) {
+  if (!army || army.embarked) return null;
+  for (const city of state.cities) {
+    if (city.factionId === army.factionId) continue;
+    if (!atWar(state, army.factionId, city.factionId)) continue;
+    if (Math.abs(army.col - city.col) + Math.abs(army.row - city.row) > SIEGE_RANGE) continue;
+    return city;
+  }
+  return null;
+}
+
 // --- Belagerung ------------------------------------------------------------
 // Wer sich vor einen Ort stellt, belagert ihn. Es braucht keinen Befehl und
 // keinen eigenen Zustand dafür: die Lage der Heere sagt es. Ein Landheer
@@ -1731,7 +1796,9 @@ export function siegeForces(state, city) {
     }
   }
   if (!land.length && !sea.length) return null;
-  return { land, sea };
+  // Ein Belagerungslager ist etwas anderes als ein Heer, das zufällig
+  // danebensteht: es schneidet vom ersten Tag an ab und zehrt schneller.
+  return { land, sea, camp: land.some((a) => a.camp) };
 }
 
 // Alles, was die Seitenleiste über eine Belagerung wissen muss - live aus der
@@ -1743,14 +1810,16 @@ export function siegeInfo(state, city) {
   const alle = [...forces.land, ...forces.sea];
   const factions = [...new Set(alle.map((a) => a.factionId))];
   const seit = city.siege ? Math.max(0, state.turn - city.siege.since) : 0;
+  const frist = forces.camp ? CAMP_SIEGE_STARVE_AFTER : SIEGE_STARVE_AFTER;
   return {
     land: forces.land.length,
     sea: forces.sea.length,
+    camp: !!forces.camp,
     men: alle.reduce((sum, a) => sum + unitTotalCount(a.units), 0),
     factions,
     seit,
-    hungert: seit >= SIEGE_STARVE_AFTER,
-    bisHunger: Math.max(0, SIEGE_STARVE_AFTER - seit),
+    hungert: seit >= frist,
+    bisHunger: Math.max(0, frist - seit),
   };
 }
 
@@ -1798,16 +1867,21 @@ export function applySiegeAttrition(state) {
   const gelitten = [];
   for (const city of state.cities) {
     if (!city.siege) continue;
-    if (state.turn - city.siege.since < SIEGE_STARVE_AFTER) continue;
+    const forces = siegeForces(state, city);
+    const lager = !!(forces && forces.camp);
+    const frist = lager ? CAMP_SIEGE_STARVE_AFTER : SIEGE_STARVE_AFTER;
+    const zehrung = lager ? CAMP_SIEGE_ATTRITION : SIEGE_ATTRITION;
+    const hunger = lager ? CAMP_SIEGE_POPULATION_LOSS : SIEGE_POPULATION_LOSS;
+    if (state.turn - city.siege.since < frist) continue;
     let verloren = 0;
     for (const role of GARRISON_ROLES) {
       const zahl = city.garrison[role] || 0;
       if (zahl <= 0) continue;
-      const weg = Math.max(1, Math.round(zahl * SIEGE_ATTRITION));
+      const weg = Math.max(1, Math.round(zahl * zehrung));
       city.garrison[role] = Math.max(0, zahl - weg);
       verloren += Math.min(weg, zahl);
     }
-    const buerger = Math.round(city.population * SIEGE_POPULATION_LOSS);
+    const buerger = Math.round(city.population * hunger);
     city.population = Math.max(100, city.population - buerger);
     if (verloren || buerger) {
       gelitten.push({ city, verloren, buerger });
