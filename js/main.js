@@ -29,6 +29,7 @@ import {
 } from './scene3d.js';
 import {
   sfx, unlockAudio, toggleMuted, isMuted, stopMarch, startTheme, stopTheme, setMusicEnabled,
+  startAnthem, stopAnthem,
 } from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
 import { factionArt, factionArtSVG } from './factionart.js';
@@ -104,8 +105,17 @@ document.getElementById('settingsBody').addEventListener('click', (event) => {
 function syncMenuMusic() {
   const inMenu = !document.getElementById('startScreen').classList.contains('hidden')
     || !document.getElementById('factionScreen').classList.contains('hidden');
-  if (inMenu && !isMuted() && getSetting('music')) startTheme({ fadeIn: 1.2 });
-  else if (!inMenu) stopTheme({ fadeOut: 2 });
+  const erlaubt = !isMuted() && getSetting('music');
+  if (inMenu) {
+    stopAnthem({ fadeOut: 1.5 });
+    if (erlaubt) startTheme({ fadeIn: 1.2 });
+    return;
+  }
+  stopTheme({ fadeOut: 2 });
+  // Auf der Karte klingt die eigene Fraktion. Wer die Musik in den
+  // Einstellungen wieder einschaltet, hört sie ab dem nächsten Takt.
+  if (erlaubt && state) startAnthem(playerFaction(state).id, { fadeIn: 2 });
+  else if (!erlaubt) stopAnthem({ fadeOut: 1.5 });
 }
 
 // Der Blick auf den eigenen Sitz. Ist die Hauptstadt gefallen, tut es die
@@ -356,6 +366,8 @@ function quitToMenu() {
   hideBattlePreview();
   hideTileInfo();
   stopMarch();
+  // Der Feldzug endet, die Musik seiner Fraktion mit ihm.
+  stopAnthem({ fadeOut: 2 });
   // Erst die Szene abmelden, dann den Spielstand loslassen: die Karte fragt
   // das Wetter über einen Rückruf ab, und der griffe sonst ins Leere.
   setWeatherSource(null);
@@ -1216,8 +1228,12 @@ function startNewGame(factionId = chosenFaction) {
   // mit der Karte darauf und der Thron dahinter, dann - wenn der Spieler die
   // Ansprache wegklickt - der Blick auf die eigene Hauptstadt.
   setOpeningView();
-  // Auf der Karte wird es still: die Musik gehört zum Vorspann, nicht zum Zug.
-  stopTheme({ fadeOut: 4 });
+  // Mit dem Zelt wechselt die Musik: die Titelmusik gehört zum Vorspann, von
+  // hier an klingt die eigene Fraktion.
+  stopTheme({ fadeOut: 2 });
+  if (!isMuted() && getSetting('music')) {
+    startAnthem(playerFaction(state).id, { fadeIn: 3.5 });
+  }
   showHerald();
 
   // Input holds no reference to `state` itself, so it reads through a getter -

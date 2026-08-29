@@ -12,6 +12,8 @@
 // Zusammenstoß und Musik - übersteuern; der Hall gibt allen Klängen denselben
 // Raum, und erst dadurch klingen synthetische Töne nicht mehr nach Piepser.
 
+import { anthemFor, SCALES, degreeFrequency, noteFrequency } from './anthems.js';
+
 let ctx = null;
 let master = null;      // trockenes Summensignal
 let wetGain = null;     // Hallanteil
@@ -101,6 +103,7 @@ export function setMuted(value) {
   if (muted) {
     stopMarch();
     stopTheme();
+    stopAnthem();
   }
 }
 
@@ -221,6 +224,106 @@ function pad(context, when, {
     osc.stop(when + duration + 0.05);
   }
   filter.connect(envelope).connect(destination || master);
+}
+
+// Eine gezupfte Saite: Kithara, Laute, Santur. Der Ton ist sofort da und
+// fällt gleich wieder ab - kein Bogen, kein Atem. Zwei Oszillatoren im Abstand
+// einer Oktave geben ihm den metallischen Anschlag.
+function pluck(context, when, {
+  frequency = 330, duration = 0.6, gain = 0.16, destination = null,
+} = {}) {
+  const envelope = context.createGain();
+  envelope.gain.setValueAtTime(0, when);
+  envelope.gain.linearRampToValueAtTime(gain, when + 0.008);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+
+  const filter = context.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.Q.value = 0.8;
+  filter.frequency.setValueAtTime(frequency * 9, when);
+  filter.frequency.exponentialRampToValueAtTime(frequency * 2.2, when + duration * 0.7);
+
+  for (const [ratio, level, type] of [[1, 1, 'triangle'], [2, 0.35, 'sine'], [3.01, 0.12, 'sine']]) {
+    const osc = context.createOscillator();
+    osc.type = type;
+    osc.frequency.value = frequency * ratio;
+    const part = context.createGain();
+    part.gain.value = level;
+    osc.connect(part).connect(filter);
+    osc.start(when);
+    osc.stop(when + duration + 0.05);
+  }
+  filter.connect(envelope).connect(destination || master);
+}
+
+// Ein Doppelrohrblatt: Aulos, Duduk, Zurna. Nasal und tragend, mit einem
+// leichten Zittern im Ton - der Atem eines Bläsers steht nie ganz still.
+// `reediness` entscheidet, ob es die weiche Duduk oder die schneidende Zurna
+// ist: sie öffnet das Filter und schärft die Obertöne.
+function reed(context, when, {
+  frequency = 330, duration = 0.9, gain = 0.14, attack = 0.06,
+  reediness = 3, vibrato = 4.6, destination = null,
+} = {}) {
+  const envelope = context.createGain();
+  envelope.gain.setValueAtTime(0, when);
+  envelope.gain.linearRampToValueAtTime(gain, when + attack);
+  envelope.gain.setValueAtTime(gain, when + duration * 0.78);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+
+  const filter = context.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.Q.value = 1.6;
+  filter.frequency.setValueAtTime(frequency * 1.4, when);
+  filter.frequency.linearRampToValueAtTime(frequency * reediness, when + attack * 2);
+  filter.frequency.exponentialRampToValueAtTime(frequency * 1.6, when + duration);
+
+  const osc = context.createOscillator();
+  osc.type = 'square';
+  osc.frequency.value = frequency;
+
+  // Das Zittern: eine langsame Schwingung auf der Tonhöhe, die erst einsetzt,
+  // wenn der Ton steht - ein Bläser vibriert nicht auf dem Anblasen.
+  const lfo = context.createOscillator();
+  lfo.frequency.value = vibrato;
+  const lfoGain = context.createGain();
+  lfoGain.gain.setValueAtTime(0, when);
+  lfoGain.gain.linearRampToValueAtTime(frequency * 0.012, when + duration * 0.5);
+  lfo.connect(lfoGain).connect(osc.frequency);
+  lfo.start(when);
+  lfo.stop(when + duration + 0.05);
+
+  osc.connect(filter).connect(envelope).connect(destination || master);
+  osc.start(when);
+  osc.stop(when + duration + 0.05);
+}
+
+// Rahmentrommel: Bendir, Riq, Tombak. Kein Kriegsgerät, sondern Fell über
+// einem Reifen - kurz, trocken, mit einem hellen Rand für den Schlag am Rand.
+function frameDrum(context, when, {
+  gain = 0.32, pitch = 150, rim = false, destination = null,
+} = {}) {
+  if (rim) {
+    noiseBurst(context, when, {
+      duration: 0.05, gain: gain * 0.5, frequency: 3200, q: 1.4, destination,
+    });
+    return;
+  }
+  const osc = context.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(pitch, when);
+  osc.frequency.exponentialRampToValueAtTime(pitch * 0.55, when + 0.1);
+
+  const envelope = context.createGain();
+  envelope.gain.setValueAtTime(0, when);
+  envelope.gain.linearRampToValueAtTime(gain, when + 0.005);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, when + 0.22);
+
+  osc.connect(envelope).connect(destination || master);
+  osc.start(when);
+  osc.stop(when + 0.26);
+  noiseBurst(context, when, {
+    duration: 0.05, gain: gain * 0.28, frequency: 2400, q: 1, destination,
+  });
 }
 
 // Kriegstrommel: ein Sinus, der im Fallen die Tonhöhe verliert, dazu ein
@@ -451,15 +554,9 @@ const BAR = BEAT * 4;
 const MUSIC_LOOKAHEAD = 1.5;            // Sekunden Vorlauf
 const MUSIC_TICK = 250;                 // ms zwischen zwei Planungsläufen
 
-const SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-
-// Notenname wie 'A#3' oder 'Bb2' zu Frequenz.
-function note(name) {
-  const step = SEMITONES[name[0]];
-  const sharp = name[1] === '#' ? 1 : name[1] === 'b' ? -1 : 0;
-  const octave = Number(name.slice(sharp ? 2 : 1));
-  return 440 * 2 ** ((step + sharp - 9) / 12 + (octave - 4));
-}
+// Die Notenrechnung steht bei den Partituren: dort wird sie gebraucht, hier
+// nur benutzt. Zwei Tabellen derselben Halbtöne wären eine zu viel.
+const note = noteFrequency;
 
 // Acht Takte: i – VI – III – VII, zweimal, beim zweiten Mal mit Melodie.
 // Jeder Takt nennt Grundton, Dreiklang und die Melodietöne auf den Schlägen.
@@ -508,9 +605,158 @@ function scheduleBar(context, index, when) {
   });
 }
 
+// --- Die Musik der Fraktionen ---------------------------------------------
+// Dieselbe Planung wie bei der Titelmusik, aber nach der Partitur der eigenen
+// Fraktion: Leiter, Grundton, Tempo und Taktart kommen aus anthems.js, und
+// welches Instrument die Melodie trägt, steht dort auch. Ein Stück läuft
+// zweimal durch - beim zweiten Mal lauter und mit Melodie, damit es atmet.
+
+let anthem = null;
+let anthemHandle = null;
+let anthemBar = 0;
+let anthemNextAt = 0;
+let anthemId = null;
+
+// Welche Stimme spielt: die Partitur nennt sie beim Namen.
+function voiceFor(kind) {
+  return kind === 'saite' ? pluck : kind === 'rohr' ? reed : kind === 'blech' ? brass : null;
+}
+
+function scheduleAnthemBar(context, score, index, when) {
+  const scale = SCALES[score.modus];
+  const beat = 60 / score.tempo;
+  const bar = beat * score.takt;
+  const slot = beat / 2;                 // die Melodie läuft in Achteln
+  const takt = index % score.melodie.length;
+  // Der zweite Durchlauf trägt die Melodie; der erste stellt nur den Raum auf.
+  const loud = Math.floor(index / score.melodie.length) % 2 === 1;
+  const bus = musicBus;
+
+  // Der Grundton des Takts, und was durchgehend liegt.
+  const bassDegree = score.bass[takt];
+  const grund = voiceFor(score.grund);
+  if (grund) {
+    grund(context, when, {
+      frequency: degreeFrequency(score.grundton, scale, bassDegree),
+      duration: bar * (score.grund === 'saite' ? 0.9 : 0.94),
+      gain: score.grund === 'blech' ? (loud ? 0.13 : 0.09) : 0.13,
+      attack: 0.08, brightness: loud ? 4.6 : 3.2, destination: bus,
+    });
+  }
+  for (const degree of score.bordun) {
+    pad(context, when, {
+      frequency: degreeFrequency(score.grundton, scale, degree, 1),
+      duration: bar * 1.02, gain: loud ? 0.045 : 0.034, destination: bus,
+    });
+  }
+  // Ein weicher Teppich auf dem Taktgrundton hält alles zusammen.
+  pad(context, when, {
+    frequency: degreeFrequency(score.grundton, scale, bassDegree, 1),
+    duration: bar * 1.02, gain: 0.036, destination: bus,
+  });
+
+  // Das Schlagwerk.
+  if (score.schlag !== 'still') {
+    score.muster.forEach((position, nr) => {
+      const at = when + position * slot;
+      const stark = position === 0;
+      if (score.schlag === 'kriegstrommel') {
+        drum(context, at, {
+          gain: (stark ? 0.32 : 0.19) * (loud ? 1 : 0.75),
+          pitch: stark ? 92 : 108, destination: bus,
+        });
+      } else {
+        frameDrum(context, at, {
+          gain: (stark ? 0.3 : 0.17) * (loud ? 1 : 0.78),
+          pitch: stark ? 150 : 190, rim: !stark && nr % 2 === 0, destination: bus,
+        });
+      }
+    });
+  }
+
+  if (!loud) return;
+  const fuehrung = voiceFor(score.fuehrung) || brass;
+  score.melodie[takt].forEach((degree, position) => {
+    if (degree === null || degree === undefined) return;
+    // Ein Ton hält, bis der nächste kommt - so entsteht aus einem Raster eine
+    // Linie und kein Stakkato.
+    let laenge = 1;
+    while (position + laenge < score.melodie[takt].length
+      && score.melodie[takt][position + laenge] === null) laenge++;
+    const dauer = slot * laenge * (score.fuehrung === 'saite' ? 1.6 : 0.95);
+    fuehrung(context, when + position * slot, {
+      frequency: degreeFrequency(score.grundton, scale, degree, 1),
+      duration: Math.max(0.18, dauer),
+      gain: score.fuehrung === 'saite' ? 0.15 : 0.12,
+      attack: score.fuehrung === 'rohr' ? 0.07 : 0.05,
+      brightness: 6, reediness: 3.4, destination: bus,
+    });
+  });
+}
+
+// Welche Fraktion gerade klingt - oder null, wenn keine Musik läuft.
+export function currentAnthem() {
+  return anthemHandle !== null ? anthemId : null;
+}
+
+// Setzt die Musik einer Fraktion in Gang. Läuft schon dieselbe, passiert
+// nichts; läuft eine andere (oder die Titelmusik), wird gewechselt.
+export function startAnthem(factionId, { fadeIn = 3 } = {}) {
+  if (muted || !musicEnabled) return;
+  if (anthemHandle !== null && anthemId === factionId) return;
+  stopTheme({ fadeOut: 0.8 });
+  stopAnthem({ fadeOut: 0.8 });
+  const context = ensureContext();
+  if (!context) return;
+  if (context.state === 'suspended') context.resume().catch(() => {});
+
+  anthem = anthemFor(factionId);
+  anthemId = factionId;
+  const bar = (60 / anthem.tempo) * anthem.takt;
+  const now = context.currentTime;
+  // Der Wechsel braucht einen Moment, sonst fällt der neue Anfang in das
+  // Ausblenden des alten Stücks.
+  const start = now + 0.9;
+  musicBus.gain.cancelScheduledValues(now);
+  musicBus.gain.setValueAtTime(0.0001, start);
+  musicBus.gain.linearRampToValueAtTime(1, start + fadeIn);
+  // Angefangen wird mit dem lauten Durchlauf: wer das Zelt betritt, soll die
+  // Melodie hören und nicht erst einen halben Takt Grundierung. Danach
+  // wechselt es von selbst - leiser Durchgang, lauter Durchgang.
+  anthemBar = anthem.melodie.length;
+  anthemNextAt = start;
+
+  const schedule = () => {
+    while (anthemNextAt < context.currentTime + MUSIC_LOOKAHEAD) {
+      if (anthemNextAt < context.currentTime) anthemNextAt = context.currentTime + 0.05;
+      scheduleAnthemBar(context, anthem, anthemBar, anthemNextAt);
+      anthemNextAt += bar;
+      anthemBar++;
+    }
+  };
+  schedule();
+  anthemHandle = setInterval(schedule, MUSIC_TICK);
+}
+
+export function stopAnthem({ fadeOut = 3 } = {}) {
+  if (anthemHandle !== null) {
+    clearInterval(anthemHandle);
+    anthemHandle = null;
+  }
+  anthemId = null;
+  if (!musicBus || !ctx) return;
+  const now = ctx.currentTime;
+  musicBus.gain.cancelScheduledValues(now);
+  musicBus.gain.setValueAtTime(musicBus.gain.value, now);
+  musicBus.gain.linearRampToValueAtTime(0.0001, now + fadeOut);
+}
+
 export function setMusicEnabled(value) {
   musicEnabled = !!value;
-  if (!musicEnabled) stopTheme();
+  if (!musicEnabled) {
+    stopTheme();
+    stopAnthem();
+  }
 }
 
 export function isMusicEnabled() {

@@ -131,9 +131,24 @@ Sobald der Spieler die erste Taste drückt, setzt die **Titelmusik** ein – ein
 Stück in d-Moll, das sich Takt für Takt selbst weiterschreibt: Bass und Blech
 tragen die Harmonie, ein Streicherteppich hält sie zusammen, die Kriegstrommel
 gibt den Schritt, und im zweiten Durchgang kommt die Melodie dazu. Sie läuft
-durch die Fraktionswahl und blendet aus, wenn der Feldzug beginnt; auf der
-Karte bleibt es still. Früher kann sie nicht anfangen: ein Browser lässt Ton
+durch die Fraktionswahl. Früher kann sie nicht anfangen: ein Browser lässt Ton
 erst nach einer echten Geste des Spielers zu.
+
+**Mit dem Betreten des Zeltes** übernimmt die Musik der eigenen Fraktion. Jede
+der sechzehn hat ihr eigenes Stück – wieder keine Aufnahme, sondern eine
+Partitur (`js/anthems.js`), die der Klangsatz Takt für Takt spielt. Der
+Unterschied steckt in der Leiter und in der Besetzung: der **Hidschas** mit
+seiner übermäßigen Sekunde trägt Karthago, Numidien, die Parther, die
+Seleukiden und Ägypten; **Mixolydisch** ohne Leitton den keltischen Norden;
+**Nikriz** den Balkan; eine **fünftönige** Leiter die Steppe der Sarmaten; und
+was die Griechen selbst dorisch nannten, klingt für uns phrygisch. Dazu drei
+Stimmen, die jeweils die Melodie führen können – Blech (Cornu, Carnyx, Lure),
+Doppelrohrblatt (Aulos, Duduk, Zurna) oder gezupfte Saite (Kithara, Laute,
+Santur, Harfe) – und zwei Trommeln: die Kriegstrommel für den Marsch, die
+Rahmentrommel für den Süden und Osten. Das Tempo reicht von 58 (Armenien: eine
+Duduk über einem liegenden Ton, ohne jedes Schlagwerk) bis 112 (Numidien im
+Reitertempo), und Daker und Illyrer zählen im Siebentakt. Jedes Stück läuft
+abwechselnd einen lauten Durchgang mit Melodie und einen leisen ohne.
 
 Das Menü führt ins Spiel, zu den **Einstellungen** (Ton, Kampfvorschau,
 Marschgeschwindigkeit, Kartensicht beim Start, Verhalten der Gegner,
@@ -409,14 +424,15 @@ den Punkten durchblättern.
   Rekrutierung, Mauer- oder Straßenkauf, Auflösen oder ganzen Rundenwechsel.
 - **Feldzug beenden**: 🏳 in der Kopfzeile führt nach Rückfrage zurück ins
   Hauptmenü.
-- **Ton**: 🔊 schaltet alles ab, was zu hören ist – Titelmusik, Marschtritt,
+- **Ton**: 🔊 schaltet alles ab, was zu hören ist – Titelmusik, Fraktionsmusik,
+  Marschtritt,
   Zusammenstoß, Hornruf, Steinarbeit, Kriegstrommel. Nichts davon ist eine
   Audiodatei: alles entsteht zur Laufzeit aus Oszillatoren und Rauschen und
   läuft über eine gemeinsame Kette aus Hall und Kompressor, damit die Klänge
   in einem Raum stehen und sich nicht gegenseitig übersteuern. Eine Auswahl
   ist bewusst nur ein trockener Klick, kein Ton – bei jedem zweiten Handgriff
-  wäre ein Piepser eine Belästigung. Die Titelmusik lässt sich in den
-  Einstellungen getrennt abschalten.
+  wäre ein Piepser eine Belästigung. Die Musik lässt sich in den
+  Einstellungen getrennt abschalten – Titelmusik wie Fraktionsmusik.
 - **Vollbildmodus**: ist der Normalfall – das Spiel geht beim Start hinein.
   Ein Wisch über die Karte zieht nicht mehr am Browserfenster: alles, was nicht
   in einer scrollbaren Leiste beginnt, wird abgefangen, damit ein Streichen nach
@@ -578,8 +594,11 @@ den Punkten durchblättern.
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl
 - `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
 - `js/weather.js` – Kalender, Klimazonen, Wettertypen und ihre Regelwirkung
+- `js/anthems.js` – die Partituren der sechzehn Fraktionen: Leitern, Grundtöne,
+  Motive und Besetzung
 - `js/audio.js` – der ganze Ton: Hall- und Kompressorkette, die einzelnen
-  Klangereignisse, der Marschtritt und die Titelmusik
+  Klangereignisse, der Marschtritt, die Titelmusik und der Spieler für die
+  Fraktionsmusik
 - `js/settings.js` – Einstellungen: Schema, Speicherung, Einstellungsfenster
 - `js/events.js` – die Zufallsereignisse: Bedingung, Wirkung und der Satz,
   der sie erzählt
