@@ -3,6 +3,7 @@ import {
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES,
   CAPITAL_WALL_LEVEL, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
   UNIT_ROLES, SHIP_ROLE, RIVER_CROSSING_COST, TRADE_GOODS,
+  tileImpassable, tileMoveCost,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
 import { rollWeather } from './weather.js';
@@ -120,10 +121,10 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   const taken = new Set(cities.map((c) => `${c.col},${c.row}`));
   const tileCost = (col, row) => {
     if (col < 0 || col >= map.cols || row < 0 || row >= map.rows) return null;
-    const def = TILE_TYPES[map.tiles[row][col].type];
-    if (def.impassable) return null;
+    const tile = map.tiles[row][col];
+    if (tileImpassable(tile)) return null;
     if (taken.has(`${col},${row}`)) return null;
-    return def.cost;
+    return tileMoveCost(tile);
   };
   for (const army of armies) {
     const home = army.home;

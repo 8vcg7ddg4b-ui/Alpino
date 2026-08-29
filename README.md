@@ -379,7 +379,13 @@ den Punkten durchblättern.
   neun Felder statt sechs, und weil Erschöpfung je Punkt anfällt, zehrt ein
   Straßenfeld auch weniger als ein Feld Ebene. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
   als Ganzes und immer nur eine je Stadt;
-  neue Straßen legen sich an das bestehende Netz an. **Zu Spielbeginn hängen
+  neue Straßen legen sich an das bestehende Netz an: die Wegsuche zählt ein
+  vorhandenes Straßenfeld als billigsten Schritt, so dass eine neue Verbindung
+  auf die alte Trasse einschwenkt, statt eine zweite danebenzuziehen. Dasselbe
+  gilt für **Brücken**: ein Flussübergang kostet die Wegsuche extra, ein
+  bestehender nichts – eine Straße zieht deshalb lieber ein paar Felder am Ufer
+  entlang, als ein zweites Mal überzusetzen. Im Startnetz sind es dadurch zehn
+  Brücken statt achtzehn. **Zu Spielbeginn hängen
   alle Orte jeder Fraktion an ihrer Hauptstadt**, die Dörfer eingeschlossen –
   ein Reich, das sein Land seit Generationen hält, hat den Weg dorthin längst
   getreten, und niemand soll eine Straße bauen müssen, die auf der Karte schon
@@ -389,6 +395,20 @@ den Punkten durchblättern.
   3, gebrochenes Gelände – Wald, Hügel, Wüste – das Doppelte, eine gepflasterte
   Straße 2, und ein Heer hat 18 Punkte je Runde. Das sind sechs Felder Ebene,
   drei Felder Wald – und neun Felder Straße.
+- **Gebirge und Pässe**: Ein Gebirge ist nicht mehr pauschal gesperrt. **Bis
+  2000 Meter führt ein Pass hindurch** – mühsam, aber begehbar: 12
+  Bewegungspunkte je Feld, das Doppelte von gebrochenem Gelände, und weil
+  Erschöpfung je Punkt anfällt, kommt ein Heer entsprechend mitgenommen auf der
+  anderen Seite an. Was höher liegt, ist Fels und Eis und bleibt für ein Heer
+  unpassierbar. Von 122 Gebirgsfeldern der Karte sind damit 48 begehbar; die
+  Geländeauskunft sagt für jedes, woran man ist. Hannibal zog über den
+  Alpenhauptkamm auf ungefähr dieser Höhe.
+- **Grenzen auf der Karte**: Der Knopf ◫ blendet die **Grenzen der
+  Herrschaftsgebiete** ein – ein schmales Band in der Farbe der Fraktion,
+  überall dort, wo ihr Einflussbereich an einen fremden stößt, gezeichnet auf
+  die Geländekarte statt in einer eigenen Ansicht. Gerechnet wird derselbe
+  Einflussbereich wie in der taktischen Sicht (jedes Feld gehört zum nächsten
+  Ort), und er zieht mit, wenn eine Stadt den Besitzer wechselt.
 - **Flüsse und Brücken**: Fünfzehn große Ströme liegen auf der Karte, in echten
   Koordinaten wie alles Geografische – Rhein und Donau, Rhône, Po und Tiber,
   Seine und Loire, Ebro, Tejo und Guadalquivir, Elbe und Weichsel, Mariza, Nil

@@ -1,4 +1,6 @@
-import { TILE_TYPES, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST } from './data.js';
+import {
+  TILE_TYPES, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, tileImpassable, tileMoveCost,
+} from './data.js';
 import { armyAt, cityAt, isFleet, riverCrossingCost } from './state.js';
 import { atWar } from './diplomacy.js';
 import { weatherMoveCost } from './weather.js';
@@ -27,8 +29,8 @@ function classifyTile(state, col, row, movingFactionId, embarked, fleet) {
     // Ein Geschwader aus lauter Schiffen kennt keine Landung: für eine Flotte
     // endet die Welt am Ufer.
     if (!isSea && fleet) return { blocked: true };
-    if (!isSea && tileDef.impassable) return { blocked: true };
-  } else if (tileDef.impassable) {
+    if (!isSea && tileImpassable(tile)) return { blocked: true };
+  } else if (tileImpassable(tile)) {
     return { blocked: true };
   }
 
@@ -36,7 +38,7 @@ function classifyTile(state, col, row, movingFactionId, embarked, fleet) {
   // A finished road replaces the ground underneath it: on a paved tile the
   // terrain no longer matters, only the weather does.
   const paved = !isSea && !!(state.roads && state.roads[`${col},${row}`]);
-  const ground = isSea ? SEA_MOVE_COST : (paved ? ROAD_MOVE_COST : tileDef.cost);
+  const ground = isSea ? SEA_MOVE_COST : (paved ? ROAD_MOVE_COST : tileMoveCost(tile));
   const cost = ground + weatherMoveCost(state, col, row);
   // Coming ashore is the end of the voyage, whether or not anyone contests it.
   const landing = embarked && !isSea;

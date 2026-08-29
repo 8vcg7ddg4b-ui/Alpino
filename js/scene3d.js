@@ -1,5 +1,5 @@
 import {
-  TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars, shipTypeOf,
+  TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars, shipTypeOf, tileImpassable,
 } from './data.js';
 import { unitTotalCount, factionById, harbourTile } from './state.js';
 import { emblemSVG } from './emblems.js';
@@ -2427,6 +2427,9 @@ export function syncEntities(state) {
   }
 
   if (mapMode === 'tactical') refreshTacticalColors(state);
+  // Die Grenzen hängen an denselben Besitzverhältnissen wie die taktische
+  // Sicht - fällt eine Stadt, verschiebt sich beides.
+  if (bordersVisible) buildBorders(state);
 
   clearHighlights();
   if (state.reachable) {
@@ -2475,6 +2478,107 @@ function computeTerritory(state) {
     }
   }
   return owner;
+}
+
+// --- Grenzen ---------------------------------------------------------------
+// Dieselbe Einflussrechnung wie in der taktischen Sicht, aber als Linie auf
+// der Geländekarte: überall dort, wo zwei Herrschaftsbereiche aneinander
+// stoßen, liegt ein schmales Band in der Farbe dessen, dem das Feld gehört.
+// Zwei halbe Bänder Rücken an Rücken - so hat jede Seite ihre eigene Farbe,
+// und man sieht auf einen Blick, wessen Grenze man vor sich hat.
+let bordersGroup = null;
+let bordersVisible = false;
+const BORDER_WIDTH = 0.13;
+const BORDER_LIFT = 0.24;
+const BORDER_PIECES = 4;
+
+export function buildBorders(state) {
+  if (bordersGroup) scene.remove(bordersGroup);
+  bordersGroup = new THREE.Group();
+  bordersGroup.visible = bordersVisible;
+  scene.add(bordersGroup);
+  if (!state) return;
+
+  const { cols, rows, tiles } = state.map;
+  const owner = computeTerritory(state);
+  // Je Fraktion ein eigener Satz Flächen, damit jede ihre Farbe behält.
+  const byFaction = new Map();
+  const half = TILE_SIZE / 2;
+  const width = TILE_SIZE * BORDER_WIDTH;
+
+  const grenzstueck = (index, col, row, dc, dr) => {
+    const eigen = owner[index];
+    if (eigen < 0) return;
+    const c = col + dc;
+    const r = row + dr;
+    const drueben = c < 0 || c >= cols || r < 0 || r >= rows
+      ? -1 : owner[r * cols + c];
+    if (drueben === eigen) return;
+    // Gegen das offene Meer und gegen den Fels zieht niemand eine Grenze.
+    if (c >= 0 && c < cols && r >= 0 && r < rows) {
+      const nachbar = tiles[r][c];
+      if (nachbar.type === 'water' || tileImpassable(nachbar)) return;
+    } else {
+      return;
+    }
+    const positions = byFaction.get(eigen) || byFaction.set(eigen, []).get(eigen);
+    // Das Band liegt auf der eigenen Seite der Kante, nicht mittendrauf.
+    const mx = worldX(col) + dc * (half - width);
+    const mz = worldZ(row) + dr * (half - width);
+    const alongX = dr !== 0;
+    const from = alongX ? [mx - half, mz] : [mx, mz - half];
+    const to = alongX ? [mx + half, mz] : [mx, mz + half];
+    for (let piece = 0; piece < BORDER_PIECES; piece++) {
+      const t0 = piece / BORDER_PIECES;
+      const t1 = (piece + 1) / BORDER_PIECES;
+      pushQuad(positions,
+        from[0] + (to[0] - from[0]) * t0, from[1] + (to[1] - from[1]) * t0,
+        from[0] + (to[0] - from[0]) * t1, from[1] + (to[1] - from[1]) * t1,
+        width / 2, BORDER_LIFT);
+    }
+  };
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      if (owner[index] < 0) continue;
+      const tile = tiles[row][col];
+      if (tile.type === 'water' || tileImpassable(tile)) continue;
+      grenzstueck(index, col, row, 1, 0);
+      grenzstueck(index, col, row, -1, 0);
+      grenzstueck(index, col, row, 0, 1);
+      grenzstueck(index, col, row, 0, -1);
+    }
+  }
+
+  for (const [factionIndex, positions] of byFaction) {
+    if (!positions.length) continue;
+    const faction = state.factions[factionIndex];
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+      color: (faction && faction.color) || '#cccccc',
+      roughness: 0.55, emissive: (faction && faction.color) || '#cccccc',
+      emissiveIntensity: 0.35, side: THREE.DoubleSide,
+    }));
+    mesh.frustumCulled = false;
+    bordersGroup.add(mesh);
+  }
+}
+
+export function setBordersVisible(flag, state) {
+  bordersVisible = !!flag;
+  // Erst beim Einschalten gebaut: wer sie nie ansieht, zahlt auch nichts.
+  if (bordersVisible && state && (!bordersGroup || !bordersGroup.children.length)) {
+    buildBorders(state);
+  }
+  if (bordersGroup) bordersGroup.visible = bordersVisible;
+  return bordersVisible;
+}
+
+export function areBordersVisible() {
+  return bordersVisible;
 }
 
 const UNCLAIMED_COLOUR = new THREE.Color('#514d45');

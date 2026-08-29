@@ -8,6 +8,7 @@ import {
   RIVER_CROSSING_COST,
   HARBOUR_COST, HARBOUR_TURNS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
+  tileImpassable, tileMoveCost, tileAltitude, PASSABLE_ALTITUDE,
 } from './data.js';
 import { TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
@@ -768,10 +769,6 @@ const TERRAIN_ICONS = {
   plains: '🌾', forest: '🌲', hills: '⛰️', desert: '🏜️', mountain: '🏔️', water: '🌊',
 };
 
-// One tile unit of elevation is about this many metres, which is what turns a
-// number nobody can read into a height a player recognises.
-const METRES_PER_ELEVATION = 900;
-
 function terrainFactsHTML(state, col, row) {
   const tile = state.map.tiles[row][col];
   const def = TILE_TYPES[tile.type];
@@ -782,15 +779,23 @@ function terrainFactsHTML(state, col, row) {
       + `${SEA_MOVE_COST === 1 ? 'Punkt' : 'Punkte'} je Feld · für Landarmeen unpassierbar`]);
   } else {
     const paved = !!(state.roads && state.roads[`${col},${row}`]);
-    const stride = paved ? Math.min(ROAD_MOVE_COST, def.cost) : def.cost;
-    const saved = paved && def.cost > ROAD_MOVE_COST ? ` (Straße statt ${def.cost})` : '';
-    facts.push(['Bewegungskosten', def.impassable
+    const gelaende = tileMoveCost(tile);
+    const stride = paved ? Math.min(ROAD_MOVE_COST, gelaende) : gelaende;
+    const saved = paved && gelaende > ROAD_MOVE_COST ? ` (Straße statt ${gelaende})` : '';
+    facts.push(['Bewegungskosten', tileImpassable(tile)
       ? 'unpassierbar'
       : `${paved ? '🛣️ ' : ''}${stride} ${stride === 1 ? 'Punkt' : 'Punkte'} je Feld${saved}`]);
     facts.push(['Verteidigung', def.defense > 0
       ? `+${Math.round(def.defense * 15)}% für den Verteidiger`
       : 'kein Geländevorteil']);
-    facts.push(['Höhe', `${Math.round(tile.elevation * METRES_PER_ELEVATION)} m`]);
+    facts.push(['Höhe', `${tileAltitude(tile)} m`]);
+    // Ein Gebirge ist nicht mehr pauschal gesperrt - beim Gebirge gehört
+    // deshalb dazu, warum man hier durchkommt oder eben nicht.
+    if (tile.type === 'mountain') {
+      facts.push(['Übergang', tileImpassable(tile)
+        ? `über ${PASSABLE_ALTITUDE} m – Fels und Eis, kein Weg für ein Heer`
+        : `ein Pass unter ${PASSABLE_ALTITUDE} m – mühsam, aber begehbar`]);
+    }
   }
   facts.push(['Lage', tilePosition(col, row).label]);
 

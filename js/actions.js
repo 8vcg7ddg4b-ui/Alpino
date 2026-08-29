@@ -19,6 +19,7 @@ import {
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_BASE_INCOME, TRADE_VARIETY_BONUS,
   TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, tradeSizeFactor,
   BIRTH_RATE, BIRTH_SEASON, BIRTH_SIEGE_RANGE, populationCeiling,
+  tileImpassable, tileMoveCost,
 } from './data.js';
 import { landRoute } from './mapgen.js';
 import { computeReachable, tileKey } from './pathfind.js';
@@ -179,7 +180,7 @@ function retreatArmy(state, defeated, fromCol, fromRow) {
     // A fleet falls back across the water, an army across the land; neither
     // can retreat into the other's element.
     const sea = isWaterTile(state, col, row);
-    if (defeated.embarked ? !sea : TILE_TYPES[state.map.tiles[row][col].type].impassable) continue;
+    if (defeated.embarked ? !sea : tileImpassable(state.map.tiles[row][col])) continue;
     if (armyAt(state, col, row)) continue;
     const city = cityAt(state, col, row);
     if (city && city.factionId !== defeated.factionId) continue;
@@ -1170,11 +1171,11 @@ function freeTileNear(state, city, taken) {
     const col = city.col + dc;
     const row = city.row + dr;
     if (col < 0 || col >= state.map.cols || row < 0 || row >= state.map.rows) continue;
-    const def = TILE_TYPES[state.map.tiles[row][col].type];
-    if (def.impassable) continue;
+    const tile = state.map.tiles[row][col];
+    if (tileImpassable(tile)) continue;
     if (taken.has(`${col},${row}`)) continue;
-    if (def.cost >= bestCost) continue;
-    bestCost = def.cost;
+    if (tileMoveCost(tile) >= bestCost) continue;
+    bestCost = tileMoveCost(tile);
     best = { col, row };
   }
   return best;

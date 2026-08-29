@@ -26,6 +26,7 @@ import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
+  setBordersVisible, areBordersVisible,
   setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled,
 } from './scene3d.js';
 import {
@@ -711,6 +712,33 @@ function setupMapModeButton() {
   refreshMapModeButton();
 }
 
+// --- Grenzen -------------------------------------------------------------
+// Die Herrschaftsgebiete als Linie auf der Geländekarte. Ein eigener Knopf,
+// weil es eine andere Frage ist als die taktische Sicht: dort geht es darum,
+// wem was gehört, hier darum, wo das eine Land aufhört und das nächste
+// anfängt - und das will man auch sehen, während man die Karte selbst liest.
+function refreshBorderButton() {
+  const button = document.getElementById('borderBtn');
+  if (!button) return;
+  const an = areBordersVisible();
+  button.classList.toggle('active', an);
+  button.title = an
+    ? 'Grenzen ausblenden'
+    : 'Grenzen der Herrschaftsgebiete einblenden';
+}
+
+function setupBorderButton() {
+  const button = document.getElementById('borderBtn');
+  if (!button) return;
+  refreshBorderButton();
+  button.addEventListener('click', () => {
+    setBordersVisible(!areBordersVisible(), state);
+    refreshBorderButton();
+    sfx.select();
+    render();
+  });
+}
+
 function refreshMuteButton() {
   const button = document.getElementById('muteBtn');
   if (!button) return;
@@ -1360,6 +1388,7 @@ setupSidebarTabs();
 setupTileInfo();
 setupQuitButton();
 setupMuteButton();
+setupBorderButton();
 setupMapModeButton();
 setupDpad();
 

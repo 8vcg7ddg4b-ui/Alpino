@@ -1,4 +1,6 @@
-import { TILE_TYPES, CITY_DEFS } from './data.js';
+import {
+  TILE_TYPES, CITY_DEFS, tileImpassable, tileMoveCost,
+} from './data.js';
 import {
   MAP_COLS, MAP_ROWS, MAP_BOUNDS, RIDGES, FORESTS, STRAITS, RIVERS,
   isLandAt, lonOfCol, latOfRow, colOfLon, rowOfLat, kmPerDegreeLon,
@@ -313,13 +315,13 @@ function labelLandmasses(tiles) {
   for (let row = 0; row < MAP_ROWS; row++) {
     for (let col = 0; col < MAP_COLS; col++) {
       if (label[row * MAP_COLS + col] !== -1) continue;
-      if (TILE_TYPES[tiles[row][col].type].impassable) continue;
+      if (tileImpassable(tiles[row][col])) continue;
       const stack = [[col, row]];
       while (stack.length) {
         const [c, r] = stack.pop();
         if (!inBounds(c, r)) continue;
         const index = r * MAP_COLS + c;
-        if (label[index] !== -1 || TILE_TYPES[tiles[r][c].type].impassable) continue;
+        if (label[index] !== -1 || tileImpassable(tiles[r][c])) continue;
         label[index] = next;
         stack.push([c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]);
       }
@@ -487,6 +489,10 @@ export function generateMap(seed = 1337) {
 // Braucht nur die Karte, deshalb steht sie hier und nicht bei den Regeln.
 // Ein bereits gepflastertes Feld ist als Wegstück fast geschenkt: neue
 // Straßen legen sich deshalb gerne an das bestehende Netz an.
+// Was ein Flussübergang die Wegsuche kostet. Hoch genug, dass eine Straße
+// lieber ein paar Felder am Ufer entlangzieht, als ein zweites Mal überzusetzen.
+const ROUTE_RIVER_COST = 8;
+
 export function landRoute(map, from, to, roads = null) {
   const { cols, rows, tiles } = map;
   const key = (col, row) => row * cols + col;
@@ -511,9 +517,21 @@ export function landRoute(map, from, to, roads = null) {
         const nc = col + dc;
         const nr = row + dr;
         if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
-        const def = TILE_TYPES[tiles[nr][nc].type];
-        if (def.impassable) continue;
-        const next = level + (roads && roads[`${nc},${nr}`] ? 1 : def.cost);
+        const tile = tiles[nr][nc];
+        if (tileImpassable(tile)) continue;
+        // Eine bestehende Straße ist der billigste Weg - so legt sich eine
+        // neue Verbindung auf das vorhandene Netz, statt eine zweite Trasse
+        // danebenzuziehen.
+        const gepflastert = roads && roads[`${nc},${nr}`];
+        let step = gepflastert ? 1 : tileMoveCost(tile);
+        // Ein Fluss dazwischen kostet extra - es sei denn, hier steht schon
+        // eine Brücke. Zwei Übergänge über denselben Fluss, zwei Felder
+        // auseinander, sind zwei Brücken zu viel.
+        if (map.rivers && map.rivers.has(riverEdgeKey(col, row, nc, nr))) {
+          const bruecke = roads && roads[`${col},${row}`] && gepflastert;
+          step += bruecke ? 0 : ROUTE_RIVER_COST;
+        }
+        const next = level + step;
         const nextKey = key(nc, nr);
         if (cost[nextKey] !== -1 && cost[nextKey] <= next) continue;
         cost[nextKey] = next;

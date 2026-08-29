@@ -25,6 +25,41 @@ export const TILE_TYPES = {
   water: { name: 'Meer', cost: 198, defense: 0, elevation: -0.4, color: '#3f6fa8', deco: null, impassable: true },
 };
 
+// --- Höhe und Pässe -------------------------------------------------------
+// Ein Feld Höhe entspricht ungefähr so vielen Metern - das ist es, was aus
+// einer Zahl, die niemand liest, eine Höhe macht, die ein Spieler kennt.
+export const METRES_PER_ELEVATION = 900;
+
+// Bis hierher führt ein Weg über das Gebirge: ein Pass, mühsam, aber begehbar.
+// Was höher liegt, ist Fels und Eis und für ein Heer keine Straße. Hannibal
+// zog über den Alpenhauptkamm auf etwa dieser Höhe.
+export const PASSABLE_ALTITUDE = 2000;
+// Was ein solcher Übergang kostet: das Doppelte von gebrochenem Gelände. Ein
+// Heer schafft in einer Runde gerade einen Pass und einen Schritt dahinter -
+// und kommt erschöpft an, weil Erschöpfung je Bewegungspunkt anfällt.
+export const MOUNTAIN_PASS_COST = 12;
+
+// Wie hoch dieses Feld liegt, in Metern.
+export function tileAltitude(tile) {
+  return Math.round((tile.elevation ?? TILE_TYPES[tile.type].elevation) * METRES_PER_ELEVATION);
+}
+
+// Ob ein Heer hier überhaupt hindurchkommt. Das Gebirge ist nicht mehr
+// pauschal gesperrt: es kommt auf die Höhe an.
+export function tileImpassable(tile) {
+  const def = TILE_TYPES[tile.type];
+  if (!def.impassable) return false;
+  if (tile.type !== 'mountain') return true;
+  return tileAltitude(tile) > PASSABLE_ALTITUDE;
+}
+
+// Was ein Schritt auf dieses Feld kostet - für den Pass ein eigener Satz.
+export function tileMoveCost(tile) {
+  const def = TILE_TYPES[tile.type];
+  if (tile.type === 'mountain' && !tileImpassable(tile)) return MOUNTAIN_PASS_COST;
+  return def.cost;
+}
+
 // Drei Waffengattungen, überall dieselben - damit bleiben die Regeln ein
 // einziger Satz. Was sich unterscheidet, ist, wer sie füllt: die römische
 // Legion ist nicht der dakische Falxträger, auch wenn beide "Fußvolk" sind.
