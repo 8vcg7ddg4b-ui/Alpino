@@ -182,19 +182,38 @@ den Punkten durchblättern.
   Stadtmauer, Landung vom Meer). „Abbrechen" lässt die Armee unverändert
   stehen. Die Schätzung entsteht aus 60 durchgerechneten Schlachten und
   verändert den späteren echten Kampf nicht.
-- **Drei Schiffsarten**, historisch nach Fraktion verteilt: die **Quinquereme**
-  mit Turm und Enterbrücke für Rom, Karthago, Seleukiden und Ptolemäer
-  (50/52, 220 Gold) – schwer und im Rammstoß überlegen; der **leichte Ruderer**
-  (Lembos, Triere) für Griechen, Illyrer und Iberer (44/40, 170 Gold) – schnell
-  und billig, aber dünnwandig; das **Segelschiff** mit hochbordigem Eichenrumpf
-  und Ledersegel für Gallier, Britannier, Germanen, Daker und Sarmaten
-  (36/54, 195 Gold) – schwer zu rammen, schwach im Angriff. Jede Bauart hat ihr
-  eigenes Modell auf der Karte.
-- **Flotten bauen**: Jede eigene Stadt mit Hafen hat eine Werft: **60 Schiffe**
-  der eigenen Bauart. Sie laufen als eigene **Flotte** aus – ein
-  Verband, der das Meer hält, statt ein Heer überzusetzen. Liegt schon eine
-  Flotte im Hafen, wächst sie stattdessen. Eine Flotte fährt 15 Felder weit,
+- **Vier Schiffsarten, bis zu drei je Fraktion**: die **Quinquereme** mit Turm
+  und Enterbrücke (50/52, 220 Gold) – schwer und im Rammstoß überlegen; die
+  **Triere**, das Arbeitspferd jeder Flotte (46/45, 190 Gold) – wendig genug zum
+  Rammen, stark genug für die Linie; der illyrische **Lembos** (44/36, 150 Gold)
+  – schnell und billig, aber dünnwandig; und das **Segelschiff** mit
+  hochbordigem Eichenrumpf und Ledersegel (36/54, 195 Gold) – schwer zu rammen,
+  schwach im Angriff. Welche eine Fraktion bauen kann, sagt ihre Küste: Rom,
+  Karthago, Pontus und die Ptolemäer haben alle drei Ruderbauarten, die Griechen
+  ebenso (mit der Triere als Hauptbauart), Illyrer, Iberer und Numidien den
+  Lembos und die Triere, die Stämme des Nordens das Segelschiff und den Lembos.
+  Jede Bauart hat ihr eigenes Modell auf der Karte.
+- **Flotten bauen**: Jede eigene Stadt mit Hafen hat eine Werft, und die
+  Werft baut, was man ihr sagt: für jede Bauart der Fraktion ein eigener Knopf
+  mit Preis und Eigenart, **60 Schiffe** je Bautrupp. Sie laufen als eigene
+  **Flotte** aus – ein Verband, der das Meer hält, statt ein Heer überzusetzen.
+  **Die Bauart bleibt an der Flotte**: sie kämpft und sieht aus wie das, womit
+  sie vom Stapel lief, auch wenn die Werft längst etwas anderes baut, und ein
+  neuer Bautrupp verstärkt nur ein Geschwader **derselben** Bauart – was
+  zusammen fährt, fährt gleich schnell. Eine Flotte fährt 30 Punkte weit,
   geht nie an Land und greift an, was auf dem Wasser fährt.
+- **Seeräuber**: Wo Handel fährt, fährt bald auch, wer ihn nimmt. Ab Runde 8
+  laufen bis zu **drei Geschwader** aus – dort, wo ein Hafen liegt und keine
+  Kriegsflotte kreuzt. Sie fahren die **Hemiolia**, den Anderthalbruderer
+  (52/30): das schnellste Schiff der See mit 36 Bewegungspunkten und im offenen
+  Kampf das schwächste. Sie sind keine Macht, mit der man verhandelt – kein
+  Herrscher, keine Stadt, kein Vertrag, kein Sieg –, sondern das Risiko, das auf
+  dem Wasser liegt: sie jagen Heere auf Transportern, gehen einer stärkeren
+  Flotte aus dem Weg und legen sich sonst vor den nächsten Hafen. **Solange ein
+  Geschwader in Reichweite eines Hafens liegt, trägt jeder Seehandelsweg dorthin
+  nur die Hälfte** – die Handelsansicht sagt es mit einer schwarzen Flagge. Wer
+  eines versenkt, findet in den Laderäumen bis zu **140 Gold Beute**. Ein
+  Geschwader vor der eigenen Küste meldet ein Fenster.
 - **Kampf zur See**: Auf dem Wasser zählt das Schiff, nicht der Mann. Fußvolk
   an Bord kämpft mit halber Kraft, Reiterei mit 40 %, Bogenschützen mit 80 % –
   Kriegsschiffe zu voller. 60 Kriegsschiffe versenken deshalb ein
@@ -364,10 +383,26 @@ den Punkten durchblättern.
   die Heere gehen aneinander vorbei, ihre Kontrollzonen greifen nicht mehr, und
   Städte lassen sich nicht angreifen. Ansehen bewegt sich mit dem, was geschieht –
   eine Schlacht −7, eine genommene Stadt −22, ein Geschenk +12, ein gehaltener
-  Friede +1 je Runde. Die Herrscher untereinander schließen und brechen ihre
-  eigenen Verträge; einen frischen Frieden kündigt niemand vor sechs Runden auf.
-  **Über den Frieden des Spielers entscheidet niemand außer ihm selbst** – ein
-  fremder Herrscher kann ihm den Krieg erklären, beenden kann ihn nur er.
+  Friede +1 je Runde.
+- **Bedenkzeit**: Diplomatie ist kein Knopf, den man zweimal drückt. Jede
+  Handlung legt eine Frist auf das Verhältnis, und erst wenn sie abgelaufen ist,
+  steht wieder alles offen: nach einer **Kriegserklärung acht Runden kein
+  Frieden** – für keine Seite, auch nicht zwischen zwei Herrschern, die es beide
+  wollten –, nach einem **Friedensschluss sechs Runden keine Kriegserklärung**,
+  nach einem **abgewiesenen Gesandten vier Runden kein neues Angebot**, nach
+  einem **Geschenk drei Runden kein zweites**. Was gesperrt ist, steht
+  ausgegraut im Diplomatiefenster und sagt, warum und wie lange noch.
+- **Ruf als Kriegstreiber**: Ein Herold spricht vor Zeugen. Wer den Krieg
+  erklärt, verliert **bei jedem, der ihn kennt**, sechs Punkte Ansehen – nicht
+  nur bei dem, dem die Erklärung gilt. Dreimal im Jahr, und man ist einer, mit
+  dem kein Vertrag hält und niemand mehr Frieden schließt.
+- **Gesandte**: Über den Frieden des Spielers entscheidet weiterhin niemand
+  außer ihm selbst – aber ein Gegner, der den Krieg satt hat, kann das jetzt
+  sagen. Nach acht Runden Krieg schickt er einen **Gesandten**: ein Fenster
+  meldet ihn, im Diplomatiefenster steht sein Angebot mit **Annehmen** und
+  **Ausschlagen**. Wer im Feld klar unterliegt, legt Gold dazu – bis zu 800.
+  Der Gesandte wartet **drei Runden**, dann reist er ab; wer ihn ausschlägt,
+  kostet sich acht Punkte Ansehen und sieht so bald keinen zweiten.
 - **Das Aufgebot der freien Orte**: Eine unabhängige Stadt hat keinen Herrn,
   der ihr ein Heer schickt. Steht ein Feind vor dem Tor, greift sie zu dem, was
   sie hat: **6 % ihrer Einwohner** treten unter die Waffen (höchstens 420, unter
@@ -700,8 +735,10 @@ den Punkten durchblättern.
 - `js/actions.js` – Bewegen, Einschiffen, Rekrutieren, Armee ausheben,
   Rundenwechsel, Kampfvorschau
 - `js/rulers.js` – die Herrscher der Fraktionen mit ihren drei Eigenschaften
-- `js/diplomacy.js` – Krieg, Frieden und Ansehen; was die Herrscher von sich
-  aus beschließen
+- `js/diplomacy.js` – Krieg, Frieden und Ansehen; die Fristen zwischen zwei
+  Handlungen, die Gesandten und was die Herrscher von sich aus beschließen
+- `js/piraten.js` – die Seeräuber: wo sie auslaufen, was sie jagen, was sie dem
+  Seehandel kosten und was sie im Laderaum haben
 - `js/ai.js` – einfache KI (Wirtschaft + Angriffsverhalten)
 - `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl

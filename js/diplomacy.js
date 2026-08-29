@@ -34,6 +34,66 @@ export const TRIBUTE_OFFER = 300;
 export const PEACE_GRACE_TURNS = 6;
 // Ab diesem Wert nimmt ein Herrscher ein Friedensangebot an.
 export const PEACE_THRESHOLD = 58;
+// Was eine Kriegserklärung bei allen kostet, die davon hören - nicht nur bei
+// dem, dem sie gilt. Wer dreimal im Jahr einen Herold schickt, gilt als einer,
+// mit dem kein Vertrag hält.
+export const OPINION_WARMONGER = -6;
+
+// --- Bedenkzeit ------------------------------------------------------------
+// Diplomatie ist kein Knopf, den man zweimal drückt. Wer heute den Krieg
+// erklärt, kann nicht in derselben Runde um Frieden bitten; wer eben Frieden
+// geschlossen hat, bricht ihn nicht sofort wieder; und wessen Gesandter
+// abgewiesen wurde, schickt nicht am nächsten Morgen den nächsten. Jede
+// Handlung legt deshalb eine Frist auf das Verhältnis, und erst wenn sie
+// abgelaufen ist, steht wieder alles offen.
+//
+// Gespeichert wird nach der gesperrten Handlung, nicht nach der Ursache: so
+// sperrt eine Kriegserklärung den Frieden, ohne nebenbei das Geschenk zu
+// sperren, das man dem Nächsten schickt.
+export const NACHWIRKUNG = {
+  kriegserklaerung: { frieden: 8 },
+  friedensschluss: { krieg: PEACE_GRACE_TURNS },
+  abgelehnt: { frieden: 4 },
+  geschenk: { geschenk: 3 },
+};
+
+const SPERRTEXT = {
+  kriegserklaerung: 'Die Kriegserklärung ist zu frisch – so kurz nach dem Herold '
+    + 'redet niemand vom Frieden',
+  friedensschluss: 'Der Friede ist zu frisch – ein Wort, das man nach zwei Runden '
+    + 'bricht, ist keines',
+  abgelehnt: 'Dein Gesandter ist eben erst abgewiesen worden',
+  geschenk: 'Das letzte Geschenk liegt noch auf dem Tisch',
+};
+
+// Legt die Frist auf, die diese Handlung nach sich zieht.
+export function applyCooldown(state, a, b, handlung) {
+  const relation = relationOf(state, a, b);
+  const wirkung = NACHWIRKUNG[handlung];
+  if (!relation || !wirkung) return;
+  const sperren = relation.sperren || (relation.sperren = {});
+  for (const aktion of Object.keys(wirkung)) {
+    const bis = state.turn + wirkung[aktion];
+    if (!sperren[aktion] || sperren[aktion].bis < bis) {
+      sperren[aktion] = { bis, wegen: handlung };
+    }
+  }
+}
+
+// Ob diese Handlung gerade gesperrt ist - und warum, und für wie lange noch.
+export function diploLock(state, a, b, aktion) {
+  const relation = relationOf(state, a, b);
+  const eintrag = relation && relation.sperren && relation.sperren[aktion];
+  if (!eintrag) return null;
+  const rest = eintrag.bis - state.turn;
+  if (rest <= 0) return null;
+  return {
+    rest,
+    wegen: eintrag.wegen,
+    text: `${SPERRTEXT[eintrag.wegen] || 'Es ist zu früh'} – noch ${rest} `
+      + `${rest === 1 ? 'Runde' : 'Runden'}.`,
+  };
+}
 
 function pairKey(a, b) {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
@@ -52,6 +112,8 @@ export function initRelations(factions) {
     for (let j = i + 1; j < ids.length; j++) {
       relations[pairKey(ids[i], ids[j])] = {
         state: 'frieden', opinion: OPINION_START, since: 1,
+        // Fristen aus vergangenen Handlungen - zu Beginn liegt keine an.
+        sperren: {},
       };
     }
   }
@@ -176,8 +238,14 @@ export function rulerOf(state, factionId) {
 export function makePeace(state, a, b, note) {
   const relation = relationOf(state, a, b);
   if (!relation || relation.state === 'frieden') return { ok: false };
+  // Nach einer Kriegserklärung wird nicht in derselben Woche Frieden
+  // geschlossen - auch nicht von zwei Herrschern, die es beide wollen.
+  const sperre = diploLock(state, a, b, 'frieden');
+  if (sperre) return { ok: false, reason: 'sperre', lock: sperre };
   relation.state = 'frieden';
   relation.since = state.turn;
+  relation.sperren = {};
+  applyCooldown(state, a, b, 'friedensschluss');
   adjustOpinion(state, a, b, 10);
   const nameA = factionById(state, a).name;
   const nameB = factionById(state, b).name;
@@ -188,9 +256,22 @@ export function makePeace(state, a, b, note) {
 export function declareWar(state, a, b, note) {
   const relation = relationOf(state, a, b);
   if (!relation || relation.state === 'krieg') return { ok: false };
+  // Ein Friede, der gestern geschlossen wurde, wird nicht heute aufgekündigt.
+  const sperre = diploLock(state, a, b, 'krieg');
+  if (sperre) return { ok: false, reason: 'sperre', lock: sperre };
   relation.state = 'krieg';
   relation.since = state.turn;
+  relation.sperren = {};
+  applyCooldown(state, a, b, 'kriegserklaerung');
   adjustOpinion(state, a, b, OPINION_WAR_DECLARED);
+  // Ein Herold spricht vor Zeugen: wer den Krieg erklärt, verliert bei allen,
+  // die davon hören, ein Stück Ansehen. Dreimal im Jahr, und man gilt als
+  // einer, mit dem kein Vertrag hält.
+  for (const other of state.factions) {
+    if (other.isNeutral || other.id === a || other.id === b) continue;
+    if (!knowsFaction(state, other.id, a)) continue;
+    adjustOpinion(state, a, other.id, OPINION_WARMONGER);
+  }
   const nameA = factionById(state, a).name;
   const nameB = factionById(state, b).name;
   logMsg(state, `${nameA} erklärt ${nameB} den Krieg${note ? ` – ${note}` : ''}.`, null, [a, b]);
@@ -214,6 +295,8 @@ export function peaceVerdict(state, fromId, toId, tribute = 0) {
   if (relation.state === 'frieden') {
     return { possible: false, grund: 'Ihr steht bereits im Frieden.' };
   }
+  const sperre = diploLock(state, fromId, toId, 'frieden');
+  if (sperre) return { possible: false, grund: sperre.text, sperre };
   const ruler = rulerOf(state, toId);
   // Wer den Krieg liebt, muss stärker überredet werden; wer sein Wort hält,
   // hält auch einen Frieden für etwas wert.
@@ -270,8 +353,10 @@ export function offerPeace(state, fromId, toId, tribute = 0) {
   if (!urteil.possible) return { ok: false, text: urteil.grund };
   const ruler = rulerOf(state, toId);
   if (!urteil.accepted) {
-    // Ein abgelehntes Angebot ist nicht umsonst: es zeigt guten Willen.
+    // Ein abgelehntes Angebot ist nicht umsonst: es zeigt guten Willen. Aber
+    // es kostet Zeit - der nächste Gesandte bricht nicht morgen auf.
     adjustOpinion(state, fromId, toId, 3);
+    applyCooldown(state, fromId, toId, 'abgelehnt');
     const grund = urteil.gruende.length ? ` – ${urteil.gruende[0]}` : '';
     logMsg(state, `${ruler.name} lehnt den Frieden mit ${from.name} ab${grund}.`,
       null, [fromId, toId]);
@@ -292,14 +377,109 @@ export function sendGift(state, fromId, toId, amount = GIFT_COST) {
   const from = factionById(state, fromId);
   const to = factionById(state, toId);
   if (!from || !to || from.isNeutral || to.isNeutral) return { ok: false };
+  // Zwei Geschenke in zwei Runden sind kein Geschenk, sondern ein Handel.
+  const sperre = diploLock(state, fromId, toId, 'geschenk');
+  if (sperre) return { ok: false, reason: 'sperre', lock: sperre, text: sperre.text };
   if (from.gold < amount) return { ok: false, reason: 'gold', text: 'Dafür fehlt das Gold.' };
   from.gold -= amount;
   to.gold += amount;
   adjustOpinion(state, fromId, toId, OPINION_PER_GIFT);
+  applyCooldown(state, fromId, toId, 'geschenk');
   const ruler = rulerOf(state, toId);
   logMsg(state, `${from.name} sendet ${ruler.name} ein Geschenk von ${amount} Gold.`,
     null, [fromId, toId]);
   return { ok: true, text: `${ruler.name} nimmt das Geschenk entgegen.` };
+}
+
+// --- Gesandte, die auf eine Antwort warten ---------------------------------
+// Bisher konnte nur der Spieler Frieden anbieten; die anderen Herrscher
+// schlossen ihn untereinander und ließen ihn mit ihm laufen, bis er selbst
+// etwas tat. Das war die größte Lücke im System: ein Gegner, der den Krieg
+// längst satt hat, hatte keine Möglichkeit, das zu sagen.
+//
+// Jetzt schickt er einen Gesandten. Der steht im Diplomatiefenster und wartet
+// - drei Runden lang, dann reist er ab. Wer schwächer ist, legt Gold dazu.
+
+// Wie lange ein Gesandter auf Antwort wartet.
+export const OFFER_TURNS = 3;
+
+export function pendingOffers(state, forFactionId = null) {
+  const offers = state.peaceOffers || [];
+  return forFactionId ? offers.filter((o) => o.gegen === forFactionId) : offers;
+}
+
+export function offerFrom(state, factionId, forFactionId) {
+  return pendingOffers(state, forFactionId).find((o) => o.von === factionId) || null;
+}
+
+// Ein müder Herrscher bietet dem Spieler Frieden an. Was er dazulegt, hängt
+// davon ab, wie er im Feld steht: wer verliert, zahlt.
+export function offerPeaceToPlayer(state, fromId, toId) {
+  const offers = state.peaceOffers || (state.peaceOffers = []);
+  if (offers.some((o) => o.von === fromId && o.gegen === toId)) return null;
+  if (diploLock(state, fromId, toId, 'frieden')) return null;
+  const meine = Math.max(1, fieldStrength(state, fromId));
+  const seine = Math.max(1, fieldStrength(state, toId));
+  const unterlegen = meine / (meine + seine);
+  const from = factionById(state, fromId);
+  // Wer klar unterliegt, kauft sich den Frieden - aus dem, was er hat.
+  const wunsch = unterlegen < 0.4 ? Math.round((0.5 - unterlegen) * 1600) : 0;
+  const tribut = Math.max(0, Math.min(wunsch - (wunsch % 50), Math.floor((from.gold || 0) * 0.6)));
+  const ruler = rulerOf(state, fromId);
+  const grund = unterlegen < 0.4 ? 'seine Heere sind aufgerieben'
+    : ruler.angriffslust < 45 ? 'er hat den Krieg nie gewollt'
+      : 'der Feldzug bringt ihm nichts mehr';
+  const angebot = {
+    von: fromId, gegen: toId, turn: state.turn, laeuftAb: state.turn + OFFER_TURNS,
+    tribut, grund, ruler: ruler.name, titel: ruler.titel,
+  };
+  offers.push(angebot);
+  pushNews(state, {
+    kind: 'angebot', von: fromId, gegen: toId,
+    ruler: ruler.name, titel: ruler.titel, grund, tribut,
+  });
+  return angebot;
+}
+
+// Der Spieler nimmt an: der Krieg endet, und was der Gesandte mitbrachte,
+// wechselt den Besitzer.
+export function acceptOffer(state, fromId, toId) {
+  const angebot = offerFrom(state, fromId, toId);
+  if (!angebot) return { ok: false };
+  const from = factionById(state, fromId);
+  const to = factionById(state, toId);
+  const tribut = Math.min(angebot.tribut || 0, from.gold || 0);
+  state.peaceOffers = pendingOffers(state).filter((o) => o !== angebot);
+  const ergebnis = makePeace(state, fromId, toId,
+    tribut > 0 ? `${from.name} zahlt ${tribut} Gold` : angebot.grund);
+  if (!ergebnis.ok) return { ok: false, text: 'Dafür ist es zu früh.' };
+  if (tribut > 0) {
+    from.gold -= tribut;
+    to.gold += tribut;
+  }
+  return {
+    ok: true,
+    text: `Zwischen dir und ${angebot.ruler} ist Friede${
+      tribut > 0 ? ` – und ${tribut} Gold in deiner Truhe` : ''}.`,
+  };
+}
+
+// Oder er schlägt ihn aus. Das merkt sich der andere.
+export function rejectOffer(state, fromId, toId) {
+  const angebot = offerFrom(state, fromId, toId);
+  if (!angebot) return { ok: false };
+  state.peaceOffers = pendingOffers(state).filter((o) => o !== angebot);
+  adjustOpinion(state, toId, fromId, -8);
+  applyCooldown(state, fromId, toId, 'abgelehnt');
+  return { ok: true, text: `Du schickst ${angebot.ruler} ohne Antwort nach Hause.` };
+}
+
+// Was abgelaufen ist, reist ab.
+export function expireOffers(state) {
+  const offers = state.peaceOffers || [];
+  const geblieben = offers.filter((o) => o.laeuftAb > state.turn
+    && atWar(state, o.von, o.gegen));
+  state.peaceOffers = geblieben;
 }
 
 // --- Was die Herrscher von sich aus tun ------------------------------------
@@ -417,7 +597,7 @@ export function rulersTakeTurn(state, rng = Math.random) {
           const { wert, grund } = warAppetite(state, wer.id, wen.id);
           if (wert <= 0 || rng() >= WAR_BASE_CHANCE * wert) continue;
           const ruler = rulerOf(state, wer.id);
-          declareWar(state, wer.id, wen.id, grund);
+          if (!declareWar(state, wer.id, wen.id, grund).ok) continue;
           pushNews(state, {
             kind: 'krieg', von: wer.id, gegen: wen.id,
             ruler: ruler.name, titel: ruler.titel, grund,
@@ -427,8 +607,6 @@ export function rulersTakeTurn(state, rng = Math.random) {
         continue;
       }
 
-      // Im Krieg: über den Frieden des Spielers entscheidet nur er selbst.
-      if (a.isPlayer || b.isPlayer) continue;
       const rulerA = rulerOf(state, a.id);
       const rulerB = rulerOf(state, b.id);
       // Kriegsmüdigkeit: je länger er dauert, desto eher hören beide auf.
@@ -436,15 +614,28 @@ export function rulersTakeTurn(state, rng = Math.random) {
       const willeA = (100 - rulerA.angriffslust) / 100;
       const willeB = (100 - rulerB.angriffslust) / 100;
       const stimmung = 0.4 + (relation.opinion / 100);
-      const chance = 0.05 * willeA * willeB * stimmung * (1 + dauer);
       const ferne = !nachbarn && state.turn - relation.since > 4;
+
+      // Im Krieg mit dem Spieler: über seinen Frieden entscheidet nur er.
+      // Aber ein müder Herrscher schickt einen Gesandten - und der wartet im
+      // Diplomatiefenster auf eine Antwort.
+      if (a.isPlayer || b.isPlayer) {
+        const gegner = a.isPlayer ? b : a;
+        const spieler = a.isPlayer ? a : b;
+        const wille = (100 - rulerOf(state, gegner.id).angriffslust) / 100;
+        const chance = 0.06 * wille * stimmung * (1 + dauer);
+        if (state.turn - relation.since >= 8 && rng() < chance) {
+          offerPeaceToPlayer(state, gegner.id, spieler.id);
+        }
+        continue;
+      }
+      const chance = 0.05 * willeA * willeB * stimmung * (1 + dauer);
       if (ferne ? rng() < 0.09 : (state.turn - relation.since >= 8 && rng() < chance)) {
-        makePeace(state, a.id, b.id,
-          ferne ? 'der Krieg war nur noch ein Wort' : 'beide Seiten haben genug');
+        const grund = ferne ? 'der Krieg war nur noch ein Wort' : 'beide Seiten haben genug';
+        if (!makePeace(state, a.id, b.id, grund).ok) continue;
         pushNews(state, {
           kind: 'frieden', von: a.id, gegen: b.id,
-          ruler: rulerA.name, titel: rulerA.titel,
-          grund: ferne ? 'der Krieg war nur noch ein Wort' : 'beide Seiten haben genug',
+          ruler: rulerA.name, titel: rulerA.titel, grund,
         });
       }
     }

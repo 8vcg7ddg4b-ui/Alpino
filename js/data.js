@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.4.0';
+export const GAME_VERSION = '1.5.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -105,12 +105,21 @@ export const SHIP_TYPES = {
     attack: 50, defense: 52, hp: 780, cost: 220, upkeep: 0.55,
     note: 'Fünfruderer mit Enterbrücke und Turm – schwer, teuer, im Rammstoß überlegen.',
   },
+  triere: {
+    key: 'triere',
+    name: 'Trieren',
+    icon: '🛶',
+    attack: 46, defense: 45, hp: 690, cost: 190, upkeep: 0.47,
+    note: 'Der Dreiruderer, das Arbeitspferd jeder Flotte – wendig genug zum Rammen, '
+      + 'stark genug für die Linie.',
+  },
   lembos: {
     key: 'lembos',
-    name: 'Leichte Ruderer',
+    name: 'Lemboi',
     icon: '🚣',
-    attack: 44, defense: 40, hp: 600, cost: 170, upkeep: 0.42,
-    note: 'Lemboi und Trieren: schnell und billig, aber dünnwandig.',
+    attack: 44, defense: 36, hp: 540, cost: 150, upkeep: 0.38,
+    note: 'Der illyrische Einruderer: schnell und billig, aber dünnwandig – gut zum '
+      + 'Zusetzen, schlecht zum Standhalten.',
   },
   keltenschiff: {
     key: 'keltenschiff',
@@ -119,34 +128,60 @@ export const SHIP_TYPES = {
     attack: 36, defense: 54, hp: 760, cost: 195, upkeep: 0.5,
     note: 'Hochbordige Eichenrümpfe mit Ledersegel – schwer zu rammen, schwach im Angriff.',
   },
+  // Das Schiff der Seeräuber: anderthalb Ruderreihen, kein Turm, kein Ballast.
+  // Es holt jeden ein und hält nichts aus - deshalb greift es Transporter an
+  // und nicht die Kriegsflotte.
+  hemiolia: {
+    key: 'hemiolia',
+    name: 'Hemiolien',
+    icon: '🏴',
+    attack: 52, defense: 30, hp: 480, cost: 0, upkeep: 0,
+    note: 'Anderthalbruderer der Seeräuber: das schnellste Schiff der See, '
+      + 'im offenen Kampf das schwächste.',
+  },
 };
 
-// Wer welche Bauart fährt. Rom lernte den Schiffbau von einer gestrandeten
-// punischen Quinquereme; die Diadochenreiche bauten dieselben schweren
-// Einheiten. Griechen, Illyrer und Iberer fuhren leichter, die Stämme des
-// Nordens und die Binnenvölker mit Segelschiffen.
-export const FACTION_SHIP_TYPE = {
-  rom: 'quinquereme',
-  karthago: 'quinquereme',
-  seleukiden: 'quinquereme',
-  ptolemaeer: 'quinquereme',
-  griechen: 'lembos',
-  illyrer: 'lembos',
-  iberer: 'lembos',
-  numidien: 'lembos',
-  parther: 'lembos',
-  armenien: 'lembos',
-  pontus: 'quinquereme',
-  gallier: 'keltenschiff',
-  britannier: 'keltenschiff',
-  germanen: 'keltenschiff',
-  daker: 'keltenschiff',
-  sarmaten: 'keltenschiff',
-  neutral: 'lembos',
+// Wer welche Bauarten fahren kann - bis zu drei je Fraktion, die erste ist
+// die, mit der sie in den Krieg zieht. Rom lernte den Schiffbau von einer
+// gestrandeten punischen Quinquereme; die Diadochenreiche bauten dieselben
+// schweren Einheiten und daneben die Triere, die überall fuhr. Illyrer und
+// Iberer fuhren leicht, die Stämme des Nordens und die Binnenvölker mit
+// hochbordigen Seglern.
+export const FACTION_SHIP_TYPES = {
+  rom: ['quinquereme', 'triere', 'lembos'],
+  karthago: ['quinquereme', 'triere', 'lembos'],
+  seleukiden: ['quinquereme', 'triere'],
+  ptolemaeer: ['quinquereme', 'triere', 'lembos'],
+  pontus: ['quinquereme', 'triere', 'lembos'],
+  griechen: ['triere', 'lembos', 'quinquereme'],
+  illyrer: ['lembos', 'triere'],
+  iberer: ['lembos', 'triere'],
+  numidien: ['lembos', 'triere'],
+  parther: ['lembos'],
+  armenien: ['lembos'],
+  gallier: ['keltenschiff', 'lembos'],
+  britannier: ['keltenschiff', 'lembos'],
+  germanen: ['keltenschiff', 'lembos'],
+  daker: ['keltenschiff', 'lembos'],
+  sarmaten: ['keltenschiff', 'lembos'],
+  neutral: ['lembos'],
+  piraten: ['hemiolia'],
 };
 
+// Alle Bauarten, die diese Fraktion in ihren Werften bauen kann.
+export function shipTypesOf(factionId) {
+  const keys = FACTION_SHIP_TYPES[factionId] || FACTION_SHIP_TYPES.neutral;
+  return keys.map((key) => SHIP_TYPES[key]).filter(Boolean);
+}
+
+// Eine Bauart am Namen, mit der Bauart der Fraktion als Rückfall.
+export function shipTypeByKey(key, factionId = 'neutral') {
+  return SHIP_TYPES[key] || shipTypesOf(factionId)[0] || SHIP_TYPES.lembos;
+}
+
+// Die Bauart, mit der eine Fraktion in den Krieg zieht: die erste ihrer Liste.
 export function shipTypeOf(factionId) {
-  return SHIP_TYPES[FACTION_SHIP_TYPE[factionId] || 'lembos'];
+  return shipTypesOf(factionId)[0] || SHIP_TYPES.lembos;
 }
 
 // Auf der Mauer taugt sie, im offenen Feld wäre sie nichts - was sie nie ist.
@@ -398,6 +433,13 @@ export const FACTIONS = [
     armyLabel: 'Reiterschwarm',
   },
   { id: 'neutral', name: 'Unabhängig', color: '#7f7f7f', isNeutral: true },
+  // Die Seeräuber sind keine Macht, mit der man verhandelt: kein Herrscher,
+  // keine Stadt, kein Vertrag. Sie stehen mit jedem im Krieg, weil sie nie
+  // Frieden geschlossen haben - und weil man mit ihnen keinen schließen kann.
+  {
+    id: 'piraten', name: 'Seeräuber', color: '#15161a',
+    isNeutral: true, isPirate: true,
+  },
 ];
 
 // Was auf dem Auswahlbildschirm über eine Fraktion steht: wo sie beginnt,
@@ -891,6 +933,32 @@ export function levyStrength(city) {
   if (roh < LEVY_MIN) return 0;
   return Math.min(LEVY_MAX, roh);
 }
+
+// --- Seeräuber -------------------------------------------------------------
+// Wo Handel fährt, fährt bald auch, wer ihn nimmt. Die Seeräuber sind keine
+// Fraktion im eigentlichen Sinn: sie halten keine Stadt, sie erobern nichts
+// und sie gewinnen das Spiel nie. Sie sind das Risiko, das auf dem Wasser
+// liegt - eine Flotte, die kommt, wenn man keine eigene hat.
+export const PIRATE_FACTION = 'piraten';
+// Nicht in der ersten Runde: die Eröffnung gehört den Reichen.
+export const PIRATE_FIRST_TURN = 8;
+// Mehr als so viele Geschwader sind gleichzeitig nicht unterwegs.
+export const PIRATE_MAX = 3;
+// Wie wahrscheinlich in einer Runde ein neues ausläuft.
+export const PIRATE_CHANCE = 0.16;
+// Wie viele Schiffe ein Geschwader zählt, und wie groß es höchstens wird.
+export const PIRATE_BATCH = 34;
+export const PIRATE_MAX_SHIPS = 90;
+// Sie fahren schneller als jede Kriegsflotte - das ist ihr ganzer Vorteil.
+export const PIRATE_MOVEMENT = 36;
+// Was in ihrem Lagerraum liegt, wenn sie jemand versenkt.
+export const PIRATE_LOOT = 140;
+// Wie weit ihr Schatten auf einen Seehandelsweg fällt und wie viel er davon
+// schluckt: ein Geschwader vor der Küste halbiert, was der Weg abwirft.
+export const PIRATE_BLOCKADE_RANGE = 2;
+export const PIRATE_TOLL = 0.5;
+// Bis hierhin suchen sie sich ein Ziel - weiter fahren sie nicht auf Verdacht.
+export const PIRATE_HUNT_RANGE = 14;
 
 // --- Handel ---------------------------------------------------------------
 // Jeder Ort bringt hervor, was sein Land hergibt. Zwei eigene Orte, die eine

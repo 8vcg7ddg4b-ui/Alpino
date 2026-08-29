@@ -4,6 +4,7 @@ import {
   unitDef, ROLE_LABELS, settlementTier, garrisonCapacity, TILE_TYPES,
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
+  shipTypesOf, shipTypeByKey,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
   TRANSPORT_NAME, transportCount,
   RIVER_CROSSING_COST,
@@ -15,7 +16,8 @@ import {
 import { TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
   atWar, opinionOf, relationOf, rulerOf, peaceVerdict, peacePrice,
-  GIFT_COST, PEACE_GRACE_TURNS, knowsFaction, roughDirection,
+  GIFT_COST, knowsFaction, roughDirection,
+  diploLock, offerFrom,
 } from './diplomacy.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
@@ -25,6 +27,7 @@ import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, roadConnected, cityIncome,
   armyUpkeep, factionIncome,
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
+  tradeRouteRaided,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -298,9 +301,11 @@ const EMBARK_REASONS = {
 
 function embarkHTML(state, army) {
   if (isFleet(army)) {
-    return `<p class="sea-line">⛵ Flotte – ${NAVAL_MOVEMENT} Bewegungspunkte.
-      <span class="muted">Sie hält das Meer: sie greift feindliche Flotten und
-      Transporte an, geht aber nie an Land.</span></p>`;
+    const ship = shipTypeByKey(army.shipKind, army.factionId);
+    return `<p class="sea-line">${ship.icon} ${escapeHTML(ship.name)} –
+      ${army.maxMovement || NAVAL_MOVEMENT} Bewegungspunkte.
+      <span class="muted">${escapeHTML(ship.note)} Sie hält das Meer: sie greift
+      feindliche Flotten und Transporte an, geht aber nie an Land.</span></p>`;
   }
   const ruempfe = transportCount(unitTotalCount(army.units));
   if (army.embarked) {
@@ -622,12 +627,22 @@ function harbourHTML(state, city, isMine, player) {
 // Meer selbst hält.
 function fleetHTML(city, isMine, player) {
   if (!isMine || !city.harbour) return '';
-  const ship = unitDef(city.factionId, SHIP_ROLE);
-  const tooPoor = player.gold < ship.cost;
-  return `<button class="fleet-btn" ${tooPoor ? 'disabled' : ''}>
+  // Bis zu drei Bauarten je Fraktion, und die Werft baut die, die man wählt.
+  // Die erste ist die, mit der dieses Reich in den Krieg zieht; die anderen
+  // sind billiger oder schneller, aber nicht besser.
+  const bauarten = shipTypesOf(city.factionId);
+  if (!bauarten.length) return '';
+  return `
+    <p class="road-head">⚓ Werft <span class="muted">· ${bauarten.length === 1
+    ? 'eine Bauart' : `${bauarten.length} Bauarten · je ${WARSHIP_BATCH} Schiffe`}</span></p>
+    ${bauarten.map((ship, index) => {
+    const tooPoor = player.gold < ship.cost;
+    return `<button class="fleet-btn" data-ship="${ship.key}" ${tooPoor ? 'disabled' : ''}>
       ${ship.icon} ${WARSHIP_BATCH} ${escapeHTML(ship.name)} bauen – ${ship.cost} Gold
-      <small>${escapeHTML(ship.note)}${tooPoor ? ' · zu wenig Gold' : ''}</small>
+      <small>${index === 0 ? 'Hauptbauart · ' : ''}${escapeHTML(ship.note)}${
+  tooPoor ? ' · zu wenig Gold' : ''}</small>
     </button>`;
+  }).join('')}`;
 }
 
 // --- Straßenbau ----------------------------------------------------------
@@ -655,9 +670,14 @@ function tradeHTML(state, city, isMine, player) {
     const other = tradePartnerOf(state, route, city.id);
     if (!other) return '';
     const good = tradeGoodInfo(state, other);
-    return `<p class="wall-line wall-done trade-line"><span>${route.kind === 'sea' ? '⛵' : '🛣️'}
+    // Ein Seeweg, auf dem Seeräuber kreuzen, trägt nur die Hälfte - das steht
+    // hier, sonst wundert man sich über die fehlenden Einnahmen.
+    const gekapert = tradeRouteRaided(state, city, other);
+    return `<p class="wall-line ${gekapert ? '' : 'wall-done'} trade-line"><span>${
+  gekapert ? '🏴' : route.kind === 'sea' ? '⛵' : '🛣️'}
       ${escapeHTML(other.name)} <span class="muted">· ${good.icon} ${escapeHTML(good.name)} ·
-      +${tradeRouteIncome(state, city, other)} Gold je Runde</span></span>
+      +${tradeRouteIncome(state, city, other)} Gold je Runde${
+  gekapert ? ' · Seeräuber nehmen die Hälfte' : ''}</span></span>
       <button class="trade-close-btn" data-route="${route.id}">aufgeben</button></p>`;
   }).join('');
 
@@ -1024,15 +1044,44 @@ export function rulerCardHTML(state, faction, options = {}) {
   const preis = own || !krieg ? null : peacePrice(state, player.id, faction.id);
   const bezahlbar = preis !== null && preis > 0 && player.gold >= preis;
 
-  const knoepfe = own ? '' : `
+  // Fristen: nach einer Kriegserklärung wird nicht sofort wieder verhandelt,
+  // nach einem Frieden nicht sofort wieder gebrochen. Was gesperrt ist, steht
+  // ausgegraut da und sagt, wie lange noch.
+  const friedensSperre = own ? null : diploLock(state, player.id, faction.id, 'frieden');
+  const kriegsSperre = own ? null : diploLock(state, player.id, faction.id, 'krieg');
+  const geschenkSperre = own ? null : diploLock(state, player.id, faction.id, 'geschenk');
+  // Ein Gesandter, der auf eine Antwort wartet, geht allem anderen vor.
+  const angebot = own ? null : offerFrom(state, faction.id, player.id);
+
+  const angebotHTML = !angebot ? '' : `
+    <div class="road-row diplo-actions diplo-offer">
+      <p class="diplo-note">🕊 ${escapeHTML(angebot.ruler)} schickt einen Gesandten:
+        ${escapeHTML(angebot.grund)}${angebot.tribut > 0
+    ? ` – und ${angebot.tribut.toLocaleString('de-DE')} Gold dazu` : ''}.
+        Er wartet noch ${Math.max(1, angebot.laeuftAb - state.turn)} Runden.</p>
+      <button class="diplo-btn" data-act="accept" data-faction="${faction.id}">
+        🕊 Angebot annehmen
+        <small>${angebot.tribut > 0
+    ? `${angebot.tribut.toLocaleString('de-DE')} Gold gehen in deine Truhe`
+    : 'der Krieg endet ohne Zahlung'}</small>
+      </button>
+      <button class="diplo-btn diplo-war" data-act="reject" data-faction="${faction.id}">
+        ✋ Ausschlagen
+        <small>er merkt es sich – und schickt so bald keinen zweiten</small>
+      </button>
+    </div>`;
+
+  const knoepfe = own ? '' : `${angebotHTML}
     <div class="road-row diplo-actions">
       ${krieg ? `
-        <button class="diplo-btn" data-act="peace" data-faction="${faction.id}" data-tribute="0">
+        <button class="diplo-btn" data-act="peace" data-faction="${faction.id}" data-tribute="0"
+          ${friedensSperre ? 'disabled' : ''}>
           🕊 Frieden anbieten
-          <small>${urteil && urteil.accepted ? 'er würde annehmen' : 'er würde ablehnen'}${
-  urteil && urteil.gruende.length ? ` · ${urteil.gruende[0]}` : ''}</small>
+          <small>${friedensSperre ? escapeHTML(friedensSperre.text)
+    : `${urteil && urteil.accepted ? 'er würde annehmen' : 'er würde ablehnen'}${
+      urteil && urteil.gruende && urteil.gruende.length ? ` · ${urteil.gruende[0]}` : ''}`}</small>
         </button>
-        ${preis === 0 ? '' : `
+        ${preis === 0 || friedensSperre ? '' : `
         <button class="diplo-btn" data-act="peace" data-faction="${faction.id}"
           data-tribute="${preis || 0}" ${bezahlbar ? '' : 'disabled'}>
           🕊 Frieden mit Tribut
@@ -1042,15 +1091,17 @@ export function rulerCardHTML(state, faction, options = {}) {
       ? 'so viel verlangt er' : 'so viel verlangt er – der Schatz gibt es nicht her'}`}</small>
         </button>`}`
     : `
-        <button class="diplo-btn diplo-war" data-act="war" data-faction="${faction.id}">
+        <button class="diplo-btn diplo-war" data-act="war" data-faction="${faction.id}"
+          ${kriegsSperre ? 'disabled' : ''}>
           ⚔ Krieg erklären
-          <small>${state.turn - (relation ? relation.since : 0) < PEACE_GRACE_TURNS
-    ? 'ein frischer Friede – das kostet dein Ansehen' : 'der Friede endet sofort'}</small>
+          <small>${kriegsSperre ? escapeHTML(kriegsSperre.text)
+    : 'der Friede endet sofort – und alle, die davon hören, rechnen es dir an'}</small>
         </button>`}
       <button class="diplo-btn" data-act="gift" data-faction="${faction.id}"
-        ${player.gold < GIFT_COST ? 'disabled' : ''}>
+        ${player.gold < GIFT_COST || geschenkSperre ? 'disabled' : ''}>
         🎁 Geschenk senden
-        <small>${GIFT_COST} Gold · hebt sein Ansehen von dir</small>
+        <small>${geschenkSperre ? escapeHTML(geschenkSperre.text)
+    : `${GIFT_COST} Gold · hebt sein Ansehen von dir`}</small>
       </button>
     </div>`;
 
@@ -1291,8 +1342,9 @@ export function renderUI(state, handlers) {
       if (wallBtn) wallBtn.addEventListener('click', () => handlers.onBuyWalls(city.id));
       const harbourBtn = panel.querySelector('.harbour-btn:not([disabled])');
       if (harbourBtn) harbourBtn.addEventListener('click', () => handlers.onBuyHarbour(city.id));
-      const fleetBtn = panel.querySelector('.fleet-btn:not([disabled])');
-      if (fleetBtn) fleetBtn.addEventListener('click', () => handlers.onBuildFleet(city.id));
+      panel.querySelectorAll('.fleet-btn:not([disabled])').forEach((btn) => {
+        btn.addEventListener('click', () => handlers.onBuildFleet(city.id, btn.dataset.ship));
+      });
       panel.querySelectorAll('.road-btn').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onBuildRoad(city.id, btn.dataset.target));
       });

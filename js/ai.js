@@ -1,5 +1,5 @@
 import {
-  UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost,
+  UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost, shipTypesOf,
   wallLevelInfo, TRADE_ROUTE_COST,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
@@ -13,6 +13,7 @@ import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
 } from './state.js';
 import { atWar, rulerOf } from './diplomacy.js';
+import { piratesTakeTurn } from './piraten.js';
 
 // Keeps enough in the treasury that paying for a fleet never leaves a faction
 // unable to defend what it already has.
@@ -300,13 +301,21 @@ function nearestSeaTarget(state, fleet) {
 // Gebaut wird vor der Aushebung, sonst ist die Kasse jede Runde leer, bevor
 // die Werft an die Reihe kommt.
 function aiNavy(state, faction) {
-  if (faction.gold < unitDef(faction.id, SHIP_ROLE).cost + AI_TREASURY_FLOOR) return;
+  const bauarten = shipTypesOf(faction.id);
+  if (!bauarten.length) return;
+  // Gebaut wird die Hauptbauart, wenn die Kasse sie hergibt, sonst die
+  // billigste, die noch hineinpasst - lieber ein leichtes Geschwader als gar
+  // keines.
+  const bezahlbar = bauarten.filter((t) => faction.gold >= t.cost + AI_TREASURY_FLOOR);
+  if (!bezahlbar.length) return;
+  const ship = bezahlbar.includes(bauarten[0]) ? bauarten[0]
+    : bezahlbar.reduce((a, b) => (b.cost < a.cost ? b : a));
   const harbours = state.cities.filter((c) => c.factionId === faction.id && c.harbour);
   if (!harbours.length) return;
   const fleets = state.armies.filter((a) => a.factionId === faction.id && isFleet(a)).length;
   const coastal = state.cities.filter((c) => c.factionId === faction.id && isCoastalCity(state, c));
   if (fleets >= Math.max(1, Math.round(coastal.length / 3))) return;
-  buildFleet(state, harbours[Math.floor(Math.random() * harbours.length)].id);
+  buildFleet(state, harbours[Math.floor(Math.random() * harbours.length)].id, ship.key);
 }
 
 // How close an enemy army has to be before a settlement counts as threatened.
@@ -554,6 +563,12 @@ function militiaTarget(state, army) {
   return best;
 }
 
+// Die Seeräuber ziehen wie alles andere über den Wegfinder: sie kennen kein
+// Land, nur Wasser, und der Wegfinder weiß das schon.
+export function piratesMove(state) {
+  piratesTakeTurn(state, stepArmyTowards);
+}
+
 export function independentsTakeTurn(state) {
   raiseIndependentArmies(state);
   for (const army of state.armies.filter((a) => a.factionId === 'neutral')) {
@@ -598,4 +613,7 @@ export function aiTakeAllTurns(state) {
     aiTakeTurn(state, faction);
   }
   independentsTakeTurn(state);
+  // Zuletzt die Seeräuber: sie fahren, nachdem alle anderen gezogen sind -
+  // wer eine Flotte ins Meer gelegt hat, soll sie dort auch antreffen.
+  piratesMove(state);
 }

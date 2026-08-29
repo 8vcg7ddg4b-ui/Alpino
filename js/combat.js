@@ -2,10 +2,18 @@
 // drei Waffengattungen und die Stadtwache, die nur auf der Verteidigerseite
 // vorkommt und dort mitkämpft.
 import { unitDefs, COMBAT_ROLES, TILE_TYPES, BATTLE_PREVIEW_SAMPLES,
-  frontageWidth, engagedShare } from './data.js';
+  frontageWidth, engagedShare, SHIP_ROLE, SHIP_TYPES } from './data.js';
 import { mulberry32 } from './prng.js';
 
 let battleSeed = 42;
+
+// Tauscht die Schiffsbauart in die Rollentabelle ein, ohne die Tabelle selbst
+// anzurühren - sie gehört der Fraktion und wird von allen geteilt.
+function withShipKind(defs, kind) {
+  const ship = kind && SHIP_TYPES[kind];
+  if (!ship || defs[SHIP_ROLE] === ship) return defs;
+  return { ...defs, [SHIP_ROLE]: ship };
+}
 
 function cloneUnits(units) {
   const out = {};
@@ -54,10 +62,13 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     // Each side fights with its own arms. Without this every faction would be
     // Rome with a different colour.
     attackerFactionId = 'neutral', defenderFactionId = 'neutral',
+    // Eine Flotte fährt die Bauart, mit der sie vom Stapel lief - nicht die,
+    // die ihre Werft heute baut. Wer keine mitgibt, fährt die der Fraktion.
+    attackerShipKind = null, defenderShipKind = null,
   } = modifiers;
 
-  const attackerDefs = unitDefs(attackerFactionId);
-  const defenderDefs = unitDefs(defenderFactionId);
+  const attackerDefs = withShipKind(unitDefs(attackerFactionId), attackerShipKind);
+  const defenderDefs = withShipKind(unitDefs(defenderFactionId), defenderShipKind);
 
   // A forecast passes its own seed and must not touch the campaign's battle
   // sequence: previewing a fight may never change how that fight turns out.

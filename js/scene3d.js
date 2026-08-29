@@ -2222,8 +2222,13 @@ function buildShip(color, kind = 'lembos') {
   // einziges Rahsegel und kein Rammsporn. Man erkennt ihn von oben daran,
   // dass er breiter aussieht, als er lang ist.
   const hulk = kind === 'transport';
-  const length = hulk ? 2.9 : heavy ? 4.2 : sailer ? 3.3 : 3.6;
-  const beam = hulk ? 0.92 : heavy ? 0.78 : sailer ? 0.86 : 0.58;
+  // Die Hemiolia der Seeräuber: anderthalb Ruderreihen, kein Turm, kein
+  // Ballast - lang, schmal und tief im Wasser. Der Lembos ist ihr kleiner
+  // Bruder, die Triere das Maß, an dem sich beide messen.
+  const raider = kind === 'hemiolia';
+  const light = raider || kind === 'lembos';
+  const length = hulk ? 2.9 : heavy ? 4.2 : sailer ? 3.3 : raider ? 3.4 : light ? 2.9 : 3.6;
+  const beam = hulk ? 0.92 : heavy ? 0.78 : sailer ? 0.86 : light ? 0.46 : 0.58;
 
   const hull = new THREE.Mesh(
     new THREE.CylinderGeometry(beam, beam * 0.55, length, 8, 1, false, 0, Math.PI),
@@ -2279,11 +2284,14 @@ function buildShip(color, kind = 'lembos') {
     stem.position.set(0, beam + 0.6, -length * 0.46);
     ship.add(stem);
   } else {
-    // Ruderer: eine Reihe Riemen je Seite, bei der Quinquereme zwei.
-    const banks = heavy ? 2 : 1;
+    // Ruderer: eine Reihe Riemen je Seite, bei der Quinquereme zwei - und bei
+    // der Hemiolia anderthalb, daher der Name: die obere Reihe reicht nur bis
+    // zur Mitte, damit vorn Platz zum Entern bleibt.
+    const banks = heavy || raider ? 2 : 1;
     for (let bank = 0; bank < banks; bank++) {
       for (const side of [-1, 1]) {
         for (let i = 0; i < 7; i++) {
+          if (raider && bank === 1 && i > 3) continue;
           const oar = new THREE.Mesh(
             new THREE.BoxGeometry(0.06, 0.05, 0.95),
             SHIP_MAST
@@ -2347,6 +2355,19 @@ function buildShip(color, kind = 'lembos') {
   wake.rotation.x = -Math.PI / 2;
   wake.position.y = 0.06;
   ship.add(wake);
+
+  if (raider) {
+    // Der schwarze Wimpel: das Einzige, woran man sie von Weitem erkennt.
+    const wimpel = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.9, 0.3),
+      new THREE.MeshStandardMaterial({
+        color: '#0b0b0d', roughness: 0.9, side: THREE.DoubleSide,
+      })
+    );
+    wimpel.position.set(0.45, beam + mastHeight - 0.15, 0);
+    wimpel.rotation.y = Math.PI / 2;
+    ship.add(wimpel);
+  }
 
   ship.userData.kind = kind;
   ship.userData.sails = [sail];
@@ -2427,7 +2448,7 @@ function syncArmyGroup(state, army, entry) {
   // davon ab, wer da fährt: ein Geschwader fährt seine eigenen Kriegsschiffe,
   // ein Landheer wird auf gecharterten Transportern übergesetzt.
   const afloat = !!army.embarked;
-  const kind = isFleet(army) ? shipTypeOf(army.factionId).key : 'transport';
+  const kind = isFleet(army) ? (army.shipKind || shipTypeOf(army.factionId).key) : 'transport';
   let ship = group.userData.ship;
   if (afloat && (!ship || ship.userData.kind !== kind)) {
     if (ship) group.remove(ship);

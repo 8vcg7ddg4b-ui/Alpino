@@ -10,6 +10,7 @@ import {
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
 import { aiTakeAllTurns } from './ai.js';
+import { pirateFleets } from './piraten.js';
 import {
   recruitUnit, raiseArmyFromGarrison, reinforceArmy, collectIncome, regenerateGarrisons,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
@@ -20,6 +21,7 @@ import {
 import {
   offerPeace, declareWar, sendGift, rulersTakeTurn, rulerOf, GIFT_COST,
   takeDiploNews, updateKnowledge, knowsFaction,
+  acceptOffer, rejectOffer, expireOffers,
 } from './diplomacy.js';
 import { rulerFor, TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
@@ -308,6 +310,7 @@ function showNextDiploNews() {
   // Fertig ausformulierte Meldungen gehen direkt durch.
   if (meldung.icon) { showNotice(meldung); return; }
   const krieg = meldung.kind === 'krieg';
+  const angebot = meldung.kind === 'angebot';
   const gegner = factionById(state, meldung.von === playerFaction(state).id
     ? meldung.gegen : meldung.von);
   const icon = document.getElementById('diploNewsIcon');
@@ -315,6 +318,26 @@ function showNextDiploNews() {
   const title = document.getElementById('diploNewsTitle');
   const text = document.getElementById('diploNewsText');
   const effect = document.getElementById('diploNewsEffect');
+  // Ein Gesandter, der auf Antwort wartet: die Entscheidung fällt nicht hier,
+  // sondern im Diplomatiefenster - hier steht nur, dass er da ist.
+  if (angebot) {
+    if (icon) icon.textContent = '🕊';
+    if (kind) kind.textContent = `Ein Gesandter${gegner ? ` · ${gegner.name}` : ''}`;
+    if (title) title.textContent = `${meldung.ruler} bietet dir Frieden an`;
+    if (text) {
+      text.textContent = `${meldung.ruler}, ${meldung.titel}, lässt fragen, ob der `
+        + `Krieg zwischen euch nicht genug sei – ${meldung.grund}.`
+        + (meldung.tribut > 0
+          ? ` Er legt ${meldung.tribut.toLocaleString('de-DE')} Gold dazu.` : '');
+    }
+    if (effect) {
+      effect.textContent = 'Der Gesandte wartet drei Runden. Im Diplomatiefenster '
+        + 'nimmst du an oder schickst ihn nach Hause.';
+    }
+    diploNewsOverlay.classList.remove('hidden');
+    sfx.raise();
+    return;
+  }
   if (icon) icon.textContent = krieg ? '⚔' : '🕊';
   // Der Name der Fraktion steht in der Zeile darüber, nicht im Satz: "ein
   // Herold aus Illyrer" wäre kein Deutsch, und die Namen sind teils Völker,
@@ -371,13 +394,19 @@ function collectDiploNews() {
 // Fenster, alles andere im Protokoll - und wer eine Stadt verlor, erfuhr es
 // erst, wenn er hinsah.
 function snapshotOwn() {
-  if (!state) return { orte: new Set(), heere: new Map() };
+  if (!state) return { orte: new Set(), heere: new Map(), piraten: new Set() };
   const me = playerFaction(state).id;
   return {
     orte: new Set(state.cities.filter((c) => c.factionId === me).map((c) => c.id)),
     heere: new Map(state.armies.filter((a) => a.factionId === me).map((a) => [a.id, a.name])),
+    // Welche Seeräuber schon unterwegs waren - ein neues Segel vor der eigenen
+    // Küste ist eine Meldung wert, eines am anderen Ende der Welt nicht.
+    piraten: new Set(pirateFleets(state).map((p) => p.id)),
   };
 }
+
+// Wie nah ein Segel sein muss, damit es die eigene Küste angeht.
+const PIRATE_ALARM_RANGE = 9;
 
 function collectOwnNews(vorher, previousHead) {
   if (!state) return;
@@ -432,6 +461,27 @@ function collectOwnNews(vorher, previousHead) {
       title: `${city.name} ist dein`,
       text: `${city.name} steht unter deiner Herrschaft.`,
       effect: 'Der Ort trägt ab der nächsten Abrechnung zu deinen Einnahmen bei.',
+    });
+  }
+
+  // Seeräuber, die neu vor der eigenen Küste aufgetaucht sind.
+  const meineOrte = state.cities.filter((c) => c.factionId === me);
+  for (const raeuber of pirateFleets(state)) {
+    if (vorher.piraten.has(raeuber.id)) continue;
+    let nah = null;
+    let beste = Infinity;
+    for (const city of meineOrte) {
+      const d = Math.abs(city.col - raeuber.col) + Math.abs(city.row - raeuber.row);
+      if (d < beste) { beste = d; nah = city; }
+    }
+    if (!nah || beste > PIRATE_ALARM_RANGE) continue;
+    diploNewsQueue.push({
+      icon: '🏴', kind: 'Seeräuber',
+      title: `Schwarze Segel vor ${nah.name}`,
+      text: `${raeuber.name} kreuzt ${beste} Felder vor ${nah.name}. `
+        + 'Sie halten keine Stadt und nehmen keine – sie nehmen, was fährt.',
+      effect: 'Solange sie dort liegen, trägt jeder Seehandelsweg der Gegend nur die '
+        + 'Hälfte. Wer sie versenkt, findet ihre Beute an Bord.',
     });
   }
 
@@ -496,13 +546,23 @@ function renderDiplomacy() {
         (result.ok ? sfx.wallBuy : sfx.denied)();
       } else if (btn.dataset.act === 'war') {
         const ruler = rulerOf(state, target);
-        declareWar(state, me, target, 'die Boten sind zurückgeschickt');
-        answer = `Die Herolde sind unterwegs. ${ruler.name} weiß es vor der nächsten Runde.`;
+        const result = declareWar(state, me, target, 'die Boten sind zurückgeschickt');
+        answer = result.ok
+          ? `Die Herolde sind unterwegs. ${ruler.name} weiß es vor der nächsten Runde.`
+          : (result.lock ? result.lock.text : 'Dafür ist es zu früh.');
         sfx.denied();
       } else if (btn.dataset.act === 'gift') {
         const result = sendGift(state, me, target, GIFT_COST);
         answer = result.text;
         (result.ok ? sfx.wallBuy : sfx.denied)();
+      } else if (btn.dataset.act === 'accept') {
+        const result = acceptOffer(state, target, me);
+        answer = result.text;
+        (result.ok ? sfx.wallBuy : sfx.denied)();
+      } else if (btn.dataset.act === 'reject') {
+        const result = rejectOffer(state, target, me);
+        answer = result.text;
+        sfx.denied();
       }
       diploNote = answer || '';
       refresh();
@@ -1031,9 +1091,9 @@ function refresh() {
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
-    onBuildFleet: (cityId) => {
+    onBuildFleet: (cityId, kind) => {
       pushUndo();
-      const result = buildFleet(state, cityId);
+      const result = buildFleet(state, cityId, kind || null);
       if (result.ok) state.selectedArmyId = result.armyId;
       (result.ok ? sfx.embark : sfx.denied)();
       refresh();
@@ -1085,7 +1145,9 @@ function endTurn() {
   const vorher = snapshotOwn();
 
   // Erst reden, dann marschieren: was die Herrscher in dieser Runde
-  // beschließen, gilt für die Züge, die gleich folgen.
+  // beschließen, gilt für die Züge, die gleich folgen. Wessen Gesandter zu
+  // lange gewartet hat, reist vorher ab.
+  expireOffers(state);
   rulersTakeTurn(state);
   aiTakeAllTurns(state);
   // Wer inzwischen einem fremden Heer begegnet ist, kennt es jetzt.

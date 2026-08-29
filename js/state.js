@@ -213,6 +213,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     tradeRoutes: [],
     // Wer mit wem im Krieg steht und was man voneinander hält.
     relations: initRelations(factions),
+    // Gesandte, die auf eine Antwort warten: ein Friedensangebot eines
+    // anderen Herrschers an den Spieler, drei Runden gültig.
+    peaceOffers: [],
     // Wer wen überhaupt kennt - wird gleich nach dem Aufbau gesetzt, weil
     // dafür Städte und Fraktionen schon zusammenstehen müssen.
     known: {},

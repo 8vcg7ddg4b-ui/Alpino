@@ -11,7 +11,7 @@ import {
   experienceBonus, experienceStars, starMarks, starTitle,
   SHIP_COST, NAVAL_MOVEMENT, EXHAUSTION_PER_SEA_MOVE,
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_UNIT_SCALE, SHIP_ROLE, WARSHIP_BATCH,
-  TRANSPORT_NAME, transportCount,
+  TRANSPORT_NAME, transportCount, shipTypesOf,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
   HARBOUR_COST, HARBOUR_TURNS, HARBOUR_NAME,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
@@ -25,6 +25,7 @@ import {
 import { landRoute } from './mapgen.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import { resolveBattle, forecastBattle } from './combat.js';
+import { pirateTollFactor, pirateLoot, isPirate } from './piraten.js';
 import {
   makeId, factionById, cityAt, armyAt, unitTotalCount, logMsg, logOwn, playerFaction,
   isWaterTile, isCoastalCity, harbourTile, isFleet, PORT_RANGE, tradeGoodOf,
@@ -347,6 +348,10 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       defenderVeterancy: experienceBonus(defenceExperience),
       attackerFactionId: army.factionId,
       defenderFactionId,
+      // Welche Bauart auf welcher Seite fährt: eine Flotte behält ihre, auch
+      // wenn ihre Werft inzwischen eine andere baut.
+      attackerShipKind: army.shipKind || null,
+      defenderShipKind: (defendingArmies.find((a) => a.shipKind) || {}).shipKind || null,
       ...sky.modifiers,
       // Wetter und Seegang wirken beide auf die Waffengattungen; sie werden
       // multipliziert, nicht gegeneinander ausgetauscht. Für die Anzeige
@@ -453,8 +458,12 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   // Settles what becomes of a beaten defending army: it falls back with its
   // survivors, and is only lost if it is wiped out or has nowhere to go.
   function routArmy(defeated, survivors) {
+    const vorher = unitTotalCount(defeated.units);
     defeated.units = survivors;
     if (unitTotalCount(survivors) <= 0) {
+      // Wer ein Seeräubergeschwader versenkt, findet in seinen Laderäumen,
+      // was es zusammengetragen hat. Das ist der einzige Lohn dafür.
+      if (isPirate(defeated)) pirateLoot(state, army.factionId, vorher);
       removeArmy(state, defeated.id);
       return 'destroyed';
     }
@@ -621,8 +630,13 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       + `${starTitle(promoted.experience)}.`);
   }
 
+  const angreiferStaerke = unitTotalCount(army.units);
   army.units = attackerUnits;
   if (unitTotalCount(attackerUnits) <= 0) {
+    // Auch ein Geschwader, das sich selbst verrannt hat, gibt seine Beute her.
+    if (isPirate(army) && defence.defenderFactionId) {
+      pirateLoot(state, defence.defenderFactionId, angreiferStaerke);
+    }
     removeArmy(state, army.id);
     return { ok: true, survived: false, reports };
   }
@@ -775,23 +789,32 @@ export function fleetAt(state, col, row, factionId) {
   return army && army.factionId === factionId && isFleet(army) ? army : null;
 }
 
-export function buildFleet(state, cityId) {
+// Gebaut wird eine bestimmte Bauart: jede Fraktion hat bis zu drei, und die
+// Werft baut die, die man ihr nennt. Ohne Angabe die erste - das ist die,
+// mit der diese Fraktion in den Krieg zieht.
+export function buildFleet(state, cityId, kind = null) {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city) return { ok: false };
   if (!city.harbour) return { ok: false, reason: 'noHarbour' };
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
-  const ship = unitDef(city.factionId, SHIP_ROLE);
+  const bauarten = shipTypesOf(city.factionId);
+  const ship = (kind && bauarten.find((t) => t.key === kind)) || bauarten[0];
+  if (!ship) return { ok: false, reason: 'noYard' };
+  // Eine Werft baut nur, was ihre Leute bauen können.
+  if (kind && ship.key !== kind) return { ok: false, reason: 'fremdeBauart' };
   if (faction.gold < ship.cost) return { ok: false, reason: 'gold' };
 
-  // Liegt schon eine eigene Flotte im Hafen, wächst sie; sonst braucht es ein
-  // freies Wasserfeld in Hafenreichweite.
+  // Liegt schon eine eigene Flotte derselben Bauart im Hafen, wächst sie;
+  // sonst braucht es ein freies Wasserfeld in Hafenreichweite. Zwei Bauarten
+  // in einem Verband gäbe es nicht: was zusammen fährt, fährt gleich schnell.
   let fleet = null;
   for (let dr = -PORT_RANGE; dr <= PORT_RANGE && !fleet; dr++) {
     for (let dc = -PORT_RANGE; dc <= PORT_RANGE && !fleet; dc++) {
       if (Math.abs(dc) + Math.abs(dr) > PORT_RANGE) continue;
       if (!isWaterTile(state, city.col + dc, city.row + dr)) continue;
-      fleet = fleetAt(state, city.col + dc, city.row + dr, city.factionId);
+      const kandidat = fleetAt(state, city.col + dc, city.row + dr, city.factionId);
+      if (kandidat && (kandidat.shipKind || bauarten[0].key) === ship.key) fleet = kandidat;
     }
   }
   const berth = fleet ? null : harbourTile(state, city, true);
@@ -806,7 +829,7 @@ export function buildFleet(state, cityId) {
     fleet.experience = ((fleet.experience || 0) * veterans) / (veterans + WARSHIP_BATCH);
     fleet.units[SHIP_ROLE] = (fleet.units[SHIP_ROLE] || 0) + WARSHIP_BATCH;
     logOwn(state, faction.id, `${WARSHIP_BATCH} ${ship.name} verstärken ${fleet.name} in ${city.name}.`);
-    return { ok: true, armyId: fleet.id };
+    return { ok: true, armyId: fleet.id, kind: ship.key };
   }
 
   const newFleet = {
@@ -821,11 +844,14 @@ export function buildFleet(state, cityId) {
     exhaustion: 0,
     experience: 0,
     embarked: true,
-    name: `${faction.name} Flotte`,
+    // Die Bauart reist mit der Flotte: sie entscheidet, wie sie kämpft und
+    // wie sie aussieht, auch wenn die Werft längst eine andere baut.
+    shipKind: ship.key,
+    name: `${faction.name} ${ship.name}`,
   };
   state.armies.push(newFleet);
-  logOwn(state, faction.id, `In ${city.name} läuft eine Flotte von ${WARSHIP_BATCH} ${ship.name} vom Stapel.`);
-  return { ok: true, armyId: newFleet.id };
+  logOwn(state, faction.id, `In ${city.name} läuft ein Geschwader von ${WARSHIP_BATCH} ${ship.name} vom Stapel.`);
+  return { ok: true, armyId: newFleet.id, kind: ship.key };
 }
 
 // Eine Armee, die in einer eigenen Stadt steht, kann dort frische Truppen
@@ -1368,7 +1394,18 @@ export function tradeRouteIncome(state, a, b) {
   if (!a || !b) return 0;
   const variety = tradeGoodOf(state, a) === tradeGoodOf(state, b) ? 0 : TRADE_VARIETY_BONUS;
   const size = (tradeSizeFactor(a.size) + tradeSizeFactor(b.size)) / 2;
-  return Math.round((TRADE_BASE_INCOME + variety) * size);
+  // Ein Seeweg trägt nur, solange auf ihm niemand kreuzt: liegen Seeräuber vor
+  // einem der beiden Häfen, kommt die Hälfte der Ladung nie an.
+  const zoll = tradeLinkKind(state, a, b) === 'sea' ? pirateTollFactor(state, a, b) : 1;
+  return Math.round((TRADE_BASE_INCOME + variety) * size * zoll);
+}
+
+// Ob dieser Weg gerade von Seeräubern beschnitten wird - die Stadtansicht
+// sagt es, sonst wundert man sich über die fehlenden Einnahmen.
+export function tradeRouteRaided(state, a, b) {
+  if (!a || !b) return false;
+  if (tradeLinkKind(state, a, b) !== 'sea') return false;
+  return pirateTollFactor(state, a, b) < 1;
 }
 
 // Was der Handel diesem Ort insgesamt einbringt.

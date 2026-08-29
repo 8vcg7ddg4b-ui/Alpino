@@ -95,6 +95,14 @@ const EMBLEMS = {
     <path d="M74 30 l6 15 16 1 -12 11 4 16 -14 -9 -14 9 4 -16 -12 -11 16 -1 Z"/>`,
   neutral: `<circle cx="50" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="8"/>
     <circle cx="50" cy="50" r="7"/>`,
+  // Die Seeräuber führen kein Zeichen. Was hier steht, ist das, was ihre Opfer
+  // sahen: der schwarze Wimpel über zwei gekreuzten Entermessern.
+  piraten: `<rect x="47" y="12" width="6" height="46"/>
+    <path d="M53 16 q24 5 28 13 q-17 7 -28 4 Z"/>
+    <path d="M20 84 l30 -28 l6 6 l-30 28 Z"/>
+    <path d="M80 84 l-30 -28 l-6 6 l30 28 Z"/>
+    <rect x="16" y="80" width="12" height="8"/>
+    <rect x="72" y="80" width="12" height="8"/>`,
 };
 
 export function emblemPaths(factionId) {
