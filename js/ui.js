@@ -9,6 +9,7 @@ import {
   HARBOUR_COST, HARBOUR_TURNS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
   tileImpassable, tileMoveCost, tileAltitude, PASSABLE_ALTITUDE,
+  levyStrength,
 } from './data.js';
 import { TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
@@ -20,7 +21,7 @@ import {
   isWaterTile, isCoastalCity, isFleet, riverSidesOf, tradeGoodInfo,
 } from './state.js';
 import {
-  embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, cityIncome,
+  embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, roadConnected, cityIncome,
   armyUpkeep, factionIncome,
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
 } from './actions.js';
@@ -139,6 +140,12 @@ function aftermathHTML(report) {
 // for the report - so what the player was promised is what they get told.
 function modifierNotesHTML(info) {
   const notes = [];
+  // Ein freier Ort stellt seine eigenen Leute auf die Mauer. Wer das nicht
+  // liest, wundert sich, warum vor ihm mehr steht, als die Aufklärung meldete.
+  if (info.levy > 0) {
+    notes.push(`<span class="mod-note mod-levy">🏘️ Aufgebot der Bürger: ${
+      info.levy.toLocaleString('de-DE')} Mann treten zur Verteidigung an</span>`);
+  }
   // Die Frontbreite erklärt, warum ein doppelt so großes Heer nicht doppelt so
   // hart zuschlägt: der Rest steht dahinter und wartet. Ohne diese Zeile wirkt
   // die Vorschau falsch gerechnet.
@@ -435,6 +442,13 @@ function foreignCityHTML(state, city, intel) {
       : garrisonWord(total)],
   ];
   if (intel === 'scouted') facts.push(['Einwohner', roughly(city.population, 500)]);
+  // Ein freier Ort hat keinen Herrn hinter sich - er stellt seine eigenen
+  // Leute auf die Mauer. Wer davorsteht, sollte damit rechnen.
+  if (city.factionId === 'neutral' && levyStrength(city) > 0) {
+    facts.push(['Aufgebot', intel === 'scouted'
+      ? `${levyStrength(city).toLocaleString('de-DE')} Bürger treten im Ernstfall an`
+      : 'die Bürger greifen selbst zu den Waffen']);
+  }
   if (wonders.length) {
     facts.push(['Bauwerk', wonders.map((w) => w.name).join(', ')]);
   }
@@ -506,6 +520,7 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
       ${cityWallLevel(city)
     ? `${wallLevelInfo(cityWallLevel(city)).icon} ${wallLevelName(cityWallLevel(city))}`
     : 'Keine Befestigung'} · ${city.harbour ? '⚓ Hafen' : 'kein Hafen'}</p>
+    ${roadStatusHTML(state, city)}
     <div class="unit-list">${unitBreakdownHTML(city.garrison, city.factionId)}</div>`;
 
   const buildHTML = `
@@ -662,6 +677,25 @@ function tradeHTML(state, city, isMine, player) {
         </button>`;
       }).join('')}
     </div>`;
+}
+
+// Ob dieser Ort am Straßennetz hängt - und wenn ja, woran. Eine Straße auf
+// der Karte ist unter den Dächern schwer zu sehen; hier steht sie als Satz.
+function roadStatusHTML(state, city) {
+  const eigene = state.cities.filter((c) => c.factionId === city.factionId && c.id !== city.id);
+  const verbunden = eigene.filter((other) => roadConnected(state, city, other));
+  if (!verbunden.length) {
+    return `<p class="wall-line muted">🛣️ Ohne Anschluss ans Straßennetz</p>`;
+  }
+  const naechste = verbunden
+    .map((other) => ({ other, d: Math.abs(other.col - city.col) + Math.abs(other.row - city.row) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 2)
+    .map((entry) => escapeHTML(entry.other.name));
+  return `<p class="wall-line wall-done">🛣️ Am Straßennetz
+    <span class="muted">· verbunden mit ${naechste.join(' und ')}${
+  verbunden.length > naechste.length ? ` und ${verbunden.length - naechste.length} weiteren` : ''
+}</span></p>`;
 }
 
 function roadHTML(state, city, isMine, player) {

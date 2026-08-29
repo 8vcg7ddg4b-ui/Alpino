@@ -362,6 +362,15 @@ den Punkten durchblättern.
   eigenen Verträge; einen frischen Frieden kündigt niemand vor sechs Runden auf.
   **Über den Frieden des Spielers entscheidet niemand außer ihm selbst** – ein
   fremder Herrscher kann ihm den Krieg erklären, beenden kann ihn nur er.
+- **Das Aufgebot der freien Orte**: Eine unabhängige Stadt hat keinen Herrn,
+  der ihr ein Heer schickt. Steht ein Feind vor dem Tor, greift sie zu dem, was
+  sie hat: **6 % ihrer Einwohner** treten unter die Waffen (höchstens 420, unter
+  40 gar nicht) und kämpfen als Stadtwache auf der eigenen Mauer mit – Massilia
+  bringt so 216 Bürger auf, ein Dorf 54. Die Kampfvorschau nennt sie, damit ein
+  Angreifer nicht überrascht wird, und die Aufklärung eines freien Orts weist
+  sie aus. Nach der Schlacht gehen die Überlebenden zurück in die Gassen: auf
+  der Mauer bleibt nur die eigene Stadtwache, und **die gefallenen Bürger
+  fehlen dem Ort danach wirklich** – seine Einwohnerzahl sinkt.
 - **Orte wachsen**: In jedem Monat werden mehr Kinder geboren als Menschen
   sterben. Der Satz ist klein (0,35 % je Runde), aber er summiert sich: über ein
   Jahr gut vier Prozent, über zehn Jahre die Hälfte. Im Frühjahr und Sommer
@@ -370,6 +379,9 @@ den Punkten durchblättern.
   seines Rangs kommt kein Ort hinaus: ein Dorf bleibt ein Dorf. Das Wachstum
   wirkt sich aus, denn die Einwohner tragen zu den Einnahmen bei, stellen die
   Stadtwache nach und bestimmen, wie groß eine Garnison sein darf.
+- **Straßenanschluss steht im Ort**: Die Stadtansicht sagt, ob der Ort am
+  Straßennetz hängt und womit er verbunden ist – eine Straße auf der Karte ist
+  unter den Dächern schwer zu sehen, hier steht sie als Satz.
 - **Handel**: Jeder Ort bringt hervor, was sein Land hergibt – Salz aus der
   Wüste, Holz aus dem Wald, Erz aus den Hügeln, Pferde aus der Steppe des
   Ostens, Öl von der afrikanischen Küste, Wein aus Italien und Anatolien,

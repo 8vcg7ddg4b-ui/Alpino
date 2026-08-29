@@ -19,7 +19,7 @@ import {
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_BASE_INCOME, TRADE_VARIETY_BONUS,
   TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, tradeSizeFactor,
   BIRTH_RATE, BIRTH_SEASON, BIRTH_SIEGE_RANGE, populationCeiling,
-  tileImpassable, tileMoveCost,
+  tileImpassable, tileMoveCost, levyStrength, LEVY_SHARE,
 } from './data.js';
 import { landRoute } from './mapgen.js';
 import { computeReachable, tileKey } from './pathfind.js';
@@ -283,9 +283,18 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
   const defendingArmies = state.armies.filter(
     (a) => a.col === destCol && a.row === destRow && a.factionId !== army.factionId
   );
-  const garrisonJoins = cityIsEnemy && unitTotalCount(city.garrison) > 0;
+  // Ein freier Ort hat keinen Herrn, der ihm ein Heer schickt: er greift zu
+  // seinen eigenen Leuten. Das Aufgebot tritt nur zur Verteidigung an, zählt
+  // als Stadtwache und verschwindet nach der Schlacht wieder in den Gassen -
+  // es steht nirgends in der Garnison, es wird für den Kampf aufgestellt.
+  const levy = cityIsEnemy ? levyStrength(city) : 0;
+  const garrisonJoins = cityIsEnemy && (unitTotalCount(city.garrison) > 0 || levy > 0);
   const contingents = defendingArmies.map((a) => ({ ...a.units }));
-  if (garrisonJoins) contingents.push({ ...city.garrison });
+  if (garrisonJoins) {
+    const wehr = { ...city.garrison };
+    if (levy > 0) wehr[WATCH_ROLE] = (wehr[WATCH_ROLE] || 0) + levy;
+    contingents.push(wehr);
+  }
 
   const atSea = isWaterTile(state, destCol, destRow);
   const amphibious = !!army.embarked && !atSea;
@@ -306,6 +315,9 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
     cityIsEnemy,
     defendingArmies,
     garrisonJoins,
+    // Wie viele Bürger mitkämpfen - die Vorschau nennt es, sonst wundert sich
+    // ein Angreifer, warum vor ihm mehr steht, als die Aufklärung meldete.
+    levy,
     contingents,
     defenders: mergeAllUnits(contingents),
     hasDefence: defendingArmies.length > 0 || garrisonJoins,
@@ -394,6 +406,8 @@ export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) 
     attackerVeterancy: defence.modifiers.attackerVeterancy,
     defenderVeterancy: defence.modifiers.defenderVeterancy,
     arrivalExhaustion,
+    // Wie viele Bürger der freie Ort selbst unter die Waffen gebracht hat.
+    levy: defence.levy || 0,
   };
 
   if (!defence.hasDefence) {
@@ -418,7 +432,7 @@ export function resolveTileCombat(state, army, destCol, destRow) {
   // attacker beat a superior defence piecemeal.
   const defence = gatherDefence(state, army, destCol, destRow);
   const {
-    city, cityIsEnemy, defendingArmies, garrisonJoins, contingents, terrainType,
+    city, cityIsEnemy, defendingArmies, garrisonJoins, contingents, terrainType, levy,
   } = defence;
 
   let attackerUnits = { ...army.units };
@@ -496,7 +510,25 @@ export function resolveTileCombat(state, army, destCol, destRow) {
         a.units = shares[i];
         if (unitTotalCount(a.units) <= 0) removeArmy(state, a.id);
       });
-      if (garrisonJoins) city.garrison = shares[shares.length - 1];
+      if (garrisonJoins) {
+        const rest = { ...shares[shares.length - 1] };
+        // Das Aufgebot bleibt nicht unter Waffen: was überlebt, geht zurück in
+        // die Gassen. Nur die eigene Stadtwache bleibt auf der Mauer stehen,
+        // und zwar in dem Verhältnis, in dem sie angetreten war.
+        if (levy > 0) {
+          const wache = city.garrison[WATCH_ROLE] || 0;
+          const angetreten = wache + levy;
+          const ueberlebt = rest[WATCH_ROLE] || 0;
+          const bleibt = angetreten > 0 ? Math.round(ueberlebt * (wache / angetreten)) : 0;
+          // Die gefallenen Bürger fehlen der Stadt danach wirklich.
+          const gefalleneBuerger = Math.max(0, Math.round(
+            (angetreten - ueberlebt) * (levy / Math.max(1, angetreten))
+          ));
+          city.population = Math.max(100, city.population - gefalleneBuerger);
+          rest[WATCH_ROLE] = bleibt;
+        }
+        city.garrison = rest;
+      }
       bounced = true;
       aftermath = { fate: 'held' };
     }

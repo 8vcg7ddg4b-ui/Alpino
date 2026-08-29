@@ -853,6 +853,29 @@ export function populationCeiling(city) {
   return Math.round(basis * POPULATION_CEILING);
 }
 
+// --- Aufgebot der freien Orte ---------------------------------------------
+// Eine unabhängige Stadt hat keinen Herrn, der ihr ein Heer schickt. Steht ein
+// Feind vor dem Tor, greift sie deshalb zu dem, was sie hat: ihren eigenen
+// Leuten. Aus der Bevölkerung tritt ein Teil unter die Waffen - schlecht
+// bewaffnet, aber zahlreich und auf der eigenen Mauer.
+//
+// Der Anteil ist bewusst klein: nicht die halbe Stadt zieht in den Kampf,
+// sondern die wehrfähigen Männer, die man in Eile zusammenbekommt.
+export const LEVY_SHARE = 0.06;
+// Mehr als so viele werden es nicht, auch in der größten Stadt nicht.
+export const LEVY_MAX = 420;
+// Und unter dieser Zahl lohnt es nicht - ein Dorf mit zwanzig Mann wehrt sich
+// nicht anders als ohne sie.
+export const LEVY_MIN = 40;
+
+// Wie viele Bürger dieser Ort im Ernstfall aufbietet.
+export function levyStrength(city) {
+  if (!city || city.factionId !== 'neutral') return 0;
+  const roh = Math.round(city.population * LEVY_SHARE);
+  if (roh < LEVY_MIN) return 0;
+  return Math.min(LEVY_MAX, roh);
+}
+
 // --- Handel ---------------------------------------------------------------
 // Jeder Ort bringt hervor, was sein Land hergibt. Zwei eigene Orte, die eine
 // Straße verbindet oder die beide einen Hafen haben, können einen Handelsweg
