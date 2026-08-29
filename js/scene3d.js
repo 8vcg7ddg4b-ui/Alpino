@@ -1240,7 +1240,13 @@ function buildRivers(state) {
     }
 
     const roads = state.roads || {};
-    if (roads[`${a.col},${a.row}`] && roads[`${b.col},${b.row}`]) {
+    // Eine Brücke steht dort, wo eine Straße den Fluss quert - aber nicht am
+    // Rand einer Stadt: dort führt der Weg durch den Ort, und ein Brückenbogen
+    // stünde mitten in den Häusern. Für die Bewegung zählt der Übergang
+    // trotzdem, die Stadt ist die Brücke.
+    const amOrt = state.cities.some((city) => (city.col === a.col && city.row === a.row)
+      || (city.col === b.col && city.row === b.row));
+    if (!amOrt && roads[`${a.col},${a.row}`] && roads[`${b.col},${b.row}`]) {
       bridges.push({ mx, mz, alongX });
     }
   }
@@ -2451,6 +2457,12 @@ export function syncEntities(state) {
 // Who holds which ground: every passable tile takes the colour of the faction
 // whose settlement is nearest by land. That is a sphere of influence rather
 // than a border treaty, but it is the picture a commander plans from.
+// Was überhaupt jemandem gehören kann: bestelltes Land. Meer nicht, und das
+// Gebirge auch nicht - weder der Fels noch der Pass darunter.
+function claimable(tile) {
+  return tile.type !== 'water' && tile.type !== 'mountain';
+}
+
 function computeTerritory(state) {
   const { cols, rows, tiles } = state.map;
   const owner = new Int32Array(cols * rows).fill(-1);
@@ -2472,7 +2484,10 @@ function computeTerritory(state) {
       if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
       const next = r * cols + c;
       if (owner[next] !== -1) continue;
-      if (TILE_TYPES[tiles[r][c].type].impassable) continue;
+      // Das Gebirge gehört niemandem: ein Pass ist ein Weg hindurch, kein
+      // Land, das eine Stadt verwaltet. Sonst liefe die Grenze quer über den
+      // Kamm, statt an seinem Fuß zu enden.
+      if (!claimable(tiles[r][c])) continue;
       owner[next] = owner[index];
       queue.push(next);
     }
@@ -2516,8 +2531,9 @@ export function buildBorders(state) {
     if (drueben === eigen) return;
     // Gegen das offene Meer und gegen den Fels zieht niemand eine Grenze.
     if (c >= 0 && c < cols && r >= 0 && r < rows) {
-      const nachbar = tiles[r][c];
-      if (nachbar.type === 'water' || tileImpassable(nachbar)) return;
+      // Gegen das offene Meer und gegen das Gebirge zieht niemand eine Grenze:
+      // dort endet das Land, und eine Linie im Fels sagt nichts.
+      if (!claimable(tiles[r][c])) return;
     } else {
       return;
     }
@@ -2542,8 +2558,7 @@ export function buildBorders(state) {
     for (let col = 0; col < cols; col++) {
       const index = row * cols + col;
       if (owner[index] < 0) continue;
-      const tile = tiles[row][col];
-      if (tile.type === 'water' || tileImpassable(tile)) continue;
+      if (!claimable(tiles[row][col])) continue;
       grenzstueck(index, col, row, 1, 0);
       grenzstueck(index, col, row, -1, 0);
       grenzstueck(index, col, row, 0, 1);
@@ -2598,7 +2613,7 @@ function refreshTacticalColors(state) {
       const tile = tiles[row][col];
       if (tile.type === 'water') {
         colour.copy(SEA_COLOUR);
-      } else if (TILE_TYPES[tile.type].impassable) {
+      } else if (!claimable(tile)) {
         colour.copy(ROCK_COLOUR);
       } else {
         colour.copy(owner[index] >= 0 ? palette[owner[index]] : UNCLAIMED_COLOUR);
@@ -2608,7 +2623,7 @@ function refreshTacticalColors(state) {
           const c = col + dc;
           const r = row + dr;
           if (c < 0 || c >= cols || r < 0 || r >= rows) return false;
-          if (TILE_TYPES[tiles[r][c].type].impassable) return false;
+          if (!claimable(tiles[r][c])) return false;
           return owner[r * cols + c] !== owner[index];
         });
         // Keep just enough relief shading that the mountains and coasts still

@@ -379,13 +379,20 @@ den Punkten durchblättern.
   neun Felder statt sechs, und weil Erschöpfung je Punkt anfällt, zehrt ein
   Straßenfeld auch weniger als ein Feld Ebene. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
   als Ganzes und immer nur eine je Stadt;
-  neue Straßen legen sich an das bestehende Netz an: die Wegsuche zählt ein
-  vorhandenes Straßenfeld als billigsten Schritt, so dass eine neue Verbindung
-  auf die alte Trasse einschwenkt, statt eine zweite danebenzuziehen. Dasselbe
-  gilt für **Brücken**: ein Flussübergang kostet die Wegsuche extra, ein
-  bestehender nichts – eine Straße zieht deshalb lieber ein paar Felder am Ufer
-  entlang, als ein zweites Mal überzusetzen. Im Startnetz sind es dadurch zehn
-  Brücken statt achtzehn. **Zu Spielbeginn hängen
+  neue Straßen legen sich an das bestehende Netz an. Drei Regeln fassen sie
+  zusammen: ein vorhandenes Straßenfeld ist der billigste Schritt (die neue
+  Verbindung schwenkt auf die alte Trasse ein), **neben** einer Straße
+  herzulaufen kostet drei Punkte extra (keine zweite Trasse ein Feld daneben),
+  und ein **Flussübergang** kostet acht – ein bestehender nichts, so dass eine
+  Straße lieber am Ufer entlangzieht als ein zweites Mal überzusetzen. Das
+  Startnetz wird außerdem gebaut wie ein Netz wächst und nicht wie ein Stern:
+  angeschlossen wird jeweils der Ort, dessen Weg ans bestehende Netz gerade am
+  kürzesten ist. Von achtzehn Stellen mit zwei Straßen nebeneinander bleiben so
+  fünf. **Wo eine Straße am Rand einer Stadt über den Fluss geht, steht kein
+  Brückenbogen** – der Weg führt durch den Ort, die Stadt ist der Übergang; für
+  die Bewegung zählt er trotzdem. **Auch die unabhängigen Orte** hängen am
+  Netz: jeder bekommt den kurzen Weg zu seinem nächsten Nachbarn, gleich wem
+  der gehört. **Zu Spielbeginn hängen
   alle Orte jeder Fraktion an ihrer Hauptstadt**, die Dörfer eingeschlossen –
   ein Reich, das sein Land seit Generationen hält, hat den Weg dorthin längst
   getreten, und niemand soll eine Straße bauen müssen, die auf der Karte schon
@@ -408,7 +415,10 @@ den Punkten durchblättern.
   überall dort, wo ihr Einflussbereich an einen fremden stößt, gezeichnet auf
   die Geländekarte statt in einer eigenen Ansicht. Gerechnet wird derselbe
   Einflussbereich wie in der taktischen Sicht (jedes Feld gehört zum nächsten
-  Ort), und er zieht mit, wenn eine Stadt den Besitzer wechselt.
+  Ort), und er zieht mit, wenn eine Stadt den Besitzer wechselt. **Das Gebirge
+  gehört niemandem** – weder der Fels noch der Pass darunter: ein Pass ist ein
+  Weg hindurch, kein Land, das eine Stadt verwaltet. Die Grenze endet deshalb
+  am Fuß des Kamms, statt quer über ihn zu laufen.
 - **Flüsse und Brücken**: Fünfzehn große Ströme liegen auf der Karte, in echten
   Koordinaten wie alles Geografische – Rhein und Donau, Rhône, Po und Tiber,
   Seine und Loire, Ebro, Tejo und Guadalquivir, Elbe und Weichsel, Mariza, Nil

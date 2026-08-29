@@ -492,6 +492,8 @@ export function generateMap(seed = 1337) {
 // Was ein Flussübergang die Wegsuche kostet. Hoch genug, dass eine Straße
 // lieber ein paar Felder am Ufer entlangzieht, als ein zweites Mal überzusetzen.
 const ROUTE_RIVER_COST = 8;
+// Was es kostet, eine neue Trasse neben eine bestehende zu legen.
+const ROUTE_PARALLEL_COST = 3;
 
 export function landRoute(map, from, to, roads = null) {
   const { cols, rows, tiles } = map;
@@ -524,6 +526,18 @@ export function landRoute(map, from, to, roads = null) {
         // danebenzuziehen.
         const gepflastert = roads && roads[`${nc},${nr}`];
         let step = gepflastert ? 1 : tileMoveCost(tile);
+        // Neben einer bestehenden Straße herzulaufen ist teurer als auf ihr:
+        // sonst legt sich eine zweite Trasse ein Feld daneben, wo eine
+        // gereicht hätte. Wer auf die Straße einbiegt, zahlt das nicht - der
+        // Schritt kostet dann ohnehin nur eins.
+        if (!gepflastert && roads) {
+          for (const [pc, pr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const sc = nc + pc;
+            const sr = nr + pr;
+            if (sc === col && sr === row) continue;
+            if (roads[`${sc},${sr}`]) { step += ROUTE_PARALLEL_COST; break; }
+          }
+        }
         // Ein Fluss dazwischen kostet extra - es sei denn, hier steht schon
         // eine Brücke. Zwei Übergänge über denselben Fluss, zwei Felder
         // auseinander, sind zwei Brücken zu viel.

@@ -167,13 +167,47 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     if (!byFaction.has(city.factionId)) byFaction.set(city.factionId, []);
     byFaction.get(city.factionId).push(city);
   }
+  // Gebaut wird wie ein Netz wächst, nicht wie ein Stern: angeschlossen wird
+  // jeweils der Ort, dessen Weg ans bestehende Netz gerade am kürzesten ist.
+  // Alles von der Hauptstadt aus einzeln anzubinden legte zwei Trassen
+  // nebeneinander, sobald zwei Orte in dieselbe Richtung lagen.
   for (const own of byFaction.values()) {
     const capital = own.find((c) => c.capital) || own[0];
-    for (const city of own) {
-      if (city === capital) continue;
-      const route = landRoute(map, capital, city, roads);
-      if (route) markRoute(route);
+    const angeschlossen = [capital];
+    const offen = own.filter((c) => c !== capital);
+    while (offen.length) {
+      let bester = null;
+      for (let i = 0; i < offen.length; i++) {
+        for (const quelle of angeschlossen) {
+          const route = landRoute(map, quelle, offen[i], roads);
+          if (!route) continue;
+          if (!bester || route.length < bester.route.length) bester = { index: i, route };
+        }
+      }
+      if (!bester) break;
+      markRoute(bester.route);
+      angeschlossen.push(offen[bester.index]);
+      offen.splice(bester.index, 1);
     }
+  }
+
+  // Die unabhängigen Orte hängen an keiner Hauptstadt - aber ein Ort ohne
+  // jeden Weg sieht auf der Karte verlassen aus, und Tarent und Syrakus waren
+  // alles andere als das. Jeder bekommt deshalb den kurzen Weg zu seinem
+  // nächsten Nachbarn, gleich wem der gehört.
+  const NEUTRAL_ROAD_RANGE = 9;
+  for (const city of cities) {
+    if (city.factionId !== 'neutral') continue;
+    let naechster = null;
+    for (const other of cities) {
+      if (other === city) continue;
+      const d = Math.abs(other.col - city.col) + Math.abs(other.row - city.row);
+      if (d > NEUTRAL_ROAD_RANGE) continue;
+      if (!naechster || d < naechster.d) naechster = { city: other, d };
+    }
+    if (!naechster) continue;
+    const route = landRoute(map, city, naechster.city, roads);
+    if (route) markRoute(route);
   }
 
   const state = {
