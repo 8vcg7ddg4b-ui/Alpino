@@ -2,7 +2,8 @@
 // drei Waffengattungen und die Stadtwache, die nur auf der Verteidigerseite
 // vorkommt und dort mitkämpft.
 import { unitDefs, COMBAT_ROLES, TILE_TYPES, BATTLE_PREVIEW_SAMPLES,
-  frontageWidth, engagedShare, SHIP_ROLE, SHIP_TYPES } from './data.js';
+  frontageWidth, engagedShare, SHIP_ROLE, SHIP_TYPES,
+  wallAssaultScale } from './data.js';
 import { mulberry32 } from './prng.js';
 
 let battleSeed = 42;
@@ -104,8 +105,11 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
       const atkDef = attackerDefs[key];
       const defDef = defenderDefs[key];
       const conditions = (unitScale && unitScale[key]) || 1;
+      // Wer eine Mauer stürmt, tut das zu Fuß: die Reiterei zählt vor einer
+      // Befestigung kaum noch, die Bogenschützen etwas weniger.
       atkPower += (attacker[key] || 0) * atkDef.attack
-        * (ranged && atkDef.ranged ? 1.6 : 1) * conditions;
+        * (ranged && atkDef.ranged ? 1.6 : 1) * conditions
+        * wallAssaultScale(key, wallMultiplier);
       defPower += (defender[key] || 0) * defDef.defense * (1 + terrainBonus * 0.15)
         * (ranged && defDef.ranged ? 1.4 : 1) * conditions;
     }
@@ -170,6 +174,13 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     attackerEngagedShare: engagedShare(totalCount(attackerUnitsIn), attackerFrontage),
     defenderEngagedShare: engagedShare(totalCount(defenderUnitsIn), defenderFrontage),
     wallMultiplier,
+    // Womit die Waffengattungen des Angreifers vor dieser Mauer gerechnet
+    // wurden - der Bericht soll den Abschlag nennen können.
+    assaultScale: wallMultiplier > 1
+      ? Object.fromEntries(COMBAT_ROLES
+        .map((key) => [key, wallAssaultScale(key, wallMultiplier)])
+        .filter(([, value]) => value < 1))
+      : null,
     defenderMultiplier,
     attackerMultiplier,
     unitScale,
@@ -295,6 +306,7 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     attackerEngagedShare: sample ? sample.attackerEngagedShare : 1,
     defenderEngagedShare: sample ? sample.defenderEngagedShare : 1,
     wallMultiplier: modifiers.wallMultiplier ?? 1,
+    assaultScale: sample ? sample.assaultScale : null,
     defenderMultiplier: modifiers.defenderMultiplier ?? 1,
     attackerMultiplier: modifiers.attackerMultiplier ?? 1,
     unitScale: modifiers.unitScale ?? null,

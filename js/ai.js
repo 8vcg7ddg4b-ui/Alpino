@@ -12,6 +12,7 @@ import {
   canBuildMine, buyMine, mineOre, buyShipyard,
   buyBuilding, canBuildBuilding,
 } from './actions.js';
+import { borderViolation } from './territory.js';
 import {
   unitTotalCount, factionById, isCoastalCity, sameLandmass, isFleet,
 } from './state.js';
@@ -30,18 +31,45 @@ function tileDistance(a, b) {
   return Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
 }
 
+// Wie weit um ein Ziel herum gezählt wird, wer dort schon steht - und was
+// jedes fremde Heer das Ziel an scheinbarer Entfernung kostet.
+//
+// Ohne diese Rechnung marschierten alle Reiche auf denselben unabhängigen Ort:
+// er ist schwach, er liegt in der Mitte, und für jeden einzelnen Feldherrn war
+// er die richtige Wahl. Am Ende ballten sich fünf Heere aus vier Reichen um
+// ein Dorf, während anderswo nichts geschah. Wer schon jemanden davorstehen
+// sieht, sucht sich deshalb ein anderes Ziel.
+const CROWD_RANGE = 4;
+const CROWD_PENALTY = 7;
+
+function crowdAround(state, army, target, ownerId) {
+  let crowd = 0;
+  for (const other of state.armies) {
+    if (other === army || other.embarked) continue;
+    // Die Besatzung des Ziels ist kein Gedränge, sondern der Gegner selbst -
+    // sie steckt schon im Gewicht.
+    if (ownerId && other.factionId === ownerId) continue;
+    if (tileDistance(other, target) > CROWD_RANGE) continue;
+    // Eigene Heere stören weniger: zwei von ihnen können sich vereinigen.
+    crowd += other.factionId === army.factionId ? 0.5 : 1;
+  }
+  return crowd;
+}
+
 function nearestTarget(state, army, walkable) {
   const candidates = [];
   // Ein Ziel ist nur, womit man im Krieg steht. Steht der Friede, marschiert
   // dieses Heer daran vorbei - oder gar nicht erst los.
   for (const city of state.cities) {
     if (city.factionId !== army.factionId && atWar(state, army.factionId, city.factionId)) {
-      candidates.push({ col: city.col, row: city.row, weight: unitTotalCount(city.garrison) + 5 });
+      candidates.push({ col: city.col, row: city.row, ownerId: city.factionId,
+        weight: unitTotalCount(city.garrison) + 5 });
     }
   }
   for (const other of state.armies) {
     if (other.factionId !== army.factionId && atWar(state, army.factionId, other.factionId)) {
-      candidates.push({ col: other.col, row: other.row, weight: unitTotalCount(other.units) });
+      candidates.push({ col: other.col, row: other.row, ownerId: other.factionId,
+        weight: unitTotalCount(other.units) });
     }
   }
   if (!candidates.length) return null;
@@ -55,7 +83,8 @@ function nearestTarget(state, army, walkable) {
   let bestOverseasScore = Infinity;
   for (const c of candidates) {
     const dist = Math.abs(c.col - army.col) + Math.abs(c.row - army.row);
-    const score = dist + c.weight * 0.05;
+    const score = dist + c.weight * 0.05
+      + crowdAround(state, army, c, c.ownerId) * CROWD_PENALTY;
     const reachable = !walkable || walkable(c.col, c.row);
     if (reachable) {
       if (score < bestScore) {
@@ -95,13 +124,22 @@ function worthAttacking(state, army, col, row) {
   return preview.forecast.attackerWinChance >= aiMinWinChance;
 }
 
+// Kein Feldherr stolpert in einen Krieg, den sein Herrscher nicht erklärt
+// hat: Wege, die fremdes Land ohne Betretungsrecht schneiden, kommen für die
+// KI gar nicht erst infrage. Wer dort hindurch will, schließt vorher einen
+// Vertrag - oder erklärt den Krieg.
+function darfMarschieren(state, army, entry) {
+  return !borderViolation(state, army, entry.path);
+}
+
 function stepArmyTowards(state, army, target) {
   const reachable = computeReachable(state, army);
   if (reachable.size === 0) return;
 
   const targetKey = tileKey(target.col, target.row);
   const direct = reachable.get(targetKey);
-  if (direct && (!direct.combat || worthAttacking(state, army, target.col, target.row))) {
+  if (direct && darfMarschieren(state, army, direct)
+    && (!direct.combat || worthAttacking(state, army, target.col, target.row))) {
     moveArmy(state, army.id, target.col, target.row);
     return;
   }
@@ -113,7 +151,7 @@ function stepArmyTowards(state, army, target) {
     let merge = null;
     let mergeDist = Infinity;
     for (const [k, entry] of reachable) {
-      if (!entry.merge) continue;
+      if (!entry.merge || !darfMarschieren(state, army, entry)) continue;
       const [col, row] = k.split(',').map(Number);
       const dist = Math.hypot(col - target.col, row - target.row);
       if (dist < mergeDist) {
@@ -132,6 +170,7 @@ function stepArmyTowards(state, army, target) {
   let bestCombat = null;
   let bestCombatDist = Infinity;
   for (const [k, entry] of reachable) {
+    if (!darfMarschieren(state, army, entry)) continue;
     const [col, row] = k.split(',').map(Number);
     const dist = Math.hypot(col - target.col, row - target.row);
     if (entry.combat) {

@@ -265,6 +265,19 @@ den Punkten durchblättern.
   entsteht. Übermacht bleibt damit ein Vorteil, ist aber kein Freibrief mehr –
   Vorschau und Bericht schreiben in einer eigenen Zeile hin, wie viele Mann
   überhaupt zum Zug kommen.
+- **Gestürmt wird zu Fuß**: Wer auf eine Befestigung losgeht, kommt zu Pferde
+  nicht über die Leiter, nicht durch die Bresche und nicht durchs Tor. Vor
+  einer Mauer zählt die **Reiterei** deshalb nur noch einen Bruchteil ihres
+  Angriffswerts – **45 % vor der Holzpalisade, 34 % vor der großen, 20 % vor
+  der Steinmauer** –, die **Bogenschützen** 85 bis 75 % (sie beschießen den
+  Wehrgang, auch wenn sie ihn nicht nehmen), das **Fußvolk** seinen vollen
+  Wert. Im offenen Feld ändert sich nichts: dort ist die Reiterei die stärkste
+  Waffe, die es gibt.
+  Vorher trug ein reines Reiterheer jede Mauer im Sturm – es war das beste
+  Belagerungsmittel des Spiels, und das war der deutlichste Fehler in der
+  Kampfrechnung. Jetzt schafft dasselbe Heer, das im Feld gewinnt, vor einer
+  Palisade **9 %** der Stürme, wo Fußvolk gleicher Stärke **100 %** schafft.
+  Vorschau und Bericht nennen den Abschlag in einer eigenen Zeile.
 - **Meldungen zur eigenen Sache**: Was in der Runde der Gegner mit der eigenen
   Fraktion geschehen ist, kommt der Reihe nach in ein Fenster – jede Schlacht
   (Feldschlacht, Belagerung, **Seeschlacht**), jeder verlorene und gewonnene
@@ -485,9 +498,26 @@ den Punkten durchblättern.
   nach einem **abgewiesenen Gesandten vier Runden kein neues Angebot**, nach
   einem **Geschenk drei Runden kein zweites**. Was gesperrt ist, steht
   ausgegraut im Diplomatiefenster und sagt, warum und wie lange noch.
-- **Verträge**: Zwischen Krieg und Frieden liegt mehr als nichts. Drei
-  Verträge lassen sich schließen; alle drei setzen den Frieden voraus, und alle
-  drei fallen mit ihm.
+- **Grenzen sind eine Regel, keine Farbe**: Jedes bestellbare Feld gehört dem
+  Ort, der ihm über Land am nächsten liegt (Meer und Gebirge gehören niemandem).
+  Wer mit einem Heer **ohne Betretungsrecht über diese Linie marschiert,
+  erklärt damit den Krieg** – die Herolde brauchen keine Runde dafür, und eine
+  **Landung** vom Schiff auf fremdem Boden ist derselbe Schritt.
+  Damit das niemandem aus Versehen passiert: die Felder jenseits der Grenze
+  sind in der Marschauswahl **violett** statt grün, das Feldfenster nennt unter
+  „Land" das Reich und den Satz dazu, und vor dem Schritt fragt ein Fenster
+  nach. Steht ein **Nichtangriffspakt** oder ein **Bündnis** dazwischen, geht
+  der Schritt gar nicht: das Heer bleibt stehen, statt ein Wort zu brechen,
+  das man erst aufkündigen muss.
+  Die KI hält sich an dieselbe Regel – ihre Heere planen keinen Weg, der
+  fremdes Land schneidet, und stolpern damit in keinen Krieg, den ihr Herrscher
+  nicht erklärt hat.
+- **Verträge**: Zwischen Krieg und Frieden liegt mehr als nichts. Vier
+  Verträge lassen sich schließen; alle vier setzen den Frieden voraus, und alle
+  vier fallen mit ihm.
+  Das **🚩 Betretungsrecht** (ab **40 Ansehen**, **25 Runden**) ist der
+  leichteste: eure Heere dürfen einander das Land betreten, ohne dass es Krieg
+  bedeutet. Ohne ihn ist jede Grenze eine Wand.
   Der **🤝 Nichtangriffspakt** (ab **45 Ansehen**, **20 Runden**) bindet beiden
   Seiten die Hand: solange er läuft, kann keiner dem anderen den Krieg
   erklären – auch die KI plant dann keinen Feldzug gegen ihn. Danach läuft er
@@ -495,7 +525,9 @@ den Punkten durchblättern.
   Das **⚖️ Handelsabkommen** (ab **55 Ansehen**, **30 Runden**) öffnet die
   Grenze für Waren: **beide Seiten dürfen Handelswege in die Städte des anderen
   legen**, und jede verdient an ihrem Ende. Fällt das Abkommen, fallen die Wege.
-  Das **🛡️ Bündnis** (ab **70 Ansehen**, ohne Frist) setzt einen Pakt voraus,
+  Das **🛡️ Bündnis** (ab **70 Ansehen**, ohne Frist) schließt das
+  Betretungsrecht ein – Verbündete marschieren durcheinander hindurch, sonst
+  wären sie keine. Es setzt einen Pakt voraus,
   der schon **zehn Runden** gehalten hat – ein Bündnis ist kein Handschlag unter
   Fremden. Es bindet wie ein Pakt und bringt den **Bündnisfall**: wer deinen
   Verbündeten angreift, **steht damit auch mit dir im Krieg**. Das gilt für dich
@@ -863,6 +895,14 @@ den Punkten durchblättern.
   Krieg in Afrika an der Küste.
 - Die KI rechnet vor jedem Angriff dieselbe Vorschau wie du und lässt sich auf
   einen Kampf nur ein, wenn sie ihn voraussichtlich gewinnt.
+- **Sie geht dorthin, wo noch niemand steht.** Ein Ziel, um das schon fremde
+  Heere herumstehen, erscheint ihr um sieben Felder weiter entfernt, als es
+  ist – je Heer im Umkreis von vier Feldern. Ohne diese Rechnung marschierten
+  alle Reiche auf denselben unabhängigen Ort: er ist schwach, er liegt in der
+  Mitte, und für jeden einzelnen Feldherrn war er die richtige Wahl. Am Ende
+  ballten sich Heere aus vier Reichen um ein Dorf, während anderswo nichts
+  geschah. Gemessen über die ersten 25 Runden drängen sich seither ein Drittel
+  weniger Reiche vor denselben freien Ort.
 - Sieg: alle gegnerischen Fraktionen ausschalten. Niederlage: die eigene
   Fraktion verliert alle Städte und Armeen.
 
@@ -874,6 +914,8 @@ den Punkten durchblättern.
 - `js/data.js` – Einheiten-, Gelände- und Fraktionsdefinitionen samt
   Fraktionsprofilen für die Auswahl, Siedlungen mit ihren echten Koordinaten
 - `js/factionart.js` – die SVG-Bilder des Auswahlbildschirms, eines je Fraktion
+- `js/territory.js` – wem welches Feld gehört: die Einflusssphäre der Orte,
+  aus der Grenzlinien, taktische Sicht und die Grenzverletzung folgen
 - `js/wonders.js` – die Weltwunder und Wahrzeichen der Alten Welt in Grad,
   ihre Zuordnung zum nächsten Ort und was sie einbringen
 - `js/mapgen.js` / `js/state.js` – Rasterung der Geografie zu Gelände,

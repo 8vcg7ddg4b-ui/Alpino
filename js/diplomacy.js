@@ -55,11 +55,25 @@ export const OPINION_WARMONGER = -6;
 // mehr wärmt er das Verhältnis, solange er hält.
 export const PACT_TURNS = 20;
 export const TRADE_PACT_TURNS = 30;
+export const PASSAGE_TURNS = 25;
 
 export const TREATIES = {
+  durchmarsch: {
+    key: 'durchmarsch',
+    name: 'Betretungsrecht',
+    genus: 'n',
+    icon: '🚩',
+    opinion: 40,
+    drift: 0,
+    dauer: PASSAGE_TURNS,
+    chance: 0.12,
+    zweck: 'eure Heere dürfen die Grenze überschreiten',
+    versprechen: 'eure Heere dürfen einander das Land betreten, ohne dass es Krieg bedeutet',
+  },
   pakt: {
     key: 'pakt',
     name: 'Nichtangriffspakt',
+    genus: 'm',
     icon: '🤝',
     opinion: 45,
     drift: 1,
@@ -71,6 +85,7 @@ export const TREATIES = {
   handel: {
     key: 'handel',
     name: 'Handelsabkommen',
+    genus: 'n',
     icon: '⚖️',
     opinion: 55,
     drift: 1,
@@ -82,6 +97,7 @@ export const TREATIES = {
   buendnis: {
     key: 'buendnis',
     name: 'Bündnis',
+    genus: 'n',
     icon: '🛡️',
     opinion: 70,
     drift: 1,
@@ -93,6 +109,21 @@ export const TREATIES = {
 };
 
 export const TREATY_KEYS = Object.keys(TREATIES);
+
+// Deutsch verlangt den richtigen Artikel: man schließt einen Pakt, aber ein
+// Betretungsrecht. Drei kleine Helfer statt vier Sonderfälle im Satzbau.
+export function vertragAkk(def) {
+  return `${def.genus === 'm' ? 'einen' : 'ein'} ${def.name}`;
+}
+
+export function vertragDenAkk(def) {
+  return `${def.genus === 'm' ? 'den' : 'das'} ${def.name}`;
+}
+
+export function vertragDer(def, gross = true) {
+  const artikel = def.genus === 'm' ? 'der' : 'das';
+  return `${gross ? artikel[0].toUpperCase() + artikel.slice(1) : artikel} ${def.name}`;
+}
 
 // So lange muss ein Nichtangriffspakt gehalten haben, ehe daraus ein Bündnis
 // wird. Ein Bündnis ist kein Handschlag unter Fremden.
@@ -126,6 +157,14 @@ export function hasTradePact(state, a, b) {
 
 export function isAllied(state, a, b) {
   return !!treatyOf(state, a, b, 'buendnis');
+}
+
+// Ob ein Heer die Grenze überschreiten darf, ohne dass es Krieg bedeutet.
+// Das Betretungsrecht sagt es ausdrücklich; ein Bündnis schließt es ein -
+// Verbündete marschieren durcheinander hindurch, sonst wären sie keine.
+export function hasPassage(state, a, b) {
+  if (!a || !b || a === b) return true;
+  return isAllied(state, a, b) || !!treatyOf(state, a, b, 'durchmarsch');
 }
 
 // Ein Pakt oder ein Bündnis bindet die Hand: solange einer von beiden steht,
@@ -162,7 +201,7 @@ export function expireTreaties(state) {
       delete relation.vertraege[kind];
       const [a, b] = key.split('|');
       beendet.push({ a, b, kind });
-      logMsg(state, `${TREATIES[kind].icon} Der ${TREATIES[kind].name} zwischen `
+      logMsg(state, `${TREATIES[kind].icon} ${vertragDer(TREATIES[kind])} zwischen `
         + `${factionById(state, a).name} und ${factionById(state, b).name} ist ausgelaufen.`,
       null, [a, b]);
     }
@@ -180,7 +219,8 @@ export function treatyVerdict(state, fromId, toId, kind) {
     return { possible: false, grund: 'Erst der Friede, dann der Vertrag.' };
   }
   if (treatyOf(state, fromId, toId, kind)) {
-    return { possible: false, grund: `Ein ${def.name} steht bereits.` };
+    return { possible: false, grund: `${vertragAkk(def)[0].toUpperCase()}${
+      vertragAkk(def).slice(1)} steht bereits.` };
   }
   // Ein Bündnis kommt nicht aus dem Nichts: erst ein Pakt, dann das Wort.
   if (kind === 'buendnis') {
@@ -226,7 +266,7 @@ export function signTreaty(state, a, b, kind, note) {
   adjustOpinion(state, a, b, 6);
   const nameA = factionById(state, a).name;
   const nameB = factionById(state, b).name;
-  logMsg(state, `${def.icon} ${nameA} und ${nameB} schließen einen ${def.name}`
+  logMsg(state, `${def.icon} ${nameA} und ${nameB} schließen ${vertragAkk(def)}`
     + `${note ? ` – ${note}` : ''}.`, null, [a, b]);
   return { ok: true };
 }
@@ -252,8 +292,8 @@ export function cancelTreaty(state, a, b, kind) {
   }
   const nameA = factionById(state, a).name;
   const nameB = factionById(state, b).name;
-  logMsg(state, `${nameA} kündigt den ${def.name} mit ${nameB} auf.`, null, [a, b]);
-  return { ok: true, text: `Der ${def.name} mit ${nameB} ist aufgekündigt.` };
+  logMsg(state, `${nameA} kündigt ${vertragDenAkk(def)} mit ${nameB} auf.`, null, [a, b]);
+  return { ok: true, text: `${vertragDer(def)} mit ${nameB} ist aufgekündigt.` };
 }
 
 // --- Bedenkzeit ------------------------------------------------------------
@@ -482,7 +522,8 @@ export function declareWar(state, a, b, note) {
   const bindung = warBound(state, a, b);
   if (bindung) {
     return { ok: false, reason: 'vertrag', vertrag: bindung,
-      text: `Ein ${bindung.name} steht zwischen euch – erst aufkündigen, dann marschieren.` };
+      text: `${vertragAkk(bindung)[0].toUpperCase()}${vertragAkk(bindung).slice(1)} steht `
+        + 'zwischen euch – erst aufkündigen, dann marschieren.' };
   }
   // Ein Friede, der gestern geschlossen wurde, wird nicht heute aufgekündigt.
   const sperre = diploLock(state, a, b, 'krieg');
@@ -670,15 +711,15 @@ export function proposeTreaty(state, fromId, toId, kind) {
     adjustOpinion(state, fromId, toId, 2);
     applyCooldown(state, fromId, toId, 'vertragAbgelehnt');
     const grund = urteil.gruende.length ? ` – ${urteil.gruende[0]}` : '';
-    logMsg(state, `${ruler.name} lehnt einen ${def.name} mit ${from.name} ab${grund}.`,
+    logMsg(state, `${ruler.name} lehnt ${vertragAkk(def)} mit ${from.name} ab${grund}.`,
       null, [fromId, toId]);
     return { ok: false, reason: 'abgelehnt', urteil,
-      text: `${ruler.name} schlägt den ${def.name} aus${grund}.` };
+      text: `${ruler.name} schlägt ${vertragDenAkk(def)} aus${grund}.` };
   }
   const ergebnis = signTreaty(state, fromId, toId, kind);
   if (!ergebnis.ok) return { ok: false, text: 'Daraus wird nichts.' };
   return { ok: true, urteil,
-    text: `${ruler.name} setzt sein Siegel darunter. Zwischen euch gilt ein ${def.name}.` };
+    text: `${ruler.name} setzt sein Siegel darunter. Zwischen euch gilt ${vertragAkk(def)}.` };
 }
 
 // Und er kündigt ihn auf - was ihn beim Bündnis den Ruf kostet.
@@ -939,10 +980,10 @@ export function rulersTakeTurn(state, rng = Math.random) {
             pushNews(state, {
               kind: 'vertrag', von: a.id, gegen: b.id,
               icon: def.icon,
-              kindLabel: `Ein ${def.name} · ${b.name}`,
-              titel: `${a.name} und ${b.name} schließen einen ${def.name}`,
+              kindLabel: `${vertragAkk(def)[0].toUpperCase()}${vertragAkk(def).slice(1)} · ${b.name}`,
+              titel: `${a.name} und ${b.name} schließen ${vertragAkk(def)}`,
               satz: `Die Gesandten haben sich geeinigt: zwischen ${a.name} und `
-                + `${b.name} gilt von dieser Runde an ein ${def.name}.`,
+                + `${b.name} gilt von dieser Runde an ${vertragAkk(def)}.`,
               folge: def.versprechen,
             });
             continue;
@@ -966,9 +1007,9 @@ export function rulersTakeTurn(state, rng = Math.random) {
               kind: 'vertragsbruch', von: wer.id, gegen: wen.id,
               icon: '✋',
               kindLabel: `Ein gebrochenes Wort · ${wer.name}`,
-              titel: `${wer.name} kündigt den ${bindung.name} mit ${wen.name} auf`,
+              titel: `${wer.name} kündigt ${vertragDenAkk(bindung)} mit ${wen.name} auf`,
               satz: `${ruler.name}, ${ruler.titel}, lässt das Pergament zurückschicken: `
-                + `zwischen ${wer.name} und ${wen.name} gilt der ${bindung.name} nicht mehr.`,
+                + `zwischen ${wer.name} und ${wen.name} gilt ${vertragDer(bindung, false)} nicht mehr.`,
               folge: 'Ein aufgekündigtes Wort ist noch kein Krieg – aber es geht ihm '
                 + 'meist voraus.',
             });

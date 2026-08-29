@@ -3,6 +3,7 @@ import {
 } from './data.js';
 import { armyAt, cityAt, isFleet, riverCrossingCost } from './state.js';
 import { atWar } from './diplomacy.js';
+import { borderViolation } from './territory.js';
 import { weatherMoveCost } from './weather.js';
 
 const NEIGHBORS = [
@@ -187,6 +188,9 @@ export function computeReachable(state, army) {
       landing: landings.has(k),
       merge: merges.has(k),
       contested: contested.has(k),
+      // Wessen Grenze dieser Weg verletzen würde - die Karte färbt solche
+      // Felder anders ein, und der Spieler wird vorher gefragt.
+      border: borderViolation(state, army, path),
     });
   }
   return reachable;

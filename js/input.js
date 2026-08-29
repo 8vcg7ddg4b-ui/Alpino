@@ -1,6 +1,6 @@
 import { computeReachable, tileKey } from './pathfind.js';
 import { armyAt, cityAt, playerFaction } from './state.js';
-import { moveArmy, previewTileCombat } from './actions.js';
+import { moveArmy, previewTileCombat, moveWarning } from './actions.js';
 import {
   pickTile, groundPointAt, panCameraByWorld, panCameraRelative, panCameraByScreen,
   zoomCamera, rotateCamera,
@@ -53,7 +53,7 @@ function toNdc(canvas, clientX, clientY) {
   };
 }
 
-export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction, onPreviewAttack, onInspect) {
+export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction, onPreviewAttack, onInspect, onConfirmBorder) {
   // Pointer events cover mouse, pen and touch in one path. Two simultaneous
   // pointers mean a pinch: the distance between them zooms, the angle between
   // them turns the map.
@@ -294,6 +294,15 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
       const entry = state.reachable && state.reachable.get(tileKey(col, row));
       if (entry) {
         const armyId = state.selectedArmyId;
+        // Eine Grenze überschreitet man nicht aus Versehen: führt der Weg über
+        // fremdes Land, wird vorher gefragt - der Schritt ist eine
+        // Kriegserklärung.
+        const marching = state.armies.find((a) => a.id === armyId);
+        const grenze = marching && moveWarning(state, marching, col, row, state.reachable);
+        if (grenze && onConfirmBorder) {
+          onConfirmBorder(grenze, () => executeMove(armyId, col, row));
+          return;
+        }
         // An attack is put to the player first: the forecast says what the
         // fight is likely to cost, and only then is it committed to.
         if (entry.combat && onPreviewAttack) {

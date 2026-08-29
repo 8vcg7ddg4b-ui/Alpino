@@ -1139,7 +1139,10 @@ kbd {
 .embark-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
 
 /* --- Kampfvorschau ------------------------------------------------------- */
-#battlePreview {
+/* Die Grenzwarnung liegt wie die Kampfvorschau über allem: es ist dieselbe
+   Art von Entscheidung, nur ohne Schlacht - noch. */
+#battlePreview,
+#borderWarn {
   position: fixed;
   inset: 0;
   z-index: 16;

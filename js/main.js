@@ -1160,6 +1160,70 @@ function showBattlePreview(preview, confirm) {
   attackBtn.focus();
 }
 
+// --- Grenzverletzung ------------------------------------------------------
+// Ein Schritt über eine fremde Grenze ist eine Kriegserklärung, und niemand
+// soll sie aus Versehen abgeben. Das Fenster nennt das Reich, sagt, was der
+// Marsch bedeutet - und wenn ein Vertrag die Hand bindet, dass er gar nicht
+// geht.
+const borderOverlay = document.getElementById('borderWarn');
+let pendingBorder = null;
+
+// Fraktionsnamen kommen aus der eigenen Tabelle, aber ein Fenster, das HTML
+// zusammensetzt, prüft das trotzdem.
+function escapeText(text) {
+  return String(text).replace(/[&<>"]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function hideBorderWarning() {
+  if (borderOverlay) borderOverlay.classList.add('hidden');
+  pendingBorder = null;
+}
+
+function showBorderWarning(warnung, confirm) {
+  if (!borderOverlay || !state) { confirm(); return; }
+  const body = document.getElementById('borderBody');
+  const go = document.getElementById('borderGo');
+  const name = escapeText(warnung.name);
+  if (body) {
+    body.innerHTML = warnung.blocked
+      ? `<h2 class="report-title">🚩 Die Grenze bleibt zu</h2>
+         <p class="emp-note">Jenseits dieser Linie liegt das Land von <strong>${name}</strong>.
+         Ein Wort steht dazwischen: ${escapeText(warnung.blocked)}. Solange es gilt,
+         überschreitet dein Heer die Grenze nicht.</p>
+         <p class="emp-note muted">Im Diplomatiefenster lässt sich der Vertrag aufkündigen –
+         oder ein Betretungsrecht schließen, das den Marsch erlaubt, ohne dass er Krieg
+         bedeutet.</p>`
+      : `<h2 class="report-title">🚩 Grenzverletzung</h2>
+         <p class="emp-note">Jenseits dieser Linie liegt das Land von <strong>${name}</strong>,
+         und ihr steht im Frieden. Wer ohne Betretungsrecht einmarschiert,
+         <strong>erklärt damit den Krieg</strong> – die Herolde brauchen keine Runde dafür.</p>
+         <p class="emp-note muted">Ein Betretungsrecht schließt du im Diplomatiefenster.
+         Bis dahin: Halten heißt, den Frieden zu behalten.</p>`;
+  }
+  if (go) go.classList.toggle('hidden', !!warnung.blocked);
+  pendingBorder = warnung.blocked ? null : confirm;
+  borderOverlay.classList.remove('hidden');
+  const focus = warnung.blocked ? document.getElementById('borderCancel') : go;
+  if (focus) focus.focus();
+}
+
+function confirmBorderCrossing() {
+  const run = pendingBorder;
+  hideBorderWarning();
+  if (run) run();
+}
+
+function setupBorderWarning() {
+  for (const id of ['borderClose', 'borderCancel']) {
+    const button = document.getElementById(id);
+    if (button) button.addEventListener('click', hideBorderWarning);
+  }
+  const go = document.getElementById('borderGo');
+  if (go) go.addEventListener('click', confirmBorderCrossing);
+}
+setupBorderWarning();
+
 function confirmPendingAttack() {
   const run = pendingAttack;
   hideBattlePreview();
@@ -1716,7 +1780,7 @@ function startNewGame(factionId = chosenFaction) {
   // Input holds no reference to `state` itself, so it reads through a getter -
   // undo swaps the object wholesale.
   setupInput(canvas, () => state, refresh, showBattleReport, pushUndo, showBattlePreview,
-    showTileInfo);
+    showTileInfo, showBorderWarning);
   document.getElementById('endTurnBtn').addEventListener('click', endTurn);
   undoBtn.addEventListener('click', undoLastAction);
   observeMapSize();
@@ -1764,6 +1828,7 @@ window.addEventListener('keydown', (e) => {
   // und solange es offen stand, ging kein Tastenkürzel mehr.
   else if (diploOverlay && !diploOverlay.classList.contains('hidden')) hideDiplomacy();
   else if (!settingsOverlay.classList.contains('hidden')) hideSettings();
+  else if (borderOverlay && !borderOverlay.classList.contains('hidden')) hideBorderWarning();
   else if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();
   else if (!reportOverlay.classList.contains('hidden')) hideBattleReport();
   else if (!document.getElementById('quitOverlay').classList.contains('hidden')) {
@@ -1791,7 +1856,7 @@ const SHORTCUT_BUTTONS = {
 const OVERLAY_IDS = [
   'heraldOverlay', 'eventOverlay', 'empireOverlay', 'diploOverlay',
   'diploNewsOverlay', 'settingsOverlay', 'battlePreview', 'battleReport',
-  'quitOverlay', 'gameOverOverlay',
+  'borderWarn', 'quitOverlay', 'gameOverOverlay',
 ];
 
 function anyOverlayOpen() {

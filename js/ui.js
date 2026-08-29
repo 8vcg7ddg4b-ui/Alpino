@@ -20,6 +20,7 @@ import {
   GIFT_COST, knowsFaction, roughDirection,
   diploLock, offerFrom,
   TREATIES, TREATY_KEYS, treatyOf, treatiesOf, treatyVerdict, isAllied, hasPact,
+  hasPassage, vertragDenAkk,
 } from './diplomacy.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
@@ -34,6 +35,7 @@ import {
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
 } from './weather.js';
+import { territoryOwner } from './territory.js';
 import { emblemSVG } from './emblems.js';
 import { wonderAt, wondersOfCity } from './wonders.js';
 
@@ -169,6 +171,15 @@ function modifierNotesHTML(info) {
     notes.push(`<span class="mod-note mod-wall">${
       escapeHTML(info.wallName || 'Befestigung')}: +${
       Math.round((info.wallMultiplier - 1) * 100)}% Verteidigung</span>`);
+  }
+  // Wer stürmt, tut das zu Fuß: die Reiterei kommt an einer Mauer kaum zur
+  // Wirkung. Ohne diese Zeile sieht ein Reiterheer aus, als hätte es schlicht
+  // Pech gehabt.
+  const sturm = Object.entries(info.assaultScale || {})
+    .map(([unit, scale]) => `${ROLE_LABELS[unit]} −${Math.round((1 - scale) * 100)}%`);
+  if (sturm.length) {
+    notes.push(`<span class="mod-note mod-wall">🐎 Sturm auf die Mauer: ${
+      sturm.join(', ')} – gestürmt wird zu Fuß</span>`);
   }
   if (info.amphibious || (info.attackerMultiplier ?? 1) < 1) {
     notes.push(`<span class="mod-note mod-sea">🌊 Landung vom Meer: −${
@@ -925,6 +936,20 @@ function terrainFactsHTML(state, col, row) {
         : `ein Pass unter ${PASSABLE_ALTITUDE} m – mühsam, aber begehbar`]);
     }
   }
+  // Wessen Land das ist. Seit eine Grenzverletzung Krieg bedeutet, ist das
+  // keine Farbe mehr, sondern eine Auskunft, die man vor dem Marsch braucht.
+  const herr = territoryOwner(state, col, row);
+  if (herr) {
+    const faction = factionById(state, herr);
+    const spieler = playerFaction(state);
+    const eigen = herr === spieler.id;
+    const zutritt = eigen || atWar(state, spieler.id, herr)
+      || hasPassage(state, spieler.id, herr);
+    facts.push(['Land', `${faction ? faction.name : herr}${eigen ? ' – dein Land'
+      : zutritt ? '' : ' · ohne Betretungsrecht bedeutet ein Marsch dorthin Krieg'}`]);
+  } else if (tile.type !== 'water') {
+    facts.push(['Land', 'niemandes Land']);
+  }
   facts.push(['Lage', tilePosition(col, row).label]);
 
   const weather = weatherAt(state, col, row);
@@ -1157,7 +1182,7 @@ export function rulerCardHTML(state, faction, options = {}) {
       // Was steht, lässt sich aufkündigen - beim Bündnis vor aller Augen.
       return `<button class="diplo-btn${kind === 'buendnis' ? ' diplo-war' : ''}"
         data-act="renounce" data-faction="${faction.id}" data-kind="${kind}">
-        ✋ ${def.name} aufkündigen
+        ✋ ${vertragDenAkk(def)} aufkündigen
         <small>${kind === 'buendnis'
     ? 'kostet dich sein Ansehen – und das aller, die davon hören'
     : 'er gilt dann nicht mehr'}</small>

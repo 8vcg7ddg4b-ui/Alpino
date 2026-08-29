@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.11.0';
+export const GAME_VERSION = '1.12.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -811,6 +811,34 @@ export const WALL_LEVELS = [
     note: 'Quadermauer mit Rundtürmen – ohne Belagerung kaum zu nehmen.',
   },
 ];
+
+// --- Sturm auf eine Mauer --------------------------------------------------
+// Eine Mauer stürmt man zu Fuß. Wer sitzen bleibt, kommt nicht über die
+// Leiter, nicht durch die Bresche und nicht durchs Tor - ein Pferd nützt vor
+// einer Palisade wenig und vor einer Quadermauer gar nichts. Vorher zählte
+// die Reiterei mit ihrem vollen Angriffswert gegen jede Befestigung, und ein
+// reines Reiterheer war das beste Sturmmittel des Spiels; das war der
+// deutlichste Fehler in der Kampfrechnung.
+//
+// Die Bogenschützen behalten mehr: sie schießen auf den Wehrgang, auch wenn
+// sie ihn nicht nehmen. Die Fußtruppen tragen den Sturm und bleiben, wie sie
+// sind.
+// Je Gattung zwei Zahlen: was vor der schwächsten Befestigung noch zählt, und
+// was vor der stärksten übrig bleibt. Schon die einfache Palisade nimmt der
+// Reiterei die Hälfte - ein Reiterheer soll auch vor einem Palisadendorf das
+// falsche Werkzeug sein, nicht erst vor der Quadermauer.
+export const WALL_ASSAULT_SCALE = {
+  cavalry: { start: 0.55, full: 0.2 },
+  ranged: { start: 0.9, full: 0.75 },
+};
+
+export function wallAssaultScale(role, wallMultiplier) {
+  const stufe = WALL_ASSAULT_SCALE[role];
+  if (!stufe || !(wallMultiplier > 1)) return 1;
+  const hoechste = WALL_LEVELS[WALL_LEVELS.length - 1].defence;
+  const anteil = Math.max(0, Math.min(1, (wallMultiplier - 1) / (hoechste - 1)));
+  return stufe.start + (stufe.full - stufe.start) * anteil;
+}
 
 // --- Frontbreite ----------------------------------------------------------
 // Eine Schlacht wird an einer Linie geschlagen, nicht als Haufen. Was über

@@ -2,6 +2,7 @@ import {
   TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars, shipTypeOf, tileImpassable,
 } from './data.js';
 import { unitTotalCount, factionById, harbourTile, isFleet } from './state.js';
+import { territoryMap, claimableTile } from './territory.js';
 import { emblemSVG } from './emblems.js';
 
 export const TILE_SIZE = 6;
@@ -2749,10 +2750,13 @@ export function syncEntities(state) {
       // A shore a fleet can land on is its own kind of move, and ground an
       // enemy army holds costs extra to enter - both deserve their own colour
       // so the player can read the cost before paying it.
-      const color = info.combat ? '#ff4d3d'
-        : info.merge ? '#7ecbff'
-          : info.landing ? '#ffd166'
-            : info.contested ? '#ff8c42' : '#4dffa0';
+      // Fremdes Land bekommt seine eigene Farbe: ein Schritt dorthin ist eine
+      // Kriegserklärung, und das soll man sehen, bevor man klickt.
+      const color = info.border ? '#c07be0'
+        : info.combat ? '#ff4d3d'
+          : info.merge ? '#7ecbff'
+            : info.landing ? '#ffd166'
+              : info.contested ? '#ff8c42' : '#4dffa0';
       addHighlight(col, row, color);
     }
   }
@@ -2762,42 +2766,14 @@ export function syncEntities(state) {
 // Who holds which ground: every passable tile takes the colour of the faction
 // whose settlement is nearest by land. That is a sphere of influence rather
 // than a border treaty, but it is the picture a commander plans from.
-// Was überhaupt jemandem gehören kann: bestelltes Land. Meer nicht, und das
-// Gebirge auch nicht - weder der Fels noch der Pass darunter.
+// Wem welches Feld gehört, rechnet territory.js - dieselbe Zahl, aus der auch
+// die Grenzverletzung folgt. Die Karte färbt nur, was dort steht.
 function claimable(tile) {
-  return tile.type !== 'water' && tile.type !== 'mountain';
+  return claimableTile(tile);
 }
 
 function computeTerritory(state) {
-  const { cols, rows, tiles } = state.map;
-  const owner = new Int32Array(cols * rows).fill(-1);
-  const queue = [];
-  const factionIndex = new Map(state.factions.map((f, i) => [f.id, i]));
-
-  for (const city of state.cities) {
-    const index = city.row * cols + city.col;
-    owner[index] = factionIndex.get(city.factionId) ?? -1;
-    queue.push(index);
-  }
-  for (let head = 0; head < queue.length; head++) {
-    const index = queue[head];
-    const col = index % cols;
-    const row = (index - col) / cols;
-    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const c = col + dc;
-      const r = row + dr;
-      if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
-      const next = r * cols + c;
-      if (owner[next] !== -1) continue;
-      // Das Gebirge gehört niemandem: ein Pass ist ein Weg hindurch, kein
-      // Land, das eine Stadt verwaltet. Sonst liefe die Grenze quer über den
-      // Kamm, statt an seinem Fuß zu enden.
-      if (!claimable(tiles[r][c])) continue;
-      owner[next] = owner[index];
-      queue.push(next);
-    }
-  }
-  return owner;
+  return territoryMap(state).owner;
 }
 
 // --- Grenzen ---------------------------------------------------------------
@@ -2828,11 +2804,11 @@ export function buildBorders(state) {
 
   const grenzstueck = (index, col, row, dc, dr) => {
     const eigen = owner[index];
-    if (eigen < 0) return;
+    if (!eigen) return;
     const c = col + dc;
     const r = row + dr;
     const drueben = c < 0 || c >= cols || r < 0 || r >= rows
-      ? -1 : owner[r * cols + c];
+      ? null : owner[r * cols + c];
     if (drueben === eigen) return;
     // Gegen das offene Meer und gegen den Fels zieht niemand eine Grenze.
     if (c >= 0 && c < cols && r >= 0 && r < rows) {
@@ -2862,7 +2838,7 @@ export function buildBorders(state) {
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const index = row * cols + col;
-      if (owner[index] < 0) continue;
+      if (!owner[index]) continue;
       if (!claimable(tiles[row][col])) continue;
       grenzstueck(index, col, row, 1, 0);
       grenzstueck(index, col, row, -1, 0);
@@ -2871,9 +2847,9 @@ export function buildBorders(state) {
     }
   }
 
-  for (const [factionIndex, positions] of byFaction) {
+  for (const [factionId, positions] of byFaction) {
     if (!positions.length) continue;
-    const faction = state.factions[factionIndex];
+    const faction = state.factions.find((f) => f.id === factionId);
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
     geometry.computeVertexNormals();
@@ -2909,7 +2885,7 @@ function refreshTacticalColors(state) {
   if (!terrainMesh || !tacticalColors) return;
   const { cols, rows, tiles } = state.map;
   const owner = computeTerritory(state);
-  const palette = state.factions.map((f) => new THREE.Color(f.color));
+  const palette = new Map(state.factions.map((f) => [f.id, new THREE.Color(f.color)]));
   const colour = new THREE.Color();
 
   for (let row = 0; row < rows; row++) {
@@ -2921,7 +2897,7 @@ function refreshTacticalColors(state) {
       } else if (!claimable(tile)) {
         colour.copy(ROCK_COLOUR);
       } else {
-        colour.copy(owner[index] >= 0 ? palette[owner[index]] : UNCLAIMED_COLOUR);
+        colour.copy(palette.get(owner[index]) || UNCLAIMED_COLOUR);
         // A darker seam wherever two spheres of influence meet, so the
         // frontier is a line the eye follows rather than a colour change.
         const border = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => {

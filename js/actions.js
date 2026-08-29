@@ -37,8 +37,11 @@ import {
 } from './weather.js';
 import { wondersOfCity } from './wonders.js';
 import {
-  adjustOpinion, atWar, hasTradePact, OPINION_PER_BATTLE, OPINION_PER_CITY_TAKEN,
+  adjustOpinion, atWar, hasTradePact, hasPassage, declareWar,
+  relationOf, warBound, diploLock,
+  OPINION_PER_BATTLE, OPINION_PER_CITY_TAKEN,
 } from './diplomacy.js';
+import { borderViolation } from './territory.js';
 
 export function removeArmy(state, armyId) {
   const idx = state.armies.findIndex((a) => a.id === armyId);
@@ -239,6 +242,7 @@ function recordBattle(state, opts) {
     attackerEngagedShare: result.attackerEngagedShare,
     defenderEngagedShare: result.defenderEngagedShare,
     wallMultiplier: result.wallMultiplier,
+    assaultScale: result.assaultScale,
     defenderMultiplier: result.defenderMultiplier,
     attackerMultiplier: result.attackerMultiplier,
     unitScale: result.unitScale,
@@ -681,12 +685,54 @@ export function mergeArmies(state, mover, host) {
   return { ok: true, combat: false, merged: true, armyId: host.id, reports: [] };
 }
 
+// Dasselbe für ein einzelnes Ziel, wie es die Seitenleiste und die KI fragen:
+// wohin dürfte dieses Heer ziehen, ohne einen Krieg auszulösen?
+export function moveWarning(state, army, destCol, destRow, reachable = null) {
+  const felder = reachable || computeReachable(state, army);
+  const entry = felder.get(tileKey(destCol, destRow));
+  if (!entry) return null;
+  const owner = borderViolation(state, army, entry.path);
+  if (!owner) return null;
+  const faction = factionById(state, owner);
+  const gebunden = declareWarBlocked(state, army.factionId, owner);
+  return { factionId: owner, name: faction ? faction.name : owner, blocked: gebunden };
+}
+
+// Ob eine Kriegserklärung an dieses Reich gerade überhaupt möglich wäre. Ist
+// sie es nicht - ein Pakt bindet, ein Friede ist zu frisch -, dann kommt auch
+// das Heer nicht über die Grenze: es kehrt um, statt einen Krieg auszulösen,
+// den niemand erklären kann.
+function declareWarBlocked(state, a, b) {
+  const relation = relationOf(state, a, b);
+  if (!relation || relation.state === 'krieg') return null;
+  const bindung = warBound(state, a, b);
+  if (bindung) return bindung.name;
+  const sperre = diploLock(state, a, b, 'krieg');
+  return sperre ? sperre.text : null;
+}
+
 export function moveArmy(state, armyId, destCol, destRow) {
   const army = state.armies.find((a) => a.id === armyId);
   if (!army) return { ok: false };
   const reachable = computeReachable(state, army);
   const entry = reachable.get(tileKey(destCol, destRow));
   if (!entry) return { ok: false };
+
+  // Eine Grenzverletzung ist eine Kriegserklärung. Wer sie nicht erklären
+  // darf, marschiert auch nicht: das Heer bleibt stehen.
+  const verletzt = borderViolation(state, army, entry.path);
+  if (verletzt) {
+    const faction = factionById(state, verletzt);
+    const krieg = declareWar(state, army.factionId, verletzt,
+      'ein Heer hat die Grenze überschritten');
+    if (!krieg.ok) {
+      return { ok: false, reason: 'grenze', factionId: verletzt,
+        text: `${faction ? faction.name : verletzt}: ${krieg.text
+          || 'so kurz nach dem Friedensschluss überschreitet niemand die Grenze'}.` };
+    }
+    logOwn(state, army.factionId, `⚔ ${army.name} überschreitet die Grenze `
+      + `${faction ? faction.name : verletzt} – das ist Krieg.`);
+  }
 
   army.movement = Math.max(0, army.movement - entry.cost);
   adjustExhaustion(army, moveExhaustion(army, entry.cost));
@@ -705,13 +751,13 @@ export function moveArmy(state, armyId, destCol, destRow) {
     if (landed) {
       logOwn(state, army.factionId, `${army.name} geht an Land.`);
     }
-    return { ok: true, combat: false, landed, reports: [] };
+    return { ok: true, combat: false, landed, grenzkrieg: verletzt || null, reports: [] };
   }
   const outcome = resolveTileCombat(state, army, destCol, destRow);
   // An assault that carried the shore puts the troops ashore for good; one
   // that was thrown back is still aboard its ships.
   const landed = outcome.survived ? comeAshore(state, army) : false;
-  return { ok: true, combat: true, landed, ...outcome };
+  return { ok: true, combat: true, landed, grenzkrieg: verletzt || null, ...outcome };
 }
 
 // Taking ship: the army leaves its home port and stands out to sea. The fleet
