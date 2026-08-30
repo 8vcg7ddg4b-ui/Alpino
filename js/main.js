@@ -16,7 +16,7 @@ import {
   recruitUnit, raiseArmyFromGarrison, reinforceArmy, collectIncome, regenerateGarrisons,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
-  buyRoad, advanceRoadConstruction, buildFleet,
+  buyRoad, upgradeRoad, advanceRoadConstruction, buildFleet,
   buyBuilding, advanceConstruction, mineIncomeOf,
   updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations,
@@ -1091,7 +1091,12 @@ function syncSelection() {
 const reportOverlay = document.getElementById('battleReport');
 const undoBtn = document.getElementById('undoBtn');
 
-const UNDO_LIMIT = 25;
+// Zurückgenommen wird ein Schritt, nicht die halbe Runde. Der Knopf ist da,
+// damit ein Fehlklick nichts kostet - nicht, damit man den Zug der Gegner
+// mehrfach durchprobiert und sich die günstigste Fassung aussucht. Vorher
+// reichte der Stapel fünfundzwanzig Schritte weit zurück; wer wollte, konnte
+// damit ein ganzes Feldzugsjahr rückwärts spielen.
+const UNDO_LIMIT = 1;
 const undoStack = [];
 
 // The generated map never changes after startup, so snapshots share it by
@@ -1296,6 +1301,12 @@ function refresh() {
     onBuildRoad: (cityId, targetId) => {
       pushUndo();
       const ok = buyRoad(state, cityId, targetId).ok;
+      (ok ? sfx.wallBuy : sfx.denied)();
+      refresh();
+    },
+    onUpgradeRoad: (cityId, targetId) => {
+      pushUndo();
+      const ok = upgradeRoad(state, cityId, targetId).ok;
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },

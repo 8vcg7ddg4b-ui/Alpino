@@ -13,6 +13,7 @@ import {
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_UNIT_SCALE, SHIP_ROLE, WARSHIP_BATCH,
   TRANSPORT_NAME, transportCount, shipTypesOf,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
+  ROAD_EARTH, ROAD_STONE, roadLevelOf, stoneRoadCost, stoneRoadTurns,
   MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
   BUILDINGS, buildingDef, buildingName, growthFactor,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
@@ -1115,9 +1116,14 @@ export function roadProjectOf(state, cityId) {
   return (state.roadProjects || []).find((p) => p.fromId === cityId || p.toId === cityId) || null;
 }
 
-function tilesToPave(state, route) {
+function tilesToPave(state, route, level = ROAD_EARTH) {
   const roads = state.roads || {};
-  return route.filter((tile) => !roads[roadKey(tile.col, tile.row)]).length;
+  return route.filter((tile) => roadLevelOf(roads[roadKey(tile.col, tile.row)]) < level).length;
+}
+
+// Die Stufe eines Feldes: 0 offenes Land, 1 gefahrener Weg, 2 Steinstraße.
+export function roadLevelAt(state, col, row) {
+  return roadLevelOf(state.roads && state.roads[roadKey(col, row)]);
 }
 
 // Die nächstgelegenen eigenen Orte, zu denen noch keine Straße führt. Die
@@ -1160,6 +1166,76 @@ export function roadTargets(state, city) {
   return targets.slice(0, ROAD_TARGET_CHOICES);
 }
 
+// --- Ausbau zur Steinstraße ------------------------------------------------
+// Ausgebaut wird, was schon liegt: eine bestehende Verbindung zu einem eigenen
+// Ort. Das setzt eine Verwaltung voraus - eine Steinstraße ist Vermessung,
+// Fronarbeit und Abrechnung, kein Trampelpfad.
+export function stoneTargets(state, city) {
+  if (!city || city.factionId === 'neutral' || !city.forum) return [];
+  const busy = new Set();
+  for (const project of state.roadProjects || []) {
+    busy.add(project.fromId);
+    busy.add(project.toId);
+  }
+  if (busy.has(city.id)) return [];
+  const targets = [];
+  for (const other of state.cities) {
+    if (other.id === city.id || other.factionId !== city.factionId) continue;
+    if (busy.has(other.id)) continue;
+    if (!roadConnected(state, city, other)) continue;
+    const route = landRoute(state.map, city, other, state.roads);
+    if (!route) continue;
+    const length = tilesToPave(state, route, ROAD_STONE);
+    if (length === 0) continue;
+    targets.push({
+      cityId: other.id,
+      name: other.name,
+      length,
+      cost: stoneRoadCost(length),
+      turns: stoneRoadTurns(length),
+      route,
+    });
+  }
+  targets.sort((a, b) => a.length - b.length);
+  return targets.slice(0, ROAD_TARGET_CHOICES);
+}
+
+export function upgradeRoad(state, cityId, targetCityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  const target = state.cities.find((c) => c.id === targetCityId);
+  if (!city || !target || city.id === target.id) return { ok: false };
+  if (city.factionId !== target.factionId) return { ok: false, reason: 'fremd' };
+  if (!city.forum) return { ok: false, reason: 'noForum' };
+  if (roadProjectOf(state, city.id) || roadProjectOf(state, target.id)) {
+    return { ok: false, reason: 'building' };
+  }
+  if (citySieged(state, city) || citySieged(state, target)) {
+    return { ok: false, reason: 'siege' };
+  }
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  const angebot = stoneTargets(state, city).find((t) => t.cityId === target.id);
+  if (!angebot) return { ok: false, reason: 'zuweit' };
+  if (faction.gold < angebot.cost) return { ok: false, reason: 'gold' };
+
+  faction.gold -= angebot.cost;
+  state.roadProjects.push({
+    fromId: city.id,
+    toId: target.id,
+    fromName: city.name,
+    toName: target.name,
+    factionId: city.factionId,
+    route: angebot.route.map((t) => ({ col: t.col, row: t.row })),
+    length: angebot.length,
+    turnsLeft: angebot.turns,
+    turns: angebot.turns,
+    level: ROAD_STONE,
+  });
+  logOwn(state, faction.id, `Ausbau zur Steinstraße ${city.name} – ${target.name} begonnen `
+    + `(${angebot.length} Felder, ${angebot.turns} Runden, ${angebot.cost} Gold).`);
+  return { ok: true, ...angebot };
+}
+
 export function buyRoad(state, cityId, targetCityId) {
   const city = state.cities.find((c) => c.id === cityId);
   const target = state.cities.find((c) => c.id === targetCityId);
@@ -1191,6 +1267,7 @@ export function buyRoad(state, cityId, targetCityId) {
   faction.gold -= cost;
   const turns = roadTurns(length);
   state.roadProjects.push({
+    level: ROAD_EARTH,
     fromId: city.id,
     toId: target.id,
     fromName: city.name,
@@ -1220,11 +1297,18 @@ export function advanceRoadConstruction(state) {
     }
     project.turnsLeft -= 1;
     if (project.turnsLeft > 0) continue;
-    for (const tile of project.route) state.roads[roadKey(tile.col, tile.row)] = true;
+    const stufe = project.level || ROAD_EARTH;
+    for (const tile of project.route) {
+      const key = roadKey(tile.col, tile.row);
+      if (roadLevelOf(state.roads[key]) >= stufe) continue;
+      state.roads[key] = stufe;
+    }
     state.roadVersion = (state.roadVersion || 0) + 1;
     projects.splice(i, 1);
     finished.push(project);
-    logOwn(state, project.factionId, `🛣️ Die Straße ${project.fromName} – ${project.toName} ist fertig.`);
+    logOwn(state, project.factionId, stufe >= ROAD_STONE
+      ? `🧱 Die Steinstraße ${project.fromName} – ${project.toName} ist fertig.`
+      : `🛣️ Die Straße ${project.fromName} – ${project.toName} ist fertig.`);
   }
   return finished;
 }

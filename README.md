@@ -420,7 +420,10 @@ den Punkten durchblättern.
   Fraktion eines.
 - **Farm und Kornspeicher**: Ein Ort lebt von dem, was um ihn herum wächst.
   Die **Farm** (**180 Gold**, **2 Runden**) legt das Ackerland an: **50 % mehr
-  Zuwachs** je Runde. Der **Kornspeicher** (**260 Gold**, **3 Runden**) setzt
+  Zuwachs** je Runde. **Auf der Karte liegen ihre Äcker neben der Stadt**: drei
+  Schläge in Grün und Reifegelb, die Furchen dazwischen, am Rand der Schuppen –
+  auf dem flachsten Nachbarfeld, während das Fördergerüst des Bergwerks auf dem
+  höchsten steht. Der **Kornspeicher** (**260 Gold**, **3 Runden**) setzt
   die Farm voraus und bewahrt die Ernte über den Winter – er hebt die
   **Obergrenze der Einwohner um 25 %**. Da die Schatzkammer allein von der
   Kopfsteuer lebt, ist beides bares Geld, nur später.
@@ -504,6 +507,15 @@ den Punkten durchblättern.
   Städte lassen sich nicht angreifen. Ansehen bewegt sich mit dem, was geschieht –
   eine Schlacht −7, eine genommene Stadt −22, ein Geschenk +12, ein gehaltener
   Friede +1 je Runde.
+- **Die Lage jedes Reiches in einer Zeile**: Unter den Eigenschaften jedes
+  Herrschers steht, wie sein Reich zur übrigen Welt steht – **mit wem es Krieg
+  führt, mit wem es verbündet ist, mit wem ein Pakt gilt**. Genannt wird nur,
+  was man selbst wissen kann: ein Reich, das man nur vom Hörensagen kennt,
+  taucht auch in fremden Kriegen nicht auf. Vorher stand in der Karte nur, wie
+  dieses Reich zu einem selbst steht – wer wissen wollte, ob sein Gegner noch
+  andere Feinde hat, musste raten. Und der Knopf „Krieg erklären" ist
+  ausgegraut, solange ein Pakt oder ein Bündnis die Hand bindet; er sagt auch,
+  welches.
 - **Bedenkzeit**: Diplomatie ist kein Knopf, den man zweimal drückt. Jede
   Handlung legt eine Frist auf das Verhältnis, und erst wenn sie abgelaufen ist,
   steht wieder alles offen: nach einer **Kriegserklärung acht Runden kein
@@ -664,6 +676,17 @@ den Punkten durchblättern.
   der Mitte. Mehr als zwei Wege trägt ein Ort nicht. Fällt ein Ende an den
   Feind oder reißt die Verbindung, endet der Weg. Die Reichsübersicht führt den
   Handel als eigene Spalte, und die KI handelt ebenfalls.
+- **Ausbau zur Steinstraße**: Was Rom von einem Weg unterscheidet, ist der
+  Unterbau: Schotter, Wölbung, Gräben zu beiden Seiten, oben Basaltplatten.
+  Eine bestehende Verbindung lässt sich deshalb **ausbauen** – **45 Gold je
+  Feld**, eine halbe Runde je Feld, und danach kostet ein Feld nur noch
+  **einen** Bewegungspunkt statt zwei: ein Heer marschiert auf der Steinstraße
+  **doppelt so weit** wie auf dem gefahrenen Weg, achtzehn Felder je Runde
+  statt neun. Ausgebaut wird nur, was schon liegt, und nur von einem Ort mit
+  **Verwaltung** aus – eine Steinstraße ist Vermessung, Fronarbeit und
+  Abrechnung, kein Trampelpfad. Auf der Karte liegt sie als **helles
+  Basaltband** statt als erdfarbener Weg, und das Feldfenster nennt die Stufe.
+  Die KI baut aus, sobald ihr Netz steht und Gold übrig ist.
 - **Straßenbau**: Von Anfang an möglich – jede eigene
   Stadt bietet die nächstgelegenen eigenen Orte
   an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
@@ -801,8 +824,11 @@ den Punkten durchblättern.
   selbst regieren; aus der Farbliste kommt nur noch die Farbe. Sie kämpft mit den Waffen ihres nächsten Nachbarn,
   weil man kämpft, wie man es gelernt hat. Höchstens zwei solcher Reiche können
   entstehen, und die Hälfte von ihnen übersteht das erste Jahrzehnt nicht.
-- **Rückgängig** (↩ oben rechts): macht die letzte Aktion zurück – Zug,
+- **Rückgängig** (↩ oben rechts): nimmt **einen** Schritt zurück – Zug,
   Rekrutierung, Mauer- oder Straßenkauf, Auflösen oder ganzen Rundenwechsel.
+  **Nur einen**: der Knopf ist da, damit ein Fehlklick nichts kostet, nicht
+  damit man den Zug der Gegner mehrfach durchprobiert und sich die günstigste
+  Fassung aussucht. Danach ist er ausgegraut, bis wieder etwas geschehen ist.
 - **Feldzug beenden**: 🏳 in der Kopfzeile führt nach Rückfrage zurück ins
   Hauptmenü.
 - **Ton**: 🔊 schaltet alles ab, was zu hören ist – Titelmusik, Fraktionsmusik,

@@ -3,6 +3,7 @@ import {
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES,
   CAPITAL_WALL_LEVEL, startingWallLevel, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
   UNIT_ROLES, SHIP_ROLE, RIVER_CROSSING_COST, TRADE_GOODS, START_ROAD_MAX_TILES,
+  ROAD_EARTH,
   tileImpassable, tileMoveCost,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
@@ -191,7 +192,7 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   // die unabhängigen Orte auch nicht.
   const roads = {};
   const markRoute = (route) => {
-    for (const tile of route) roads[`${tile.col},${tile.row}`] = true;
+    for (const tile of route) roads[`${tile.col},${tile.row}`] = ROAD_EARTH;
   };
   const byFaction = new Map();
   for (const city of cities) {

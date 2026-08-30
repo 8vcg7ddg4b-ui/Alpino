@@ -1,6 +1,6 @@
 import {
   TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars, shipTypeOf, tileImpassable,
-  MINE_RANGE, MINE_ORE, MINE_MIN_ORE,
+  MINE_RANGE, MINE_ORE, MINE_MIN_ORE, roadLevelOf,
 } from './data.js';
 import { unitTotalCount, factionById, harbourTile, isFleet, playerFaction } from './state.js';
 import { seaLane } from './actions.js';
@@ -1523,17 +1523,25 @@ function buildRoadNetwork(state) {
     child.material.dispose();
   }
   const roads = state.roads || {};
-  const positions = [];
+  // Zwei Bänder: der gefahrene Weg in Erdfarbe, die Steinstraße in hellem
+  // Basalt. Ein Stück gehört der niedrigeren der beiden Stufen an seinen
+  // Enden - so endet das Pflaster dort, wo der Ausbau endet.
+  const bahnen = { 1: [], 2: [] };
   const half = TILE_SIZE * 0.17;
 
   for (const key of Object.keys(roads)) {
     const [col, row] = key.split(',').map(Number);
+    const stufe = roadLevelOf(roads[key]);
+    if (!stufe) continue;
+    const positions = bahnen[Math.min(2, stufe)];
     const x = worldX(col);
     const z = worldZ(row);
     pushQuad(positions, x - half, z, x + half, z, half, ROAD_LIFT);
     pushQuad(positions, x, z - half, x, z + half, half, ROAD_LIFT);
     for (const [dc, dr] of [[1, 0], [0, 1]]) {
-      if (!roads[`${col + dc},${row + dr}`]) continue;
+      const nachbar = roadLevelOf(roads[`${col + dc},${row + dr}`]);
+      if (!nachbar) continue;
+      const stueck = bahnen[Math.min(2, Math.min(stufe, nachbar))];
       // In Stücke zerlegt, damit das Band dem Gelände folgt. Ein ganzes Feld
       // lang läuft es über den diagonalen Knick des Geländedreiecks hinweg
       // und schnitt dort in den Boden - genau daran sah eine Straße in
@@ -1544,23 +1552,27 @@ function buildRoadNetwork(state) {
       for (let piece = 0; piece < ROAD_PIECES; piece++) {
         const t0 = piece / ROAD_PIECES;
         const t1 = (piece + 1) / ROAD_PIECES;
-        pushQuad(positions,
+        pushQuad(stueck,
           x + (bx - x) * t0, z + (bz - z) * t0,
           x + (bx - x) * t1, z + (bz - z) * t1,
           half, ROAD_LIFT);
       }
     }
   }
-  if (!positions.length) return;
 
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
-  geometry.computeVertexNormals();
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-    color: '#a9895c', roughness: 1, side: THREE.DoubleSide,
-  }));
-  mesh.frustumCulled = false;
-  roadsGroup.add(mesh);
+  for (const [stufe, positions] of Object.entries(bahnen)) {
+    if (!positions.length) continue;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+      color: Number(stufe) >= 2 ? '#cfc7b8' : '#a9895c',
+      roughness: Number(stufe) >= 2 ? 0.7 : 1,
+      side: THREE.DoubleSide,
+    }));
+    mesh.frustumCulled = false;
+    roadsGroup.add(mesh);
+  }
 }
 
 // One ring of fortification. `span` is the same for all three so a settlement
@@ -2334,6 +2346,80 @@ function buildMine(scale) {
 
 // Wohin das Bergwerk gehört: an den höchsten Punkt neben dem Ort - dorthin,
 // wo das Erz liegt. Alles in lokalen Koordinaten der Stadtgruppe.
+// --- Die Farm --------------------------------------------------------------
+// Ackerland neben der Stadt: drei Schläge in zwei Grüntönen, dazwischen die
+// Furchen, und am Rand ein Schuppen. Flach genug, dass die Stadt darüber
+// stehen bleibt, und groß genug, dass man sie von oben sieht.
+const FIELD_MATERIALS = {
+  reif: new THREE.MeshStandardMaterial({ color: '#c9a83f', roughness: 1 }),
+  gruen: new THREE.MeshStandardMaterial({ color: '#7a9b45', roughness: 1 }),
+  furche: new THREE.MeshStandardMaterial({ color: '#8a7440', roughness: 1 }),
+};
+
+function buildFarm(scale) {
+  const farm = new THREE.Group();
+  const schlaege = [
+    { w: 1.5, d: 1.05, x: -0.85, z: -0.55, material: FIELD_MATERIALS.reif },
+    { w: 1.5, d: 1.05, x: 0.85, z: -0.55, material: FIELD_MATERIALS.gruen },
+    { w: 3.1, d: 1.05, x: 0, z: 0.62, material: FIELD_MATERIALS.reif },
+  ];
+  for (const schlag of schlaege) {
+    const acker = new THREE.Mesh(
+      new THREE.BoxGeometry(schlag.w * scale, 0.08 * scale, schlag.d * scale),
+      schlag.material
+    );
+    acker.position.set(schlag.x * scale, 0.04 * scale, schlag.z * scale);
+    farm.add(acker);
+    // Furchen: ein paar dünne Streifen längs über den Schlag.
+    const streifen = Math.max(2, Math.round(schlag.w * 2));
+    for (let i = 0; i < streifen; i++) {
+      const furche = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05 * scale, 0.1 * scale, schlag.d * 0.92 * scale),
+        FIELD_MATERIALS.furche
+      );
+      const t = (i + 0.5) / streifen - 0.5;
+      furche.position.set((schlag.x + t * schlag.w) * scale, 0.05 * scale, schlag.z * scale);
+      farm.add(furche);
+    }
+  }
+  // Der Schuppen am Feldrand, damit es nach Hof aussieht und nicht nach Teppich.
+  const schuppen = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5 * scale, 0.38 * scale, 0.42 * scale),
+    CITY_MATERIALS.timber
+  );
+  schuppen.position.set(-1.5 * scale, 0.19 * scale, 0.62 * scale);
+  farm.add(schuppen);
+  const dach = new THREE.Mesh(
+    new THREE.ConeGeometry(0.42 * scale, 0.3 * scale, 4),
+    CITY_MATERIALS.thatch
+  );
+  dach.position.set(-1.5 * scale, 0.53 * scale, 0.62 * scale);
+  dach.rotation.y = Math.PI / 4;
+  farm.add(dach);
+  return farm;
+}
+
+// Äcker liegen im flachsten Gelände, nicht am Hang - und auf der anderen Seite
+// als das Bergwerk, damit sich beides nicht überlagert.
+function placeFarm(farm, city, cityY) {
+  let best = null;
+  let bestY = Infinity;
+  for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+    const y = surfaceY(city.col + dc, city.row + dr);
+    if (!Number.isFinite(y) || y >= bestY) continue;
+    bestY = y;
+    best = [dc, dr];
+  }
+  const [dc, dr] = best || [-1, 1];
+  const laenge = Math.hypot(dc, dr) || 1;
+  farm.position.set(
+    (dc / laenge) * TILE_SIZE * 1.05,
+    Math.min(0, bestY - cityY) * 0.5,
+    (dr / laenge) * TILE_SIZE * 1.05
+  );
+  farm.rotation.y = Math.atan2(-dr, dc);
+}
+
 function placeMine(mine, city, cityY) {
   let best = null;
   let bestY = -Infinity;
@@ -2838,6 +2924,15 @@ export function syncEntities(state) {
       }
     }
     if (entry.harbour) entry.harbour.visible = !!city.harbour;
+
+    // Die Äcker entstehen mit der Farm - und verschwinden wieder, wenn eine
+    // Eroberung sie niederbrennt.
+    if (city.farm && !entry.farm) {
+      entry.farm = buildFarm(entry.scale * 1.55);
+      placeFarm(entry.farm, city, surfaceY(city.col, city.row));
+      entry.group.add(entry.farm);
+    }
+    if (entry.farm) entry.farm.visible = !!city.farm;
 
     // Das Fördergerüst entsteht mit dem Bergwerk und bleibt, solange es fördert.
     if (city.mine && !entry.mine) {

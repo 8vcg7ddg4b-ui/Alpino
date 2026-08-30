@@ -11,6 +11,7 @@ import {
   buyCityWalls, nextWallLevel, tradePartners, openTradeRoute,
   canBuildMine, buyMine, mineOre, buyShipyard,
   buyBuilding, canBuildBuilding, buildCamp, campStatus,
+  stoneTargets, upgradeRoad,
 } from './actions.js';
 import { borderViolation } from './territory.js';
 import {
@@ -346,12 +347,35 @@ function roadPlan(state, faction) {
 function aiRoads(state, faction, savingForFleet) {
   if (savingForFleet) return false;
   const plan = roadPlan(state, faction);
-  if (!plan) return false;
+  if (!plan) {
+    // Ist alles angeschlossen, wird ausgebaut: eine Steinstraße bringt ein
+    // Heer doppelt so schnell an die Grenze wie ein gefahrener Weg.
+    aiStoneRoads(state, faction);
+    return false;
+  }
   if (faction.gold >= plan.estimate + AI_ROAD_TREASURY) {
     buyRoad(state, plan.from.id, plan.target.id);
     return false;
   }
   return true;
+}
+
+// Der Ausbau ist Luxus: er wird bezahlt, wenn ohnehin Gold da ist, und immer
+// nur eine Strecke auf einmal.
+const AI_STONE_TREASURY = 500;
+
+function aiStoneRoads(state, faction) {
+  if ((state.roadProjects || []).some((p) => p.factionId === faction.id)) return false;
+  if (faction.gold < AI_STONE_TREASURY) return false;
+  for (const city of state.cities) {
+    if (city.factionId !== faction.id || !city.forum) continue;
+    const ziele = stoneTargets(state, city);
+    if (!ziele.length) continue;
+    const ziel = ziele[0];
+    if (faction.gold < ziel.cost + AI_STONE_TREASURY) continue;
+    return upgradeRoad(state, city.id, ziel.cityId).ok;
+  }
+  return false;
 }
 
 // Was ein Reich baut, wenn es gerade nicht kämpfen muss - und in welcher

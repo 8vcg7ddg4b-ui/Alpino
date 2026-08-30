@@ -6,6 +6,7 @@ import {
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
   shipTypesOf, shipTypeByKey,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
+  STONE_ROAD_MOVE_COST, roadLevelOf, roadStepCost,
   CAMP_NAME, CAMP_COST, CAMP_DEFENCE,
   TRANSPORT_NAME, transportCount,
   RIVER_CROSSING_COST,
@@ -22,7 +23,7 @@ import {
   GIFT_COST, knowsFaction, roughDirection,
   diploLock, offerFrom,
   TREATIES, TREATY_KEYS, treatyOf, treatiesOf, treatyVerdict, isAllied, hasPact,
-  hasPassage, vertragDenAkk,
+  hasPassage, vertragDenAkk, warBound,
 } from './diplomacy.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
@@ -33,7 +34,7 @@ import {
   armyUpkeep, factionIncome,
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
   tradeRouteRaided, mineOre, mineIncomeOf, canBuildBuilding, siegeInfo, citySieged,
-  campStatus, campSiegeTarget, buildingPrice, buildingRuined, wallRuined,
+  campStatus, campSiegeTarget, buildingPrice, buildingRuined, wallRuined, stoneTargets,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -872,12 +873,40 @@ function roadStatusHTML(state, city) {
 }</span></p>`;
 }
 
+// Der Ausbau: was schon liegt, wird gepflastert. Das setzt eine Verwaltung
+// voraus - eine Steinstraße ist Vermessung, Fronarbeit und Abrechnung.
+function stoneHTML(state, city, player) {
+  const ziele = stoneTargets(state, city);
+  if (!ziele.length) {
+    if (!city.forum) {
+      return `<p class="wall-line muted">🧱 Kein Ausbau zur Steinstraße –
+        ${escapeHTML(buildingName('forum', city.factionId))} fehlt.</p>`;
+    }
+    return '';
+  }
+  return `
+    <p class="road-head">🧱 Ausbau zur Steinstraße <span class="muted">· ein Feld kostet dann
+      nur ${STONE_ROAD_MOVE_COST} Bewegungspunkt statt ${ROAD_MOVE_COST}</span></p>
+    <div class="road-row">
+      ${ziele.map((t) => {
+    const tooPoor = player.gold < t.cost;
+    return `<button class="road-btn" data-stone="${t.cityId}" ${tooPoor ? 'disabled' : ''}>
+          nach ${escapeHTML(t.name)}
+          <small>${t.cost} Gold · ${t.length} Felder · ${t.turns} Runden${
+  tooPoor ? ' · zu wenig Gold' : ''}</small>
+        </button>`;
+  }).join('')}
+    </div>`;
+}
+
 function roadHTML(state, city, isMine, player) {
   const project = roadProjectOf(state, city.id);
   if (project) {
     const done = project.turns - project.turnsLeft;
     const other = project.fromId === city.id ? project.toName : project.fromName;
-    return `<p class="wall-line wall-building">🛣️ Straße nach ${escapeHTML(other)} im Bau –
+    const stein = (project.level || 1) >= 2;
+    return `<p class="wall-line wall-building">${stein ? '🧱 Steinstraße' : '🛣️ Straße'}
+      nach ${escapeHTML(other)} im Bau –
       noch ${project.turnsLeft} ${project.turnsLeft === 1 ? 'Runde' : 'Runden'}
       <span class="wall-track"><span class="wall-fill" style="width:${(done / project.turns) * 100}%"></span></span>
     </p>`;
@@ -885,10 +914,13 @@ function roadHTML(state, city, isMine, player) {
   if (!isMine || citySieged(state, city)) return '';
 
   const targets = roadTargets(state, city);
-  if (!targets.length) {
-    return '<p class="wall-line muted">🛣️ Alle nahen Orte sind an das Straßennetz angeschlossen.</p>';
+  const stein = stoneTargets(state, city);
+  if (!targets.length && !stein.length) {
+    return `<p class="wall-line muted">🛣️ Alle nahen Orte sind an das Straßennetz
+      angeschlossen${city.forum ? ' und ausgebaut' : ''}.</p>`;
   }
   return `
+    ${targets.length ? `
     <p class="road-head">🛣️ Straßenbau <span class="muted">· ein Feld Straße kostet nur
       ${ROAD_MOVE_COST} Bewegungspunkte statt ${TILE_TYPES.plains.cost}</span></p>
     <div class="road-row">
@@ -900,7 +932,8 @@ function roadHTML(state, city, isMine, player) {
   tooPoor ? ' · zu wenig Gold' : ''}</small>
         </button>`;
       }).join('')}
-    </div>`;
+    </div>` : ''}
+    ${stoneHTML(state, city, player)}`;
 }
 
 // --- Nachschlagefenster --------------------------------------------------
@@ -988,13 +1021,15 @@ function terrainFactsHTML(state, col, row) {
     facts.push(['Bewegung', `zur See ${SEA_MOVE_COST} `
       + `${SEA_MOVE_COST === 1 ? 'Punkt' : 'Punkte'} je Feld · für Landarmeen unpassierbar`]);
   } else {
-    const paved = !!(state.roads && state.roads[`${col},${row}`]);
+    const stufe = roadLevelOf(state.roads && state.roads[`${col},${row}`]);
     const gelaende = tileMoveCost(tile);
-    const stride = paved ? Math.min(ROAD_MOVE_COST, gelaende) : gelaende;
-    const saved = paved && gelaende > ROAD_MOVE_COST ? ` (Straße statt ${gelaende})` : '';
+    const stride = stufe ? roadStepCost(stufe) : gelaende;
+    const saved = stufe && gelaende > stride
+      ? ` (${stufe >= 2 ? 'Steinstraße' : 'Straße'} statt ${gelaende})` : '';
     facts.push(['Bewegungskosten', tileImpassable(tile)
       ? 'unpassierbar'
-      : `${paved ? '🛣️ ' : ''}${stride} ${stride === 1 ? 'Punkt' : 'Punkte'} je Feld${saved}`]);
+      : `${stufe >= 2 ? '🧱 ' : stufe ? '🛣️ ' : ''}${stride} `
+        + `${stride === 1 ? 'Punkt' : 'Punkte'} je Feld${saved}`]);
     facts.push(['Verteidigung', def.defense > 0
       ? `+${Math.round(def.defense * 15)}% für den Verteidiger`
       : 'kein Geländevorteil']);
@@ -1226,6 +1261,10 @@ export function rulerCardHTML(state, faction, options = {}) {
   const friedensSperre = own ? null : diploLock(state, player.id, faction.id, 'frieden');
   const kriegsSperre = own ? null : diploLock(state, player.id, faction.id, 'krieg');
   const geschenkSperre = own ? null : diploLock(state, player.id, faction.id, 'geschenk');
+  // Ein gegebenes Wort bindet die Hand: gegen einen Pakt oder ein Bündnis wird
+  // nicht marschiert, ehe es aufgekündigt ist. Der Knopf sagt das, statt den
+  // Klick ins Leere laufen zu lassen.
+  const bindung = own ? null : warBound(state, player.id, faction.id);
   // Ein Gesandter, der auf eine Antwort wartet, geht allem anderen vor.
   const angebot = own ? null : offerFrom(state, faction.id, player.id);
 
@@ -1246,6 +1285,29 @@ export function rulerCardHTML(state, faction, options = {}) {
         <small>er merkt es sich – und schickt so bald keinen zweiten</small>
       </button>
     </div>`;
+
+  // --- Wie dieses Reich zur Welt steht -----------------------------------
+  // Mit wem es Krieg führt und mit wem es verbündet ist. Genannt wird nur, was
+  // man selbst wissen kann: ein Reich, das man nicht kennt, taucht auch in
+  // fremden Kriegen nicht auf. Vorher stand in der Karte nur, wie dieses Reich
+  // zu einem selbst steht - wer wissen wollte, ob sein Gegner noch andere
+  // Feinde hat, musste raten.
+  const dritte = state.factions.filter((f) => !f.isNeutral && f.alive
+    && f.id !== faction.id && f.id !== player.id
+    && knowsFaction(state, player.id, f.id));
+  const kriege = dritte.filter((f) => atWar(state, faction.id, f.id));
+  const buende = dritte.filter((f) => isAllied(state, faction.id, f.id));
+  const pakte = dritte.filter((f) => !isAllied(state, faction.id, f.id)
+    && hasPact(state, faction.id, f.id));
+  const lage = [
+    kriege.length ? `⚔ Krieg mit ${kriege.map((f) => escapeHTML(f.name)).join(', ')}` : null,
+    buende.length ? `🛡️ verbündet mit ${buende.map((f) => escapeHTML(f.name)).join(', ')}` : null,
+    pakte.length ? `🤝 Pakt mit ${pakte.map((f) => escapeHTML(f.name)).join(', ')}` : null,
+  ].filter(Boolean);
+  const lageHTML = `<p class="diplo-lage">${lage.length
+    ? lage.join(' · ')
+    : `${own ? 'Du stehst' : 'Er steht'} mit keinem anderen bekannten Reich `
+      + 'im Krieg oder im Bund.'}</p>`;
 
   // --- Verträge ---------------------------------------------------------
   // Was zwischen euch gilt, und was sich schließen ließe. Im Krieg steht hier
@@ -1310,10 +1372,12 @@ export function rulerCardHTML(state, faction, options = {}) {
         </button>`}`
     : `
         <button class="diplo-btn diplo-war" data-act="war" data-faction="${faction.id}"
-          ${kriegsSperre ? 'disabled' : ''}>
+          ${kriegsSperre || bindung ? 'disabled' : ''}>
           ⚔ Krieg erklären
-          <small>${kriegsSperre ? escapeHTML(kriegsSperre.text)
-    : 'der Friede endet sofort – und alle, die davon hören, rechnen es dir an'}</small>
+          <small>${bindung
+    ? `${escapeHTML(bindung.name)} – erst aufkündigen, dann marschieren`
+    : kriegsSperre ? escapeHTML(kriegsSperre.text)
+      : 'der Friede endet sofort – und alle, die davon hören, rechnen es dir an'}</small>
         </button>`}
       <button class="diplo-btn" data-act="gift" data-faction="${faction.id}"
         ${player.gold < GIFT_COST || geschenkSperre ? 'disabled' : ''}>
@@ -1349,6 +1413,7 @@ export function rulerCardHTML(state, faction, options = {}) {
     : ansehen >= 30 ? 'misstrauisch' : 'feindselig'}</em></span>
         </div>`}
       </div>
+      ${lageHTML}
       ${vertragsZeilen}
       ${options.note ? `<p class="diplo-note">${escapeHTML(options.note)}</p>` : ''}
       ${knoepfe}
@@ -1592,7 +1657,9 @@ export function renderUI(state, handlers) {
         btn.addEventListener('click', () => handlers.onBuildFleet(city.id, btn.dataset.ship));
       });
       panel.querySelectorAll('.road-btn').forEach((btn) => {
-        btn.addEventListener('click', () => handlers.onBuildRoad(city.id, btn.dataset.target));
+        btn.addEventListener('click', () => (btn.dataset.stone
+          ? handlers.onUpgradeRoad(city.id, btn.dataset.stone)
+          : handlers.onBuildRoad(city.id, btn.dataset.target)));
       });
       panel.querySelectorAll('.trade-btn:not([disabled])').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onOpenTrade(city.id, btn.dataset.target));

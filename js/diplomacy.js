@@ -116,6 +116,13 @@ export function vertragAkk(def) {
   return `${def.genus === 'm' ? 'einen' : 'ein'} ${def.name}`;
 }
 
+// Im Nominativ heißt es bei beiden Geschlechtern "ein" - "es gilt ein
+// Nichtangriffspakt", nicht "einen". Der Unterschied steckt nur im Akkusativ,
+// und genau den hatte der erste Wurf überall eingesetzt.
+export function vertragNom(def, gross = false) {
+  return `${gross ? 'Ein' : 'ein'} ${def.name}`;
+}
+
 export function vertragDenAkk(def) {
   return `${def.genus === 'm' ? 'den' : 'das'} ${def.name}`;
 }
@@ -219,8 +226,7 @@ export function treatyVerdict(state, fromId, toId, kind) {
     return { possible: false, grund: 'Erst der Friede, dann der Vertrag.' };
   }
   if (treatyOf(state, fromId, toId, kind)) {
-    return { possible: false, grund: `${vertragAkk(def)[0].toUpperCase()}${
-      vertragAkk(def).slice(1)} steht bereits.` };
+    return { possible: false, grund: `${vertragNom(def, true)} steht bereits.` };
   }
   // Ein Bündnis kommt nicht aus dem Nichts: erst ein Pakt, dann das Wort.
   if (kind === 'buendnis') {
@@ -522,8 +528,8 @@ export function declareWar(state, a, b, note) {
   const bindung = warBound(state, a, b);
   if (bindung) {
     return { ok: false, reason: 'vertrag', vertrag: bindung,
-      text: `${vertragAkk(bindung)[0].toUpperCase()}${vertragAkk(bindung).slice(1)} steht `
-        + 'zwischen euch – erst aufkündigen, dann marschieren.' };
+      text: `${vertragNom(bindung, true)} steht zwischen euch – erst aufkündigen, `
+        + 'dann marschieren.' };
   }
   // Ein Friede, der gestern geschlossen wurde, wird nicht heute aufgekündigt.
   const sperre = diploLock(state, a, b, 'krieg');
@@ -719,7 +725,7 @@ export function proposeTreaty(state, fromId, toId, kind) {
   const ergebnis = signTreaty(state, fromId, toId, kind);
   if (!ergebnis.ok) return { ok: false, text: 'Daraus wird nichts.' };
   return { ok: true, urteil,
-    text: `${ruler.name} setzt sein Siegel darunter. Zwischen euch gilt ${vertragAkk(def)}.` };
+    text: `${ruler.name} setzt sein Siegel darunter. Zwischen euch gilt ${vertragNom(def)}.` };
 }
 
 // Und er kündigt ihn auf - was ihn beim Bündnis den Ruf kostet.
@@ -980,10 +986,10 @@ export function rulersTakeTurn(state, rng = Math.random) {
             pushNews(state, {
               kind: 'vertrag', von: a.id, gegen: b.id,
               icon: def.icon,
-              kindLabel: `${vertragAkk(def)[0].toUpperCase()}${vertragAkk(def).slice(1)} · ${b.name}`,
+              kindLabel: `${vertragNom(def, true)} · ${b.name}`,
               titel: `${a.name} und ${b.name} schließen ${vertragAkk(def)}`,
               satz: `Die Gesandten haben sich geeinigt: zwischen ${a.name} und `
-                + `${b.name} gilt von dieser Runde an ${vertragAkk(def)}.`,
+                + `${b.name} gilt von dieser Runde an ${vertragNom(def)}.`,
               folge: def.versprechen,
             });
             continue;

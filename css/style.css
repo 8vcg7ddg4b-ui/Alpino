@@ -552,6 +552,17 @@ html, body {
 .diplo-actions { margin-top: 8px; }
 /* Was zwischen zwei Reichen gilt: eine Zeile je Vertrag, in Gold abgesetzt,
    damit man auf einen Blick sieht, ob mehr als der bloße Friede steht. */
+/* Wie ein Reich zur übrigen Welt steht - eine Zeile, damit man Bündnisse und
+   Kriege sieht, ohne sie sich aus sechzehn Karten zusammenzusuchen. */
+.diplo-lage {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 5px;
+}
+
 .diplo-treaty {
   margin: 4px 0 0;
   font-size: 0.78rem;

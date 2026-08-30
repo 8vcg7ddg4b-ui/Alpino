@@ -1,5 +1,6 @@
 import {
-  TILE_TYPES, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, tileImpassable, tileMoveCost,
+  TILE_TYPES, SEA_MOVE_COST, ZOC_EXTRA_COST, tileImpassable, tileMoveCost,
+  roadLevelOf, roadStepCost,
 } from './data.js';
 import { armyAt, cityAt, isFleet, riverCrossingCost } from './state.js';
 import { atWar } from './diplomacy.js';
@@ -38,8 +39,10 @@ function classifyTile(state, col, row, movingFactionId, embarked, fleet) {
   // Mud, snow and sand are paid for by the tile, the same way terrain is.
   // A finished road replaces the ground underneath it: on a paved tile the
   // terrain no longer matters, only the weather does.
-  const paved = !isSea && !!(state.roads && state.roads[`${col},${row}`]);
-  const ground = isSea ? SEA_MOVE_COST : (paved ? ROAD_MOVE_COST : tileMoveCost(tile));
+  // Der Untergrund: offenes Land, ein gefahrener Weg oder eine Steinstraße.
+  const paved = isSea ? 0 : roadLevelOf(state.roads && state.roads[`${col},${row}`]);
+  const ground = isSea ? SEA_MOVE_COST
+    : (paved ? roadStepCost(paved) : tileMoveCost(tile));
   const cost = ground + weatherMoveCost(state, col, row);
   // Coming ashore is the end of the voyage, whether or not anyone contests it.
   const landing = embarked && !isSea;

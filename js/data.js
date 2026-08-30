@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.14.0';
+export const GAME_VERSION = '1.15.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1416,6 +1416,42 @@ export const ROAD_MOVE_COST = 2;
 export const ROAD_COST_PER_TILE = 30;
 export const ROAD_TURNS_PER_TILE = 0.4;
 export const ROAD_MIN_TURNS = 2;
+
+// --- Die Steinstraße -------------------------------------------------------
+// Was Rom von einem Weg unterscheidet: Unterbau aus Schotter, Wölbung, Gräben
+// zu beiden Seiten, oben Basaltplatten. Eine solche Straße ist bei jedem
+// Wetter befahrbar, und ein Heer marschiert auf ihr doppelt so schnell wie auf
+// einem festgefahrenen Weg - achtzehn Felder je Runde statt neun.
+//
+// Gebaut wird sie nicht ins Leere: ausgebaut wird eine Straße, die schon
+// liegt, und nur von einem Ort mit Verwaltung aus - Vermessung, Fronarbeit,
+// Abrechnung.
+export const STONE_ROAD_MOVE_COST = 1;
+export const STONE_COST_PER_TILE = 45;
+export const STONE_TURNS_PER_TILE = 0.5;
+export const STONE_MIN_TURNS = 2;
+export const ROAD_EARTH = 1;
+export const ROAD_STONE = 2;
+
+export function stoneRoadCost(length) {
+  return Math.round(length * STONE_COST_PER_TILE);
+}
+
+export function stoneRoadTurns(length) {
+  return Math.max(STONE_MIN_TURNS, Math.round(length * STONE_TURNS_PER_TILE));
+}
+
+// Ein Straßeneintrag war früher schlicht `true`; jetzt steht dort die Stufe.
+// Beides muss dieselbe Antwort geben, sonst wären alte Spielstände und der
+// halbe Zwischenspeicher falsch.
+export function roadLevelOf(value) {
+  if (value === true) return ROAD_EARTH;
+  return Number(value) || 0;
+}
+
+export function roadStepCost(level) {
+  return level >= ROAD_STONE ? STONE_ROAD_MOVE_COST : ROAD_MOVE_COST;
+}
 // Wie viele Bauziele eine Stadt hat: die beiden nächstgelegenen eigenen Orte,
 // zu denen noch keine Straße führt. Weiter reicht kein Straßenbau von einem
 // Ort aus - eine Fernstraße entsteht Stück für Stück über die Orte dazwischen,
