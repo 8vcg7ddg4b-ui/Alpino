@@ -365,6 +365,56 @@ den Punkten durchblättern.
     aber Mannschaft) und zeigt **so viele Transporter, wie das Heer braucht** –
     fünfzig Mann auf einen Rumpf –, mit breitem Rahsegel und den Schilden des
     Heeres an der Reling.
+
+  Die **vierte Ausbaustufe** gibt der Schlacht Bewegung, Boden und Gerät:
+  - **Die Gestalten sind gegliedert**: Eine Gestalt ist nicht mehr ein Stück,
+    sondern vier – Rumpf, linkes Bein, rechtes Bein, Waffenarm –, jedes um
+    seinen Drehpunkt gebaut (Hüfte, Schulter) und mit seiner eigenen
+    Instanzenwolke. Damit **gehen** sie im Aufmarsch, statt zu gleiten: die
+    Beine schwingen im Tritt, die Reiterei in ihrem eigenen, schnelleren Takt.
+    Wer ficht, **stößt mit dem Speer zu** und zieht ihn zurück; wer gefallen
+    ist, liegt still. Das kostet vier Zeichenaufrufe je Gattung statt einem –
+    bei zweihundert Gestalten ist das nichts.
+  - **Die Front zerfasert im Handgemenge**: Bisher schoben sich zwei
+    geschlossene Blöcke ineinander. Jetzt **tritt die vorderste Reihe heraus**,
+    sobald es zum Schlagen kommt, und sucht sich ihren Gegner; dahinter bleibt
+    die Ordnung stehen. Aus zwei Rechtecken wird eine Kampflinie, die sich
+    verhakt.
+  - **Die gewählte Schlachtordnung steht auf dem Feld**: Was vor dem Angriff
+    ausgesucht wurde, sieht man auch. Der **Keil** läuft spitz zu und wird nach
+    hinten breiter. Die **Umfassung** stellt sich flacher und schickt die
+    Reiterei auf die **Flügel**. Der **Beschuss** schiebt die Schützen als
+    lockere Plänklerlinie nach vorn. Der **Schildwall** steht tiefer, enger und
+    hält den Schild vor sich, statt zuzustoßen. Die **breite Front** zieht sich
+    über die ganze Breite des Feldes. Der **Gegenstoß** wartet nicht: er geht
+    dem Angreifer weiter entgegen als jede andere Ordnung.
+  - **Der Boden ist nicht mehr eben**: Das Feld hat ein **Höhenprofil** – ein
+    Hang, wenn eine Seite die Höhe hält, dazu eine flache Welle. Jede Gestalt,
+    jede Fahne, jede Mauer und jedes Gerät steht auf der Höhe, die an ihrer
+    Stelle gilt; wer marschiert, geht mit dem Boden auf und ab. Das Profil ist
+    für dieselbe Schlacht immer dasselbe.
+  - **Sturmgerät vor der Mauer**: Zu Leitern und Wehrgang kommt, was eine
+    Belagerung wirklich brauchte. Der **Widder** rollt unter seinem Satteldach
+    an das Tor und schlägt zu – bei jedem Schlag bebt das Tor. Vor einer
+    **Stadtmauer** (nicht vor einer Palisade) schiebt sich ein
+    **Belagerungsturm** mit halb heruntergelassener Fallbrücke an die Brüstung.
+    Und hinter der eigenen Linie steht auf der Flanke ein **Katapult**, dessen
+    Arm ausholt und vorschnellt.
+  - **Staub über der Kampflinie**: Solange gefochten wird, steht eine Wolke
+    aufgewirbelten Bodens über den Köpfen – in der Farbe des Geländes, auf dem
+    gefochten wird, aber heller, wie Staub, der in der Luft hängt. Sie steigt,
+    verweht und verschwindet, sobald die Linien sich lösen.
+  - **Pfeile, die nach Pfeilen aussehen**: Der Schaft war zwölf Zentimeter
+    dick – neben gegliederten Gestalten sah eine Salve aus wie ein Regen
+    geworfener Balken. Jetzt hat ein Pfeil Schaft, Spitze und Fiederung, ist so
+    dünn, wie ein Schaft ist, und trägt nur einen Hauch der Feldzeichenfarbe im
+    dunklen Holz. Es fliegen **sechzig** statt vierunddreißig.
+  - **Je Runde ein Klang**: Fliegt eine Salve, hört man erst den **Hagel** –
+    das Sirren der Sehnen, den Flug, das Prasseln auf Schilde und Boden –, dann
+    den **Zusammenprall**. In jeder weiteren Runde nur den Zusammenprall, kurz
+    und leiser als der erste: in voller Stärke wäre er nach drei Runden nicht
+    mehr auszuhalten. Der **Widder** schlägt in seinem eigenen Takt gegen das
+    Tor, und wenn es entschieden ist, geht das **Horn** über das Feld.
 - **Vier Schiffsarten, bis zu drei je Fraktion**: die **Quinquereme** mit Turm
   und Enterbrücke (50/52, 220 Gold) – schwer und im Rammstoß überlegen; die
   **Triere**, das Arbeitspferd jeder Flotte (46/45, 190 Gold) – wendig genug zum

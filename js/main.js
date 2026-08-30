@@ -1383,7 +1383,19 @@ function zeigeSchlacht(report, weiter) {
           + `${r.angreifer.toLocaleString('de-DE')} gegen `
           + `${r.verteidiger.toLocaleString('de-DE')} Mann stehen noch.`;
       }
+      // Je Runde ein Klang: fliegt eine Salve, hört man erst den Hagel und den
+      // Zusammenprall danach; sonst nur den Zusammenprall. Der erste Aufprall
+      // ist beim Öffnen des Schaubilds schon gelaufen (sfx.clash), darum
+      // beginnt der Rundenklang mit der zweiten Runde.
+      if (r.volley) {
+        sfx.volley();
+        window.setTimeout(() => sfx.melee(), 620);
+      } else if (r.nummer > 1) {
+        sfx.melee();
+      }
     },
+    // Der Widder schlägt in seinem eigenen Takt gegen das Tor.
+    onRam: () => sfx.ram(),
     // Gibt das Gerät keinen zweiten WebGL-Zusammenhang her, bleibt das
     // Schaubild zu. Das ist kein Fehler des Feldzugs, und gesagt wird es
     // trotzdem - sonst stünde da nur ein schwarzes Fenster.
@@ -1402,7 +1414,8 @@ function zeigeSchlacht(report, weiter) {
         notiz.textContent = `Sieger: ${sieger ? sieger.name : '?'} · ${report.endedBy}.`;
       }
       if (fertig) { fertig.disabled = false; fertig.focus(); }
-      sfx.wallDone();
+      // Das Horn über dem Feld, wenn es entschieden ist.
+      sfx.battleHorn();
     },
   });
   return true;
