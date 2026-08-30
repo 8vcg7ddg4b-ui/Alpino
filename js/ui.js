@@ -1862,17 +1862,30 @@ function forecastSideHTML(state, factionId, label, engaged, survivors, lossPct) 
 // the real one is fought once.
 export function battlePreviewHTML(state, preview) {
   const attacker = factionById(state, preview.attackerFactionId);
+  // Wer im Frieden angreift, greift kein feindliches Heer an, sondern ein
+  // fremdes - feindlich wird es erst durch den Schlag.
   const target = preview.cityName
     ? `${escapeHTML(preview.cityName)}`
-    : preview.naval ? 'feindliche Flotte' : 'feindliche Armee';
+    : preview.naval ? (preview.declareWarOn ? 'fremde Flotte' : 'feindliche Flotte')
+      : (preview.declareWarOn ? 'fremdes Heer' : 'feindliche Armee');
   const heading = preview.naval ? `Seegefecht – ${target}`
     : preview.amphibious ? `Landung bei ${target}`
       : preview.cityName ? `Angriff auf ${target}` : `Angriff auf ${target}`;
   const terrain = TERRAIN_NAMES[preview.terrainType] || preview.terrainType;
+  // Wer im Frieden zuschlägt, hat den Krieg. Das steht über allem anderen -
+  // ein Feldzug beginnt nicht aus Versehen.
+  const kriegsWarnung = preview.declareWarOn
+    ? `<p class="preview-war">⚔️ <strong>Das bedeutet Krieg mit
+         ${escapeHTML(preview.declareWarName || preview.declareWarOn)}.</strong>
+         Ihr steht im Frieden – der erste Schlag kündigt ihn auf, und was an
+         Verträgen zwischen euch stand, fällt mit ihm. Die Verbündeten des
+         Angegriffenen treten sofort ein.</p>`
+    : '';
 
   if (preview.unopposed) {
     return `
       <h2 class="report-title">${escapeHTML(heading)}</h2>
+      ${kriegsWarnung}
       <p class="report-meta">${escapeHTML(terrain)} · Bewegungskosten ${preview.moveCost}</p>
       <p class="preview-unopposed">Hier steht niemand mehr, der sich wehrt.
         ${preview.cityName ? escapeHTML(preview.cityName) + ' fällt kampflos.' : 'Das Feld ist frei.'}</p>`;
@@ -1887,6 +1900,7 @@ export function battlePreviewHTML(state, preview) {
 
   return `
     <h2 class="report-title">${escapeHTML(heading)}</h2>
+    ${kriegsWarnung}
     <p class="report-meta">${escapeHTML(terrain)}${bonus} · Bewegungskosten ${preview.moveCost}</p>
     <div class="odds-block ${verdict.tone}">
       <div class="odds-bar"><span style="width:${chance}%"></span></div>

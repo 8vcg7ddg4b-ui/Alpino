@@ -145,9 +145,11 @@ function lagerWennBelagerung(state, army) {
 
 // Kein Feldherr stolpert in einen Krieg, den sein Herrscher nicht erklärt
 // hat: Wege, die fremdes Land ohne Betretungsrecht schneiden, kommen für die
-// KI gar nicht erst infrage. Wer dort hindurch will, schließt vorher einen
-// Vertrag - oder erklärt den Krieg.
+// KI gar nicht erst infrage - und ein Angriff auf ein Reich, mit dem sein
+// Herrscher im Frieden steht, ebenso wenig. Wer dort hindurch oder dagegen
+// will, schließt vorher einen Vertrag - oder erklärt den Krieg.
 function darfMarschieren(state, army, entry) {
+  if (entry.declare) return false;
   return !borderViolation(state, army, entry.path);
 }
 

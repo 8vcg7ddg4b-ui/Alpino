@@ -3,7 +3,7 @@ import {
   roadLevelOf, roadStepCost,
 } from './data.js';
 import { armyAt, cityAt, isFleet, riverCrossingCost } from './state.js';
-import { atWar } from './diplomacy.js';
+import { atWar, warBlocked } from './diplomacy.js';
 import { borderViolation } from './territory.js';
 import { weatherMoveCost } from './weather.js';
 
@@ -50,15 +50,19 @@ function classifyTile(state, col, row, movingFactionId, embarked, fleet) {
   const occupant = armyAt(state, col, row);
   const city = cityAt(state, col, row);
 
-  // Im Frieden wird nicht gefochten: ein fremdes Heer und eine fremde Stadt
-  // sperren dann das Feld, statt eine Schlacht anzubieten. Wer angreifen will,
-  // muss erst den Krieg erklären.
-  const enemyArmy = occupant && occupant.factionId !== movingFactionId
-    && atWar(state, movingFactionId, occupant.factionId);
-  const enemyCity = city && city.factionId !== movingFactionId
-    && atWar(state, movingFactionId, city.factionId);
-  if (occupant && occupant.factionId !== movingFactionId && !enemyArmy) return { blocked: true };
-  if (city && city.factionId !== movingFactionId && !enemyCity) return { blocked: true };
+  // Ein Angriff auf ein fremdes Heer, eine fremde Flotte oder einen fremden
+  // Ort ist eine Kriegserklärung: wer im Frieden zuschlägt, hat den Krieg -
+  // die Herolde brauchen keine Runde dafür. Nur wo ein gegebenes Wort
+  // dazwischensteht - ein Bündnis, ein Pakt, ein zu frischer Friede -, bleibt
+  // das Feld gesperrt: gegen einen Verbündeten marschiert niemand, ohne den
+  // Vertrag vorher aufzukündigen.
+  const gegner = occupant && occupant.factionId !== movingFactionId ? occupant.factionId
+    : city && city.factionId !== movingFactionId ? city.factionId : null;
+  let declare = null;
+  if (gegner && !atWar(state, movingFactionId, gegner)) {
+    if (warBlocked(state, movingFactionId, gegner)) return { blocked: true };
+    declare = gegner;
+  }
 
   // Auf ein eigenes Heer zu ziehen heißt, sich mit ihm zu vereinigen: zwei
   // halbe Heere nehmen keine Stadt, ein ganzes schon. Durchziehen geht nicht.
@@ -67,11 +71,8 @@ function classifyTile(state, col, row, movingFactionId, embarked, fleet) {
     if (!bothAfloat) return { blocked: true };
     return { blocked: false, cost, endpointOnly: true, combat: false, merge: true, landing };
   }
-  if (occupant && occupant.factionId !== movingFactionId) {
-    return { blocked: false, cost, endpointOnly: true, combat: true, landing };
-  }
-  if (city && city.factionId !== movingFactionId) {
-    return { blocked: false, cost, endpointOnly: true, combat: true, landing };
+  if (gegner) {
+    return { blocked: false, cost, endpointOnly: true, combat: true, landing, declare };
   }
   return { blocked: false, cost, endpointOnly: landing, combat: false, landing };
 }
@@ -114,6 +115,8 @@ export function computeReachable(state, army) {
   const stopEndpoint = new Set();
   const landings = new Set();
   const merges = new Set();
+  // Wem ein Angriff auf dieses Feld den Krieg erklären würde.
+  const declares = new Map();
   const embarked = !!army.embarked;
   const fleet = embarked && isFleet(army);
   const zoc = zoneOfControl(state, army);
@@ -161,6 +164,8 @@ export function computeReachable(state, army) {
         prev.set(nk, ck);
         if (info.combat) combatEndpoint.add(nk);
         else combatEndpoint.delete(nk);
+        if (info.declare) declares.set(nk, info.declare);
+        else declares.delete(nk);
         if (info.landing) landings.add(nk);
         else landings.delete(nk);
         if (info.merge) merges.add(nk);
@@ -188,6 +193,9 @@ export function computeReachable(state, army) {
       cost,
       path,
       combat: combatEndpoint.has(k),
+      // Wem der Angriff auf dieses Feld den Krieg erklären würde - null, wenn
+      // man ohnehin schon im Krieg steht.
+      declare: declares.get(k) || null,
       landing: landings.has(k),
       merge: merges.has(k),
       contested: contested.has(k),

@@ -2,6 +2,7 @@ import { createInitialState, playerFaction, unitTotalCount, factionById, logMsg 
 import {
   playableFactions, factionProfile, unitDefs, UNIT_ROLES, ROLE_LABELS,
   CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION, GAME_VERSION, MINE_NAME,
+  wallLevelInfo, buildingDef, buildingName, ROAD_STONE,
 } from './data.js';
 import {
   renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount, empireHTML,
@@ -354,6 +355,32 @@ function showNotice(meldung) {
   if (kind) kind.textContent = meldung.kind;
   if (title) title.textContent = meldung.title;
   if (text) text.textContent = meldung.text;
+  // Eine Aufzählung - mehrere Bauwerke, die in derselben Runde fertig
+  // geworden sind. Ohne sie bleibt die Liste leer und aus dem Weg.
+  const list = document.getElementById('diploNewsList');
+  if (list) {
+    list.textContent = '';
+    const zeilen = meldung.list || [];
+    for (const zeile of zeilen) {
+      const li = document.createElement('li');
+      const icon = document.createElement('span');
+      icon.className = 'event-list-icon';
+      icon.textContent = zeile.icon || '·';
+      const body = document.createElement('span');
+      const name = document.createElement('strong');
+      name.textContent = zeile.name;
+      body.appendChild(name);
+      if (zeile.note) {
+        const note = document.createElement('span');
+        note.className = 'event-list-note';
+        note.textContent = ` – ${zeile.note}`;
+        body.appendChild(note);
+      }
+      li.append(icon, body);
+      list.appendChild(li);
+    }
+    list.hidden = zeilen.length === 0;
+  }
   if (effect) effect.textContent = meldung.effect || '';
   // Der Bericht liegt hinter einem eigenen Knopf: wer ihn sehen will, klickt.
   const alt = document.getElementById('diploNewsReport');
@@ -1170,14 +1197,18 @@ function hideBattlePreview() {
 function showBattlePreview(preview, confirm) {
   if (!state) return;
   // Turned off, the attack simply happens - the forecast was a courtesy, not
-  // a gate.
-  if (!getSetting('battlePreview')) {
+  // a gate. Nur eine Kriegserklärung nicht: wer im Frieden zuschlägt, wird
+  // gefragt, auch wenn die Vorschau abgeschaltet ist.
+  if (!getSetting('battlePreview') && !preview.declareWarOn) {
     confirm();
     return;
   }
   document.getElementById('previewBody').innerHTML = battlePreviewHTML(state, preview);
   const attackBtn = document.getElementById('previewAttack');
-  attackBtn.textContent = preview.unopposed ? '🚩 Einnehmen' : '⚔️ Angreifen';
+  attackBtn.textContent = preview.declareWarOn
+    ? (preview.unopposed ? '⚔️ Einnehmen – und den Krieg erklären'
+      : '⚔️ Angreifen – und den Krieg erklären')
+    : preview.unopposed ? '🚩 Einnehmen' : '⚔️ Angreifen';
   pendingAttack = confirm;
   previewOverlay.classList.remove('hidden');
   attackBtn.focus();
@@ -1360,6 +1391,89 @@ function refresh() {
   paintLogBadge();
 }
 
+// --- Das Bauamt meldet -----------------------------------------------------
+// Ein Bauauftrag läuft über Runden, und wenn er fertig wird, ist der Spieler
+// längst woanders. Vorher stand es nur im Protokoll, wo es unterging - jetzt
+// hält die Runde an und sagt es. Mauern, Straßen und Bauwerke laufen dabei
+// durch dieselbe Meldung: was fertig ist, ist fertig.
+const ZAHLWORT = ['kein', 'ein', 'zwei', 'drei', 'vier', 'fünf', 'sechs',
+  'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf'];
+
+function zahlwort(n) {
+  return n < ZAHLWORT.length ? ZAHLWORT[n] : String(n);
+}
+
+// Was ein einzelnes fertiges Werk trägt - dieselbe Zeile für die Liste und
+// für das Fenster, wenn es allein steht.
+function bauEintraege(wallsDone, roadsDone, builtDone) {
+  const me = playerFaction(state).id;
+  const eintraege = [];
+  for (const { city, level, repair } of wallsDone) {
+    if (city.factionId !== me) continue;
+    const stufe = wallLevelInfo(level);
+    if (!stufe) continue;
+    eintraege.push({
+      icon: stufe.icon,
+      name: `${stufe.name} um ${city.name}`,
+      note: `${repair ? 'wieder ausgebessert' : 'neu errichtet'} – `
+        + `${Math.round((stufe.defence - 1) * 100)} % stärkere Verteidigung`,
+      city,
+    });
+  }
+  for (const { city, key, repair } of builtDone) {
+    if (city.factionId !== me) continue;
+    const def = buildingDef(key);
+    if (!def) continue;
+    eintraege.push({
+      icon: def.icon,
+      name: `${buildingName(key, me)} in ${city.name}`,
+      // Das Bergwerk meldet, was es trägt; alle anderen, wozu sie da sind.
+      note: (repair ? 'aus den Trümmern wieder aufgebaut – ' : '')
+        + (key === 'mine' ? `${mineIncomeOf(state, city)} Gold je Runde` : def.purpose),
+      city,
+    });
+  }
+  for (const project of roadsDone) {
+    if (project.factionId !== me) continue;
+    const stein = (project.level || 1) >= ROAD_STONE;
+    eintraege.push({
+      icon: stein ? '🧱' : '🛣️',
+      name: `${stein ? 'Steinstraße' : 'Straße'} ${project.fromName} – ${project.toName}`,
+      note: stein ? 'ein Feld je Bewegungspunkt – so schnell marschiert kein Heer sonst'
+        : 'gepflasterter Weg: schneller marschieren, mehr Handel',
+    });
+  }
+  return eintraege;
+}
+
+function collectBuildNews(wallsDone, roadsDone, builtDone) {
+  const eintraege = bauEintraege(wallsDone, roadsDone, builtDone);
+  if (!eintraege.length) return;
+  // Ein einzelnes Werk bekommt seinen eigenen Satz; mehrere stehen
+  // untereinander, statt fünf Fenster nacheinander aufzuziehen.
+  if (eintraege.length === 1) {
+    const e = eintraege[0];
+    diploNewsQueue.push({
+      icon: e.icon,
+      kind: 'Das Bauamt meldet',
+      title: `${e.name} ist fertig`,
+      text: 'Die Gerüste sind gefallen, die Arbeiter abgezogen. Von dieser Runde '
+        + 'an steht das Werk.',
+      effect: e.note,
+    });
+    return;
+  }
+  diploNewsQueue.push({
+    icon: '🏗️',
+    kind: 'Das Bauamt meldet',
+    title: `${zahlwort(eintraege.length).replace(/^./, (c) => c.toUpperCase())} `
+      + 'Bauaufträge sind abgeschlossen',
+    text: 'In dieser Runde sind fertig geworden:',
+    list: eintraege.map(({ icon, name, note }) => ({ icon, name, note })),
+    effect: 'Alles davon wirkt ab sofort.',
+  });
+}
+
 function endTurn() {
   // Ending the turn mid-march would let the AI move while the player's army is
   // still visibly walking, and the resulting sync would teleport it.
@@ -1398,7 +1512,7 @@ function endTurn() {
   // Die Menschen werden mehr, ehe die Wache aus ihnen nachgestellt wird.
   growPopulations(state);
   regenerateGarrisons(state);
-  advanceWallConstruction(state);
+  const wallsDone = advanceWallConstruction(state);
   const roadsDone = advanceRoadConstruction(state);
   const builtDone = advanceConstruction(state);
   // The season that just passed is what wore the armies down; the next one is
@@ -1420,17 +1534,7 @@ function endTurn() {
   // Diplomatie stehen schon in derselben Schlange.
   if (!state.gameOver) {
     const me = playerFaction(state).id;
-    for (const { city, key } of builtDone) {
-      if (key !== 'mine' || city.factionId !== me) continue;
-      diploNewsQueue.push({
-        icon: '⛏️', kind: 'Ein Bergwerk fördert',
-        title: `Das ${MINE_NAME} von ${city.name} ist offen`,
-        text: `Die Stollen sind angeschlagen, die Karren rollen. `
-          + `${city.name} fördert von dieser Runde an Erz.`,
-        effect: `+${mineIncomeOf(state, city)} Gold je Runde – unabhängig von Größe, `
-          + 'Einwohnern und Handel des Orts.',
-      });
-    }
+    collectBuildNews(wallsDone, roadsDone, builtDone);
     // Eine Belagerung des eigenen Reichs ist eine Meldung wert: sie kostet ab
     // dieser Runde Steuer, Nachschub und Bauzeit.
     for (const city of belagert) {

@@ -1262,6 +1262,20 @@ kbd {
   font-size: 0.85rem;
 }
 
+/* Ein Angriff im Frieden erklärt den Krieg. Die Warnung steht deshalb ganz
+   oben und in der Farbe, die im Spiel für Krieg steht. */
+.preview-war {
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #a2412f;
+  border-left: 4px solid #c0392b;
+  border-radius: 6px;
+  background: rgba(192, 57, 43, 0.16);
+  color: #f0c8b8;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
 .preview-note {
   margin: 10px 0 0;
   color: var(--muted);
@@ -2254,6 +2268,33 @@ kbd {
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.04);
 }
+/* Mehrere fertige Bauaufträge in einer Runde: eine Zeile je Werk, das
+   Zeichen in einer eigenen Spalte, damit die Namen untereinander stehen. */
+.event-list {
+  margin: 4px 0 14px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  max-height: 34vh;
+  overflow-y: auto;
+}
+.event-list li {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.event-list li:last-child { border-bottom: none; }
+.event-list-icon {
+  flex: none;
+  width: 1.4em;
+  text-align: center;
+}
+.event-list-note { color: var(--muted); }
+
 .event-btn {
   margin-top: 16px;
   padding: 9px 24px;

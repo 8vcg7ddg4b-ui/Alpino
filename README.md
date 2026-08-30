@@ -401,6 +401,15 @@ den Punkten durchblättern.
   (`BUILDINGS` in `js/data.js`) und laufen durch einen einzigen Knopf, eine
   Kaufregel und eine Bauschleife – ein neues Bauwerk ist ein Eintrag, keine
   neue Funktion.
+- **Das Bauamt meldet**: Ein Bauauftrag läuft über mehrere Runden, und wenn er
+  fertig wird, ist der Spieler längst woanders. Deshalb hält die Runde jetzt an
+  und sagt es: Sobald ein **Bauwerk**, eine **Befestigung** oder eine
+  **Straße** fertig geworden ist, kommt ein **Meldefenster** – mit dem Zeichen
+  des Werks, seinem Namen samt Ort und dem, was es von dieser Runde an trägt
+  („50 % mehr Zuwachs", „+20 Gold je Runde", „+60 % Verteidigung"). Sind in
+  derselben Runde **mehrere** fertig geworden, stehen sie **in einem Fenster
+  untereinander** statt in fünf hintereinander. Eine ausgebesserte Mauer und
+  ein aus den Trümmern wieder aufgebautes Bauwerk sagen das dazu.
 - **Kaserne und Verwaltung**: Ein Reich baut nicht aus dem Nichts. Wer Truppen
   aushebt, braucht einen Ort, an dem sie ausgebildet und untergebracht werden;
   wer Wasserleitungen und Stollen anlegt, braucht eine Verwaltung, die
@@ -542,6 +551,24 @@ den Punkten durchblättern.
   Die KI hält sich an dieselbe Regel – ihre Heere planen keinen Weg, der
   fremdes Land schneidet, und stolpern damit in keinen Krieg, den ihr Herrscher
   nicht erklärt hat.
+- **Der erste Schlag ist die Kriegserklärung**: Ein Angriff auf ein **Heer**,
+  eine **Flotte** oder einen **Ort** einer anderen Fraktion bedeutet Krieg –
+  auch dann, wenn zwischen euch bis zu diesem Moment Friede herrschte. Erklärt
+  wird er im selben Augenblick, in dem das Heer losschlägt: alle Verträge
+  zwischen euch fallen, die Verbündeten des Angegriffenen treten sofort ein,
+  und das Ansehen sinkt bei allen, die davon hören. Damit das niemandem aus
+  Versehen passiert, sind solche Ziele in der Marschauswahl **violett** statt
+  rot – dieselbe Farbe wie eine Grenzverletzung –, und die **Kampfvorschau
+  sagt es in der ersten Zeile**: „Das bedeutet Krieg mit …". Der Knopf darunter
+  heißt dann *„Angreifen – und den Krieg erklären"*. Diese eine Vorschau
+  erscheint auch, wenn die Kampfvorschau in den Einstellungen abgeschaltet ist:
+  abschalten lässt sich eine Prognose, keine Kriegserklärung.
+  Wo ein gegebenes Wort dazwischensteht – ein **Bündnis**, ein
+  **Nichtangriffspakt** oder ein Friede, der zu frisch ist –, ist das Feld
+  überhaupt nicht anwählbar: erst den Vertrag im Diplomatiefenster aufkündigen,
+  dann marschieren. Und die KI greift von sich aus nie ein Reich an, mit dem
+  ihr Herrscher im Frieden steht – über Krieg entscheidet der Herrscher, nicht
+  der Feldherr.
 - **Verträge**: Zwischen Krieg und Frieden liegt mehr als nichts. Vier
   Verträge lassen sich schließen; alle vier setzen den Frieden voraus, und alle
   vier fallen mit ihm.

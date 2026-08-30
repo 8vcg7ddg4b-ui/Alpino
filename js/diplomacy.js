@@ -480,6 +480,20 @@ export function atWar(state, a, b) {
   return relation ? relation.state === 'krieg' : true;
 }
 
+// Ob eine Kriegserklärung zwischen zweien gerade überhaupt möglich wäre.
+// null heißt: sie ist es. Sonst steht hier, was dazwischensteht - ein
+// Bündnis, ein Pakt oder ein Friede, der zu frisch ist, um ihn aufzukündigen.
+// Daran hängt mehr als das Diplomatiefenster: wo kein Krieg erklärt werden
+// kann, marschiert auch kein Heer über die Grenze und greift keines an.
+export function warBlocked(state, a, b) {
+  const relation = relationOf(state, a, b);
+  if (!relation || relation.state === 'krieg') return null;
+  const bindung = warBound(state, a, b);
+  if (bindung) return bindung.name;
+  const sperre = diploLock(state, a, b, 'krieg');
+  return sperre ? sperre.text : null;
+}
+
 export function atPeace(state, a, b) {
   const relation = relationOf(state, a, b);
   return !!relation && relation.state === 'frieden';

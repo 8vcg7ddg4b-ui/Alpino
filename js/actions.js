@@ -43,7 +43,7 @@ import {
 import { wondersOfCity } from './wonders.js';
 import {
   adjustOpinion, atWar, hasTradePact, hasPassage, declareWar,
-  relationOf, warBound, diploLock,
+  warBlocked,
   OPINION_PER_BATTLE, OPINION_PER_CITY_TAKEN,
 } from './diplomacy.js';
 import { borderViolation } from './territory.js';
@@ -427,6 +427,10 @@ export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) 
     arrivalExhaustion,
     // Wie viele Bürger der freie Ort selbst unter die Waffen gebracht hat.
     levy: defence.levy || 0,
+    // Wem dieser Angriff den Krieg erklären würde - null, wenn er schon läuft.
+    declareWarOn: entry.declare || null,
+    declareWarName: entry.declare
+      ? (factionById(state, entry.declare) || {}).name || entry.declare : null,
   };
 
   if (!defence.hasDefence) {
@@ -717,22 +721,21 @@ export function moveWarning(state, army, destCol, destRow, reachable = null) {
   const owner = borderViolation(state, army, entry.path);
   if (!owner) return null;
   const faction = factionById(state, owner);
-  const gebunden = declareWarBlocked(state, army.factionId, owner);
+  const gebunden = warBlocked(state, army.factionId, owner);
   return { factionId: owner, name: faction ? faction.name : owner, blocked: gebunden };
 }
 
-// Ob eine Kriegserklärung an dieses Reich gerade überhaupt möglich wäre. Ist
-// sie es nicht - ein Pakt bindet, ein Friede ist zu frisch -, dann kommt auch
-// das Heer nicht über die Grenze: es kehrt um, statt einen Krieg auszulösen,
-// den niemand erklären kann.
-function declareWarBlocked(state, a, b) {
-  const relation = relationOf(state, a, b);
-  if (!relation || relation.state === 'krieg') return null;
-  const bindung = warBound(state, a, b);
-  if (bindung) return bindung.name;
-  const sperre = diploLock(state, a, b, 'krieg');
-  return sperre ? sperre.text : null;
+// Wem dieser Zug den Krieg erklären würde, weil er auf ein fremdes Heer, eine
+// fremde Flotte oder einen fremden Ort geht - null, wenn der Krieg schon
+// läuft. Die Kampfvorschau sagt es, ehe der Spieler zuschlägt.
+export function attackDeclaration(state, army, destCol, destRow, reachable = null) {
+  const felder = reachable || computeReachable(state, army);
+  const entry = felder.get(tileKey(destCol, destRow));
+  if (!entry || !entry.declare) return null;
+  const faction = factionById(state, entry.declare);
+  return { factionId: entry.declare, name: faction ? faction.name : entry.declare };
 }
+
 
 export function moveArmy(state, armyId, destCol, destRow) {
   const army = state.armies.find((a) => a.id === armyId);
@@ -757,6 +760,27 @@ export function moveArmy(state, armyId, destCol, destRow) {
       + `${faction ? faction.name : verletzt} – das ist Krieg.`);
   }
 
+  // Ein Angriff ist eine Kriegserklärung. Wer im Frieden auf ein fremdes Heer,
+  // eine fremde Flotte oder einen fremden Ort losgeht, hat damit den Krieg -
+  // erklärt wird er hier, ehe der erste Schlag fällt. Das kann ein anderes
+  // Reich treffen als die Grenze darüber: durch fremdes Land marschiert und
+  // am Ende einen Dritten angegriffen.
+  const angegriffen = entry.declare && entry.declare !== verletzt ? entry.declare : null;
+  if (angegriffen) {
+    const faction = factionById(state, angegriffen);
+    const stadt = cityAt(state, destCol, destRow);
+    const ziel = stadt && stadt.factionId === angegriffen ? stadt.name
+      : armyAt(state, destCol, destRow)?.embarked ? 'eine Flotte' : 'ein Heer';
+    const krieg = declareWar(state, army.factionId, angegriffen, `ein Angriff auf ${ziel}`);
+    if (!krieg.ok) {
+      return { ok: false, reason: 'angriff', factionId: angegriffen,
+        text: `${faction ? faction.name : angegriffen}: ${krieg.text
+          || 'so kurz nach dem Friedensschluss greift niemand an'}.` };
+    }
+    logOwn(state, army.factionId, `⚔ ${army.name} greift ${ziel} an – `
+      + `das ist Krieg mit ${faction ? faction.name : angegriffen}.`);
+  }
+
   army.movement = Math.max(0, army.movement - entry.cost);
   adjustExhaustion(army, moveExhaustion(army, entry.cost));
   // Wer abmarschiert, lässt Graben und Palisade stehen - für ihn zählen sie
@@ -777,13 +801,15 @@ export function moveArmy(state, armyId, destCol, destRow) {
     if (landed) {
       logOwn(state, army.factionId, `${army.name} geht an Land.`);
     }
-    return { ok: true, combat: false, landed, grenzkrieg: verletzt || null, reports: [] };
+    return { ok: true, combat: false, landed, grenzkrieg: verletzt || null,
+      kriegserklaerung: angegriffen, reports: [] };
   }
   const outcome = resolveTileCombat(state, army, destCol, destRow);
   // An assault that carried the shore puts the troops ashore for good; one
   // that was thrown back is still aboard its ships.
   const landed = outcome.survived ? comeAshore(state, army) : false;
-  return { ok: true, combat: true, landed, grenzkrieg: verletzt || null, ...outcome };
+  return { ok: true, combat: true, landed, grenzkrieg: verletzt || null,
+    kriegserklaerung: angegriffen, ...outcome };
 }
 
 // Taking ship: the army leaves its home port and stands out to sea. The fleet
@@ -1064,11 +1090,13 @@ export function advanceWallConstruction(state) {
     if (citySieged(state, city)) continue;
     city.wallBuilding.turnsLeft -= 1;
     if (city.wallBuilding.turnsLeft > 0) continue;
+    const ausgebessert = !!city.wallBuilding.repair;
     city.wallLevel = city.wallBuilding.level;
     city.wallBuilding = null;
     city.wallRuins = false;
-    finished.push(city);
-    logOwn(state, city.factionId, `${wallLevelInfo(city.wallLevel).name} von ${city.name} fertiggestellt.`);
+    finished.push({ city, level: city.wallLevel, repair: ausgebessert });
+    logOwn(state, city.factionId, `${wallLevelInfo(city.wallLevel).name} von ${city.name} `
+      + `${ausgebessert ? 'wieder ausgebessert' : 'fertiggestellt'}.`);
   }
   return finished;
 }

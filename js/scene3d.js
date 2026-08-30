@@ -3057,7 +3057,10 @@ export function syncEntities(state) {
       // so the player can read the cost before paying it.
       // Fremdes Land bekommt seine eigene Farbe: ein Schritt dorthin ist eine
       // Kriegserklärung, und das soll man sehen, bevor man klickt.
-      const color = info.border ? '#c07be0'
+      // Ein Angriff auf ein Reich, mit dem man im Frieden steht, ist wie der
+      // Schritt über seine Grenze eine Kriegserklärung - und trägt deshalb
+      // dieselbe Farbe, nicht das Rot einer laufenden Fehde.
+      const color = info.border || info.declare ? '#c07be0'
         : info.combat ? '#ff4d3d'
           : info.merge ? '#7ecbff'
             : info.landing ? '#ffd166'
