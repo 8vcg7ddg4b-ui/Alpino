@@ -213,6 +213,28 @@ den Punkten durchblättern.
   Stadtmauer, Landung vom Meer). „Abbrechen" lässt die Armee unverändert
   stehen. Die Schätzung entsteht aus 60 durchgerechneten Schlachten und
   verändert den späteren echten Kampf nicht.
+- **Der Schlacht zusehen** (erste, bewusst einfache Fassung): Vor jedem
+  Angriff steht die Frage. In der Kampfvorschau stehen dafür **zwei Knöpfe**
+  nebeneinander – *„⚔️ Angreifen"* und *„🎬 Angreifen und zusehen"* –, und wer
+  die Vorschau abgeschaltet hat, bekommt die Frage allein in einem kleinen
+  Fenster. In den Einstellungen lässt sich das festlegen: **jedes Mal fragen**
+  (Vorgabe), **immer zusehen** oder **nie**.
+  Wer zusieht, bekommt ein eigenes Fenster mit einer eigenen 3D-Ansicht: der
+  Boden in der Farbe des Geländes, auf dem wirklich gefochten wird, links die
+  Angreifer in ihrer Fraktionsfarbe, rechts die Verteidiger, dazwischen bei
+  einem Sturm auf einen Ort die **Palisade oder Mauer**. Jeder Klotz steht für
+  **15 Mann**, seine Form für die Waffengattung (Fußvolk breit, Reiter hoch,
+  Schützen schmal). Die beiden Linien marschieren auf, prallen Runde für Runde
+  aufeinander, und **mit jeder Runde fallen genau die Klötze, die der Bericht
+  ausweist** – von der Front her, nicht aus der Mitte. Über dem Bild stehen die
+  Namen und Stärken, in der Mitte „Runde 3 von 7", darunter, wie viele auf
+  jeder Seite noch stehen. Am Ende weicht der Verlierer vom Feld, und der Satz
+  darunter nennt Sieger und Grund („Sieger: Sarmaten · Moral gebrochen").
+  **Das Schaubild entscheidet nichts.** Die Schlacht ist ausgefochten, ehe das
+  Fenster aufgeht; gezeigt wird nur, was `combat.js` bereits ausgerechnet hat.
+  *„Überspringen"* oder Esc bricht ab, *„📜 Zum Bericht"* führt weiter zum
+  gewohnten Schlachtbericht. Das Fenster hat seinen eigenen Renderer und räumt
+  ihn beim Schließen wieder ab.
 - **Vier Schiffsarten, bis zu drei je Fraktion**: die **Quinquereme** mit Turm
   und Enterbrücke (50/52, 220 Gold) – schwer und im Rammstoß überlegen; die
   **Triere**, das Arbeitspferd jeder Flotte (46/45, 190 Gold) – wendig genug zum
@@ -1141,6 +1163,9 @@ den Punkten durchblättern.
 - `js/ai.js` – einfache KI (Wirtschaft + Angriffsverhalten)
 - `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl
+- `js/battle3d.js` – das Schaubild der Schlacht: eigene Szene, eigener
+  Renderer, Klötze statt Modelle. Spielt Runde für Runde nach, was der
+  Schlachtbericht schon enthält, und würfelt nichts eigenes
 - `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
 - `js/weather.js` – Kalender, Klimazonen, Wettertypen und ihre Regelwirkung
 - `js/anthems.js` – die Partituren der sechzehn Fraktionen: Leitern, Grundtöne,
