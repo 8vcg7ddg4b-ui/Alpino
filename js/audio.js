@@ -88,6 +88,18 @@ export function unlockAudio() {
   if (context && context.state === 'suspended') context.resume().catch(() => {});
 }
 
+// Ein Fenster in den Tonapparat - nur für die Prüfläufe: läuft der
+// Zusammenhang, und plant die Musik gerade Takte?
+export function audioProbe() {
+  return {
+    state: ctx ? ctx.state : 'keiner',
+    theme: musicHandle !== null,
+    wartet: !!themeWanted,
+    muted,
+    musicEnabled,
+  };
+}
+
 export function isMuted() {
   return muted;
 }
@@ -780,11 +792,28 @@ export function isThemePlaying() {
 }
 
 // Setzt die Musik in Gang. `fadeIn` ist die Zeit, über die sie aufblendet.
+// Der Browser lässt vor der ersten Geste keinen Ton zu. Vorher lief die Musik
+// trotzdem los: die Takte wurden in einen schlafenden Zusammenhang geplant,
+// der Griff darauf stand, und als der Ton endlich erlaubt war, hielt genau
+// dieser Griff jeden neuen Versuch ab - die Titelmusik blieb für den Rest der
+// Sitzung stumm. Jetzt wird der Wunsch gemerkt und nachgeholt, sobald der
+// Zusammenhang aufwacht.
+let themeWanted = null;
+
 export function startTheme({ fadeIn = 2.5 } = {}) {
   if (muted || !musicEnabled || musicHandle !== null) return;
   const context = ensureContext();
   if (!context) return;
-  if (context.state === 'suspended') context.resume().catch(() => {});
+  if (context.state === 'suspended') {
+    themeWanted = { fadeIn };
+    context.resume().then(() => {
+      const wunsch = themeWanted;
+      themeWanted = null;
+      if (wunsch) startTheme(wunsch);
+    }).catch(() => {});
+    return;
+  }
+  themeWanted = null;
 
   const now = context.currentTime;
   musicBus.gain.cancelScheduledValues(now);
@@ -812,6 +841,8 @@ export function stopTheme({ fadeOut = 3 } = {}) {
   // fasst ihn deshalb nicht an: sonst dreht ein "hör auf" für das eine Stück
   // das andere mit ab - und dessen Planer läuft weiter, ohne dass noch etwas
   // zu hören wäre.
+  // Auch ein Wunsch, der noch auf den Ton wartet, wird damit zurückgenommen.
+  themeWanted = null;
   if (musicHandle === null) return;
   clearInterval(musicHandle);
   musicHandle = null;

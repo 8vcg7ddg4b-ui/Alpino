@@ -37,6 +37,7 @@ import {
 } from './scene3d.js';
 import {
   sfx, unlockAudio, toggleMuted, isMuted, stopMarch, startTheme, stopTheme, setMusicEnabled,
+  audioProbe,
   startAnthem, stopAnthem,
 } from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
@@ -1916,17 +1917,27 @@ if (helpButton) {
 const versionLabel = document.getElementById('versionLabel');
 if (versionLabel) versionLabel.textContent = GAME_VERSION;
 
-// Musik darf erst nach einer echten Geste des Spielers losgehen - das schreibt
-// der Browser vor. Jede Taste im Startbildschirm ist so eine Geste, also hängt
-// der Anstoß an allen, nicht nur am Startknopf.
+// Die Titelmusik soll mit dem Programm anfangen, nicht mit dem ersten Knopf.
+// Versucht wird es deshalb sofort; erlaubt der Browser noch keinen Ton - und
+// das tut er vor der ersten Geste nie -, holt die allererste Geste es nach,
+// gleich welche: ein Klick irgendwohin, eine Taste, eine Berührung. Vorher
+// hing der Anstoß an vier bestimmten Knöpfen, und wer stattdessen scrollte
+// oder auf das Bild klickte, hörte den ganzen Vorspann über nichts.
 function beginMenuMusic() {
   unlockAudio();
   startTheme();
 }
-for (const id of ['startGameBtn', 'menuSettingsBtn', 'menuHelpBtn', 'menuFullscreenBtn']) {
-  const button = document.getElementById(id);
-  if (button) button.addEventListener('click', beginMenuMusic);
+
+const GESTURES = ['pointerdown', 'keydown', 'touchstart'];
+function firstGesture() {
+  for (const type of GESTURES) window.removeEventListener(type, firstGesture, true);
+  beginMenuMusic();
 }
+for (const type of GESTURES) window.addEventListener(type, firstGesture, true);
+beginMenuMusic();
+
+// Für die Prüfläufe: ob der Ton erlaubt ist und ob die Musik wirklich spielt.
+window.__audioProbe = audioProbe;
 
 startChronicle();
 // Der Weg ins Spiel führt über die Fraktionswahl.

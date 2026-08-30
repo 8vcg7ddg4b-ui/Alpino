@@ -9,8 +9,9 @@ import {
   CAMP_NAME, CAMP_COST, CAMP_DEFENCE,
   TRANSPORT_NAME, transportCount,
   RIVER_CROSSING_COST,
-  MINE_NAME,
+  MINE_NAME, MINE_ORE, MINE_RANGE, MINE_MIN_ORE,
   BUILDINGS, buildingDef, buildingName, mineIncome, TAX_PER_INHABITANTS,
+  repairCost, repairTurns,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
   tileImpassable, tileMoveCost, tileAltitude, PASSABLE_ALTITUDE,
   levyStrength,
@@ -32,7 +33,7 @@ import {
   armyUpkeep, factionIncome,
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
   tradeRouteRaided, mineOre, mineIncomeOf, canBuildBuilding, siegeInfo, citySieged,
-  campStatus, campSiegeTarget,
+  campStatus, campSiegeTarget, buildingPrice, buildingRuined, wallRuined,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -637,11 +638,13 @@ function wallHTML(state, city, isMine, player) {
   if (city.wallBuilding) {
     const stage = wallLevelInfo(city.wallBuilding.level);
     const left = city.wallBuilding.turnsLeft;
-    const done = stage.turns - left;
+    const gesamt = city.wallBuilding.turns || stage.turns;
+    const done = gesamt - left;
     return `${built}
-      <p class="wall-line wall-building">🏗️ ${escapeHTML(stage.name)} im Bau –
+      <p class="wall-line wall-building">🏗️ ${escapeHTML(stage.name)}
+        ${city.wallBuilding.repair ? 'wird ausgebessert' : 'im Bau'} –
         noch ${left} ${left === 1 ? 'Runde' : 'Runden'}
-        <span class="wall-track"><span class="wall-fill" style="width:${(done / stage.turns) * 100}%"></span></span>
+        <span class="wall-track"><span class="wall-fill" style="width:${(done / gesamt) * 100}%"></span></span>
       </p>`;
   }
 
@@ -652,11 +655,16 @@ function wallHTML(state, city, isMine, player) {
   if (!isMine || citySieged(state, city)) return built;
 
   const stage = wallLevelInfo(next);
-  const tooPoor = player.gold < stage.cost;
+  const bresche = wallRuined(city);
+  const kosten = bresche ? repairCost(stage.cost) : stage.cost;
+  const dauer = bresche ? repairTurns(stage.turns) : stage.turns;
+  const tooPoor = player.gold < kosten;
   return `${built}
+    ${bresche ? '<p class="wall-line muted">🏚️ Die Mauer hat eine Bresche aus der '
+    + 'Eroberung – ausbessern kostet die Hälfte.</p>' : ''}
     <button class="build-btn wall-btn" ${tooPoor ? 'disabled' : ''}>
-      ${stage.icon} ${escapeHTML(stage.name)} bauen – ${stage.cost} Gold
-      <small>Stufe ${next} von ${MAX_WALL_LEVEL} · ${stage.turns} Runden ·
+      ${stage.icon} ${escapeHTML(stage.name)} ${bresche ? 'ausbessern' : 'bauen'} – ${kosten} Gold
+      <small>Stufe ${next} von ${MAX_WALL_LEVEL} · ${dauer} ${dauer === 1 ? 'Runde' : 'Runden'} ·
         +${Math.round((stage.defence - 1) * 100)}% Verteidigung${
   tooPoor ? ' · zu wenig Gold' : ''}</small>
     </button>
@@ -727,18 +735,24 @@ function buildingHTML(state, city, isMine, player, def) {
   }
   const bau = city[`${def.key}Building`];
   if (bau) {
-    const done = def.turns - bau.turnsLeft;
-    return `<p class="wall-line wall-building">🏗️ ${name} im Bau –
+    const gesamt = bau.turns || def.turns;
+    const done = gesamt - bau.turnsLeft;
+    return `<p class="wall-line wall-building">🏗️ ${name}
+      ${bau.repair ? 'im Wiederaufbau' : 'im Bau'} –
       noch ${bau.turnsLeft} ${bau.turnsLeft === 1 ? 'Runde' : 'Runden'}
-      <span class="wall-track"><span class="wall-fill" style="width:${(done / def.turns) * 100}%"></span></span>
+      <span class="wall-track"><span class="wall-fill" style="width:${(done / gesamt) * 100}%"></span></span>
     </p>`;
   }
   if (!isMine || !canBuildBuilding(state, city, def.key)) return '';
-  const tooPoor = player.gold < def.cost;
+  // Über Trümmern wird billiger gebaut: die Grundmauern stehen noch.
+  const preis = buildingPrice(city, def);
+  const tooPoor = player.gold < preis.cost;
   return `<button class="build-btn" data-build="${def.key}" ${tooPoor ? 'disabled' : ''}>
-      ${def.icon} ${name} bauen – ${def.cost} Gold
-      <small>${def.turns} ${def.turns === 1 ? 'Runde' : 'Runden'} ·
-        ${escapeHTML(buildingPromise(state, city, def))}${
+      ${preis.repair ? '🏚️' : def.icon} ${name}
+      ${preis.repair ? 'wieder aufbauen' : 'bauen'} – ${preis.cost} Gold
+      <small>${preis.turns} ${preis.turns === 1 ? 'Runde' : 'Runden'} ·
+        ${preis.repair ? 'aus den Trümmern der Eroberung, zum halben Preis · ' : ''}${
+  escapeHTML(buildingPromise(state, city, def))}${
   tooPoor ? ' · zu wenig Gold' : ''}</small>
     </button>`;
 }
@@ -746,9 +760,16 @@ function buildingHTML(state, city, isMine, player, def) {
 // Im Info-Reiter dieselbe Auskunft in einer Zeile: was hier steht.
 function buildingSummaryHTML(city) {
   const stehen = BUILDINGS.filter((def) => city[def.key]);
-  if (!stehen.length) return '<p class="wall-line muted">🏗️ Keine Bauwerke</p>';
+  // Und was die letzte Eroberung liegen ließ.
+  const truemmer = BUILDINGS.filter((def) => buildingRuined(city, def.key));
+  const ruinen = truemmer.length || wallRuined(city)
+    ? `<p class="wall-line muted">🏚️ In Trümmern: ${[
+      wallRuined(city) ? 'die Mauer' : null,
+      ...truemmer.map((def) => escapeHTML(buildingName(def.key, city.factionId))),
+    ].filter(Boolean).join(', ')} – Wiederaufbau zum halben Preis</p>` : '';
+  if (!stehen.length) return `<p class="wall-line muted">🏗️ Keine Bauwerke</p>${ruinen}`;
   return `<p class="wall-line wall-done">${stehen.map((def) =>
-    `${def.icon} ${escapeHTML(buildingName(def.key, city.factionId))}`).join(' · ')}</p>`;
+    `${def.icon} ${escapeHTML(buildingName(def.key, city.factionId))}`).join(' · ')}</p>${ruinen}`;
 }
 
 function fleetHTML(city, isMine, player) {
@@ -985,6 +1006,19 @@ function terrainFactsHTML(state, col, row) {
         ? `über ${PASSABLE_ALTITUDE} m – Fels und Eis, kein Weg für ein Heer`
         : `ein Pass unter ${PASSABLE_ALTITUDE} m – mühsam, aber begehbar`]);
     }
+  }
+  // Was im Berg liegt. Auf der Karte steht dort ein aufgebrochener Fels; hier
+  // steht, was er für ein Bergwerk zählt.
+  const erzwert = MINE_ORE[tile.type] || 0;
+  if (erzwert > 0) {
+    const orte = state.cities.filter((c) => Math.abs(c.col - col) <= MINE_RANGE
+      && Math.abs(c.row - row) <= MINE_RANGE);
+    const beste = orte.map((c) => ({ city: c, erz: mineOre(state, c) }))
+      .filter((e) => e.erz >= MINE_MIN_ORE)
+      .sort((a, b) => b.erz - a.erz)[0];
+    facts.push(['⛏️ Erz', `${erzwert} ${erzwert === 1 ? 'Punkt' : 'Punkte'} für ein `
+      + `${MINE_NAME}${beste ? ` in ${beste.city.name} (${beste.erz} Erz im Umland)`
+        : ' – kein Ort nah genug'}`]);
   }
   // Wessen Land das ist. Seit eine Grenzverletzung Krieg bedeutet, ist das
   // keine Farbe mehr, sondern eine Auskunft, die man vor dem Marsch braucht.

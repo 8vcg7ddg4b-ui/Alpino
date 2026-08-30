@@ -19,10 +19,12 @@ import {
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
   FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_BASE_INCOME, TRADE_VARIETY_BONUS,
-  TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, tradeSizeFactor,
+  TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, TRADE_SEA_DISTANCE, TRADE_SEA_BONUS,
+  tradeSizeFactor,
   BIRTH_RATE, BIRTH_SEASON, populationCeiling,
   SIEGE_RANGE, SIEGE_STARVE_AFTER, SIEGE_ATTRITION, SIEGE_POPULATION_LOSS,
   CAMP_NAME, CAMP_COST, CAMP_DEFENCE, CAMP_SHELTER,
+  CAPTURE_WALL_LOSS, CAPTURE_RUIN_CHANCE, repairCost, repairTurns,
   CAMP_SIEGE_STARVE_AFTER, CAMP_SIEGE_ATTRITION, CAMP_SIEGE_POPULATION_LOSS,
   tileImpassable, tileMoveCost, levyStrength, LEVY_SHARE,
 } from './data.js';
@@ -453,6 +455,8 @@ export function resolveTileCombat(state, army, destCol, destRow) {
 
   let attackerUnits = { ...army.units };
   let capturedCity = false;
+  // Was der Sturm an der Stadt angerichtet hat - der Bericht nennt es.
+  let captureDamage = null;
   let bounced = false;
 
   // Ein Schlagabtausch bleibt in Erinnerung: wer heute angegriffen wurde,
@@ -625,6 +629,20 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     // defenseless against a follow-up attack the same turn.
     city.garrison = { infantry: 30 };
     city.population = Math.round(city.population * 0.92);
+    // Was der Sturm angerichtet hat: eine Bresche in der Mauer, Trümmer, wo
+    // Werkstätten und Speicher standen. Der neue Herr erbt eine Baustelle.
+    const schaden = damageOnCapture(state, city);
+    if (schaden.wallLost || schaden.ruined.length) {
+      const teile = [];
+      if (schaden.wallLost) teile.push('die Mauer ist gebrochen');
+      if (schaden.ruined.length) {
+        teile.push(`${schaden.ruined.map((k) => buildingName(k, army.factionId)).join(', ')} `
+          + `${schaden.ruined.length === 1 ? 'liegt' : 'liegen'} in Trümmern`);
+      }
+      logMsg(state, `${city.name} ist genommen – ${teile.join(', ')}.`,
+        null, [attackerFaction.id, lostTo]);
+    }
+    captureDamage = schaden;
     // Wer die Stadt verliert, verliert ihren Handel: der neue Herr muss die
     // Wege selbst wieder eröffnen.
     pruneTradeRoutes(state);
@@ -659,7 +677,7 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     army.col = destCol;
     army.row = destRow;
   }
-  return { ok: true, survived: true, capturedCity, reports };
+  return { ok: true, survived: true, capturedCity, captureDamage, reports };
 }
 
 // Zwei Heere derselben Fraktion werden zu einem. Erfahrung, Moral und
@@ -1025,12 +1043,17 @@ export function buyCityWalls(state, cityId) {
   const stage = wallLevelInfo(level);
   const faction = factionById(state, city.factionId);
   if (!faction || faction.isNeutral) return { ok: false };
-  if (faction.gold < stage.cost) return { ok: false, reason: 'gold' };
+  // Über einer Bresche wird nicht neu gebaut, sondern ausgebessert.
+  const ruine = wallRuined(city);
+  const kosten = ruine ? repairCost(stage.cost) : stage.cost;
+  const dauer = ruine ? repairTurns(stage.turns) : stage.turns;
+  if (faction.gold < kosten) return { ok: false, reason: 'gold' };
 
-  faction.gold -= stage.cost;
-  city.wallBuilding = { level, turnsLeft: stage.turns };
-  logOwn(state, faction.id, `${city.name}: Bau der ${stage.name} begonnen (${stage.turns} Runden).`);
-  return { ok: true, level };
+  faction.gold -= kosten;
+  city.wallBuilding = { level, turnsLeft: dauer, turns: dauer, repair: ruine };
+  logOwn(state, faction.id, `${city.name}: ${ruine ? 'Ausbesserung' : 'Bau'} der `
+    + `${stage.name} begonnen (${dauer} ${dauer === 1 ? 'Runde' : 'Runden'}).`);
+  return { ok: true, level, repair: ruine };
 }
 
 export function advanceWallConstruction(state) {
@@ -1042,6 +1065,7 @@ export function advanceWallConstruction(state) {
     if (city.wallBuilding.turnsLeft > 0) continue;
     city.wallLevel = city.wallBuilding.level;
     city.wallBuilding = null;
+    city.wallRuins = false;
     finished.push(city);
     logOwn(state, city.factionId, `${wallLevelInfo(city.wallLevel).name} von ${city.name} fertiggestellt.`);
   }
@@ -1246,13 +1270,15 @@ export function buyBuilding(state, cityId, key) {
   const blocker = buildingBlocker(state, city, key);
   if (blocker) return { ok: false, reason: blocker };
   const faction = factionById(state, city.factionId);
-  if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
+  const preis = buildingPrice(city, def);
+  if (faction.gold < preis.cost) return { ok: false, reason: 'gold' };
 
-  faction.gold -= def.cost;
-  city[`${key}Building`] = { turnsLeft: def.turns };
-  logOwn(state, faction.id, `${city.name}: ${buildingName(key, faction.id)} wird gebaut `
-    + `(${def.turns} ${def.turns === 1 ? 'Runde' : 'Runden'}).`);
-  return { ok: true };
+  faction.gold -= preis.cost;
+  city[`${key}Building`] = { turnsLeft: preis.turns, turns: preis.turns, repair: preis.repair };
+  logOwn(state, faction.id, `${city.name}: ${buildingName(key, faction.id)} wird `
+    + `${preis.repair ? 'wieder aufgebaut' : 'gebaut'} `
+    + `(${preis.turns} ${preis.turns === 1 ? 'Runde' : 'Runden'}).`);
+  return { ok: true, repair: preis.repair };
 }
 
 // Eine Runde Bauzeit für alles, was in irgendeinem Ort im Bau ist.
@@ -1268,7 +1294,9 @@ export function advanceConstruction(state) {
       if (bau.turnsLeft > 0) continue;
       city[def.key] = true;
       city[`${def.key}Building`] = null;
-      finished.push({ city, key: def.key });
+      const ausTruemmern = city[`${def.key}Ruins`];
+      city[`${def.key}Ruins`] = false;
+      finished.push({ city, key: def.key, repair: !!ausTruemmern });
       // Das Bergwerk meldet, was es trägt; alle anderen, wozu sie da sind.
       const wirkung = def.key === 'mine'
         ? `${mineIncomeOf(state, city)} Gold je Runde`
@@ -1553,8 +1581,11 @@ export function tradeRouteIncome(state, a, b) {
   const size = (tradeSizeFactor(a.size) + tradeSizeFactor(b.size)) / 2;
   // Ein Seeweg trägt nur, solange auf ihm niemand kreuzt: liegen Seeräuber vor
   // einem der beiden Häfen, kommt die Hälfte der Ladung nie an.
-  const zoll = tradeLinkKind(state, a, b) === 'sea' ? pirateTollFactor(state, a, b) : 1;
-  return Math.round((TRADE_BASE_INCOME + variety) * size * zoll);
+  const kind = tradeLinkKind(state, a, b);
+  const zoll = kind === 'sea' ? pirateTollFactor(state, a, b) : 1;
+  // Was über See kommt, ist mehr wert: ein Schiff trägt, was kein Karren trägt.
+  const see = kind === 'sea' ? TRADE_SEA_BONUS : 1;
+  return Math.round((TRADE_BASE_INCOME + variety) * size * see * zoll);
 }
 
 // Ob dieser Weg gerade von Seeräubern beschnitten wird - die Stadtansicht
@@ -1582,11 +1613,73 @@ export function tradeAllowed(state, a, b) {
   return hasTradePact(state, a.factionId, b.factionId);
 }
 
+// Ob zwei Häfen an demselben Meer liegen. Vom Kaspischen Meer fährt kein Schiff
+// ins Mittelmeer, so nah die beiden auf der Karte auch aussehen - und ein
+// Seeweg, der über Land führt, ist keiner.
+export function sameSea(state, a, b) {
+  const seas = state.map && state.map.seas;
+  if (!seas) return true;
+  const hafenA = harbourTile(state, a);
+  const hafenB = harbourTile(state, b);
+  if (!hafenA || !hafenB) return false;
+  const cols = state.map.cols;
+  return seas[hafenA.row * cols + hafenA.col] === seas[hafenB.row * cols + hafenB.col];
+}
+
 // Ob zwischen zwei Orten überhaupt Waren fließen können - und auf welchem Weg.
 export function tradeLinkKind(state, a, b) {
   if (roadConnected(state, a, b)) return 'road';
-  if (a.harbour && b.harbour && isCoastalCity(state, a) && isCoastalCity(state, b)) return 'sea';
+  if (a.harbour && b.harbour && isCoastalCity(state, a) && isCoastalCity(state, b)
+    && sameSea(state, a, b)) return 'sea';
   return null;
+}
+
+// Der Kurs, den die Händler nehmen: der kürzeste Weg über Wasser von einem
+// Hafen zum anderen. Gebraucht wird er für die Karte - ein Seeweg soll als
+// Linie über dem Meer liegen und nicht quer durch eine Halbinsel.
+export function seaLane(state, a, b) {
+  const map = state.map;
+  const start = harbourTile(state, a);
+  const ziel = harbourTile(state, b);
+  if (!start || !ziel) return null;
+  const cols = map.cols;
+  const rows = map.rows;
+  const seen = new Int8Array(cols * rows);
+  const from = new Int32Array(cols * rows).fill(-1);
+  const startIndex = start.row * cols + start.col;
+  const zielIndex = ziel.row * cols + ziel.col;
+  const queue = [startIndex];
+  seen[startIndex] = 1;
+  for (let head = 0; head < queue.length; head++) {
+    const index = queue[head];
+    if (index === zielIndex) break;
+    const col = index % cols;
+    const row = (index - col) / cols;
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const c = col + dc;
+      const r = row + dr;
+      if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
+      const next = r * cols + c;
+      if (seen[next]) continue;
+      if (map.tiles[r][c].type !== 'water') continue;
+      seen[next] = 1;
+      from[next] = index;
+      queue.push(next);
+    }
+  }
+  if (!seen[zielIndex]) return null;
+  const lane = [];
+  for (let index = zielIndex; index !== -1; index = from[index]) {
+    const col = index % cols;
+    lane.unshift({ col, row: (index - col) / cols });
+    if (index === startIndex) break;
+  }
+  return lane;
+}
+
+// Wie weit ein Weg dieser Art reichen darf.
+export function tradeReach(kind) {
+  return kind === 'sea' ? TRADE_SEA_DISTANCE : TRADE_MAX_DISTANCE;
 }
 
 function tradeDistance(a, b) {
@@ -1605,7 +1698,7 @@ export function tradePartners(state, city) {
       && tradeAllowed(state, city, other)
       && !linked.has(other.id)
       && tradeRoutesOf(state, other.id).length < TRADE_ROUTES_PER_CITY
-      && tradeDistance(city, other) <= TRADE_MAX_DISTANCE)
+      && tradeDistance(city, other) <= TRADE_SEA_DISTANCE)
     .map((other) => ({
       city: other,
       kind: tradeLinkKind(state, city, other),
@@ -1613,7 +1706,8 @@ export function tradePartners(state, city) {
       income: tradeRouteIncome(state, city, other),
       good: tradeGoodOf(state, other),
     }))
-    .filter((entry) => entry.kind)
+    // Über Land reicht ein Karren nicht so weit wie ein Schiff.
+    .filter((entry) => entry.kind && entry.distance <= tradeReach(entry.kind))
     .sort((a, b) => b.income - a.income || a.distance - b.distance);
 }
 
@@ -1710,6 +1804,48 @@ export function collectIncome(state) {
     const upkeep = armyUpkeep(state, faction.id);
     faction.gold = Math.max(0, Math.round(faction.gold + income - upkeep));
   }
+}
+
+// --- Trümmer ---------------------------------------------------------------
+// Was eine Eroberung von einer Stadt übrig lässt. Die Mauer verliert eine
+// Stufe - eine Bresche ist keine Mauer -, und jedes Bauwerk kann in Trümmern
+// liegen. Beides bleibt sichtbar: über den Trümmern lässt sich neu bauen, und
+// zwar zum halben Preis und in der halben Zeit, denn die Grundmauern stehen.
+export function buildingRuined(city, key) {
+  return !!(city && city[`${key}Ruins`]);
+}
+
+export function wallRuined(city) {
+  return !!(city && city.wallRuins);
+}
+
+// Was ein Bauwerk hier und jetzt kostet - aus Trümmern die Hälfte.
+export function buildingPrice(city, def) {
+  const ruine = buildingRuined(city, def.key);
+  return {
+    cost: ruine ? repairCost(def.cost) : def.cost,
+    turns: ruine ? repairTurns(def.turns) : def.turns,
+    repair: ruine,
+  };
+}
+
+export function damageOnCapture(state, city, rng = Math.random) {
+  const zerstoert = [];
+  const stufeVorher = cityWallLevel(city);
+  if (stufeVorher > 0) {
+    city.wallLevel = Math.max(0, stufeVorher - CAPTURE_WALL_LOSS);
+    city.wallBuilding = null;
+    city.wallRuins = true;
+  }
+  for (const def of BUILDINGS) {
+    if (!city[def.key]) continue;
+    if (rng() >= CAPTURE_RUIN_CHANCE) continue;
+    city[def.key] = false;
+    city[`${def.key}Building`] = null;
+    city[`${def.key}Ruins`] = true;
+    zerstoert.push(def.key);
+  }
+  return { wallLost: stufeVorher - cityWallLevel(city), ruined: zerstoert };
 }
 
 // --- Das Lager -------------------------------------------------------------

@@ -331,6 +331,31 @@ function labelLandmasses(tiles) {
   return label;
 }
 
+// Dasselbe für das Wasser: welche Meere zusammenhängen. Ein Seeweg gibt es nur
+// zwischen zwei Häfen an demselben Meer - vom Kaspischen Meer fährt kein Schiff
+// ins Mittelmeer, so nah die beiden auf der Karte auch liegen.
+function labelSeas(tiles) {
+  const label = new Int32Array(MAP_COLS * MAP_ROWS).fill(-1);
+  let next = 0;
+  for (let row = 0; row < MAP_ROWS; row++) {
+    for (let col = 0; col < MAP_COLS; col++) {
+      if (label[row * MAP_COLS + col] !== -1) continue;
+      if (tiles[row][col].type !== 'water') continue;
+      const stack = [[col, row]];
+      while (stack.length) {
+        const [c, r] = stack.pop();
+        if (!inBounds(c, r)) continue;
+        const index = r * MAP_COLS + c;
+        if (label[index] !== -1 || tiles[r][c].type !== 'water') continue;
+        label[index] = next;
+        stack.push([c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]);
+      }
+      next++;
+    }
+  }
+  return label;
+}
+
 // --- Flüsse ---------------------------------------------------------------
 // Ein Fluss besetzt kein Feld, er trennt zwei. Der Linienzug aus geodata.js
 // wird deshalb nicht in Felder, sondern in Feldgrenzen übersetzt: wo der Lauf
@@ -478,6 +503,7 @@ export function generateMap(seed = 1337) {
     rows: MAP_ROWS,
     tiles,
     landmass: labelLandmasses(tiles),
+    seas: labelSeas(tiles),
     // Die Flüsse entstehen zuletzt: erst muss feststehen, wo Land ist.
     rivers: traceRivers(tiles),
   };

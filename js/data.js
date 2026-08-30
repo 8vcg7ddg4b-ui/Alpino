@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.13.0';
+export const GAME_VERSION = '1.14.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1088,6 +1088,28 @@ export function growthFactor(city) {
   return 1 + (city.farm ? FARM_GROWTH : 0) + (city.viaduct ? VIADUCT_GROWTH : 0);
 }
 
+// --- Was eine Eroberung anrichtet ------------------------------------------
+// Eine Stadt, die im Sturm genommen wird, ist danach keine heile Stadt. Die
+// Mauer hat eine Bresche, das Tor liegt aus den Angeln, und was an Werkstätten,
+// Speichern und Kais dranhing, ist geplündert oder verbrannt. Der neue Herr
+// erbt Trümmer und muss sie erst wieder aufbauen - billiger als ein Neubau,
+// denn die Grundmauern stehen noch, aber nicht umsonst.
+//
+// Das ist auch eine Regel gegen die Eroberungsspirale: wer eine Stadt nimmt,
+// bekommt sie nicht als fertige Werkbank geschenkt.
+export const CAPTURE_WALL_LOSS = 1;
+export const CAPTURE_RUIN_CHANCE = 0.5;
+// Was der Wiederaufbau aus Trümmern kostet, gemessen am Neubau.
+export const REPAIR_FACTOR = 0.5;
+
+export function repairCost(cost) {
+  return Math.max(10, Math.round((cost * REPAIR_FACTOR) / 10) * 10);
+}
+
+export function repairTurns(turns) {
+  return Math.max(1, Math.round(turns * REPAIR_FACTOR));
+}
+
 // --- Das Lager -------------------------------------------------------------
 // Ein römisches Heer schlug jeden Abend ein Lager auf: Graben, Wall, Palisade,
 // die Zelte in festen Gassen dahinter. Das kostet einen halben Tag Arbeit und
@@ -1372,6 +1394,12 @@ export const TRADE_VARIETY_BONUS = 4;
 export const TRADE_ROUTES_PER_CITY = 2;
 // Weiter als das reicht kein regelmäßiger Warenverkehr.
 export const TRADE_MAX_DISTANCE = 14;
+// Zur See reicht ein Weg viel weiter als über Land - das ist der ganze Grund,
+// warum die Antike ihre Waren übers Meer schickte: ein Schiff trägt in einer
+// Fahrt, was hundert Karren nicht schaffen, und es fährt weiter. Ein Seeweg
+// darf deshalb bis fast über das halbe Mittelmeer gehen und trägt mehr.
+export const TRADE_SEA_DISTANCE = 26;
+export const TRADE_SEA_BONUS = 1.4;
 
 // Große Städte schlagen mehr um als ein Dorf.
 export function tradeSizeFactor(size) {

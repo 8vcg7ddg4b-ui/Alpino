@@ -1,7 +1,9 @@
 import {
   TILE_TYPES, settlementTier, WALL_LEVELS, experienceStars, shipTypeOf, tileImpassable,
+  MINE_RANGE, MINE_ORE, MINE_MIN_ORE,
 } from './data.js';
-import { unitTotalCount, factionById, harbourTile, isFleet } from './state.js';
+import { unitTotalCount, factionById, harbourTile, isFleet, playerFaction } from './state.js';
+import { seaLane } from './actions.js';
 import { territoryMap, claimableTile } from './territory.js';
 import { emblemSVG } from './emblems.js';
 
@@ -391,7 +393,67 @@ function addInstanced(geometry, material, transforms) {
 
 // Cones and cylinders are authored at unit height so a single scale puts each
 // instance at its own size.
+// --- Erzvorkommen ----------------------------------------------------------
+// Ein Bergwerk lohnt nur, wo etwas im Berg liegt, und das stand bisher nur als
+// Zahl in der Stadtansicht. Jetzt liegt es auf der Karte: dort, wo Erz
+// gefördert werden kann, steht ein aufgebrochener Fels mit heller Ader.
+//
+// Gezeichnet wird nur, was auch zählt - Gebirgs- und Hügelfelder im Umkreis
+// eines Orts, dessen Umland zusammen genug hergibt. Alles andere wäre ein Wald
+// aus Steinen über die halbe Karte.
+function collectOre(state, props) {
+  const { cols, rows, tiles } = state.map;
+  const felder = new Map();
+  for (const city of state.cities) {
+    let erz = 0;
+    const umland = [];
+    for (let dr = -MINE_RANGE; dr <= MINE_RANGE; dr++) {
+      for (let dc = -MINE_RANGE; dc <= MINE_RANGE; dc++) {
+        const c = city.col + dc;
+        const r = city.row + dr;
+        if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
+        const wert = MINE_ORE[tiles[r][c].type] || 0;
+        if (!wert) continue;
+        erz += wert;
+        umland.push({ c, r, wert });
+      }
+    }
+    if (erz < MINE_MIN_ORE) continue;
+    for (const feld of umland) felder.set(`${feld.c},${feld.r}`, feld);
+  }
+  const rng = seededRandomFactory(23);
+  for (const { c, r, wert } of felder.values()) {
+    // Etwas neben der Feldmitte, damit der Fels nicht im Gipfel steckt.
+    const jx = (rng() - 0.5) * 0.5;
+    const jz = (rng() - 0.5) * 0.5;
+    const size = wert >= 2 ? 0.85 : 0.6;
+    const y = groundY(c + jx, r + jz);
+    props.oreRock.push({
+      x: worldX(c) + jx * TILE_SIZE, y: y + size * 0.3, z: worldZ(r) + jz * TILE_SIZE,
+      s: size, r: rng() * Math.PI * 2,
+    });
+    props.oreVein.push({
+      x: worldX(c) + jx * TILE_SIZE, y: y + size * 0.55, z: worldZ(r) + jz * TILE_SIZE,
+      s: size * 0.45, r: rng() * Math.PI * 2,
+    });
+  }
+}
+
 function buildProps(props) {
+  // Der aufgebrochene Fels und die Ader darin.
+  addInstanced(
+    new THREE.DodecahedronGeometry(0.7, 0),
+    new THREE.MeshStandardMaterial({ color: '#5c5a55', flatShading: true, roughness: 1 }),
+    props.oreRock
+  );
+  addInstanced(
+    new THREE.OctahedronGeometry(0.7, 0),
+    new THREE.MeshStandardMaterial({
+      color: '#d8a441', flatShading: true, roughness: 0.35, metalness: 0.6,
+      emissive: '#4a3208', emissiveIntensity: 0.4,
+    }),
+    props.oreVein
+  );
   addInstanced(
     new THREE.CylinderGeometry(0.18, 0.24, 1.1, 6),
     new THREE.MeshStandardMaterial({ color: '#5b3a22', roughness: 1 }),
@@ -461,7 +523,7 @@ export function buildMap(state) {
   mapCols = state.map.cols;
   mapRows = state.map.rows;
   currentMap = state.map;
-  const props = { trunks: [], leaves: [], rockPeaks: [], snowPeaks: [] };
+  const props = { trunks: [], leaves: [], rockPeaks: [], snowPeaks: [], oreRock: [], oreVein: [] };
   propsGroup = new THREE.Group();
   roadsGroup = new THREE.Group();
   scene.add(propsGroup);
@@ -589,6 +651,8 @@ export function buildMap(state) {
 
   buildTable(boardW, boardH);
   buildTent(state);
+  // Erst jetzt: die Erzfelder brauchen die fertige Geländehöhe.
+  collectOre(state, props);
   buildProps(props);
   buildWonders(state);
   buildRoadNetwork(state);
@@ -2691,7 +2755,66 @@ function addHighlight(col, row, color) {
 // Called after every game-state change: syncs city ownership visuals, army
 // groups (creating/removing as armies are raised or destroyed), and the
 // green/red movement-range overlay for the currently selected army.
+// --- Seewege ---------------------------------------------------------------
+// Ein Handelsweg über See war bisher eine Zeile in der Stadtansicht und sonst
+// nichts. Jetzt liegt er auf dem Wasser: eine Kette kleiner Bojen entlang des
+// Kurses, den die Händler wirklich fahren, und in der Mitte ein Schiffszug,
+// der ihn abfährt. Gezeichnet werden die eigenen Wege - fremde Ladung geht
+// niemanden etwas an.
+let laneGroup = null;
+let laneSignature = '';
+
+function buildTradeLanes(state) {
+  if (laneGroup) {
+    scene.remove(laneGroup);
+    laneGroup = null;
+  }
+  laneGroup = new THREE.Group();
+  scene.add(laneGroup);
+  const me = playerFaction(state).id;
+  const bojenGeometrie = new THREE.SphereGeometry(0.34, 8, 6);
+  const bojenMaterial = new THREE.MeshStandardMaterial({
+    color: '#e8d9a8', roughness: 0.6, emissive: '#6b5c2a', emissiveIntensity: 0.35,
+  });
+  for (const route of state.tradeRoutes || []) {
+    if (route.kind !== 'sea') continue;
+    const a = state.cities.find((c) => c.id === route.aId);
+    const b = state.cities.find((c) => c.id === route.bId);
+    if (!a || !b) continue;
+    if (a.factionId !== me && b.factionId !== me) continue;
+    const lane = seaLane(state, a, b);
+    if (!lane || lane.length < 2) continue;
+    for (let i = 1; i < lane.length - 1; i += 2) {
+      const buoy = new THREE.Mesh(bojenGeometrie, bojenMaterial);
+      buoy.position.set(worldX(lane[i].col), SEA_LEVEL_Y + 0.2, worldZ(lane[i].row));
+      laneGroup.add(buoy);
+    }
+    // Der Händler selbst, auf halbem Weg und in Fahrtrichtung.
+    const mitte = lane[Math.floor(lane.length / 2)];
+    const davor = lane[Math.max(0, Math.floor(lane.length / 2) - 1)];
+    const convoy = buildConvoy('#d8c9a0');
+    convoy.scale.setScalar(0.5);
+    convoy.position.set(worldX(mitte.col), SEA_LEVEL_Y, worldZ(mitte.row));
+    convoy.rotation.y = Math.atan2(mitte.col - davor.col, -(mitte.row - davor.row));
+    laneGroup.add(convoy);
+  }
+}
+
+// Was sich geändert haben muss, damit neu gezeichnet wird: welche Seewege es
+// gibt und wem ihre Enden gehören.
+function laneKey(state) {
+  return (state.tradeRoutes || [])
+    .filter((r) => r.kind === 'sea')
+    .map((r) => `${r.id}:${(state.cities.find((c) => c.id === r.aId) || {}).factionId}`)
+    .join('|');
+}
+
 export function syncEntities(state) {
+  const lanes = laneKey(state);
+  if (lanes !== laneSignature) {
+    laneSignature = lanes;
+    buildTradeLanes(state);
+  }
   for (const city of state.cities) {
     let entry = cityGroups.get(city.id);
     if (!entry) {

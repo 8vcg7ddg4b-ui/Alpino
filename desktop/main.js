@@ -1,4 +1,9 @@
 import { app, BrowserWindow, Menu, shell } from 'electron';
+
+// Im eigenen Programm gibt es keinen fremden Reiter, den eine Tonspur
+// überraschen könnte: die Titelmusik darf deshalb mit dem Fenster anfangen und
+// muss nicht auf den ersten Klick warten.
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGameServer } from '../server.js';

@@ -135,8 +135,17 @@ Sobald der Spieler die erste Taste drückt, setzt die **Titelmusik** ein – ein
 Stück in d-Moll, das sich Takt für Takt selbst weiterschreibt: Bass und Blech
 tragen die Harmonie, ein Streicherteppich hält sie zusammen, die Kriegstrommel
 gibt den Schritt, und im zweiten Durchgang kommt die Melodie dazu. Sie läuft
-durch die Fraktionswahl. Früher kann sie nicht anfangen: ein Browser lässt Ton
-erst nach einer echten Geste des Spielers zu.
+durch die Fraktionswahl.
+
+**Sie fängt mit dem Programm an.** Im Desktop-Programm läuft sie sofort – dort
+gibt es keinen fremden Reiter, den eine Tonspur überraschen könnte, und die
+Autoplay-Sperre ist entsprechend gesetzt. Im Browser darf vor der ersten Geste
+kein Ton erklingen; dort merkt sich das Spiel den Wunsch und holt ihn bei der
+**allerersten Geste nach – gleich welcher**: ein Klick irgendwohin, eine Taste,
+eine Berührung. Vorher hing der Anstoß an vier bestimmten Knöpfen, und wer
+stattdessen neben sie klickte, hörte den ganzen Vorspann über nichts: die
+Takte waren in einen schlafenden Klangapparat geplant worden, und genau dieser
+Griff hielt jeden neuen Versuch ab.
 
 **Mit dem Betreten des Zeltes** übernimmt die Musik der eigenen Fraktion. Jede
 der sechzehn hat ihr eigenes Stück – wieder keine Aufnahme, sondern eine
@@ -436,7 +445,12 @@ den Punkten durchblättern.
   andere nichts. Ab **3 Erz** lohnt ein Stollen, je Punkt bringt er **4 Gold je
   Runde**, bei 12 Punkten ist Schluss – also **12 bis 48 Gold**, gegen **400
   Gold** und **4 Runden** Bauzeit, und es setzt eine **Verwaltung** im Ort
-  voraus. Wo im Umland kein Erz liegt, steht der Knopf gar nicht erst da. Von 107 Orten haben 32 genug Erz; der Knopf
+  voraus. Wo im Umland kein Erz liegt, steht der Knopf gar nicht erst da.
+  **Und man sieht es**: auf jedem Gebirgs- und Hügelfeld, das für ein mögliches
+  Bergwerk zählt, liegt ein aufgebrochener Fels mit heller Ader – 143 Felder
+  auf der ganzen Karte, nicht mehr. Das Feldfenster nennt dazu die Zahl und den
+  Ort, dem das Erz zufällt: „⛏️ Erz – 2 Punkte für ein Bergwerk in Roma (5 Erz
+  im Umland)". Von 107 Orten haben 32 genug Erz; der Knopf
   nennt vor dem Bau, was er tragen wird. Neben der Stadt steht danach ein
   Fördergerüst mit Schacht und Halde, in der Übersicht hat das Bergwerk eine
   eigene Spalte, und die KI schlägt eines an, bevor sie die nächste Mauer baut.
@@ -559,6 +573,17 @@ den Punkten durchblättern.
   sie aus. Nach der Schlacht gehen die Überlebenden zurück in die Gassen: auf
   der Mauer bleibt nur die eigene Stadtwache, und **die gefallenen Bürger
   fehlen dem Ort danach wirklich** – seine Einwohnerzahl sinkt.
+- **Was eine Eroberung anrichtet**: Eine Stadt, die im Sturm genommen wird, ist
+  danach keine heile Stadt. Die **Mauer verliert eine Stufe** – eine Bresche ist
+  keine Mauer –, und **jedes Bauwerk liegt mit 50 % Wahrscheinlichkeit in
+  Trümmern**: Kaserne, Farm, Speicher, Verwaltung, Viadukt, Bergwerk, Hafen,
+  Werft. Der neue Herr erbt eine Baustelle, keine Werkbank.
+  Aufgebaut wird über den Trümmern **zum halben Preis und in der halben Zeit** –
+  die Grundmauern stehen noch: eine Kaserne kostet statt 250 Gold und drei
+  Runden noch 130 und zwei, eine Steinmauer wird ausgebessert statt neu
+  aufgezogen. Der Bauen-Reiter sagt „🏚️ wieder aufbauen", der Info-Reiter führt
+  auf, was in Trümmern liegt, und das Protokoll nennt nach jeder Eroberung, was
+  der Sturm gekostet hat.
 - **Das Lager**: Ein römisches Heer schlug jeden Abend ein Lager auf – Graben,
   Wall, Palisade, die Zelte in festen Gassen dahinter. Im Spiel kostet es
   **90 Gold** und **den Rest des Tages** (alle verbliebenen Bewegungspunkte)
@@ -625,8 +650,18 @@ den Punkten durchblättern.
   danach trägt er **beiden Enden** Runde für Runde. Verschiedene Waren tragen
   mehr als gleiche – Salz gegen Wein lohnt, Getreide gegen Getreide kaum –, und
   große Städte schlagen mehr um als Dörfer. Verbunden sein heißt: eine
-  durchgehende Straße, oder auf beiden Seiten ein Hafen; weiter als 14 Felder
-  reicht kein Weg, und mehr als zwei trägt ein Ort nicht. Fällt ein Ende an den
+  durchgehende Straße, oder auf beiden Seiten ein Hafen **am selben Meer** –
+  vom Kaspischen fährt kein Schiff ins Mittelmeer, so nah die beiden auf der
+  Karte auch aussehen.
+  **Der Seehandel ist der große Handel**: ein Karren kommt **14 Felder** weit,
+  ein Schiff **26**, und was über See kommt, trägt **40 % mehr**. Roma und
+  Ravenna liegen an zwei verschiedenen Meeren und ohne Straße dazwischen – der
+  Weg um den Stiefel herum bringt jeder Seite **11 Gold je Runde**, die
+  Landstraße nach Capua vier. Dafür lohnt sich der Hafen, und dafür lohnt es
+  sich, ihn zu schützen: Seeräuber vor einem der beiden Häfen nehmen die Hälfte.
+  Auf der Karte liegt ein Seeweg als **Kette heller Bojen** über dem Wasser,
+  genau auf dem Kurs, den die Händler wirklich fahren, mit einem Schiffszug in
+  der Mitte. Mehr als zwei Wege trägt ein Ort nicht. Fällt ein Ende an den
   Feind oder reißt die Verbindung, endet der Weg. Die Reichsübersicht führt den
   Handel als eigene Spalte, und die KI handelt ebenfalls.
 - **Straßenbau**: Von Anfang an möglich – jede eigene
