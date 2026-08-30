@@ -20,7 +20,7 @@ import {
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, upgradeRoad, advanceRoadConstruction, buildFleet,
   buyBuilding, advanceConstruction, mineIncomeOf,
-  updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp,
+  updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp, besiegeCity,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations,
 } from './actions.js';
 import {
@@ -35,7 +35,7 @@ import {
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
   setBordersVisible, areBordersVisible,
-  setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled,
+  setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled, captureFrame,
 } from './scene3d.js';
 import {
   sfx, unlockAudio, toggleMuted, isMuted, stopMarch, startTheme, stopTheme, setMusicEnabled,
@@ -1188,20 +1188,26 @@ function hideBattleReport() {
 
 const previewOverlay = document.getElementById('battlePreview');
 let pendingAttack = null;
+// Der Weg neben dem Sturm: sich vor den Ort legen.
+let pendingSiege = null;
 
 function hideBattlePreview() {
   previewOverlay.classList.add('hidden');
   pendingAttack = null;
+  pendingSiege = null;
 }
 
 // The forecast, and the decision it exists for. Nothing has happened yet when
 // this opens: cancelling leaves the army exactly where it stood.
-function showBattlePreview(preview, confirm) {
+function showBattlePreview(preview, confirm, siegeConfirm) {
   if (!state) return;
   // Turned off, the attack simply happens - the forecast was a courtesy, not
   // a gate. Nur eine Kriegserklärung nicht: wer im Frieden zuschlägt, wird
   // gefragt, auch wenn die Vorschau abgeschaltet ist.
-  if (!getSetting('battlePreview') && !preview.declareWarOn) {
+  // Abschalten lässt sich die Prognose, nicht die Entscheidung: wo ein Krieg
+  // erklärt würde oder wo statt des Sturms auch eine Belagerung offensteht,
+  // geht das Fenster in jedem Fall auf.
+  if (!getSetting('battlePreview') && !preview.declareWarOn && !siegeConfirm) {
     // Ohne Vorschau bleibt die Frage nach dem Zusehen - sie gehört nicht zur
     // Prognose, sondern zum Angriff.
     askWatch(preview, confirm);
@@ -1220,6 +1226,10 @@ function showBattlePreview(preview, confirm) {
   // Verteidiger wird eingenommen, nicht gefochten.
   const watchBtn = document.getElementById('previewWatch');
   if (watchBtn) watchBtn.classList.toggle('hidden', zusehen !== 'fragen');
+  // Und der dritte nur, wo sich statt des Sturms auch belagern ließe.
+  const siegeBtn = document.getElementById('previewSiege');
+  if (siegeBtn) siegeBtn.classList.toggle('hidden', !siegeConfirm);
+  pendingSiege = siegeConfirm || null;
   // Immer-Zusehen ist eine Einstellung, keine Frage: dann trägt schon der
   // Angriffsknopf die Antwort.
   watchNext = zusehen === 'immer';
@@ -1508,6 +1518,13 @@ function refresh() {
       pushUndo();
       closeTradeRoute(state, routeId);
       sfx.select();
+      refresh();
+    },
+    // Eine Belagerung wird erklärt - vom Heer, das schon davorsteht.
+    onSiege: (armyId, cityId) => {
+      pushUndo();
+      const result = besiegeCity(state, armyId, cityId);
+      (result.ok ? sfx.raise : sfx.denied)();
       refresh();
     },
     // Graben, Wall, Palisade - und vor einer fremden Stadt die Belagerung.
@@ -2094,6 +2111,14 @@ document.getElementById('previewAttack').addEventListener('click',
   () => confirmPendingAttack(getSetting('battleView') === 'immer'));
 const previewWatchBtn = document.getElementById('previewWatch');
 if (previewWatchBtn) previewWatchBtn.addEventListener('click', () => confirmPendingAttack(true));
+const previewSiegeBtn = document.getElementById('previewSiege');
+if (previewSiegeBtn) {
+  previewSiegeBtn.addEventListener('click', () => {
+    const run = pendingSiege;
+    hideBattlePreview();
+    if (run) run();
+  });
+}
 document.getElementById('previewCancel').addEventListener('click', hideBattlePreview);
 document.getElementById('previewClose').addEventListener('click', hideBattlePreview);
 previewOverlay.addEventListener('click', (e) => {
@@ -2217,6 +2242,10 @@ beginMenuMusic();
 
 // Für die Prüfläufe: ob der Ton erlaubt ist und ob die Musik wirklich spielt.
 window.__audioProbe = audioProbe;
+// Dasselbe für die Karte: läuft gerade ein Marsch, und wie sieht sie in diesem
+// Augenblick aus? Nur für die Prüfläufe.
+window.__mapProbe = () => ({ marching: isAnimating() });
+window.__mapFrame = captureFrame;
 
 startChronicle();
 // Der Weg ins Spiel führt über die Fraktionswahl.

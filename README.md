@@ -488,9 +488,11 @@ den Punkten durchblättern.
   höchsten steht. **Auf Wasser und Fels wird nichts gebaut**: In einer
   Hafenstadt ist das flachste Nachbarfeld das Meer, und dort lagen die Äcker
   bis zuletzt – mitten auf dem Hafen. Jetzt kommen nur Landfelder infrage, und
-  Farm, Viadukt und Bergwerk gehen einander aus dem Weg; hat ein Ort gar kein
-  freies Nachbarfeld (eine Insel, ein Ort zwischen Fels und Wasser), rückt das
-  Bauwerk an den Ort selbst heran. Der **Kornspeicher** (**260 Gold**, **3 Runden**) setzt
+  Farm, Viadukt und Bergwerk gehen einander aus dem Weg. **Auch die Straße
+  bleibt frei**: ein Acker quer über den gepflasterten Weg sieht aus wie ein
+  Versehen, und eines wäre es auch. Hat ein Ort gar kein freies Nachbarfeld
+  (eine Insel, ein Ort zwischen Fels, Wasser und Straße), rückt das Bauwerk an
+  den Ort selbst heran. Der **Kornspeicher** (**260 Gold**, **3 Runden**) setzt
   die Farm voraus und bewahrt die Ernte über den Winter – er hebt die
   **Obergrenze der Einwohner um 25 %**. Da die Schatzkammer allein von der
   Kopfsteuer lebt, ist beides bares Geld, nur später.
@@ -704,15 +706,34 @@ den Punkten durchblättern.
   sie aus. Nach der Schlacht gehen die Überlebenden zurück in die Gassen: auf
   der Mauer bleibt nur die eigene Stadtwache, und **die gefallenen Bürger
   fehlen dem Ort danach wirklich** – seine Einwohnerzahl sinkt.
+- **Eine Belagerung wird erklärt, nicht versehentlich ausgelöst**: Wer einen
+  Ort einschließen will, **greift ihn an und wählt statt des Sturms die
+  Belagerung**. In der Kampfvorschau steht dafür ein eigener Knopf – *„⛺
+  Einschließen"* – neben *„⚔️ Angreifen"*, und darüber ein Satz, was er
+  bedeutet: das Heer marschiert bis vor den Ort und legt sich davor, statt über
+  die Mauer zu gehen. Steht ein Heer schon davor, findet es denselben Knopf in
+  seiner eigenen Anzeige. Für eine **Flotte vor einem Hafen** gilt dasselbe: sie
+  erklärt die Einschließung, statt sie durch bloßes Danebenliegen auszulösen.
+  Vorher genügte es, ein Feld neben einer Stadt stehen zu bleiben – jeder
+  Durchmarsch würgte nebenbei eine fremde Stadt ab, ohne dass es jemand
+  entschieden hätte.
+  **Auf der Karte ist die Belagerung zu sehen**: Um den eingeschlossenen Ort
+  stehen **Sturmpfähle und die Zelte des Belagerers**, die Zelte in seiner
+  Farbe – man sieht auf einen Blick, wer davorliegt. Marschiert das Heer ab, ist
+  die Belagerung aufgehoben und der Ring verschwindet.
+  Eine **Hafensperre** ist davon getrennt: Sobald feindliche Schiffe vor der
+  Einfahrt kreuzen, läuft kein Schiff aus und geht kein Heer an Bord – dafür
+  braucht es keine Erklärung. Aushungern kann nur, wer die Belagerung erklärt
+  hat.
 - **Eine Belagerung führt ein Reich, nicht zwei**: Stehen die Heere zweier
   Fraktionen vor demselben Tor, dann belagert nur **eines** von beiden – das,
-  das angefangen hat, solange es davorsteht, und sonst das stärkere. Das andere
-  steht daneben: es schneidet nichts ab, hungert niemanden aus und bekommt den
-  Ort auch nicht durch Warten. Wer ihn will, muss den Belagerer zuerst vom Feld
-  schlagen. Die Ortsanzeige nennt beide – den Belagerer und den, der „ebenfalls
-  davorsteht, die Belagerung aber nicht führt". Zieht der Belagerer ab und ein
-  zweiter steht schon da, **beginnt die Belagerung von vorn**: die Frist bis
-  zum Hunger läuft für den Neuen neu, er hat die Stadt ja nicht ausgehungert.
+  das sie erklärt hat, solange es davorsteht. Das andere steht daneben: es
+  schneidet nichts ab, hungert niemanden aus und bekommt den Ort auch nicht
+  durch Warten. Wer ihn will, muss den Belagerer zuerst vom Feld schlagen oder
+  warten, bis er abzieht – dann kann er selbst einschließen. Die Ortsanzeige
+  nennt beide – den Belagerer und den, der „ebenfalls davorsteht, die
+  Belagerung aber nicht führt". Übernimmt ein anderer, **beginnt die Frist bis
+  zum Hunger von vorn**: er hat die Stadt ja nicht ausgehungert.
 - **Was eine Eroberung anrichtet**: Eine Stadt, die im Sturm genommen wird, ist
   danach keine heile Stadt. Die **Mauer verliert eine Stufe** – eine Bresche ist
   keine Mauer –, und **jedes Bauwerk liegt mit 50 % Wahrscheinlichkeit in
@@ -739,18 +760,20 @@ den Punkten durchblättern.
   auch ein Lager. Er entscheidet den Kampf unter Gleichen.
   Auf der Karte steht dann ein Erdwall mit angespitzten Stämmen um die Zelte.
 - **Das Belagerungslager**: Ein Lager **auf einem Feld neben einer feindlichen
-  Stadt** löst die Belagerung aus, **ohne dass ein Sturm nötig wäre**: der Ort
-  ist abgeschnitten, und der Hunger beginnt schon **nach einer Runde** statt
+  Stadt, die man eingeschlossen hat**, verschärft die Belagerung: der Hunger
+  beginnt schon **nach einer Runde** statt
   nach dreien und zehrt stärker – **10 % der Besatzung** und **2 % der
   Einwohner** je Runde statt 6 % und 1,2 %. Damit gibt es zwei Wege über eine
   Mauer: den Sturm, der Männer kostet, und das Lager, das Zeit kostet.
   Auch die KI kennt ihn: was sie nicht stürmen kann, gräbt sie sich davor ein –
   über vierzig Runden gemessen liegen ihre Heere achtmal so oft vor einer
   fremden Stadt wie vorher, statt vergeblich gegen dasselbe Tor zu laufen.
-- **Belagerung**: Steht ein feindliches Heer **unmittelbar neben einem Ort**,
-  ist er belagert – und ein Hafenort auch dann, wenn eine feindliche **Flotte
-  vor ihm kreuzt**. Es braucht keinen eigenen Befehl dafür: wer sich davorstellt,
-  belagert. Eine Belagerung nimmt dem Ort alles, was von draußen kommt:
+- **Belagerung**: Ein Ort ist belagert, wenn ein feindliches Heer
+  **unmittelbar neben ihm steht und die Belagerung erklärt hat** – bei einem
+  Hafenort auch eine Flotte vor der Einfahrt. Erklärt wird sie über den Angriff
+  (Knopf *„⛺ Einschließen"* in der Kampfvorschau) oder, wenn das Heer schon
+  davorsteht, in seiner eigenen Anzeige. Eine Belagerung nimmt dem Ort alles,
+  was von draußen kommt:
   **keine Steuer, kein Handel, kein Erz, kein Zuwachs**, die **Stadtwache stellt
   sich nicht nach**, und **jede Baustelle ruht** – neue lassen sich gar nicht
   erst eröffnen, auch kein Straßenbau. Ist der Hafen gesperrt, geht dort
@@ -767,6 +790,14 @@ den Punkten durchblättern.
   belagert, mit wie vielen Mann, seit wann und wann der Hunger beginnt –, die
   Reichsübersicht setzt ein ⚔️ vor den Ort und färbt seine Zeile, und wer eine
   eigene Stadt eingeschlossen bekommt, erfährt es im Meldefenster.
+- **Marschierende Heere ziehen als Kolonne**: Ein Heer, das auf der Karte
+  steht, ist ein Lager aus Zelten. Setzt es sich in Bewegung, **treten die
+  Zelte ab und eine Kolonne tritt an**: eine Reihe von Gestalten hintereinander,
+  zu zweit nebeneinander wie eine Marschordnung, das Feldzeichen vorneweg. Sie
+  ist so lang, wie das Heer stark ist (vier bis vierzehn Glieder), jeder Mann
+  federt für sich im Tritt – im Gleichschritt sähe die Reihe aus wie ein Brett
+  – und die Kolonne dreht sich in die Richtung, in die es geht. Am Ziel schlägt
+  sie wieder ihr Lager auf.
 - **Orte wachsen**: In jedem Monat werden mehr Kinder geboren als Menschen
   sterben. Der Satz ist klein (0,35 % je Runde), aber er summiert sich: über ein
   Jahr gut vier Prozent, über zehn Jahre die Hälfte. Im Frühjahr und Sommer

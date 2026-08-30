@@ -368,6 +368,25 @@ html, body {
 /* Eine Belagerung ist die wichtigste Zeile, die ein Ort haben kann - sie
    steht deshalb abgesetzt und in der Farbe, die im Spiel Krieg heißt. */
 /* Das Lager: dieselbe Machart wie eine fertige Mauer, nur in Erdfarbe. */
+/* Der Knopf, mit dem ein Heer vor einer Stadt die Belagerung erklärt - wie der
+   Lagerknopf gebaut, nur in der Farbe der Belagerung. */
+.siege-btn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  font-family: inherit;
+  font-size: 0.86rem;
+  color: #f2e3bf;
+  background: linear-gradient(#6d5a2f, #4f4122);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.siege-btn:hover { border-color: var(--gold); background: linear-gradient(#836d38, #5e4d29); }
+.siege-btn small { display: block; margin-top: 3px; color: rgba(242, 227, 191, 0.75); font-size: 0.72rem; line-height: 1.35; }
+
 .camp-line {
   margin: 6px 0 0;
   padding: 5px 9px;
@@ -1237,6 +1256,13 @@ kbd {
 }
 .preview-watch:hover { background: linear-gradient(#3a739f, #2b537c); border-color: var(--gold); }
 
+.preview-siege {
+  background: linear-gradient(#6d5a2f, #4f4122);
+  border: 1px solid var(--border);
+  color: #f2e3bf;
+}
+.preview-siege:hover { background: linear-gradient(#836d38, #5e4d29); border-color: var(--gold); }
+
 /* --- Das Schaubild der Schlacht ----------------------------------------- */
 .stage-box {
   width: min(980px, 100%);
@@ -1360,6 +1386,20 @@ kbd {
   font-size: 0.85rem;
   line-height: 1.45;
 }
+
+/* Der Hinweis auf die Belagerung in der Kampfvorschau: dieselbe Bauart wie die
+   Kriegswarnung, aber in Erdfarben - es ist eine Wahl, keine Drohung. */
+.siege-hint {
+  margin: 10px 0 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-left: 4px solid #8a6d3b;
+  border-radius: 6px;
+  background: rgba(138, 109, 59, 0.14);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.siege-hint.muted { border-left-color: var(--border); background: none; }
 
 .preview-note {
   margin: 10px 0 0;

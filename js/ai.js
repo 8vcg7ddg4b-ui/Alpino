@@ -11,6 +11,7 @@ import {
   buyCityWalls, nextWallLevel, cityWallLevel, tradePartners, openTradeRoute,
   canBuildMine, buyMine, mineOre, buyShipyard,
   buyBuilding, canBuildBuilding, buildCamp, campStatus,
+  besiegeCity, siegeStatus,
   stoneTargets, upgradeRoad,
 } from './actions.js';
 import { borderViolation } from './territory.js';
@@ -173,16 +174,24 @@ const AI_CAMP_RESERVE = 150;
 // Ein Lager vor einer Stadt, die sich nicht stürmen lässt: die Belagerung ist
 // der zweite Weg über eine Mauer, und für die KI oft der einzige.
 function lagerWennBelagerung(state, army) {
-  if (!army || army.camp || army.embarked || isFleet(army)) return false;
-  if (factionById(state, army.factionId).gold < CAMP_COST + AI_CAMP_RESERVE) return false;
-  if (!campStatus(state, army).can) return false;
+  if (!army || army.embarked || isFleet(army)) return false;
   const ziel = state.cities.find((c) => c.factionId !== army.factionId
     && atWar(state, army.factionId, c.factionId)
     && tileDistance(army, c) <= 1);
   if (!ziel) return false;
-  // Was sie stürmen kann, stürmt sie - dafür braucht es kein Lager.
+  // Was sie stürmen kann, stürmt sie - dafür braucht es keine Belagerung.
   if (worthAttacking(state, army, ziel.col, ziel.row)) return false;
-  return buildCamp(state, army.id).ok;
+  // Erst die Einschließung erklären - die kostet nichts als den Entschluss -,
+  // dann, wenn das Gold reicht, das Lager dazu. Ohne Erklärung schneidet auch
+  // ein Lager nichts ab: davorstehen allein ist keine Belagerung mehr.
+  let etwas = false;
+  if (siegeStatus(state, army, ziel).can) etwas = besiegeCity(state, army.id, ziel.id).ok;
+  if (!army.camp && ziel.siege && ziel.siege.by === army.factionId
+    && factionById(state, army.factionId).gold >= CAMP_COST + AI_CAMP_RESERVE
+    && campStatus(state, army).can) {
+    etwas = buildCamp(state, army.id).ok || etwas;
+  }
+  return etwas;
 }
 
 // Kein Feldherr stolpert in einen Krieg, den sein Herrscher nicht erklärt
@@ -233,10 +242,7 @@ function stepArmyTowards(state, army, target) {
     // geöffnet hätte. Vorher lief dieselbe Armee jede Runde vergeblich gegen
     // dasselbe Tor - oder stand daneben und tat gar nichts.
     const stadt = cityAt(state, target.col, target.row);
-    if (stadt && !army.camp && tileDistance(army, stadt) <= 1
-      && factionById(state, army.factionId).gold >= CAMP_COST + AI_CAMP_RESERVE
-      && campStatus(state, army).can) {
-      buildCamp(state, army.id);
+    if (stadt && tileDistance(army, stadt) <= 1 && lagerWennBelagerung(state, army)) {
       return;
     }
   }

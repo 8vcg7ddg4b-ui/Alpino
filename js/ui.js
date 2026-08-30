@@ -34,6 +34,7 @@ import {
   embarkStatus, cityWallLevel, nextWallLevel, roadTargets, roadProjectOf, roadConnected, cityIncome,
   armyUpkeep, factionIncome,
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
+  siegeStatus,
   tradeRouteRaided, mineOre, mineIncomeOf, canBuildBuilding, siegeInfo, citySieged,
   campStatus, campSiegeTarget, buildingPrice, buildingRuined, wallRuined, stoneTargets,
 } from './actions.js';
@@ -390,6 +391,27 @@ const CAMP_REASONS = {
   gold: `Dafür fehlt das Gold (${CAMP_COST}).`,
 };
 
+// Der Ort, vor dem dieses Heer steht und den es einschließen könnte - oder
+// schon einschließt. Eine Belagerung wird erklärt; wer schon davorsteht, tut
+// das hier, ohne noch einmal anzugreifen.
+function siegeButtonHTML(state, army) {
+  const nah = state.cities.filter((c) => c.factionId !== army.factionId
+    && Math.abs(c.col - army.col) + Math.abs(c.row - army.row) <= 1);
+  const laufend = nah.find((c) => c.siege && c.siege.by === army.factionId);
+  if (laufend) {
+    return `<p class="camp-line">⚔️ Belagert ${escapeHTML(laufend.name)}
+      <span class="muted">· der Ort ist abgeschnitten. Marschiert das Heer ab,
+      ist die Belagerung aufgehoben.</span></p>`;
+  }
+  const ziel = nah.find((c) => siegeStatus(state, army, c).can);
+  if (!ziel) return '';
+  return `<button class="siege-btn" data-army="${army.id}" data-city="${ziel.id}">
+      ⛺ ${escapeHTML(ziel.name)} einschließen
+      <small>Keine Steuer, kein Nachschub, kein Bau für den Ort – und nach ein paar
+        Runden beginnt der Hunger. Kostet den Rest des Tages.</small>
+    </button>`;
+}
+
 function campHTML(state, army) {
   if (isFleet(army) || army.embarked) return '';
   const belagert = campSiegeTarget(state, army);
@@ -436,6 +458,7 @@ function renderSelectedArmy(state, army) {
       ${conditionBarHTML('Erschöpfung', army.exhaustion ?? 0, EXHAUSTION_SCALE, 'fatigue')}
     </div>
     <div class="unit-list">${unitBreakdownHTML(army.units, army.factionId)}</div>
+    ${siegeButtonHTML(state, army)}
     ${campHTML(state, army)}
     ${reinforceHTML(state, army, city)}
     ${canDisband
@@ -1789,6 +1812,11 @@ export function renderUI(state, handlers) {
     if (disbandBtn) {
       disbandBtn.addEventListener('click', () => handlers.onDisband(disbandBtn.dataset.army));
     }
+    const siegeBtn = panel.querySelector('.siege-btn');
+    if (siegeBtn && handlers.onSiege) {
+      siegeBtn.addEventListener('click', () => handlers.onSiege(siegeBtn.dataset.army,
+        siegeBtn.dataset.city));
+    }
     const campBtn = panel.querySelector('.camp-btn');
     if (campBtn) {
       campBtn.addEventListener('click', () => handlers.onCamp(campBtn.dataset.army,
@@ -1943,6 +1971,28 @@ function forecastSideHTML(state, factionId, label, engaged, survivors, lossPct) 
 // The forecast the player sees before committing. It is an estimate and says
 // so: the numbers come from playing the same battle through many times, and
 // the real one is fought once.
+// Der zweite Weg über eine Mauer: nicht darüber, sondern davor warten. Die
+// Vorschau nennt ihn, weil die Entscheidung hier fällt - im Sturm oder im
+// Lager -, und sagt auch, wann er nicht offensteht.
+const SIEGE_HINDERNIS = {
+  peace: 'Dazu müsstet ihr im Krieg stehen.',
+  besetzt: 'Ein anderes Reich belagert diesen Ort bereits.',
+  running: 'Du belagerst diesen Ort schon.',
+  fleet: 'Eine Flotte schließt keinen Ort ein – das tut ein Heer.',
+  far: 'Dafür muss das Heer unmittelbar vor dem Ort stehen.',
+};
+
+function siegeHintHTML(preview) {
+  const s = preview.siege;
+  if (!s) return '';
+  return s.can
+    ? `<p class="siege-hint">⛺ <strong>Oder einschließen:</strong> Statt zu stürmen legt
+       sich das Heer vor den Ort. Keine Steuer, kein Nachschub, kein Bau für ihn – und
+       nach ein paar Runden beginnt der Hunger. Es kostet keinen Mann, aber Zeit.</p>`
+    : `<p class="siege-hint muted">⛺ Einschließen geht hier nicht: ${
+  escapeHTML(SIEGE_HINDERNIS[s.reason] || 'nicht möglich.')}</p>`;
+}
+
 export function battlePreviewHTML(state, preview) {
   const attacker = factionById(state, preview.attackerFactionId);
   // Wer im Frieden angreift, greift kein feindliches Heer an, sondern ein
@@ -1984,6 +2034,7 @@ export function battlePreviewHTML(state, preview) {
   return `
     <h2 class="report-title">${escapeHTML(heading)}</h2>
     ${kriegsWarnung}
+    ${siegeHintHTML(preview)}
     <p class="report-meta">${escapeHTML(terrain)}${bonus} · Bewegungskosten ${preview.moveCost}</p>
     <div class="odds-block ${verdict.tone}">
       <div class="odds-bar"><span style="width:${chance}%"></span></div>

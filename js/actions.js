@@ -378,6 +378,25 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
   };
 }
 
+// Ob und von wo aus dieser Ort eingeschlossen werden könnte. Belagert wird
+// aus dem Feld daneben, nicht aus der Stadt: das letzte Feld des Anmarschwegs
+// ist der Platz, an dem sich das Heer eingräbt.
+function siegeOption(state, army, city, entry) {
+  const pfad = entry.path || [];
+  // Das vorletzte Feld des Weges - oder, wenn das Heer schon danebensteht,
+  // sein eigenes.
+  const halt = pfad.length >= 2 ? pfad[pfad.length - 2] : { col: army.col, row: army.row };
+  const dann = { ...army, col: halt.col, row: halt.row };
+  const status = siegeStatus(state, dann, city);
+  return {
+    cityId: city.id,
+    col: halt.col,
+    row: halt.row,
+    can: status.can,
+    reason: status.reason || null,
+  };
+}
+
 // What the player is about to walk into, worked out before anything is
 // committed: the odds, the expected cost, and every modifier that produced
 // them. Changes nothing - not the state, not the campaign's battle sequence.
@@ -428,6 +447,10 @@ export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) 
     arrivalExhaustion,
     // Wie viele Bürger der freie Ort selbst unter die Waffen gebracht hat.
     levy: defence.levy || 0,
+    // Ob sich dieser Ort statt eines Sturms auch einschließen ließe - und von
+    // welchem Feld aus. Die Vorschau stellt beides nebeneinander.
+    siege: defence.city && defence.city.factionId !== army.factionId
+      ? siegeOption(state, army, defence.city, entry) : null,
     // Wem dieser Angriff den Krieg erklären würde - null, wenn er schon läuft.
     declareWarOn: entry.declare || null,
     declareWarName: entry.declare
@@ -2074,12 +2097,14 @@ export function siegeForces(state, city) {
   }
   if (!nachReich.size) return null;
 
-  // Wer sie angefangen hat, behält sie, solange er davorsteht.
-  let halter = city.siege && nachReich.has(city.siege.by) ? city.siege.by : null;
-  if (!halter) {
-    halter = [...nachReich.entries()]
-      .sort((a, b) => b[1].mann - a[1].mann || (a[0] < b[0] ? -1 : 1))[0][0];
-  }
+  // Eine Belagerung entsteht nicht dadurch, dass jemand danebensteht: sie wird
+  // erklärt. Wer eine Stadt belagern will, greift sie an und wählt statt des
+  // Sturms die Belagerung - dann schließt sein Heer den Ort ein. Ohne diese
+  // Entscheidung marschiert ein Heer an einer Stadt vorbei, ohne sie
+  // abzuschneiden. Vorher genügte es, ein Feld daneben stehen zu bleiben, und
+  // jeder Durchmarsch würgte nebenbei eine fremde Stadt ab.
+  const halter = city.siege && nachReich.has(city.siege.by) ? city.siege.by : null;
+  if (!halter) return null;
   const { land, sea } = nachReich.get(halter);
   const daneben = [...nachReich.keys()].filter((id) => id !== halter);
   // Ein Belagerungslager ist etwas anderes als ein Heer, das zufällig
@@ -2116,36 +2141,77 @@ export function siegeInfo(state, city) {
 // Ob einem Hafenort die See gesperrt ist: dann geht kein Heer an Bord und
 // läuft kein Schiff vom Stapel.
 export function cityBlockaded(state, city) {
-  const forces = siegeForces(state, city);
-  return !!forces && forces.sea.length > 0;
+  if (!city || !city.harbour) return false;
+  // Eine Sperre ist keine Belagerung: dafür genügt es, dass Schiffe vor der
+  // Hafeneinfahrt kreuzen. Aushungern kann nur, wer die Belagerung erklärt
+  // hat - aber auslaufen kann aus einem verstellten Hafen niemand.
+  return state.armies.some((army) => army.factionId !== city.factionId
+    && !isPirate(army)
+    && atWar(state, city.factionId, army.factionId)
+    && (isFleet(army) || army.embarked)
+    && Math.abs(army.col - city.col) + Math.abs(army.row - city.row) <= SIEGE_RANGE);
 }
 
 // Einmal je Runde festhalten, seit wann ein Ort belagert wird. Nur die Dauer
 // muss im Spielstand stehen - alles andere ergibt sich aus der Lage.
+// Hält die erklärte Belagerung, oder ist sie zu Ende? Begonnen wird sie
+// nirgends mehr von selbst - das tut `besiegeCity` -, hier wird nur geprüft,
+// ob der Belagerer noch davorsteht.
 export function updateSieges(state) {
-  const begonnen = [];
   for (const city of state.cities) {
-    const forces = siegeForces(state, city);
-    if (!forces) {
-      if (city.siege) {
-        logOwn(state, city.factionId, `🕊 Die Belagerung von ${city.name} ist aufgehoben.`);
-        city.siege = null;
-      }
-      continue;
-    }
-    // Wechselt der Belagerer - der erste zieht ab, ein zweiter steht schon da -,
-    // beginnt die Belagerung von vorn: die Frist bis zum Hunger läuft für den
-    // Neuen neu, er hat die Stadt ja nicht ausgehungert.
-    if (!city.siege || city.siege.by !== forces.factionId) {
-      city.siege = { since: state.turn, by: forces.factionId, factions: [forces.factionId] };
-      begonnen.push(city);
-      const feind = factionById(state, forces.factionId).name;
-      logOwn(state, city.factionId, `⚔️ ${city.name} wird von ${feind} belagert: `
-        + 'keine Steuer, kein Nachschub, kein Bau.');
-    }
+    if (!city.siege) continue;
+    if (siegeForces(state, city)) continue;
+    logOwn(state, city.factionId, `🕊 Die Belagerung von ${city.name} ist aufgehoben.`);
+    logOwn(state, city.siege.by, `Die Belagerung von ${city.name} ist aufgegeben – `
+      + 'vor dem Ort steht niemand mehr.');
+    city.siege = null;
   }
-  return begonnen;
+  // Was in dieser Runde neu eingeschlossen wurde - erklärt wird es im Zug,
+  // gemeldet wird es hier, damit der Rundenwechsel es dem Betroffenen sagen
+  // kann.
+  return state.cities.filter((c) => c.siege && c.siege.since === state.turn);
 }
+
+// --- Eine Belagerung erklären ---------------------------------------------
+// Der Weg dorthin führt über den Angriff: wer eine Stadt anwählt, bekommt die
+// Wahl zwischen Sturm und Belagerung. Der Sturm entscheidet heute, die
+// Belagerung entscheidet in ein paar Runden - dafür ohne Sturm über die Mauer.
+export function siegeStatus(state, army, city) {
+  if (!army || !city) return { can: false, reason: 'none' };
+  // Ein Geschwader schließt einen Ort ein, wenn er einen Hafen hat - vor einer
+  // Binnenstadt liegt keine Flotte. Ein eingeschifftes Heer belagert nicht:
+  // es sitzt auf Transportern und hat weder Graben noch Wall.
+  const zurSee = isFleet(army) || army.embarked;
+  if (zurSee && (army.embarked && !isFleet(army))) return { can: false, reason: 'fleet' };
+  if (zurSee && !city.harbour) return { can: false, reason: 'kein Hafen' };
+  if (city.factionId === army.factionId) return { can: false, reason: 'own' };
+  if (!atWar(state, army.factionId, city.factionId)) return { can: false, reason: 'peace' };
+  const weite = Math.abs(army.col - city.col) + Math.abs(army.row - city.row);
+  if (weite > SIEGE_RANGE) return { can: false, reason: 'far' };
+  // Zwei Reiche belagern denselben Ort nicht zugleich.
+  if (city.siege && city.siege.by !== army.factionId) {
+    return { can: false, reason: 'besetzt', by: city.siege.by };
+  }
+  if (city.siege && city.siege.by === army.factionId) return { can: false, reason: 'running' };
+  return { can: true };
+}
+
+export function besiegeCity(state, armyId, cityId) {
+  const army = state.armies.find((a) => a.id === armyId);
+  const city = state.cities.find((c) => c.id === cityId);
+  const status = siegeStatus(state, army, city);
+  if (!status.can) return { ok: false, reason: status.reason };
+  city.siege = { since: state.turn, by: army.factionId, factions: [army.factionId] };
+  // Wer sich vor eine Stadt legt, marschiert an diesem Tag nicht mehr weiter.
+  army.movement = 0;
+  const feind = factionById(state, army.factionId);
+  logOwn(state, army.factionId, `⚔️ ${army.name} schließt ${city.name} ein.`);
+  logOwn(state, city.factionId, `⚔️ ${city.name} wird von ${feind.name} belagert: `
+    + 'keine Steuer, kein Nachschub, kein Bau.');
+  return { ok: true, city };
+}
+
+
 
 export function siegeTurns(state, city) {
   return city && city.siege ? Math.max(0, state.turn - city.siege.since) : 0;

@@ -47,6 +47,8 @@ let deepSeaMesh = null;
 let paperMesh = null;
 const PAPER_COLOR = '#d9c69b';
 let currentMap = null;
+// Wo Straßen liegen - die Bauwerke im Umland weichen ihnen aus.
+let currentRoads = {};
 let propsGroup = null;
 let roadsGroup = null;
 let tableGroup = null;
@@ -523,6 +525,7 @@ export function buildMap(state) {
   mapCols = state.map.cols;
   mapRows = state.map.rows;
   currentMap = state.map;
+  currentRoads = state.roads || {};
   const props = { trunks: [], leaves: [], rockPeaks: [], snowPeaks: [], oreRock: [], oreVein: [] };
   propsGroup = new THREE.Group();
   roadsGroup = new THREE.Group();
@@ -2459,7 +2462,11 @@ function baugrund(col, row) {
   if (!currentMap) return false;
   if (col < 0 || col >= currentMap.cols || row < 0 || row >= currentMap.rows) return false;
   const tile = currentMap.tiles[row][col];
-  return tile.type !== 'water' && tile.type !== 'mountain';
+  if (tile.type === 'water' || tile.type === 'mountain') return false;
+  // Und nicht auf der Straße: ein Acker quer über den gepflasterten Weg sieht
+  // aus wie ein Versehen, und eines wäre es auch.
+  if (currentRoads[`${col},${row}`]) return false;
+  return true;
 }
 
 function neighbourSpot(city, prefer, taken = []) {
@@ -2792,6 +2799,79 @@ function buildCampRing() {
   return ring;
 }
 
+// --- Die Kolonne ----------------------------------------------------------
+// Ein Heer, das marschiert, ist kein Zeltlager. Für die Dauer des Marsches
+// treten die Zelte ab und eine Kolonne tritt an: eine Reihe von Gestalten
+// hintereinander, versetzt wie eine Marschordnung, dazu vorneweg das
+// Feldzeichen. Sie zeigt auch, wohin es geht - das Lager kann das nicht.
+const COLUMN_MAX = 14;
+
+function buildColumn(color) {
+  const group = new THREE.Group();
+  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
+  const koerper = new THREE.CylinderGeometry(0.3, 0.38, 1.05, 5);
+  const kopf = new THREE.SphereGeometry(0.22, 6, 5);
+  const marschierer = [];
+  for (let i = 0; i < COLUMN_MAX; i++) {
+    const mann = new THREE.Group();
+    const rumpf = new THREE.Mesh(koerper, material);
+    rumpf.position.y = 0.52;
+    mann.add(rumpf);
+    const haupt = new THREE.Mesh(kopf, material);
+    haupt.position.y = 1.2;
+    mann.add(haupt);
+    // Zwei Reihen nebeneinander, Glied für Glied nach hinten versetzt.
+    const glied = Math.floor(i / 2);
+    const reihe = i % 2 ? 0.55 : -0.55;
+    mann.position.set(reihe, 0, -0.9 - glied * 1.05);
+    mann.userData = { phase: i * 0.7 };
+    group.add(mann);
+    marschierer.push(mann);
+  }
+  group.userData = { marschierer, material };
+  return group;
+}
+
+// Wie viele Gestalten die Kolonne zeigt - sie wächst mit der Stärke, wie das
+// Lager, aber sie zählt keine Mann: sie sagt "klein" oder "groß".
+function columnLength(strength) {
+  return Math.max(4, Math.min(COLUMN_MAX, Math.round(strength / 90) + 3));
+}
+
+// --- Die Belagerung auf der Karte -----------------------------------------
+// Ein eingeschlossener Ort sieht anders aus als einer, an dem ein Heer nur
+// vorbeizieht: um ihn herum stehen Sturmpfähle und die Zelte des Belagerers.
+// Der Ring bekommt die Farbe dessen, der davorliegt - man soll auf einen Blick
+// sehen, wessen Belagerung das ist.
+const SIEGE_STAKES = 22;
+const SIEGE_TENTS = 6;
+
+function buildSiegeWorks(scale, color) {
+  const group = new THREE.Group();
+  const radius = 3.4;
+  const holz = new THREE.MeshStandardMaterial({ color: '#4a3a2a', roughness: 1 });
+  const stakeGeometry = new THREE.CylinderGeometry(0.07, 0.11, 1.05, 4);
+  for (let i = 0; i < SIEGE_STAKES; i++) {
+    const winkel = (i / SIEGE_STAKES) * Math.PI * 2;
+    const pfahl = new THREE.Mesh(stakeGeometry, holz);
+    pfahl.position.set(Math.cos(winkel) * radius, 0.5, Math.sin(winkel) * radius);
+    pfahl.rotation.z = (i % 2 ? 1 : -1) * 0.16;
+    group.add(pfahl);
+  }
+  // Die Zelte der Belagerer: nur ein paar, und in der Farbe des Reichs.
+  const tuch = new THREE.MeshStandardMaterial({ color });
+  const zeltGeometry = new THREE.ConeGeometry(0.42, 0.86, 6);
+  for (let i = 0; i < SIEGE_TENTS; i++) {
+    const winkel = (i / SIEGE_TENTS) * Math.PI * 2 + 0.5;
+    const zelt = new THREE.Mesh(zeltGeometry, tuch);
+    zelt.position.set(Math.cos(winkel) * (radius + 0.9), 0.43, Math.sin(winkel) * (radius + 0.9));
+    group.add(zelt);
+  }
+  group.userData = { tuch };
+  group.scale.setScalar(scale);
+  return group;
+}
+
 function syncArmyGroup(state, army, entry) {
   const { group } = entry;
   const faction = factionById(state, army.factionId);
@@ -2823,7 +2903,21 @@ function syncArmyGroup(state, army, entry) {
   }
   if (group.userData.camp) group.userData.camp.visible = camped;
 
-  group.userData.tents.visible = !afloat;
+  // Marschiert das Heer gerade, tritt die Kolonne an die Stelle der Zelte.
+  const marschiert = armyAnimations.has(army.id) && !afloat;
+  if (marschiert && !group.userData.column) {
+    group.userData.column = buildColumn(faction.color);
+    group.add(group.userData.column);
+  }
+  if (group.userData.column) {
+    const column = group.userData.column;
+    column.visible = marschiert;
+    column.userData.material.color.set(faction.color);
+    const zahl = columnLength(unitTotalCount(army.units));
+    column.userData.marschierer.forEach((mann, i) => { mann.visible = i < zahl; });
+  }
+
+  group.userData.tents.visible = !afloat && !marschiert;
   if (group.userData.pole) group.userData.pole.visible = !afloat;
   group.userData.flag.visible = !afloat;
 
@@ -2857,6 +2951,7 @@ function syncArmyGroup(state, army, entry) {
 
   // Das ganze Lager - Zelte, Stange, Banner, Schiff - wächst mit der Stärke.
   tents.scale.setScalar(scale);
+  if (group.userData.column) group.userData.column.scale.setScalar(scale);
   if (group.userData.camp) group.userData.camp.scale.setScalar(scale);
   if (ship) ship.scale.setScalar(0.8 + (scale - 0.68) * 0.55);
   if (group.userData.pole) {
@@ -2957,6 +3052,9 @@ function laneKey(state) {
 }
 
 export function syncEntities(state) {
+  // Straßen kommen im Lauf des Feldzugs dazu; die Bauwerke im Umland richten
+  // sich nach dem Stand von jetzt, nicht nach dem beim Kartenaufbau.
+  currentRoads = state.roads || {};
   const lanes = laneKey(state);
   if (lanes !== laneSignature) {
     laneSignature = lanes;
@@ -2985,6 +3083,20 @@ export function syncEntities(state) {
       }
     }
     if (entry.harbour) entry.harbour.visible = !!city.harbour;
+
+    // Die Belagerung: Pfähle und Zelte um den Ort, solange sie läuft.
+    const belagert = !!city.siege;
+    if (belagert && !entry.siege) {
+      entry.siege = buildSiegeWorks(entry.scale, '#888888');
+      entry.group.add(entry.siege);
+    }
+    if (entry.siege) {
+      entry.siege.visible = belagert;
+      if (belagert) {
+        const feind = factionById(state, city.siege.by);
+        entry.siege.userData.tuch.color.set(feind ? feind.color : '#888888');
+      }
+    }
 
     // Die Äcker entstehen mit der Farm - und verschwinden wieder, wenn eine
     // Eroberung sie niederbrennt.
@@ -3553,6 +3665,17 @@ export function render() {
   if (renderer) renderer.render(scene, camera);
 }
 
+// Ein Bild der Karte, wie sie in diesem Augenblick steht. Der Zeichenpuffer
+// ist außerhalb des Zeichenaufrufs leer - deshalb wird hier neu gezeichnet und
+// unmittelbar danach gelesen. Gebraucht wird das von den Prüfläufen: ein
+// Bildschirmfoto von außen erwischt bei einer bewegten Karte leicht ein
+// früheres Bild.
+export function captureFrame() {
+  if (!renderer) return null;
+  renderer.render(scene, camera);
+  return renderer.domElement.toDataURL('image/png');
+}
+
 function waypointVector(tile) {
   return new THREE.Vector3(worldX(tile.col), surfaceY(tile.col, tile.row), worldZ(tile.row));
 }
@@ -3562,9 +3685,17 @@ function faceHeading(group, dx, dz) {
   group.rotation.y = Math.atan2(dx, dz);
 }
 
-function setMarchBob(group, height) {
+function setMarchBob(group, height, elapsed = 0) {
   const tents = group.userData.tents;
   if (tents) tents.position.y = height;
+  // In der Kolonne wippt nicht der ganze Zug, sondern jeder für sich - eine
+  // Reihe, die im Gleichschritt auf und ab federt, sieht aus wie ein Brett.
+  const column = group.userData.column;
+  if (!column || !column.visible) return;
+  for (const mann of column.userData.marschierer) {
+    if (!mann.visible) continue;
+    mann.position.y = Math.abs(Math.sin(elapsed * 9 + mann.userData.phase)) * 0.22;
+  }
 }
 
 function advanceAnimations(dt) {
@@ -3594,6 +3725,9 @@ function advanceAnimations(dt) {
     if (anim.segment >= anim.points.length - 1) {
       anim.group.position.copy(anim.points[anim.points.length - 1]);
       setMarchBob(anim.group, 0);
+      // Der Marsch ist zu Ende: die Kolonne schlägt ihr Lager auf.
+      if (anim.group.userData.column) anim.group.userData.column.visible = false;
+      if (anim.group.userData.tents) anim.group.userData.tents.visible = true;
       completionQueue.push(anim.onComplete);
       armyAnimations.delete(armyId);
     } else {
@@ -3601,7 +3735,7 @@ function advanceAnimations(dt) {
       const to = anim.points[anim.segment + 1];
       anim.group.position.lerpVectors(from, to, anim.progress);
       faceHeading(anim.group, to.x - from.x, to.z - from.z);
-      setMarchBob(anim.group, Math.abs(Math.sin(anim.elapsed * 11)) * 0.28);
+      setMarchBob(anim.group, Math.abs(Math.sin(anim.elapsed * 11)) * 0.28, anim.elapsed);
     }
   }
   return armyAnimations.size > 0;

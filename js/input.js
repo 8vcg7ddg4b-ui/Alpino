@@ -1,6 +1,6 @@
 import { computeReachable, tileKey } from './pathfind.js';
 import { armyAt, cityAt, playerFaction } from './state.js';
-import { moveArmy, previewTileCombat, moveWarning } from './actions.js';
+import { moveArmy, previewTileCombat, moveWarning, besiegeCity } from './actions.js';
 import {
   pickTile, groundPointAt, panCameraByWorld, panCameraRelative, panCameraByScreen,
   zoomCamera, rotateCamera,
@@ -271,6 +271,47 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
     onChange();
   }
 
+  // Eine Belagerung: das Heer marschiert bis vor den Ort und gräbt sich dort
+  // ein, statt über die Mauer zu gehen. Der Weg dorthin ist derselbe wie beim
+  // Angriff, nur endet er ein Feld früher.
+  function executeSiege(armyId, siege) {
+    const state = getState();
+    if (!state || !siege) return;
+    const marching = state.armies.find((a) => a.id === armyId);
+    if (!marching) return;
+
+    if (onBeforeAction) onBeforeAction();
+    state.reachable = null;
+    const schonDa = marching.col === siege.col && marching.row === siege.row;
+    const origin = { col: marching.col, row: marching.row };
+    let route = null;
+    if (!schonDa) {
+      const entry = computeReachable(state, marching).get(tileKey(siege.col, siege.row));
+      if (!entry) { onChange(); return; }
+      const outcome = moveArmy(state, armyId, siege.col, siege.row);
+      if (!outcome.ok) { onChange(); return; }
+      const survivor = state.armies.find((a) => a.id === armyId);
+      route = buildMarchRoute(entry.path, origin, survivor, siege);
+    }
+
+    const einschliessen = () => {
+      const jetzt = getState();
+      const ergebnis = besiegeCity(jetzt, armyId, siege.cityId);
+      if (ergebnis.ok) sfx.raise();
+      else sfx.denied();
+      clearSelection(jetzt);
+      onChange();
+    };
+
+    if (!route) { einschliessen(); return; }
+    startMarch();
+    animateArmyPath(armyId, route, () => {
+      stopMarch();
+      einschliessen();
+    });
+    onChange();
+  }
+
   function handleClick(e) {
     const state = getState();
     if (!state || state.gameOver || isAnimating()) return;
@@ -314,7 +355,9 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
         if (entry.combat && onPreviewAttack) {
           const preview = previewTileCombat(state, armyId, col, row);
           if (preview) {
-            onPreviewAttack(preview, () => executeMove(armyId, col, row));
+            onPreviewAttack(preview, () => executeMove(armyId, col, row),
+              preview.siege && preview.siege.can
+                ? () => executeSiege(armyId, preview.siege) : null);
             return;
           }
         }
