@@ -3,7 +3,7 @@ import {
   DEFAULT_SETTLEMENT_SIZE, settlementTier, TILE_TYPES,
   CAPITAL_WALL_LEVEL, startingWallLevel, DEFAULT_PLAYER_FACTION, WATCH_ROLE, watchTarget,
   UNIT_ROLES, SHIP_ROLE, RIVER_CROSSING_COST, TRADE_GOODS, START_ROAD_MAX_TILES,
-  ROAD_EARTH,
+  ROAD_EARTH, DEFAULT_TACTIC,
   tileImpassable, tileMoveCost,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
@@ -36,6 +36,11 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
     // Fraktion, sondern dieser eine Mann - seine Eigenschaften stehen ihm im
     // Diplomatiefenster gegenüber wie die aller anderen.
     ruler: f.isNeutral ? null : { ...rulerFor(f.id) },
+    // Die stehenden Schlachtordnungen. Der Spieler ändert sie im Reichsfenster
+    // und vor jedem Angriff; die KI wählt jedes Mal nach dem, was sie
+    // mitbringt.
+    tacticAttack: DEFAULT_TACTIC.angriff,
+    tacticDefence: DEFAULT_TACTIC.verteidigung,
   }));
   const playerName = factions.find((f) => f.isPlayer).name;
 

@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.27.0';
+export const GAME_VERSION = '1.28.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -867,6 +867,106 @@ export function frontageWidth(terrainType, narrowBy = 1) {
 // Der Anteil einer Truppe, der gleichzeitig ins Gefecht kommt.
 export function engagedShare(count, width) {
   return count > width ? width / count : 1;
+}
+
+// --- Schlachtordnungen ----------------------------------------------------
+// Vor jeder Schlacht steht eine Entscheidung, die nichts mit der Zahl der
+// Männer zu tun hat: wie sie stehen. Drei Ordnungen für den Angriff, drei für
+// die Verteidigung, und jede hat ihren Preis.
+//
+// Was eine Ordnung bewirkt, steht in drei Zahlen:
+//   eigen  wie hart die eigene Seite zuschlägt
+//   gegen  wie hart die andere Seite zurückschlägt
+//   front  wie breit die eigene Seite aufmarschiert - davon hängt ab, wie
+//          viele von einer Übermacht überhaupt ins Gefecht kommen
+//   salve  wie schwer die Eröffnung der eigenen Schützen wiegt
+//
+// Keine Ordnung ist ohne Nachteil, und keine ist immer richtig: der Keil
+// bricht die Linie und öffnet die eigenen Flanken, die Umfassung braucht
+// Reiterei, der Beschuss braucht Zeit und Schützen. Wer nichts wählt, ficht
+// in der ersten - so wie ein Heer ohne Befehl in Linie antritt.
+export const TACTICS = {
+  angriff: [
+    {
+      key: 'keil', name: 'Keil', icon: '🔻',
+      kurz: 'Die Spitze bricht die Linie.',
+      note: 'Alles auf einen Punkt: die Spitze trifft hart, die Flanken liegen '
+        + 'offen. Ein Heer, das ohnehin ganz ins Gefecht kommt, holt hier am '
+        + 'meisten heraus – die Übermacht bringt sie nicht zur Geltung.',
+      eigen: 1.09, gegen: 1.06, front: 1, salve: 1,
+    },
+    {
+      key: 'umfassung', name: 'Umfassung', icon: '🪝',
+      kurz: 'Die Reiterei geht um die Flanke.',
+      note: 'Breit aufmarschieren und die Flügel schließen: mehr Männer kommen '
+        + 'ins Gefecht, und darum lohnt sie erst bei Übermacht. Wer sich so weit '
+        + 'öffnet, wird auch selbst getroffen. Ohne Reiterei ist es nur ein '
+        + 'weiter Weg – erst ab einem Fünftel Reiterei trägt sie.',
+      eigen: 1, gegen: 1.05, front: 1.07, salve: 1,
+      reiterei: { anteil: 0.2, mit: 1.04, ohne: 0.97 },
+    },
+    {
+      key: 'beschuss', name: 'Beschuss', icon: '🏹',
+      kurz: 'Erst der Hagel, dann das Handgemenge.',
+      note: 'Die Schützen bekommen ihre Zeit: die Eröffnung wiegt fast doppelt. '
+        + 'Dafür geht das Fußvolk zögernd vor – und wo es keine Schützen gibt, '
+        + 'ist es nur Zögern.',
+      eigen: 0.97, gegen: 0.98, front: 1, salve: 1.3,
+    },
+  ],
+  verteidigung: [
+    {
+      key: 'schildwall', name: 'Schildwall', icon: '🛡️',
+      kurz: 'Stehen und aushalten.',
+      note: 'Schild an Schild: der Stoß des Angreifers verpufft an der Wand. '
+        + 'Aus einer Wand heraus schlägt niemand weit aus.',
+      eigen: 0.975, gegen: 0.95, front: 0.985, salve: 1,
+    },
+    {
+      key: 'breiteFront', name: 'Breite Front', icon: '📏',
+      kurz: 'Jeden Mann in die Linie.',
+      note: 'Die Linie so weit ziehen, wie das Gelände es hergibt: von einer '
+        + 'Übermacht kommt viel mehr ins Gefecht. Dünn ist sie überall.',
+      eigen: 0.985, gegen: 1.015, front: 1.08, salve: 1,
+    },
+    {
+      key: 'gegenstoss', name: 'Gegenstoß', icon: '⚡',
+      kurz: 'Nicht warten, sondern treffen.',
+      note: 'Dem Angreifer entgegen, ehe er steht: das trifft hart und lässt '
+        + 'die eigene Ordnung offen. Die Entscheidung fällt schnell – in die '
+        + 'eine oder die andere Richtung.',
+      eigen: 1.06, gegen: 1.03, front: 1, salve: 1,
+    },
+  ],
+};
+
+export const DEFAULT_TACTIC = { angriff: 'keil', verteidigung: 'schildwall' };
+
+// Die Ordnungen einer Seite - `seite` ist 'angriff' oder 'verteidigung'.
+export function tacticsFor(seite) {
+  return TACTICS[seite] || TACTICS.angriff;
+}
+
+// Eine Ordnung am Namen, mit der ersten ihrer Seite als Rückfall: ein Heer
+// ohne Befehl tritt in Linie an.
+export function tacticByKey(seite, key) {
+  const liste = tacticsFor(seite);
+  return liste.find((t) => t.key === key) || liste[0];
+}
+
+// Was diese Ordnung für diese Truppe wirklich wiegt. Die Umfassung hängt an
+// der Reiterei; alles andere gilt, wie es dasteht.
+export function tacticEffect(seite, key, units = null) {
+  const t = tacticByKey(seite, key);
+  const wirkung = { eigen: t.eigen, gegen: t.gegen, front: t.front, salve: t.salve };
+  if (t.reiterei && units) {
+    const mann = COMBAT_ROLES.reduce((sum, k) => sum + (units[k] || 0), 0);
+    const reiter = units.cavalry || 0;
+    const genug = mann > 0 && reiter / mann >= t.reiterei.anteil;
+    wirkung.eigen *= genug ? t.reiterei.mit : t.reiterei.ohne;
+    wirkung.reiterei = genug;
+  }
+  return wirkung;
 }
 
 export const MAX_WALL_LEVEL = WALL_LEVELS.length;

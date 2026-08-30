@@ -10,6 +10,7 @@ import {
   STONE_ROAD_MOVE_COST, roadLevelOf, roadStepCost,
   CAMP_NAME, CAMP_COST, CAMP_DEFENCE,
   TRANSPORT_NAME, transportCount,
+  tacticsFor, tacticByKey, tacticEffect,
   RIVER_CROSSING_COST,
   MINE_NAME, MINE_ORE, MINE_RANGE, MINE_MIN_ORE,
   BUILDINGS, buildingDef, buildingName, mineIncome, TAX_PER_INHABITANTS,
@@ -242,6 +243,9 @@ export function battleReportHTML(state, report) {
     <h2 class="report-title">${place}</h2>
     <p class="report-meta">Runde ${report.turn} · ${escapeHTML(terrain)}${bonus}</p>
     <p class="report-meta">Entschieden: ${escapeHTML(report.endedBy || '—')}</p>
+    <p class="report-meta">Schlachtordnung – Angreifer:
+      ${escapeHTML(tacticLabel('angriff', report.attackerTactic))} ·
+      Verteidiger: ${escapeHTML(tacticLabel('verteidigung', report.defenderTactic))}</p>
     <p class="report-meta">Verfassung – Angreifer: Moral ${Math.round(report.attackerMorale ?? 100)},
       Erschöpfung ${Math.round(report.attackerExhaustion ?? 0)} ·
       Verteidiger: Moral ${Math.round(report.defenderMorale ?? 100)},
@@ -1646,6 +1650,17 @@ export function empireHTML(state) {
       </tr></tfoot>
     </table>` : '<p class="muted">Kein Ort mehr in eigener Hand.</p>'}
 
+    <div class="tactic-block">
+      <p class="road-head">🛡️ Stehende Schlachtordnung
+        <span class="muted">· wie deine Heere und Orte sich wehren, wenn du
+        angegriffen wirst</span></p>
+      <p class="emp-note muted">Wer angegriffen wird, wird nicht gefragt: ein
+        fremdes Heer steht vor dem Tor, und der Befehl muss vorher gegeben sein.
+        Für den Angriff wählst du die Ordnung jedes Mal neu – in der
+        Kampfvorschau.</p>
+      ${tacticPickerHTML('verteidigung', player.tacticDefence, null, 'verteidigung')}
+    </div>
+
     ${held.length ? `<p class="emp-note">${held.map((w) =>
     `${w.wonder ? '🏛️' : '🗿'} ${escapeHTML(w.name)}`).join(' · ')}</p>` : ''}
     ${belagerte.length ? `<p class="emp-note">⚔️ ${belagerte.length === 1
@@ -2024,6 +2039,36 @@ export function noticeFromNews(meldung) {
   return null;
 }
 
+// --- Die Schlachtordnung --------------------------------------------------
+// Drei Ordnungen je Seite, und jede hat ihren Preis. Der Spieler wählt die
+// Angriffsordnung vor jedem Angriff neu; die Verteidigungsordnung ist ein
+// stehender Befehl, denn wenn ein fremdes Heer vor dem Tor steht, ist niemand
+// mehr da, den man fragen könnte.
+export function tacticPickerHTML(seite, gewaehlt, units = null, name = 'tactic') {
+  const liste = tacticsFor(seite);
+  const knoepfe = liste.map((t) => {
+    const wirkung = tacticEffect(seite, t.key, units);
+    // Wo eine Ordnung an einer Bedingung hängt, steht hier, ob sie erfüllt ist.
+    const hinweis = wirkung.reiterei === false
+      ? ' <span class="tactic-warn">· zu wenig Reiterei</span>'
+      : wirkung.reiterei === true
+        ? ' <span class="tactic-ok">· Reiterei genügt</span>' : '';
+    return `<button type="button" class="tactic-btn${t.key === gewaehlt ? ' active' : ''}"
+      data-tactic-group="${escapeHTML(name)}" data-tactic-side="${escapeHTML(seite)}"
+      data-tactic="${escapeHTML(t.key)}">
+      <span class="tactic-head">${t.icon} <strong>${escapeHTML(t.name)}</strong>${hinweis}</span>
+      <span class="tactic-note">${escapeHTML(t.note)}</span>
+    </button>`;
+  }).join('');
+  return `<div class="tactic-picker" data-tactic-group="${escapeHTML(name)}">${knoepfe}</div>`;
+}
+
+// Wie eine Ordnung in einem Bericht genannt wird.
+export function tacticLabel(seite, key) {
+  const t = tacticByKey(seite, key);
+  return `${t.icon} ${t.name}`;
+}
+
 export function battlePreviewHTML(state, preview) {
   const attacker = factionById(state, preview.attackerFactionId);
   // Wer im Frieden angreift, greift kein feindliches Heer an, sondern ein
@@ -2071,9 +2116,21 @@ export function battlePreviewHTML(state, preview) {
     ? ` · Geländevorteil für den Verteidiger: +${Math.round(f.terrainBonus * 15)}% Verteidigung`
     : ' · kein Geländevorteil';
 
+  // Die Schlachtordnung steht über der Prognose: sie ist die eine
+  // Entscheidung, die der Spieler hier noch treffen kann, und die Prognose
+  // darunter rechnet schon mit ihr.
+  const ordnung = `<div class="tactic-block">
+      <p class="road-head">⚔️ Schlachtordnung
+        <span class="muted">· der Verteidiger steht in
+        ${escapeHTML(tacticLabel('verteidigung', preview.defenderTactic))}</span></p>
+      ${tacticPickerHTML('angriff', preview.attackerTactic, preview.attackerEngaged
+    || (preview.forecast && preview.forecast.attackerEngaged), 'angriff')}
+    </div>`;
+
   return `
     <h2 class="report-title">${escapeHTML(heading)}</h2>
     ${kriegsWarnung}${grenzWarnung}
+    ${ordnung}
     ${siegeHintHTML(preview)}
     <p class="report-meta">${escapeHTML(terrain)}${bonus} · Bewegungskosten ${preview.moveCost}</p>
     <div class="odds-block ${verdict.tone}">

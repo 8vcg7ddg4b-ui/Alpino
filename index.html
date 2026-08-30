@@ -42,6 +42,21 @@
       window.addEventListener('error', function (event) {
         // Ignore failed sub-resources (a missing favicon is not a boot failure).
         if (event.target && event.target !== window) return;
+        // Läuft das Spiel schon, ist ein Fehler kein Startfehler: die Tafel
+        // "konnte nicht starten" mitten im Feldzug ist eine Falschaussage und
+        // legt dazu noch die Karte darunter lahm. Dann genügt eine Zeile am
+        // unteren Rand, und der Feldzug läuft weiter.
+        if (window.__spqrReady) {
+          var toast = document.getElementById('toast');
+          if (toast) {
+            toast.textContent = '⚠ Etwas ist schiefgegangen: '
+              + (event.message || 'unbekannter Fehler')
+              + ' – der Feldzug läuft weiter.';
+            toast.classList.remove('hidden');
+            setTimeout(function () { toast.classList.add('hidden'); }, 9000);
+          }
+          return;
+        }
         show(event.message || 'Unbekannter Fehler beim Laden des Spiels.');
       });
       window.addEventListener('load', function () {
@@ -283,6 +298,12 @@
     <div class="report-box">
       <button id="reportClose" class="report-close" title="Schließen">✕</button>
       <div id="reportBody"></div>
+      <!-- Auch eine Schlacht, in die man nicht selbst hineingezogen ist -
+           ein Angriff auf die eigenen Orte -, lässt sich ansehen. Der Knopf
+           steht unter jedem Bericht, zu dem es etwas zu zeigen gibt. -->
+      <div class="report-actions">
+        <button id="reportWatch" class="preview-watch">🎬 Die Schlacht ansehen</button>
+      </div>
     </div>
   </div>
 

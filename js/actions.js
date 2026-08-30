@@ -3,6 +3,7 @@ import {
   unitDef, MAX_MOVEMENT, cityTax,
   RECRUIT_BATCH, recruitPopCost, RECRUIT_MIN_POPULATION,
   TILE_TYPES, settlementTier, garrisonCapacity,
+  DEFAULT_TACTIC, tacticByKey,
   MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
   MORALE_REST, MORALE_REST_IN_CITY, EXHAUSTION_PER_MOVE, EXHAUSTION_REST,
   EXHAUSTION_REST_IN_CITY, EXHAUSTION_PER_BATTLE,
@@ -230,6 +231,11 @@ function recordBattle(state, opts) {
     attackerExperience: attackerExperience ?? null,
     defenderExperience: defenderExperience ?? null,
     attackerVeterancy: result.attackerVeterancy,
+    // In welcher Schlachtordnung jede Seite gefochten hat.
+    attackerTactic: result.attackerTactic,
+    defenderTactic: result.defenderTactic,
+    attackerTacticEffect: result.attackerTacticEffect,
+    defenderTacticEffect: result.defenderTacticEffect,
     defenderVeterancy: result.defenderVeterancy,
     weatherKey: weather ? weather.key : null,
     weatherName: weather ? weather.name : null,
@@ -350,6 +356,11 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
     modifiers: {
       attackerMorale: army.morale,
       attackerExhaustion: army.exhaustion,
+      // Die Schlachtordnung: der Angreifer wählt sie vor diesem Angriff, der
+      // Verteidiger hat sie als stehenden Befehl gegeben. Wer nichts befohlen
+      // hat, tritt in der ersten seiner Seite an. Sie steht vor dem Einstreuen
+      // der Überschreibungen: die Vorschau darf sie ersetzen.
+      attackerTactic: tacticOf(state, army.factionId, 'angriff', army),
       ...attackerOverrides,
       defenderMorale: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'morale'),
       defenderExhaustion: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'exhaustion'),
@@ -367,6 +378,7 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       // wenn ihre Werft inzwischen eine andere baut.
       attackerShipKind: army.shipKind || null,
       defenderShipKind: (defendingArmies.find((a) => a.shipKind) || {}).shipKind || null,
+      defenderTactic: tacticOf(state, defenderFactionId, 'verteidigung'),
       ...sky.modifiers,
       // Wetter und Seegang wirken beide auf die Waffengattungen; sie werden
       // multipliziert, nicht gegeneinander ausgetauscht. Für die Anzeige
@@ -377,6 +389,31 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       seaScale: atSea ? SEA_UNIT_SCALE : null,
     },
   };
+}
+
+// --- Schlachtordnungen ----------------------------------------------------
+// Jede Fraktion hat zwei stehende Befehle: eine Ordnung für den Angriff und
+// eine für die Verteidigung. Der Spieler setzt sie selbst - die Angriffsordnung
+// vor jedem Angriff in der Vorschau, die Verteidigungsordnung als stehenden
+// Befehl im Reichsfenster. Die KI wählt nach dem, was sie mitbringt.
+//
+// Ein einzelnes Heer darf eine eigene Angriffsordnung tragen (`army.tactic`);
+// hat es keine, gilt die des Reichs.
+export function tacticOf(state, factionId, seite, army = null) {
+  if (seite === 'angriff' && army && army.tactic) return army.tactic;
+  const faction = factionById(state, factionId);
+  if (!faction) return DEFAULT_TACTIC[seite];
+  const feld = seite === 'angriff' ? 'tacticAttack' : 'tacticDefence';
+  return faction[feld] || DEFAULT_TACTIC[seite];
+}
+
+// Setzt den stehenden Befehl einer Fraktion.
+export function setTactic(state, factionId, seite, key) {
+  const faction = factionById(state, factionId);
+  if (!faction) return { ok: false };
+  const ordnung = tacticByKey(seite, key);
+  faction[seite === 'angriff' ? 'tacticAttack' : 'tacticDefence'] = ordnung.key;
+  return { ok: true, tactic: ordnung };
 }
 
 // Ob und von wo aus dieser Ort eingeschlossen werden könnte. Belagert wird
@@ -401,7 +438,8 @@ function siegeOption(state, army, city, entry) {
 // What the player is about to walk into, worked out before anything is
 // committed: the odds, the expected cost, and every modifier that produced
 // them. Changes nothing - not the state, not the campaign's battle sequence.
-export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) {
+export function previewTileCombat(state, armyId, destCol, destRow, sampleCount,
+  tacticOverride = null) {
   const army = state.armies.find((a) => a.id === armyId);
   if (!army) return null;
   const entry = computeReachable(state, army).get(tileKey(destCol, destRow));
@@ -414,6 +452,9 @@ export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) 
   );
   const defence = gatherDefence(state, army, destCol, destRow, {
     attackerExhaustion: arrivalExhaustion,
+    // Die Vorschau rechnet mit der Ordnung, die im Fenster gerade gewählt ist -
+    // sonst verspräche sie etwas anderes, als hinterher gefochten wird.
+    ...(tacticOverride ? { attackerTactic: tacticByKey('angriff', tacticOverride).key } : {}),
   });
   const attackerFaction = factionById(state, army.factionId);
   const defenderFaction = factionById(
@@ -444,6 +485,10 @@ export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) 
     attackerExperience: defence.attackerExperience,
     defenderExperience: defence.defenceExperience,
     attackerVeterancy: defence.modifiers.attackerVeterancy,
+    // Die Ordnung, mit der die Vorschau gerechnet hat - und die Liste, aus der
+    // gewählt wird.
+    attackerTactic: defence.modifiers.attackerTactic,
+    defenderTactic: defence.modifiers.defenderTactic,
     defenderVeterancy: defence.modifiers.defenderVeterancy,
     arrivalExhaustion,
     // Wie viele Bürger der freie Ort selbst unter die Waffen gebracht hat.

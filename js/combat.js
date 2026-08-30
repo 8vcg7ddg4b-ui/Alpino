@@ -3,6 +3,7 @@
 // vorkommt und dort mitkämpft.
 import { unitDefs, COMBAT_ROLES, TILE_TYPES, BATTLE_PREVIEW_SAMPLES,
   frontageWidth, engagedShare, SHIP_ROLE, SHIP_TYPES,
+  tacticEffect, tacticByKey,
   wallAssaultScale } from './data.js';
 import { mulberry32 } from './prng.js';
 
@@ -66,7 +67,15 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     // Eine Flotte fährt die Bauart, mit der sie vom Stapel lief - nicht die,
     // die ihre Werft heute baut. Wer keine mitgibt, fährt die der Fraktion.
     attackerShipKind = null, defenderShipKind = null,
+    // Die Schlachtordnung, in der jede Seite antritt. Was sie bewirkt, steht
+    // in `TACTICS` (data.js); hier wird sie nur eingerechnet.
+    attackerTactic = null, defenderTactic = null,
   } = modifiers;
+
+  // Erst ausrechnen, was die beiden Ordnungen für diese beiden Truppen wiegen -
+  // die Umfassung hängt an der Reiterei, die sie mitbringt.
+  const atkOrdnung = tacticEffect('angriff', attackerTactic, attackerUnitsIn);
+  const defOrdnung = tacticEffect('verteidigung', defenderTactic, defenderUnitsIn);
 
   const attackerDefs = withShipKind(unitDefs(attackerFactionId), attackerShipKind);
   const defenderDefs = withShipKind(unitDefs(defenderFactionId), defenderShipKind);
@@ -83,8 +92,9 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
   // Wer stürmt, kommt nur an Tor und Bresche heran: je stärker die Mauer,
   // desto schmaler die Front, auf der überhaupt gefochten werden kann. Die
   // Verteidiger stehen auf ihrer eigenen Mauer und werden davon nicht enger.
-  const attackerFrontage = frontageWidth(terrainType, wallMultiplier);
-  const defenderFrontage = frontageWidth(terrainType);
+  // Und die Ordnung entscheidet mit, wie breit jede Seite aufmarschiert.
+  const attackerFrontage = frontageWidth(terrainType, wallMultiplier) * atkOrdnung.front;
+  const defenderFrontage = frontageWidth(terrainType) * defOrdnung.front;
 
   const startAtkStrength = totalStrength(attacker, attackerDefs);
   const startDefStrength = totalStrength(defender, defenderDefs);
@@ -108,16 +118,20 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
       // Wer eine Mauer stürmt, tut das zu Fuß: die Reiterei zählt vor einer
       // Befestigung kaum noch, die Bogenschützen etwas weniger.
       atkPower += (attacker[key] || 0) * atkDef.attack
-        * (ranged && atkDef.ranged ? 1.6 : 1) * conditions
+        * (ranged && atkDef.ranged ? 1 + 0.6 * atkOrdnung.salve : 1) * conditions
         * wallAssaultScale(key, wallMultiplier);
       defPower += (defender[key] || 0) * defDef.defense * (1 + terrainBonus * 0.15)
-        * (ranged && defDef.ranged ? 1.4 : 1) * conditions;
+        * (ranged && defDef.ranged ? 1 + 0.4 * defOrdnung.salve : 1) * conditions;
     }
     const volley = ranged;
     ranged = false;
 
-    atkPower *= attackerCondition * attackerMultiplier * attackerVeterancy;
-    defPower *= defenderCondition * wallMultiplier * defenderMultiplier * defenderVeterancy;
+    // Die eigene Ordnung verstärkt den eigenen Schlag, die des Gegners lässt
+    // ihn härter zurückschlagen: der Keil trifft schwer und öffnet die Flanken.
+    atkPower *= attackerCondition * attackerMultiplier * attackerVeterancy
+      * atkOrdnung.eigen * defOrdnung.gegen;
+    defPower *= defenderCondition * wallMultiplier * defenderMultiplier * defenderVeterancy
+      * defOrdnung.eigen * atkOrdnung.gegen;
 
     // Was nicht an die Front passt, wartet dahinter. Fällt vorne genug aus,
     // rückt es nach - deshalb wird der Anteil jede Runde neu bestimmt.
@@ -189,6 +203,11 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     openingVolley,
     attackerVeterancy,
     defenderVeterancy,
+    // Welche Ordnung jede Seite gefochten hat - der Bericht nennt sie.
+    attackerTactic: tacticByKey('angriff', attackerTactic).key,
+    defenderTactic: tacticByKey('verteidigung', defenderTactic).key,
+    attackerTacticEffect: atkOrdnung,
+    defenderTacticEffect: defOrdnung,
     attackerMorale,
     attackerExhaustion,
     defenderMorale,
@@ -315,6 +334,12 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     openingVolley: modifiers.openingVolley !== false,
     attackerVeterancy: modifiers.attackerVeterancy ?? 1,
     defenderVeterancy: modifiers.defenderVeterancy ?? 1,
+    // Die Vorschau rechnet mit derselben Ordnung, die später gefochten wird -
+    // sonst verspräche sie etwas anderes, als hinterher geschieht.
+    attackerTactic: tacticByKey('angriff', modifiers.attackerTactic).key,
+    defenderTactic: tacticByKey('verteidigung', modifiers.defenderTactic).key,
+    attackerTacticEffect: sample ? sample.attackerTacticEffect : null,
+    defenderTacticEffect: sample ? sample.defenderTacticEffect : null,
     attackerFactionId: modifiers.attackerFactionId,
     defenderFactionId: modifiers.defenderFactionId,
     attackerMorale: modifiers.attackerMorale ?? 100,

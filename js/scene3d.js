@@ -2532,6 +2532,7 @@ function buildMine(scale) {
   halde.position.set(1.15 * scale, 0.27 * scale, 0.55 * scale);
   mine.add(halde);
 
+  addFoundation(mine);
   return mine;
 }
 
@@ -2596,10 +2597,35 @@ function buildFarm(scale) {
   speicher.visible = false;
   farm.add(speicher);
   farm.userData = { speicher };
+  addFoundation(farm, 0.1);
   return farm;
 }
 
 
+
+// Ein Fundament unter einem Bauwerk außerhalb des Orts - dieselbe Terrasse wie
+// unter dem Ort selbst, nur klein. Auch ein Acker, eine Kaserne oder ein Forum
+// steht auf der Höhe der Feldmitte, und auch unter ihnen fällt das Gelände:
+// eine Ecke stand in der Luft, die andere im Boden.
+//
+// Die Grundfläche wird nicht abgezählt, sondern gemessen: die Hülle über alles,
+// was zu diesem Bauwerk gehört, plus ein Rand. Wie tief die Platte reicht,
+// entscheidet erst `placeAt` - da steht fest, wo im Gelände sie liegt.
+function addFoundation(group, rand = 0.24) {
+  const box = new THREE.Box3().setFromObject(group);
+  if (!Number.isFinite(box.min.x) || !Number.isFinite(box.min.z)) return null;
+  const breite = (box.max.x - box.min.x) + rand * 2;
+  const tiefe = (box.max.z - box.min.z) + rand * 2;
+  const platte = new THREE.Mesh(
+    new THREE.BoxGeometry(breite, 1, tiefe), CITY_MATERIALS.terrace
+  );
+  platte.position.set((box.max.x + box.min.x) / 2, -0.5, (box.max.z + box.min.z) / 2);
+  group.add(platte);
+  group.userData = Object.assign({}, group.userData, {
+    fundament: platte, grundRadius: Math.max(breite, tiefe) / 2,
+  });
+  return platte;
+}
 
 // --- Kaserne, Speicher, Forum und Werft ------------------------------------
 // Was ein Ort bauen kann, soll man ihm auch ansehen. Acker, Viadukt, Stollen
@@ -2667,6 +2693,7 @@ function buildBarracks(scale) {
     arm.position.set(x * scale, 0.74 * scale, 0.35 * scale);
     kaserne.add(arm);
   }
+  addFoundation(kaserne);
   return kaserne;
 }
 
@@ -2768,6 +2795,7 @@ function buildForum(scale) {
   );
   dach.position.y = 1.4 * scale;
   forum.add(dach);
+  addFoundation(forum);
   return forum;
 }
 
@@ -2940,7 +2968,24 @@ function placeAt(group, city, cityY, spot, abstand = 1, optionen = {}) {
   // halbe Höhendifferenz zum Nachbarfeld, und ein Bauwerk, das nicht genau
   // auf einer Feldmitte steht - am Ortsrand, am Feldrain -, stand damit im
   // Hang oder schwebte darüber.
-  group.position.set(lx, bandY(worldX(city.col) + lx, worldZ(city.row) + lz) - cityY, lz);
+  const wx = worldX(city.col) + lx;
+  const wz = worldZ(city.row) + lz;
+  const oben = bandY(wx, wz);
+  group.position.set(lx, oben - cityY, lz);
+  // Und wie tief das Fundament reicht: bis unter die tiefste Stelle des
+  // Bodens, den es überdeckt. In der Ebene ist das eine Handbreit, am Hang
+  // ein halber Meter - sichtbar ist ohnehin nur, was aus dem Boden ragt.
+  const platte = group.userData && group.userData.fundament;
+  if (platte) {
+    const r = group.userData.grundRadius;
+    let tief = 0.3;
+    for (const [dx, dz] of [[-r, -r], [r, -r], [-r, r], [r, r], [-r, 0], [r, 0],
+      [0, -r], [0, r]]) {
+      tief = Math.max(tief, oben - bandY(wx + dx, wz + dz) + 0.22);
+    }
+    platte.scale.y = tief;
+    platte.position.y = -tief / 2;
+  }
   // Auf den rechten Winkel gerundet: das Bauwerk steht dann parallel zum
   // Feldraster, auch wenn es auf einem Eckfeld liegt.
   group.rotation.y = gerade

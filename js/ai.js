@@ -1,7 +1,7 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost, shipTypesOf,
   wallLevelInfo, TRADE_ROUTE_COST, MINE_COST, SHIPYARD_COST, CAMP_COST,
-  BUILDINGS, buildingDef,
+  BUILDINGS, buildingDef, FRONTAGE_BASE,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
@@ -840,10 +840,42 @@ export function independentsTakeTurn(state) {
   }
 }
 
+// --- Die Schlachtordnung der KI -------------------------------------------
+// Ein Feldherr wählt nicht nach Laune, sondern nach dem, was er mitbringt: wer
+// Reiterei hat und in der Übermacht steht, umfasst; wer viele Schützen hat,
+// lässt sie zuerst arbeiten; sonst geht er im Keil vor. Verteidigt wird nach
+// dem Wesen des Herrschers: der Draufgänger stößt entgegen, der Vorsichtige
+// stellt den Schildwall, wer dazwischenliegt zieht die Linie breit.
+function aiChooseTactics(state, faction) {
+  const heere = state.armies.filter((a) => a.factionId === faction.id && !a.embarked);
+  let mann = 0;
+  let reiter = 0;
+  let schuetzen = 0;
+  for (const heer of heere) {
+    mann += unitTotalCount(heer.units);
+    reiter += heer.units.cavalry || 0;
+    schuetzen += heer.units.ranged || 0;
+  }
+  const anteil = (n) => (mann > 0 ? n / mann : 0);
+  // Die Übermacht misst sich daran, ob überhaupt alle ins Gefecht kämen: erst
+  // ab der Frontbreite lohnt es, sich breiter zu stellen.
+  const grosseHeere = heere.some((a) => unitTotalCount(a.units) > FRONTAGE_BASE * 0.9);
+  faction.tacticAttack = anteil(reiter) >= 0.2 && grosseHeere ? 'umfassung'
+    : anteil(schuetzen) >= 0.3 ? 'beschuss'
+      : 'keil';
+  const ruler = faction.ruler || {};
+  const lust = ruler.angriffslust ?? 50;
+  faction.tacticDefence = lust >= 70 ? 'gegenstoss'
+    : lust <= 40 ? 'schildwall'
+      : 'breiteFront';
+}
+
 export function aiTakeTurn(state, faction) {
   // Was der Fraktion gerade droht, entscheidet über alles Weitere: wo die
   // Wache steht, wo gemauert und wo ausgehoben wird.
   const threats = threatsAgainst(state, faction);
+  // Und in welcher Ordnung ihre Heere in dieser Runde fechten.
+  aiChooseTactics(state, faction);
   // Movement first: a fleet that is needed this turn should not find the
   // treasury already spent on another batch of recruits.
   const { savingForFleet, harbourWanted } = aiMilitary(state, faction, threats);

@@ -22,7 +22,7 @@ import {
   buyBuilding, advanceConstruction, mineIncomeOf,
   updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp, besiegeCity,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations, growSettlements,
-  escortStrandedArmies, blockadingFleets,
+  escortStrandedArmies, blockadingFleets, setTactic, previewTileCombat,
 } from './actions.js';
 import {
   offerPeace, declareWar, sendGift, rulersTakeTurn, rulerOf, GIFT_COST,
@@ -1199,13 +1199,25 @@ function undoLastAction() {
   refresh();
 }
 
+// Welcher Bericht gerade offen ist - der Knopf darunter zeigt genau diese
+// Schlacht.
+let offenerBericht = null;
+
 function showBattleReport(reportOrId) {
   if (!state) return;
   const report = typeof reportOrId === 'string'
     ? state.battleReports.find((r) => r.id === reportOrId)
     : reportOrId;
   if (!report) return;
+  offenerBericht = report;
   document.getElementById('reportBody').innerHTML = battleReportHTML(state, report);
+  // Anzusehen gibt es etwas, wo überhaupt gefochten wurde: ein Ort, der
+  // kampflos fiel, hat kein Schaubild.
+  const knopf = document.getElementById('reportWatch');
+  if (knopf) {
+    knopf.classList.toggle('hidden',
+      !(report.rounds && report.rounds.length) || getSetting('battleView') === 'nie');
+  }
   reportOverlay.classList.remove('hidden');
 }
 
@@ -1226,6 +1238,11 @@ function hideBattlePreview() {
 
 // The forecast, and the decision it exists for. Nothing has happened yet when
 // this opens: cancelling leaves the army exactly where it stood.
+// Welcher Angriff gerade in der Vorschau steht - für den Fall, dass der
+// Spieler die Schlachtordnung wechselt: dann wird die Prognose mit ihr neu
+// gerechnet, sonst verspräche sie etwas anderes, als hinterher gefochten wird.
+let vorschauZug = null;
+
 function showBattlePreview(preview, confirm, siegeConfirm) {
   if (!state) return;
   // Turned off, the attack simply happens - the forecast was a courtesy, not
@@ -1240,6 +1257,7 @@ function showBattlePreview(preview, confirm, siegeConfirm) {
     askWatch(preview, confirm);
     return;
   }
+  vorschauZug = { armyId: preview.armyId, col: preview.col, row: preview.row };
   document.getElementById('previewBody').innerHTML = battlePreviewHTML(state, preview);
   const attackBtn = document.getElementById('previewAttack');
   const modus = getSetting('battleView');
@@ -1318,10 +1336,11 @@ function closeStage(weiter) {
   if (run) run();
 }
 
-// Öffnet das Schaubild. Gibt zurück, ob es übernommen hat - sagt es nein,
-// läuft alles weiter wie ohne Fenster.
-function watchBattle(report, weiter) {
-  if (!wantsWatch() || !stageOverlay || !state || !report) return false;
+// Öffnet das Schaubild zu einem Bericht - gleich, ob man selbst angegriffen
+// hat oder angegriffen worden ist. Gibt zurück, ob es übernommen hat; sagt es
+// nein, läuft alles weiter wie ohne Fenster.
+function zeigeSchlacht(report, weiter) {
+  if (!stageOverlay || !state || !report) return false;
   const canvas = document.getElementById('battleCanvas');
   if (!canvas) return false;
   const angreifer = factionById(state, report.attackerFactionId);
@@ -1365,6 +1384,14 @@ function watchBattle(report, weiter) {
           + `${r.verteidiger.toLocaleString('de-DE')} Mann stehen noch.`;
       }
     },
+    // Gibt das Gerät keinen zweiten WebGL-Zusammenhang her, bleibt das
+    // Schaubild zu. Das ist kein Fehler des Feldzugs, und gesagt wird es
+    // trotzdem - sonst stünde da nur ein schwarzes Fenster.
+    onUnavailable: () => {
+      closeStage(false);
+      showToast('Das Schaubild braucht eine zweite 3D-Ansicht, und dieses Gerät '
+        + 'gibt keine her. Der Schlachtbericht steht trotzdem bereit.');
+    },
     onEnd: () => {
       const sieger = report.outcome === 'attacker' ? angreifer : verteidiger;
       if (runde) runde.textContent = 'Entschieden';
@@ -1381,11 +1408,61 @@ function watchBattle(report, weiter) {
   return true;
 }
 
+// Vor dem eigenen Angriff: nur zeigen, wenn danach gefragt wurde.
+function watchBattle(report, weiter) {
+  if (!wantsWatch()) return false;
+  return zeigeSchlacht(report, weiter);
+}
+
+// --- Die Schlachtordnung --------------------------------------------------
+// Zwei Stellen, an denen gewählt wird: die Angriffsordnung in der Vorschau
+// (für diesen einen Angriff, und sie bleibt als Vorgabe stehen) und die
+// Verteidigungsordnung im Reichsfenster (als stehender Befehl). Beide Male
+// sind es dieselben Knöpfe, deshalb genügt ein Zuhörer für das ganze Fenster.
+function setupTacticPickers() {
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('.tactic-btn');
+    if (!btn || !state) return;
+    const seite = btn.dataset.tacticSide;
+    const key = btn.dataset.tactic;
+    if (!seite || !key) return;
+    const me = playerFaction(state).id;
+    setTactic(state, me, seite, key);
+    sfx.select();
+    if (seite === 'angriff' && vorschauZug && pendingAttack) {
+      // Die Prognose neu rechnen: sie hängt an der gewählten Ordnung.
+      const neu = previewTileCombat(state, vorschauZug.armyId,
+        vorschauZug.col, vorschauZug.row, undefined, key);
+      if (neu) {
+        document.getElementById('previewBody').innerHTML = battlePreviewHTML(state, neu);
+        return;
+      }
+    }
+    // Im Reichsfenster: es zeichnet sich nicht von selbst neu, und der
+    // gewählte Knopf soll auch als gewählt dastehen.
+    if (empireOverlay && !empireOverlay.classList.contains('hidden')) showEmpire();
+    refresh();
+  });
+}
+setupTacticPickers();
+
 function setupBattleStage() {
   const skip = document.getElementById('stageSkip');
   if (skip) skip.addEventListener('click', () => closeStage(true));
   const done = document.getElementById('stageDone');
   if (done) done.addEventListener('click', () => closeStage(true));
+  // Aus dem Bericht heraus: die Schlacht ansehen und danach zum Bericht
+  // zurück. So lässt sich auch ein fremder Angriff auf die eigenen Orte
+  // nachsehen - der wird gefochten, während man anderswo ist.
+  const ansehen = document.getElementById('reportWatch');
+  if (ansehen) {
+    ansehen.addEventListener('click', () => {
+      const report = offenerBericht;
+      if (!report) return;
+      hideBattleReport();
+      if (!zeigeSchlacht(report, () => showBattleReport(report))) showBattleReport(report);
+    });
+  }
 }
 setupBattleStage();
 

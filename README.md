@@ -213,6 +213,41 @@ den Punkten durchblättern.
   Stadtmauer, Landung vom Meer). „Abbrechen" lässt die Armee unverändert
   stehen. Die Schätzung entsteht aus 60 durchgerechneten Schlachten und
   verändert den späteren echten Kampf nicht.
+- **Schlachtordnung**: Vor jeder Schlacht steht eine Entscheidung, die nichts
+  mit der Zahl der Männer zu tun hat: **wie sie stehen**. Drei Ordnungen für
+  den Angriff, drei für die Verteidigung, und jede hat ihren Preis.
+
+  | Angriff | was sie tut | wofür sie taugt |
+  | --- | --- | --- |
+  | 🔻 **Keil** | schlägt +9 % härter zu, fängt +6 % härter ein | wenn das ganze Heer ohnehin ins Gefecht kommt |
+  | 🪝 **Umfassung** | +7 % Frontbreite, +4 % Kraft **mit** einem Fünftel Reiterei (−3 % ohne), dafür +5 % Treffer | bei Übermacht, die sonst hinten steht |
+  | 🏹 **Beschuss** | Eröffnung wiegt +30 %, Handgemenge −3 %, Gegner −2 % | mit vielen Schützen; kostet die wenigsten Männer |
+
+  | Verteidigung | was sie tut | wofür sie taugt |
+  | --- | --- | --- |
+  | 🛡️ **Schildwall** | Angreifer −5 %, eigener Schlag −3 %, Front −2 % | wenn es nur ums Aushalten geht |
+  | 📏 **Breite Front** | +8 % Frontbreite, eigener Schlag −2 %, Angreifer +1,5 % | bei großer Garnison oder Übermacht |
+  | ⚡ **Gegenstoß** | +6 % Schlagkraft, Angreifer +3 % | wenn die Entscheidung schnell fallen soll |
+
+  Keine ist immer richtig, und das ist der Sinn: gemessen über je 600
+  durchgerechnete Schlachten gewinnt der **Keil** dort, wo das ganze Heer in
+  die Linie passt (700 gegen 700: 95 % gegen 84 % für die Umfassung), die
+  **Umfassung** dort, wo ein Teil sonst hinten stünde (1600 gegen 700 vor der
+  Mauer: 100 % gegen 93 % für den Beschuss), und der **Beschuss** kostet in
+  jeder Lage die wenigsten eigenen Männer.
+
+  **Gewählt wird an zwei Stellen.** Die **Angriffsordnung** steht in der
+  Kampfvorschau, als drei Knöpfe über der Prognose – und die Prognose darunter
+  rechnet sofort mit der gewählten neu. Die gewählte bleibt als Vorgabe für den
+  nächsten Angriff stehen. Die **Verteidigungsordnung** ist ein **stehender
+  Befehl** und steht im Reichsfenster (🏛): wer angegriffen wird, wird nicht
+  gefragt – ein fremdes Heer steht vor dem Tor, und der Befehl muss vorher
+  gegeben sein.
+  Die **KI wählt nach dem, was sie mitbringt**: wer Reiterei hat und große
+  Heere führt, umfasst; wer viele Schützen hat, lässt sie zuerst arbeiten;
+  sonst geht sie im Keil vor. Verteidigt wird nach dem Wesen ihres Herrschers –
+  der Draufgänger stößt entgegen, der Vorsichtige stellt den Schildwall.
+  Der **Schlachtbericht nennt beide Ordnungen**.
 - **Der Schlacht zusehen** (erste, bewusst einfache Fassung): Vor jedem
   Angriff steht die Frage. In der Kampfvorschau stehen dafür **zwei Knöpfe**
   nebeneinander – *„⚔️ Angreifen"* und *„🎬 Angreifen und zusehen"* –, und wer
@@ -233,7 +268,14 @@ den Punkten durchblättern.
   **Das Schaubild entscheidet nichts.** Die Schlacht ist ausgefochten, ehe das
   Fenster aufgeht; gezeigt wird nur, was `combat.js` bereits ausgerechnet hat.
   *„Überspringen"* oder Esc bricht ab, *„📜 Zum Bericht"* führt weiter zum
-  gewohnten Schlachtbericht. Das Fenster hat seinen eigenen Renderer und räumt
+  gewohnten Schlachtbericht.
+  **Auch eine Schlacht, in der man nicht selbst angegriffen hat, lässt sich
+  ansehen.** Ein fremder Angriff auf die eigenen Orte wird gefochten, während
+  man anderswo ist – die Meldung darüber kommt erst beim Rundenwechsel. Unter
+  **jedem** Schlachtbericht steht deshalb der Knopf *„🎬 Die Schlacht
+  ansehen"*: er zeigt dieselbe 3D-Ansicht und kehrt danach zum Bericht zurück.
+  So kommt man von der Meldung „Eine Feldschlacht – Niederlage bei Capua" über
+  den Bericht zu dem Bild, das dazugehört. Das Fenster hat seinen eigenen Renderer und räumt
   ihn beim Schließen wieder ab.
   Die **zweite Ausbaustufe** hat vier Dinge dazugelegt:
   - **Die Eröffnungssalve ist zu sehen**: Wo Schützen stehen, geht in der
@@ -301,6 +343,21 @@ den Punkten durchblättern.
     Gefallene die Stelle, an der er gefallen ist: die Überlebenden fliehen, die
     Toten bleiben, und was zwischen den beiden Linien liegt, ist das, was die
     Schlacht gekostet hat.
+  - **Wo kein zweites 3D-Fenster zu haben ist, bleibt das Schaubild zu.** Es
+    braucht einen zweiten WebGL-Zusammenhang neben dem der Karte, und den gibt
+    nicht jedes Gerät her – manche Browser, allen voran Safari auf dem Telefon,
+    halten nur einen einzigen offen. Der zweite wurde stillschweigend
+    verweigert, three.js stolperte über die erste Abfrage an ihm
+    (*„null is not an object … getShaderPrecisionFormat"*), und der Fehler riss
+    das ganze Spiel mit: die Tafel **„Pax Aeterna konnte nicht starten"** stand
+    mitten im laufenden Feldzug, nur weil ein Angriff angesehen werden sollte.
+    Jetzt wird erst geprüft und dann gebaut, und beides in einem Netz: geht es
+    nicht, sagt eine Zeile am Bildrand Bescheid und der Angriff läuft ohne
+    Schaubild weiter. Dazu behält das Schaubild seinen **einen** Zusammenhang
+    über alle Schlachten hinweg – vorher legte jede angesehene Schlacht einen
+    neuen an, und ein Browser gibt nur eine Handvoll her. Und ein Fehler, der
+    im laufenden Spiel auftritt, zeigt nicht mehr die Starttafel: das Spiel
+    läuft weiter, und eine Zeile am unteren Rand sagt, was war.
   - **Ein verladenes Heer fährt auf Transportern.** Wo ein Heer über See
     angegriffen wird, standen bisher dieselben Kriegsschiffe wie in einer
     Seeschlacht – Rammsporne und Riemenreihen, wo bauchige Getreidesegler
@@ -573,6 +630,17 @@ den Punkten durchblättern.
   der das Bauwerk wirklich steht, und nicht mehr aus der Höhe des
   Nachbarfelds geschätzt – vorher stand ein Werk am Ortsrand deshalb schon
   einmal im Hang oder knietief im Wasser.
+  **Und jedes steht auf einem Fundament.** Nicht nur der Ort selbst: auch
+  Acker, Kaserne, Verwaltung und Fördergerüst stehen auf der Höhe ihrer
+  Feldmitte, und auch unter ihnen fällt das Gelände – eine Ecke stand in der
+  Luft, die andere im Boden. Jedes bekommt jetzt seine eigene kleine Terrasse.
+  Ihre Grundfläche wird nicht abgezählt, sondern gemessen: die Hülle über
+  alles, was zu dem Bauwerk gehört, plus ein Rand. Wie tief sie reicht,
+  entscheidet der Boden an genau ihrer Stelle. Ohne Fundament bleiben die zwei,
+  die keines haben dürfen: das **Viadukt** steht auf Bögen – es überbrückt das
+  Tal, statt es zuzuschütten –, und **Steg und Helling** stehen auf Pfählen im
+  Wasser.
+
   **Und keine zwei Werke mehr auf demselben Feld.** Jedes Bauwerk führte seine
   eigene Liste der schon vergebenen Nachbarfelder, und die waren nicht
   vollständig: das Viadukt kannte die Kaserne nicht, der Stollen das Forum

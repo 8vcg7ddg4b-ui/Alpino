@@ -51,17 +51,50 @@ let onFinished = null; // was danach geschieht
 
 // --- Aufbau ---------------------------------------------------------------
 
+// Das Schaubild braucht einen zweiten WebGL-Zusammenhang neben dem der Karte,
+// und den gibt nicht jedes Gerät her. Manche Browser - allen voran Safari auf
+// dem Telefon - halten nur einen einzigen offen: der zweite wird stillschweigend
+// verweigert, und three.js stolpert dann über die erste Abfrage an ihm
+// ("null is not an object ... getShaderPrecisionFormat"). Das riss bisher das
+// ganze Spiel mit: der Fehler lief bis ans Fenster durch, und dort steht die
+// Tafel "Pax Aeterna konnte nicht starten" - mitten im laufenden Feldzug, nur
+// weil ein Angriff angesehen werden sollte.
+//
+// Deshalb wird hier erst geprüft und dann gebaut, und beides in einem Netz:
+// gibt das Gerät keinen zweiten Zusammenhang her, kommt der Angriff ohne
+// Schaubild aus. Die Schlacht selbst ist davon unberührt - sie ist längst
+// ausgefochten, wenn dieses Fenster aufgeht.
 function makeRenderer(canvas) {
-  // `preserveDrawingBuffer` kostet auf dieser kleinen Leinwand kaum etwas und
-  // sorgt dafür, dass das gezeigte Bild auch außerhalb des Zeichenaufrufs noch
-  // dasteht - sonst zeigt jeder Griff nach dem Bild (ein Bildschirmfoto, eine
-  // Prüfung) irgendeinen früheren Zustand statt des aktuellen.
-  const r = new THREE.WebGLRenderer({
-    canvas, antialias: true, alpha: false, preserveDrawingBuffer: true,
-  });
-  r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  r.shadowMap.enabled = false;
-  return r;
+  try {
+    // Erst fragen: gibt der Browser überhaupt einen Zusammenhang her, und
+    // antwortet er auf die Frage, an der three.js sonst zerbricht?
+    // Mit denselben Merkmalen, die three.js gleich anfordert: ein Browser gibt
+    // für dieselbe Leinwand denselben Zusammenhang zurück und überliest die
+    // zweite Wunschliste. Fragte man hier ohne `preserveDrawingBuffer`, wäre
+    // es später auch nicht gesetzt - und jedes gegriffene Bild zeigte
+    // irgendeinen früheren Zustand.
+    const wunsch = {
+      alpha: false, depth: true, stencil: true, antialias: true,
+      premultipliedAlpha: true, preserveDrawingBuffer: true,
+    };
+    const probe = canvas.getContext('webgl2', wunsch)
+      || canvas.getContext('webgl', wunsch)
+      || canvas.getContext('experimental-webgl', wunsch);
+    if (!probe || typeof probe.getShaderPrecisionFormat !== 'function') return null;
+    if (!probe.getShaderPrecisionFormat(probe.VERTEX_SHADER, probe.HIGH_FLOAT)) return null;
+    // `preserveDrawingBuffer` kostet auf dieser kleinen Leinwand kaum etwas und
+    // sorgt dafür, dass das gezeigte Bild auch außerhalb des Zeichenaufrufs noch
+    // dasteht - sonst zeigt jeder Griff nach dem Bild (ein Bildschirmfoto, eine
+    // Prüfung) irgendeinen früheren Zustand statt des aktuellen.
+    const r = new THREE.WebGLRenderer({
+      canvas, antialias: true, alpha: false, preserveDrawingBuffer: true,
+    });
+    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    r.shadowMap.enabled = false;
+    return r;
+  } catch (fehler) {
+    return null;
+  }
 }
 
 function makeLights(target, wetter) {
@@ -875,7 +908,18 @@ export function playBattle(canvas, report, hooks = {}) {
     return null;
   }
 
-  schauRenderer = makeRenderer(canvas);
+  // Derselbe Renderer wie beim letzten Mal, wenn es dieselbe Leinwand ist.
+  if (!schauRenderer || schauRenderer.domElement !== canvas) {
+    schauRenderer = makeRenderer(canvas);
+  }
+  // Kein zweiter Zusammenhang: dann gibt es kein Schaubild, und der Angriff
+  // geht ohne es weiter. Wer danach fragt, bekommt eine Antwort statt eines
+  // schwarzen Fensters.
+  if (!schauRenderer) {
+    if (hooks.onUnavailable) hooks.onUnavailable();
+    if (hooks.onEnd) hooks.onEnd();
+    return null;
+  }
   schauScene = new THREE.Scene();
   // Das Wetter des Feldzugs steht auch über der Schlacht: es färbt den
   // Himmel, zieht den Dunst näher heran und schickt seine Tropfen.
@@ -1138,10 +1182,12 @@ export function stopBattle() {
     });
     schauScene = null;
   }
-  if (schauRenderer) {
-    schauRenderer.dispose();
-    schauRenderer = null;
-  }
+  // Der Renderer bleibt stehen. Ein WebGL-Zusammenhang lässt sich nicht
+  // zurückgeben - `forceContextLoss` macht die Leinwand für immer unbrauchbar,
+  // und ohne ihn bliebe er offen. Ein Browser gibt nur eine Handvoll her; nach
+  // dreißig angesehenen Schlachten wäre keiner mehr zu haben. Deshalb behält
+  // das Schaubild seinen einen Zusammenhang und baut nur die Szene neu.
+  if (schauRenderer) schauRenderer.clear();
   schauCamera = null;
   stage = null;
   onFinished = null;
