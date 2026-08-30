@@ -314,6 +314,14 @@ den Punkten durchblättern.
   neuer Bautrupp verstärkt nur ein Geschwader **derselben** Bauart – was
   zusammen fährt, fährt gleich schnell. Eine Flotte fährt 30 Punkte weit,
   geht nie an Land und greift an, was auf dem Wasser fährt.
+  **Dasselbe gilt beim Zusammenlegen.** Zwei eigene Flotten verschiedener
+  Bauart legen sich **nicht** zusammen: das Feld der einen ist für die andere
+  kein Ziel. Vorher ging es – und danach fuhr der ganze Verband die Bauart
+  derjenigen, auf die man gezogen war: eine Flotte Trieren, die dreißig
+  Quinqueremen aufnahm, hatte danach sechzig Trieren, und dreißig schwere
+  Rümpfe hatten sich stillschweigend in leichte verwandelt. Flotten
+  **derselben** Bauart legen sich weiterhin zusammen, und ein Heer auf
+  Transportern kennt die Frage ohnehin nicht.
 - **Seeräuber**: Wo Handel fährt, fährt bald auch, wer ihn nimmt. Ab Runde 8
   laufen bis zu **drei Geschwader** aus – dort, wo ein Hafen liegt und keine
   Kriegsflotte kreuzt. Sie fahren die **Hemiolia**, den Anderthalbruderer
@@ -510,15 +518,23 @@ den Punkten durchblättern.
   | --- | --- | --- |
   | Kaserne | eigenes Feld vor dem Ort | lange Halle, Exerzierplatz mit Zaun und Übungspfählen |
   | Farm | flachstes Nachbarfeld | drei Schläge mit Furchen, Schuppen am Rain |
-  | Kornspeicher | am Rand desselben Ackers | Speicher auf Stelzen mit Rampe |
+  | Kornspeicher | **auf dem Acker selbst** | Speicher auf Stelzen mit Rampe am Feldrand |
   | Verwaltung | eigenes Feld am Ortsrand | gepflasterter Platz, Säulenreihen, Rednerbühne |
   | Viadukt | höchstes Nachbarfeld | Pfeiler, Bögen, Wasserrinne zur Stadt hin |
   | Bergwerk | zweithöchstes Nachbarfeld | Fördergerüst mit Schacht und Halde |
   | Hafen | am Ufer zum offenen Wasser | Steg mit vertäutem Boot |
-  | Werft | am selben Ufer, neben dem Ort | Helling mit halbfertigem Rumpf, Kranbaum |
+  | Werft | **am Steg selbst** | Helling neben dem Steg, darauf Kiel und Spanten |
 
-  Jedes Werk sucht sich sein eigenes Nachbarfeld und geht den schon vergebenen
-  aus dem Weg; auf Wasser, Fels und Straße wird nichts gebaut. Alle stehen
+  **Was zusammengehört, steht auch zusammen.** Kornspeicher und Werft sind
+  keine eigenen Anlagen irgendwo neben dem Ort, sondern Teil dessen, was sie
+  ergänzen: der Speicher steht am Rand des Ackers, dessen Ernte er hält, die
+  Helling neben dem Steg, von dem aus ausläuft, was auf ihr entsteht. Auf der
+  Karte gibt es dadurch vier Bilder statt zwei – **Acker** und **Acker mit
+  Speicher**, **Hafen** und **Hafen mit Werft** –, und man sieht einem Ort an,
+  ob er nur einen Kai hat oder eine Werft dazu.
+
+  Jedes andere Werk sucht sich sein eigenes Nachbarfeld und geht den schon
+  vergebenen aus dem Weg; auf Wasser, Fels und Straße wird nichts gebaut. Alle stehen
   außerdem **genau auf dem Boden**: die Höhe wird an der Stelle genommen, an
   der das Bauwerk wirklich steht, und nicht mehr aus der Höhe des
   Nachbarfelds geschätzt – vorher stand ein Werk am Ortsrand deshalb schon
@@ -572,9 +588,10 @@ den Punkten durchblättern.
   (eine Insel, ein Ort zwischen Fels, Wasser und Straße), rückt das Bauwerk an
   den Ort selbst heran. Der **Kornspeicher** (**260 Gold**, **3 Runden**) setzt
   die Farm voraus und bewahrt die Ernte über den Winter – er hebt die
-  **Obergrenze der Einwohner um 25 %**. Er steht **am Rand desselben Ackers**,
-  dessen Ernte er hält: ein Bau auf Stelzen, damit weder Nässe noch Ratten
-  hinkommen, mit Satteldach und Rampe – so stand ein Horreum. Da die Schatzkammer allein von der
+  **Obergrenze der Einwohner um 25 %**. Er gehört zum Acker und steht **auf
+  ihm**, am Feldrand gegenüber dem Schuppen: ein Bau auf Stelzen, damit weder
+  Nässe noch Ratten hinkommen, mit Satteldach und Rampe – so stand ein
+  Horreum. Ein Acker und ein Acker mit Speicher sehen deshalb verschieden aus. Da die Schatzkammer allein von der
   Kopfsteuer lebt, ist beides bares Geld, nur später.
 - **Viadukt**: Wasser über das Tal, auf Bögen, über Meilen. Es kostet **480
   Gold** und **5 Runden**, setzt eine **Verwaltung** voraus und bringt **25 %
@@ -594,10 +611,13 @@ den Punkten durchblättern.
   Werftbau; steht sie, erscheinen die bis zu drei Bauarten der Fraktion. Die
   Arbeitsteilung ist damit klar: **der Hafen trägt Handelsschiffe und
   Truppentransporte, die Werft die Kriegsschiffe**.
-  **Auf der Karte liegt sie am selben Ufer wie der Steg**, aber seitlich am Ort
-  vorbei: die **Helling**, darauf der halbfertige Rumpf – Kiel und Spanten,
-  noch keine Beplankung –, daneben der Kranbaum. Am Steg selbst wäre kein
-  Platz; sie läge zwischen den Häusern und wäre von keiner Seite zu sehen.
+  **Auf der Karte gehört sie zum Hafen**: die **Helling** liegt neben dem
+  äußeren Teil des Stegs, auf Pfählen wie er, darauf der halbfertige Rumpf –
+  Kiel und Spanten, noch keine Beplankung –, daneben der Kranbaum. Ein Hafen
+  ohne sie ist ein Kai; ein Hafen mit ihr ist ein Ort, an dem Kriegsschiffe
+  entstehen, und das soll man auf der Karte unterscheiden können. An der
+  Wurzel des Stegs hätte sie keinen Platz: dort steht die Palisade des Orts,
+  und aus der Feldherrnperspektive verschwände sie dahinter.
 - **Bergwerk**: Die beste Einnahmequelle, die ein Ort haben kann – und die
   einzige, die weder an seiner Größe noch an seinen Einwohnern hängt, sondern
   allein an dem, was im Berg liegt. Gerechnet wird über ein Quadrat von **zwei
@@ -730,6 +750,23 @@ den Punkten durchblättern.
   heißt dann *„Angreifen – und den Krieg erklären"*. Diese eine Vorschau
   erscheint auch, wenn die Kampfvorschau in den Einstellungen abgeschaltet ist:
   abschalten lässt sich eine Prognose, keine Kriegserklärung.
+  **Sie erscheint jetzt auch dann, wenn der Weg dorthin über eine dritte
+  Grenze führt.** Ein solcher Zug ist zweimal Krieg – einmal gegen den, dessen
+  Land man durchquert, einmal gegen den, den man am Ende schlägt –, und bisher
+  kam dafür nur das Grenzfenster hoch: die Vorschau wurde übersprungen, und von
+  dem zweiten Krieg stand nirgends etwas. Jetzt steht beides in derselben
+  Vorschau, die Kriegserklärung an den Angegriffenen und darunter die an den,
+  dessen Grenze der Marsch verletzt. (Sperrt ein Vertrag den Weg, hält
+  weiterhin das Grenzfenster den Zug an – dann gibt es nichts vorzurechnen.)
+  **Und die Herolde bringen ihren Text mit.** Meldungen, die einen Krieg
+  betreffen, ohne dass man selbst zuschlägt – der **Bündnisfall**, ein
+  **gebrochenes Wort**, ein neuer **Vertrag** –, kamen als Fenster ohne
+  Überschrift und ohne Text: sie tragen sowohl ein Zeichen als auch eine
+  eigene Zeile, und das Fenster fragte in der falschen Reihenfolge danach.
+  Wer über sein Bündnis in einen fremden Krieg gezogen wurde, erfuhr deshalb
+  nicht, warum. Das entscheidet jetzt eine eigene kleine Funktion
+  (`noticeFromNews` in `js/ui.js`), und eine Prüfung geht alle fünf Fälle
+  durch.
   Wo ein gegebenes Wort dazwischensteht – ein **Bündnis**, ein
   **Nichtangriffspakt** oder ein Friede, der zu frisch ist –, ist das Feld
   überhaupt nicht anwählbar: erst den Vertrag im Diplomatiefenster aufkündigen,
@@ -1250,6 +1287,28 @@ den Punkten durchblättern.
   Garnison), **Stadt** (Normalmaß) und **Dorf** (klein – leicht zu nehmen und
   gute Sprungbretter). Was ein Ort trägt, hängt an seinen Einwohnern, nicht an
   seinem Rang.
+  **Und der Rang ist nicht mehr für immer: ein Ort wächst mit seinen
+  Einwohnern.** Bisher war der Rang, mit dem ein Ort das Spiel begann, auch
+  der, mit dem er es beendete – ein Weiler blieb hundert Runden lang ein
+  Weiler, gleichgültig wie viele Menschen darin lebten, und die Obergrenze
+  seines Rangs war eine Wand. Jetzt ist sie eine Schwelle: **wer die Obergrenze
+  seines Rangs erreicht, bekommt den nächsten** – aus dem Dorf wird eine Stadt,
+  aus der Stadt eine große. Die Schwelle ist das **1,6fache** der
+  Einwohnerzahl, mit der ein Ort seines Rangs beginnt (ein Dorf also bei
+  **2.240**, eine Stadt bei **5.600**; für eine Hauptstadt entsprechend mehr);
+  der Kornspeicher zählt dabei nicht mit – er soll den gewachsenen Ort
+  ernähren, nicht seinen Aufstieg erkaufen.
+  Mit dem Rang wächst alles, was an ihm hängt: die **Einnahmen** (Faktor 0,5 –
+  1 – 1,7), die **Wache**, die der Ort halten kann, seine neue Obergrenze und
+  sein **Bild auf der Karte** – aus vier Hütten werden Häuser um eine Halle,
+  aus der Stadt eine große mit Tempel, und der Mauerring wächst mit. Ein
+  Meldefenster sagt es, wenn ein eigener Ort hinüberwächst. **Kleiner wird ein
+  Ort nicht wieder**: was gebaut steht, steht, auch wenn eine Belagerung die
+  Hälfte der Menschen gekostet hat.
+  Wie lange das dauert, entscheidet, was man in den Ort steckt: ein Dorf
+  braucht ohne alles rund **135 Runden** bis zur Stadt, mit einer **Farm 89**,
+  mit **Farm und Viadukt 77**. In zweihundert Runden ohne Krieg wachsen so von
+  107 Orten etwa **64** in den nächsten Rang.
   **Auf der Karte hat jedes Gebäude überall dasselbe Maß.** Vorher wuchsen mit
   dem Rang eines Orts einfach alle Gebäude mit – dieselben vier Hütten, nur
   größer gezeichnet; eine Große Stadt sah aus wie ein Dorf für Riesen, und zwei
@@ -1286,8 +1345,11 @@ den Punkten durchblättern.
   diese Karte wird schräg angesehen, und einem Aufkleber fehlt aus jeder
   anderen Richtung genau das, was ihn zu einem Weg macht – eine Kante. Jetzt
   liegt die Straße auf einem **Damm**, dessen Böschung im Schrägblick einen
-  Schatten wirft, und der Fluss in einem **Bett**: zwei Uferbänke aus Kies,
-  dazwischen das eingesenkte Wasser. Dazu sind beide auf ihr Maß gebracht –
+  Schatten wirft, und der Fluss als **Fahrrinne mit einer flachen Schürze an
+  den Seiten**. Uferbänke aus Kies standen hier eine Fassung lang neben dem
+  Wasser; sie machten aus jedem Bach eine dreifarbige Trasse und aus einem
+  Flusslauf ein Gleisbett, und sie sind wieder fort: **ein Fluss ist Wasser und
+  sonst nichts.** Dazu sind beide auf ihr Maß gebracht –
   eine Straße ist so breit, dass zwei Karren aneinander vorbeikommen, also
   ungefähr ein Haus lang und nicht drei nebeneinander; sie war vorher um zwei
   Drittel zu breit und um einen Ton zu hell. Die Brücke darüber ist etwas

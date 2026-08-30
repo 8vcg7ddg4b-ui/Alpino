@@ -331,7 +331,9 @@ function embarkHTML(state, army) {
     return `<p class="sea-line">${ship.icon} ${escapeHTML(ship.name)} –
       ${army.maxMovement || NAVAL_MOVEMENT} Bewegungspunkte.
       <span class="muted">${escapeHTML(ship.note)} Sie hält das Meer: sie greift
-      feindliche Flotten und Transporte an, geht aber nie an Land.</span></p>`;
+      feindliche Flotten und Transporte an, geht aber nie an Land.
+      Mit einer Flotte anderer Bauart legt sie sich nicht zusammen – was
+      zusammen fährt, fährt gleich schnell.</span></p>`;
   }
   const ruempfe = transportCount(unitTotalCount(army.units));
   if (army.embarked) {
@@ -1993,6 +1995,29 @@ function siegeHintHTML(preview) {
   escapeHTML(SIEGE_HINDERNIS[s.reason] || 'nicht möglich.')}</p>`;
 }
 
+// --- Herolde und Meldungen ------------------------------------------------
+// Aus einem Eintrag der Nachrichtenschlange wird das, was im Meldefenster
+// steht. Verträge, Vertragsbrüche und der Bündnisfall bringen ihren Text schon
+// mit (`kindLabel`, `titel`, `satz`, `folge`); Krieg und Frieden werden aus
+// zwei Fällen zusammengesetzt und bleiben deshalb dem Fenster überlassen.
+//
+// Diese Reihenfolge ist der ganze Witz der Funktion: solche Meldungen tragen
+// AUCH ein `icon`, und wer zuerst danach fragt, hält sie für eine fertig
+// ausformulierte Meldung und greift nach `kind`, `title` und `text` - Felder,
+// die sie nicht haben. Ein Bündnisfall, der den Spieler in einen Krieg zieht,
+// war deshalb ein Fenster ohne Überschrift und ohne Text.
+export function noticeFromNews(meldung) {
+  if (!meldung) return null;
+  if (meldung.kindLabel) {
+    return {
+      icon: meldung.icon, kind: meldung.kindLabel, title: meldung.titel,
+      text: meldung.satz, effect: meldung.folge,
+    };
+  }
+  if (meldung.icon) return meldung;
+  return null;
+}
+
 export function battlePreviewHTML(state, preview) {
   const attacker = factionById(state, preview.attackerFactionId);
   // Wer im Frieden angreift, greift kein feindliches Heer an, sondern ein
@@ -2014,11 +2039,20 @@ export function battlePreviewHTML(state, preview) {
          Verträgen zwischen euch stand, fällt mit ihm. Die Verbündeten des
          Angegriffenen treten sofort ein.</p>`
     : '';
+  // Und wenn der Weg dorthin über eine dritte Grenze führt, ist das ein
+  // zweiter Krieg. Vorher stand davon in der Vorschau nichts: das Fenster für
+  // die Grenzverletzung kam bei einem Angriff gar nicht erst hoch.
+  const grenzWarnung = preview.borderOn
+    ? `<p class="preview-war">🚩 <strong>Und der Weg dorthin führt über die Grenze
+         von ${escapeHTML(preview.borderName || preview.borderOn)}.</strong>
+         Auch das ist eine Kriegserklärung – wer ohne Betretungsrecht
+         einmarschiert, hat den Krieg, ehe er den Feind erreicht.</p>`
+    : '';
 
   if (preview.unopposed) {
     return `
       <h2 class="report-title">${escapeHTML(heading)}</h2>
-      ${kriegsWarnung}
+      ${kriegsWarnung}${grenzWarnung}
       <p class="report-meta">${escapeHTML(terrain)} · Bewegungskosten ${preview.moveCost}</p>
       <p class="preview-unopposed">Hier steht niemand mehr, der sich wehrt.
         ${preview.cityName ? escapeHTML(preview.cityName) + ' fällt kampflos.' : 'Das Feld ist frei.'}</p>`;
@@ -2033,7 +2067,7 @@ export function battlePreviewHTML(state, preview) {
 
   return `
     <h2 class="report-title">${escapeHTML(heading)}</h2>
-    ${kriegsWarnung}
+    ${kriegsWarnung}${grenzWarnung}
     ${siegeHintHTML(preview)}
     <p class="report-meta">${escapeHTML(terrain)}${bonus} · Bewegungskosten ${preview.moveCost}</p>
     <div class="odds-block ${verdict.tone}">

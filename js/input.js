@@ -346,7 +346,13 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
         // Kriegserklärung.
         const marching = state.armies.find((a) => a.id === armyId);
         const grenze = marching && moveWarning(state, marching, col, row, state.reachable);
-        if (grenze && onConfirmBorder) {
+        // Ein Angriff bekommt seine Vorschau, auch wenn der Weg dorthin über
+        // eine fremde Grenze führt: dort steht beides nebeneinander, die
+        // Grenzverletzung und der Angriff. Vorher kam bei einem solchen Zug
+        // nur das Grenzfenster - und die Kriegserklärung an den Angegriffenen
+        // stand nirgends. Ein Vertrag, der den Weg sperrt, hält den Zug
+        // weiterhin an dieser Stelle an: dann gibt es nichts vorzurechnen.
+        if (grenze && onConfirmBorder && (grenze.blocked || !entry.combat)) {
           onConfirmBorder(grenze, () => executeMove(armyId, col, row));
           return;
         }

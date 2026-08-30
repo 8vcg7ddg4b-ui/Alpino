@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.25.0';
+export const GAME_VERSION = '1.26.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1279,10 +1279,28 @@ export const BIRTH_RATE = 0.0035;
 export const BIRTH_SEASON = { fruehling: 1.3, sommer: 1.2, herbst: 0.9, winter: 0.6 };
 // Steht ein fremdes Heer vor dem Ort, wächst nichts: die Felder liegen brach.
 export const SIEGE_RANGE = 1;
-// Weiter als bis hierher wächst ein Ort nicht - ein Dorf bleibt ein Dorf,
-// solange es ein Dorf ist. Der Anteil bezieht sich auf die Einwohnerzahl,
-// mit der ein Ort seines Rangs beginnt.
+// Wie weit ein Ort über die Einwohnerzahl seines Rangs hinauswächst, ehe er in
+// den nächsten hineinwächst. Der Anteil bezieht sich auf die Einwohnerzahl,
+// mit der ein Ort seines Rangs beginnt: ein Dorf bleibt ein Dorf, bis es keines
+// mehr ist.
 export const POPULATION_CEILING = 1.6;
+
+// Ab wann ein Ort in den nächsten Rang hineinwächst: wenn er die Obergrenze
+// seines jetzigen erreicht hat. Der Speicher zählt dabei nicht mit - er soll
+// den gewachsenen Ort ernähren, nicht seinen Aufstieg erkaufen.
+export function promotionThreshold(city) {
+  const tier = settlementTier(city.size);
+  const basis = city.capital ? tier.populationCapital : tier.population;
+  return Math.round(basis * POPULATION_CEILING);
+}
+
+// Der nächste Rang über diesem - null für die große Stadt, über der es keinen
+// gibt.
+export function nextSettlementSize(size) {
+  if (size === 'village') return 'city';
+  if (size === 'city') return 'large';
+  return null;
+}
 
 // Die Obergrenze eines Orts: sein Rang bestimmt sie, die Hauptstadt hat mehr.
 export function populationCeiling(city) {

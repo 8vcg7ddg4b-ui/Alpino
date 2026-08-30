@@ -24,6 +24,7 @@ import {
   TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, TRADE_SEA_DISTANCE, TRADE_SEA_BONUS,
   tradeSizeFactor,
   BIRTH_RATE, BIRTH_SEASON, populationCeiling,
+  promotionThreshold, nextSettlementSize,
   SIEGE_RANGE, SIEGE_STARVE_AFTER, SIEGE_ATTRITION, SIEGE_POPULATION_LOSS,
   CAMP_NAME, CAMP_COST, CAMP_DEFENCE, CAMP_SHELTER,
   CAPTURE_WALL_LOSS, CAPTURE_RUIN_CHANCE, repairCost, repairTurns,
@@ -455,6 +456,12 @@ export function previewTileCombat(state, armyId, destCol, destRow, sampleCount) 
     declareWarOn: entry.declare || null,
     declareWarName: entry.declare
       ? (factionById(state, entry.declare) || {}).name || entry.declare : null,
+    // Und wessen Grenze der Weg dorthin verletzt. Das kann ein anderes Reich
+    // sein als das angegriffene: durch fremdes Land marschiert und am Ende
+    // einen Dritten angegriffen sind zwei Kriege, nicht einer.
+    borderOn: entry.border && entry.border !== entry.declare ? entry.border : null,
+    borderName: entry.border && entry.border !== entry.declare
+      ? (factionById(state, entry.border) || {}).name || entry.border : null,
   };
 
   if (!defence.hasDefence) {
@@ -713,6 +720,13 @@ export function resolveTileCombat(state, army, destCol, destRow) {
 // Erschöpfung werden nach Kopfzahl gemittelt: ein frisches Aufgebot verdünnt
 // die Veteranen, und wer erschöpft ankommt, zieht den Rest mit herunter.
 export function mergeArmies(state, mover, host) {
+  // Zwei Bauarten fahren nicht in einem Verband. Der Weg dorthin ist für eine
+  // Flotte fremder Bauart schon gesperrt; hier steht die Regel noch einmal,
+  // damit sie auch hält, wenn ein anderer Weg hierherführt.
+  if (isFleet(mover) && isFleet(host)
+    && (mover.shipKind || null) !== (host.shipKind || null)) {
+    return { ok: false, reason: 'bauart' };
+  }
   const moverMen = unitTotalCount(mover.units);
   const hostMen = unitTotalCount(host.units);
   const total = moverMen + hostMen;
@@ -2274,6 +2288,33 @@ export function growPopulations(state) {
   for (const city of state.cities) {
     city.population += birthsIn(state, city);
   }
+}
+
+// Ein Ort, der die Obergrenze seines Rangs erreicht hat, wächst in den
+// nächsten hinein: aus dem Dorf wird eine Stadt, aus der Stadt eine große.
+// Vorher war der Rang, mit dem ein Ort das Spiel begann, auch der, mit dem er
+// es beendete - ein Weiler blieb hundert Runden lang ein Weiler, gleichgültig
+// wie viele Menschen darin lebten, und die Obergrenze war eine Wand.
+//
+// Mit dem Rang wächst alles, was an ihm hängt: die Einnahmen (ein Faktor je
+// Rang), die Wache, die der Ort halten kann, und sein Bild auf der Karte -
+// aus vier Hütten werden Häuser um eine Halle. Kleiner wird ein Ort nicht
+// wieder: was gebaut steht, steht, auch wenn eine Belagerung die Hälfte der
+// Menschen gekostet hat.
+export function growSettlements(state) {
+  const gewachsen = [];
+  for (const city of state.cities) {
+    const naechst = nextSettlementSize(city.size);
+    if (!naechst) continue;
+    if (city.population < promotionThreshold(city)) continue;
+    const vorher = settlementTier(city.size).label;
+    city.size = naechst;
+    const jetzt = settlementTier(naechst).label;
+    gewachsen.push({ city, vorher, jetzt });
+    logOwn(state, city.factionId, `🏛️ ${city.name} wächst: aus ${vorher} wird `
+      + `${jetzt} – ${city.population.toLocaleString('de-DE')} Einwohner.`);
+  }
+  return gewachsen;
 }
 
 // Die Stadtwache stellt sich aus der Bevölkerung nach - Runde für Runde ein

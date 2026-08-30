@@ -18,7 +18,7 @@ function key(col, row) {
 // What a tile means to this army: blocked, free to cross, or a destination
 // that starts a fight. A fleet sees the map inverted - open water is its road
 // and every shore is a landing, which ends its voyage either way.
-function classifyTile(state, col, row, movingFactionId, embarked, fleet) {
+function classifyTile(state, col, row, movingFactionId, embarked, fleet, shipKind) {
   const map = state.map;
   if (col < 0 || col >= map.cols || row < 0 || row >= map.rows) {
     return { blocked: true };
@@ -69,6 +69,15 @@ function classifyTile(state, col, row, movingFactionId, embarked, fleet) {
   if (occupant && occupant.factionId === movingFactionId) {
     const bothAfloat = !!occupant.embarked === !!embarked;
     if (!bothAfloat) return { blocked: true };
+    // Zwei Bauarten fahren nicht in einem Verband - dieselbe Regel, nach der
+    // schon die Werft nur eine Flotte ihrer eigenen Bauart verstärkt. Ohne sie
+    // wurden beim Zusammenlegen alle Schiffe zu einer Bauart: eine Flotte
+    // Trieren, die eine Flotte Quinqueremen aufnahm, fuhr danach lauter
+    // Trieren - dreißig schwere Rümpfe hatten sich in leichte verwandelt.
+    if (fleet && isFleet(occupant)
+      && (occupant.shipKind || null) !== (shipKind || null)) {
+      return { blocked: true };
+    }
     return { blocked: false, cost, endpointOnly: true, combat: false, merge: true, landing };
   }
   if (gegner) {
@@ -136,7 +145,8 @@ export function computeReachable(state, army) {
       const nk = key(ncol, nrow);
       if (visited.has(nk)) continue;
 
-      const info = classifyTile(state, ncol, nrow, army.factionId, embarked, fleet);
+      const info = classifyTile(state, ncol, nrow, army.factionId, embarked, fleet,
+        army.shipKind);
       if (info.blocked) continue;
 
       const isStart = ncol === army.col && nrow === army.row;

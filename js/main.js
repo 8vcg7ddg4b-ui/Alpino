@@ -6,7 +6,7 @@ import {
 } from './data.js';
 import {
   renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount, empireHTML,
-  diplomacyHTML, setDiploTab, setFactionSort, getFactionSort,
+  diplomacyHTML, setDiploTab, setFactionSort, getFactionSort, noticeFromNews,
 } from './ui.js';
 import { setupInput } from './input.js';
 import { playBattle, stopBattle } from './battle3d.js';
@@ -21,7 +21,7 @@ import {
   buyRoad, upgradeRoad, advanceRoadConstruction, buildFleet,
   buyBuilding, advanceConstruction, mineIncomeOf,
   updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp, besiegeCity,
-  openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations,
+  openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations, growSettlements,
 } from './actions.js';
 import {
   offerPeace, declareWar, sendGift, rulersTakeTurn, rulerOf, GIFT_COST,
@@ -406,17 +406,11 @@ function showNotice(meldung) {
 function showNextDiploNews() {
   if (!diploNewsOverlay || !diploNewsQueue.length || !state) return;
   const meldung = diploNewsQueue.shift();
-  // Fertig ausformulierte Meldungen gehen direkt durch.
-  if (meldung.icon) { showNotice(meldung); return; }
-  // Verträge und Bündnisfälle bringen ihren Text schon mit - sie werden nicht
-  // aus zwei Fällen zusammengesetzt wie Krieg und Frieden.
-  if (meldung.kindLabel) {
-    showNotice({
-      icon: meldung.icon, kind: meldung.kindLabel, title: meldung.titel,
-      text: meldung.satz, effect: meldung.folge,
-    });
-    return;
-  }
+  // Alles, was seinen Text schon mitbringt - fertige Meldungen, Verträge,
+  // Vertragsbrüche, der Bündnisfall -, geht direkt durch. Welcher Fall das
+  // ist, entscheidet `noticeFromNews`.
+  const fertig = noticeFromNews(meldung);
+  if (fertig) { showNotice(fertig); return; }
   const krieg = meldung.kind === 'krieg';
   const angebot = meldung.kind === 'angebot';
   const gegner = factionById(state, meldung.von === playerFaction(state).id
@@ -1667,8 +1661,11 @@ function endTurn() {
   // Erst die Abrechnung, dann das Schicksal: ein Ereignis greift in denselben
   // Schatz, den die Runde gerade gefüllt hat.
   const myEvent = rollEvents(state);
-  // Die Menschen werden mehr, ehe die Wache aus ihnen nachgestellt wird.
+  // Die Menschen werden mehr, ehe die Wache aus ihnen nachgestellt wird - und
+  // wer über seinen Rang hinausgewachsen ist, bekommt den nächsten, ehe die
+  // Wache auf die neue Sollstärke rechnet.
   growPopulations(state);
+  const orteGewachsen = growSettlements(state);
   regenerateGarrisons(state);
   const wallsDone = advanceWallConstruction(state);
   const roadsDone = advanceRoadConstruction(state);
@@ -1707,6 +1704,33 @@ function endTurn() {
           ? ' – mit Schiffen vor dem Hafen' : ''}: ${info.men.toLocaleString('de-DE')} Mann.`,
         effect: 'Keine Steuer, kein Nachschub für die Wache, kein Bau. '
           + `Nach ${info.bisHunger} weiteren Runden beginnt der Hunger.`,
+      });
+    }
+    // Orte, die in dieser Runde in den nächsten Rang hineingewachsen sind.
+    const meineGewachsen = orteGewachsen.filter((g) => g.city.factionId === me);
+    if (meineGewachsen.length === 1) {
+      const g = meineGewachsen[0];
+      diploNewsQueue.push({
+        icon: '🏛️', sound: 'bau', kind: 'Ein Ort wächst',
+        title: `Aus ${g.vorher} wird ${g.jetzt}: ${g.city.name}`,
+        text: `${g.city.name} zählt ${g.city.population.toLocaleString('de-DE')} `
+          + `Einwohner und ist damit über ${g.vorher === 'Dorf' ? 'das Dorf' : 'die Stadt'} `
+          + 'hinausgewachsen.',
+        effect: 'Mit dem Rang wachsen die Einnahmen, die Wache, die der Ort halten '
+          + 'kann, und die Zahl der Häuser auf der Karte.',
+      });
+    } else if (meineGewachsen.length > 1) {
+      diploNewsQueue.push({
+        icon: '🏛️', sound: 'bau', kind: 'Orte wachsen',
+        title: `${zahlwort(meineGewachsen.length).replace(/^./, (c) => c.toUpperCase())} `
+          + 'Orte sind über ihren Rang hinausgewachsen',
+        text: 'In dieser Runde sind gewachsen:',
+        list: meineGewachsen.map((g) => ({
+          icon: '🏛️', name: g.city.name,
+          note: `aus ${g.vorher} wird ${g.jetzt} · `
+            + `${g.city.population.toLocaleString('de-DE')} Einwohner`,
+        })),
+        effect: 'Mit dem Rang wachsen Einnahmen, Wache und das Bild auf der Karte.',
       });
     }
     collectOwnNews(vorher, previousHead);

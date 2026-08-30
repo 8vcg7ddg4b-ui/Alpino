@@ -1396,14 +1396,13 @@ let riversGroup = null;
 // dem Boden - hoch genug, dass ein Knick im Gelände es nicht verschluckt,
 // flach genug, dass es nicht über der Landschaft schwebt.
 const RIVER_PIECES = 5;
-// Das Ufer liegt eine Handbreit über dem Land, das Wasser darunter: ein Fluss
-// hat ein Bett. Vorher lag ein blaues Band flach obenauf, und der Fluss sah
-// aus wie ein Strich auf einer Landkarte statt wie Wasser im Gelände.
-const RIVER_BANK_LIFT = 0.22;
-const RIVER_BANK_SKIRT = 0.36;
-// Das Wasser liegt eine Handbreit tiefer als die Uferkante - tiefer als der
-// Boden darf es nicht liegen, sonst verschluckt ihn das Gelände.
-const RIVER_LIFT = 0.06;
+// Der Fluss ist Wasser und sonst nichts: eine Fahrrinne aus einem Stück, mit
+// einer flachen Schürze an den Seiten, damit er im Schrägblick eine Kante hat
+// und nicht als Strich auf dem Land liegt. Kiesbänke standen hier eine
+// Fassung lang daneben; sie machten aus jedem Bach eine dreifarbige Trasse
+// und aus einem Flusslauf ein Gleisbett.
+const RIVER_LIFT = 0.14;
+const RIVER_SKIRT = 0.24;
 
 // Die beiden Feldmitten einer Kante und der Punkt dazwischen.
 function riverEdgeTiles(key, cols) {
@@ -1424,7 +1423,6 @@ function buildRivers(state) {
   if (!rivers || !rivers.size) return;
 
   const positions = [];
-  const ufer = [];
   const bridges = [];
   const half = TILE_SIZE / 2;
 
@@ -1438,11 +1436,9 @@ function buildRivers(state) {
     // Zwei Stücke, die im rechten Winkel aufeinandertreffen, überlappen sich
     // dadurch in der Ecke; ohne diesen Überstand blieb dort außen ein Zwickel
     // frei, und ein Lauf über viele Ecken sah aus wie eine gestrichelte Linie.
-    // Das Wasser ist so breit wie ein Karren, die Uferbank beiderseits halb so
-    // breit noch einmal dazu.
-    const width = TILE_SIZE * 0.085;
-    const bank = TILE_SIZE * 0.035;
-    const reach = half + width + 2 * bank;
+    // So breit wie ein Karren und ein halber - ein Fluss ist keine Straße.
+    const width = TILE_SIZE * 0.1;
+    const reach = half + width;
     const from = alongX ? [mx, mz - reach] : [mx - reach, mz];
     const to = alongX ? [mx, mz + reach] : [mx + reach, mz];
     // In Stücke zerlegt, damit das Band dem Gelände folgt. Ein Uferstück ist
@@ -1456,16 +1452,7 @@ function buildRivers(state) {
       const az = from[1] + (to[1] - from[1]) * t0;
       const bx = from[0] + (to[0] - from[0]) * t1;
       const bz = from[1] + (to[1] - from[1]) * t1;
-      // Zwei Uferbänke, links und rechts, und dazwischen das eingesenkte
-      // Wasser. Eine einzige Bank über die ganze Breite wäre ein Deckel: das
-      // Wasser läge darunter und wäre nicht zu sehen.
-      for (const seite of [-1, 1]) {
-        const ox = alongX ? seite * (width + bank) : 0;
-        const oz = alongX ? 0 : seite * (width + bank);
-        pushBand(ufer, ax + ox, az + oz, bx + ox, bz + oz,
-          bank, RIVER_BANK_LIFT, RIVER_BANK_SKIRT);
-      }
-      pushQuad(positions, ax, az, bx, bz, width, RIVER_LIFT);
+      pushBand(positions, ax, az, bx, bz, width, RIVER_LIFT, RIVER_SKIRT);
     }
 
     const roads = state.roads || {};
@@ -1489,10 +1476,6 @@ function buildRivers(state) {
     mesh.frustumCulled = false;
     riversGroup.add(mesh);
   };
-  // Kies und Schwemmland am Ufer, darin das Wasser.
-  bandMesh(ufer, new THREE.MeshStandardMaterial({
-    color: '#9a8b62', roughness: 1, side: THREE.DoubleSide,
-  }));
   bandMesh(positions, new THREE.MeshStandardMaterial({
     color: '#3f7fb8', roughness: 0.35, side: THREE.DoubleSide,
   }));
@@ -2041,6 +2024,27 @@ const SETTLEMENT_RINGS = {
   large: [{ r: 1.35, n: 8 }, { r: 1.95, n: 12 }],
 };
 
+// Räumt einen Ort ab, wenn er neu gebaut werden muss - sonst hielte jeder
+// gewachsene Ort seine alten Geometrien für den Rest des Feldzugs fest.
+function disposeCityEntry(entry) {
+  scene.remove(entry.group);
+  entry.group.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+      else obj.material.dispose();
+    }
+  });
+  // Was in dieser Gruppe hing - Namensschild, Fahne -, stand in der Liste der
+  // mitgedrehten Tücher. Alles, was nach dem Entfernen nicht mehr an der Szene
+  // hängt, fliegt daraus; sonst wüchse die Liste mit jedem gewachsenen Ort.
+  for (let i = billboards.length - 1; i >= 0; i--) {
+    let wurzel = billboards[i];
+    while (wurzel.parent) wurzel = wurzel.parent;
+    if (wurzel !== scene) billboards.splice(i, 1);
+  }
+}
+
 function buildCityGroup(city) {
   const group = new THREE.Group();
   const spread = settlementTier(city.size).spread * (city.capital ? 1.05 : 1);
@@ -2094,7 +2098,8 @@ function buildCityGroup(city) {
   // Die Befestigungen entstehen erst, wenn sie gebaut sind: die meisten Orte
   // haben keine, und jedes ungenutzte Modell kostet Zeichenaufrufe.
   return {
-    group, label, tinted, scale: spread, bau, walls: [null, null, null], harbour: null,
+    group, label, tinted, scale: spread, bau, size: city.size,
+    walls: [null, null, null], harbour: null,
   };
 }
 
@@ -2433,6 +2438,19 @@ function buildHarbour(scale) {
   );
   mast.position.set(length + 0.45 * scale, 1.2 * scale, 0);
   harbour.add(mast);
+
+  // Die Werft gehört zum Hafen: sie liegt neben dem Steg, mit der Helling zum
+  // Wasser. Ein Hafen ohne sie ist ein Kai; ein Hafen mit ihr ist ein Ort, an
+  // dem Kriegsschiffe entstehen - und genau das soll man auf der Karte
+  // unterscheiden können, ohne ein Fenster zu öffnen.
+  // Neben dem äußeren Teil des Stegs, nicht an seiner Wurzel: dort steht die
+  // Palisade des Orts im Weg, und aus der Feldherrnperspektive verschwand die
+  // Helling hinter ihr.
+  const werft = buildShipyard(scale * 1.3);
+  werft.position.set(3 * scale, 0, -1.9 * scale);
+  werft.visible = false;
+  harbour.add(werft);
+  harbour.userData = { werft };
   return harbour;
 }
 
@@ -2543,6 +2561,15 @@ function buildFarm(scale) {
   dach.position.set(-1.5 * scale, 0.53 * scale, 0.62 * scale);
   dach.rotation.y = Math.PI / 4;
   farm.add(dach);
+
+  // Der Kornspeicher steht am Rand desselben Ackers, dessen Ernte er hält.
+  // Auch hier gilt: ein Feld und ein Feld mit Speicher sollen sich auf der
+  // Karte unterscheiden.
+  const speicher = buildGranary(scale * 0.72);
+  speicher.position.set(1.95 * scale, 0, -0.55 * scale);
+  speicher.visible = false;
+  farm.add(speicher);
+  farm.userData = { speicher };
   return farm;
 }
 
@@ -2696,27 +2723,39 @@ function buildForum(scale) {
 // Stapel läuft, liegt eine Runde später im Hafen.
 function buildShipyard(scale) {
   const werft = new THREE.Group();
-  // Die Helling: eine schiefe Ebene, die ins Wasser führt.
+  // Die Helling: eine schiefe Ebene, die ins Wasser führt, auf Pfählen wie
+  // der Steg daneben. Ohne die Pfähle stünde sie auf der Wasserlinie und
+  // versänke am Ufer im Boden.
   const helling = new THREE.Mesh(
     new THREE.BoxGeometry(1.9 * scale, 0.1 * scale, 1.1 * scale),
     CITY_MATERIALS.wood
   );
-  helling.position.set(0, 0.16 * scale, 0);
+  helling.position.set(0, 0.3 * scale, 0);
   helling.rotation.z = 0.12;
   werft.add(helling);
+  for (const px of [-0.75, 0, 0.75]) {
+    for (const pz of [-0.45, 0.45]) {
+      const pfahl = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08 * scale, 0.1 * scale, 1.2 * scale, 5),
+        CITY_MATERIALS.timber
+      );
+      pfahl.position.set(px * scale, -0.25 * scale, pz * scale);
+      werft.add(pfahl);
+    }
+  }
   // Der Rumpf im Bau: Kiel, Spanten, noch keine Beplankung.
   const kiel = new THREE.Mesh(
     new THREE.BoxGeometry(1.5 * scale, 0.13 * scale, 0.16 * scale),
     CITY_MATERIALS.timber
   );
-  kiel.position.set(0, 0.4 * scale, 0);
+  kiel.position.set(0, 0.54 * scale, 0);
   werft.add(kiel);
   for (let i = -2; i <= 2; i++) {
     const spant = new THREE.Mesh(
       new THREE.TorusGeometry(0.26 * scale, 0.035 * scale, 4, 8, Math.PI),
       CITY_MATERIALS.timber
     );
-    spant.position.set(i * 0.3 * scale, 0.42 * scale, 0);
+    spant.position.set(i * 0.3 * scale, 0.56 * scale, 0);
     spant.rotation.y = Math.PI / 2;
     spant.rotation.z = Math.PI;
     werft.add(spant);
@@ -2727,14 +2766,14 @@ function buildShipyard(scale) {
     new THREE.CylinderGeometry(0.06 * scale, 0.08 * scale, 1.3 * scale, 5),
     CITY_MATERIALS.wood
   );
-  mast.position.set(-0.85 * scale, 0.62 * scale, -0.5 * scale);
+  mast.position.set(-0.85 * scale, 0.72 * scale, -0.5 * scale);
   mast.rotation.z = 0.28;
   werft.add(mast);
   const ausleger = new THREE.Mesh(
     new THREE.CylinderGeometry(0.04 * scale, 0.05 * scale, 0.8 * scale, 4),
     CITY_MATERIALS.wood
   );
-  ausleger.position.set(-0.6 * scale, 1.16 * scale, -0.5 * scale);
+  ausleger.position.set(-0.6 * scale, 1.26 * scale, -0.5 * scale);
   ausleger.rotation.z = 1.15;
   werft.add(ausleger);
   return werft;
@@ -2856,23 +2895,6 @@ function placeAt(group, city, cityY, spot, abstand = 1, optionen = {}) {
     : winkel;
 }
 
-// Die Werft ans Ufer, aber seitlich am Ort vorbei: die Helling liegt neben dem
-// Mauerring, mit dem Kiel zum Wasser. Stünde sie am Steg, läge sie zwischen
-// den Häusern und wäre von keiner Seite zu sehen.
-function placeShipyard(werft, city, sea, cityY, spread) {
-  const dx = sea.col - city.col;
-  const dz = sea.row - city.row;
-  const laenge = Math.max(1, Math.hypot(dx, dz));
-  const ux = dx / laenge;
-  const uz = dz / laenge;
-  const quer = 2.2 * spread + 1.6;
-  const lx = ux * TILE_SIZE * 0.4 + uz * quer;
-  const lz = uz * TILE_SIZE * 0.4 - ux * quer;
-  werft.position.set(lx,
-    bandY(worldX(city.col) + lx, worldZ(city.row) + lz) - cityY, lz);
-  werft.rotation.y = Math.atan2(-uz, ux);
-}
-
 // Setzt den Steg ans Ufer zwischen Stadt und offenem Wasser, mit dem Kopf zum
 // Meer. Alles in lokalen Koordinaten der Stadtgruppe.
 function placeHarbour(harbour, city, sea, cityY) {
@@ -2884,6 +2906,20 @@ function placeHarbour(harbour, city, sea, cityY) {
   const startZ = (dz / distance) * TILE_SIZE * (distance - 0.5);
   harbour.position.set(startX, SEA_LEVEL_Y - cityY, startZ);
   harbour.rotation.y = Math.atan2(-dz, dx);
+
+  // Die Werft steht am Ufer und nicht auf der Wasserlinie: der Steg ist auf
+  // Pfähle gebaut und darf über dem Wasser schweben, eine Helling liegt auf
+  // dem Strand. Auf Meereshöhe gesetzt verschwand sie in der Uferböschung -
+  // die Höhe kommt deshalb vom Boden an genau ihrer Stelle.
+  const werft = harbour.userData && harbour.userData.werft;
+  if (werft) {
+    const winkel = harbour.rotation.y;
+    const wx = worldX(city.col) + startX
+      + werft.position.x * Math.cos(winkel) + werft.position.z * Math.sin(winkel);
+    const wz = worldZ(city.row) + startZ
+      - werft.position.x * Math.sin(winkel) + werft.position.z * Math.cos(winkel);
+    werft.position.y = Math.max(0, bandY(wx, wz) - SEA_LEVEL_Y);
+  }
 }
 
 // Wie groß ein Heer auf der Karte erscheint. Ein Trupp von 80 Mann und ein
@@ -3430,6 +3466,15 @@ export function syncEntities(state) {
   }
   for (const city of state.cities) {
     let entry = cityGroups.get(city.id);
+    // Ein Ort, der in den nächsten Rang hineingewachsen ist, wird neu gebaut:
+    // aus vier Hütten werden Häuser um eine Halle, und der Mauerring wächst
+    // mit. Alles, was daran hing - Steg, Acker, Viadukt, Stollen -, entsteht
+    // im selben Durchlauf wieder aus den Merkmalen des Orts.
+    if (entry && entry.size !== city.size) {
+      disposeCityEntry(entry);
+      cityGroups.delete(city.id);
+      entry = null;
+    }
     if (!entry) {
       entry = buildCityGroup(city);
       entry.group.position.set(worldX(city.col), surfaceY(city.col, city.row), worldZ(city.row));
@@ -3453,17 +3498,10 @@ export function syncEntities(state) {
     }
     if (entry.harbour) entry.harbour.visible = !!city.harbour;
 
-    // Die Werft steht an demselben Ufer wie der Steg, aber neben dem Ort:
-    // eine Helling braucht Platz, und zwischen den Häusern ist keiner.
-    if (city.shipyard && !entry.shipyard) {
-      const sea = harbourTile(state, city);
-      if (sea) {
-        entry.shipyard = buildShipyard(entry.bau);
-        placeShipyard(entry.shipyard, city, sea, surfaceY(city.col, city.row), entry.scale);
-        entry.group.add(entry.shipyard);
-      }
+    // Die Werft ist ein Teil des Hafens und wird mit ihm gezeigt.
+    if (entry.harbour && entry.harbour.userData.werft) {
+      entry.harbour.userData.werft.visible = !!city.shipyard;
     }
-    if (entry.shipyard) entry.shipyard.visible = !!city.shipyard;
 
     // Die Belagerung: Pfähle und Zelte um den Ort, solange sie läuft.
     const belagert = !!city.siege;
@@ -3490,21 +3528,15 @@ export function syncEntities(state) {
       // schräg liegendes Viereck sieht aus, als hätte es jemand fallen lassen.
       placeAt(entry.farm, city, surfaceY(city.col, city.row), flach, 1.05,
         { gerade: true });
-      entry.farmSpot = flach;
       entry.farmDir = flach.dir;
       entry.group.add(entry.farm);
     }
     if (entry.farm) entry.farm.visible = !!city.farm;
 
-    // Der Kornspeicher steht am Rand desselben Ackers - er hält dessen Ernte,
-    // und ohne den Acker gibt es ihn ohnehin nicht.
-    if (city.granary && entry.farmSpot && !entry.granary) {
-      entry.granary = buildGranary(entry.bau * 1.1);
-      placeAt(entry.granary, city, surfaceY(city.col, city.row), entry.farmSpot, 1.05,
-        { gerade: true, quer: TILE_SIZE * 0.42 });
-      entry.group.add(entry.granary);
+    // Der Kornspeicher gehört zum Acker und wird mit ihm gezeigt.
+    if (entry.farm && entry.farm.userData.speicher) {
+      entry.farm.userData.speicher.visible = !!city.granary;
     }
-    if (entry.granary) entry.granary.visible = !!city.granary;
 
     // Das Viadukt läuft vom höchsten Nachbarfeld auf die Stadt zu - dort liegt
     // die Quelle, und dorthin gehören die Bögen.
