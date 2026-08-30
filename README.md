@@ -499,6 +499,30 @@ den Punkten durchblättern.
   (`BUILDINGS` in `js/data.js`) und laufen durch einen einzigen Knopf, eine
   Kaufregel und eine Bauschleife – ein neues Bauwerk ist ein Eintrag, keine
   neue Funktion.
+- **Jedes gebaute Werk steht auf der Karte.** Was ein Ort besitzt, soll man ihm
+  ansehen können, ohne ein Fenster zu öffnen. Acker, Viadukt, Fördergerüst und
+  Hafensteg standen schon da; **Kaserne, Kornspeicher, Verwaltung und Werft**
+  waren bis dahin nur Zeilen in der Ortsansicht. Jetzt steht **alles, was sich
+  bauen lässt, auch im Gelände** – im Ort oder davor, je nachdem, wohin es
+  gehört:
+
+  | Bauwerk | wo es steht | woran man es erkennt |
+  | --- | --- | --- |
+  | Kaserne | eigenes Feld vor dem Ort | lange Halle, Exerzierplatz mit Zaun und Übungspfählen |
+  | Farm | flachstes Nachbarfeld | drei Schläge mit Furchen, Schuppen am Rain |
+  | Kornspeicher | am Rand desselben Ackers | Speicher auf Stelzen mit Rampe |
+  | Verwaltung | eigenes Feld am Ortsrand | gepflasterter Platz, Säulenreihen, Rednerbühne |
+  | Viadukt | höchstes Nachbarfeld | Pfeiler, Bögen, Wasserrinne zur Stadt hin |
+  | Bergwerk | zweithöchstes Nachbarfeld | Fördergerüst mit Schacht und Halde |
+  | Hafen | am Ufer zum offenen Wasser | Steg mit vertäutem Boot |
+  | Werft | am selben Ufer, neben dem Ort | Helling mit halbfertigem Rumpf, Kranbaum |
+
+  Jedes Werk sucht sich sein eigenes Nachbarfeld und geht den schon vergebenen
+  aus dem Weg; auf Wasser, Fels und Straße wird nichts gebaut. Alle stehen
+  außerdem **genau auf dem Boden**: die Höhe wird an der Stelle genommen, an
+  der das Bauwerk wirklich steht, und nicht mehr aus der Höhe des
+  Nachbarfelds geschätzt – vorher stand ein Werk am Ortsrand deshalb schon
+  einmal im Hang oder knietief im Wasser.
 - **Das Bauamt meldet**: Ein Bauauftrag läuft über mehrere Runden, und wenn er
   fertig wird, ist der Spieler längst woanders. Deshalb hält die Runde jetzt an
   und sagt es: Sobald ein **Bauwerk**, eine **Befestigung** oder eine
@@ -525,12 +549,21 @@ den Punkten durchblättern.
   **Kleruchenland** und die **Kanzlei** und bei den Sarmaten, die nicht wohnen,
   das **Reiterlager** und das **Fürstenzelt** – sechzehn Namenspaare, für jede
   Fraktion eines.
+  **Beide stehen auf der Karte.** Die Kaserne liegt **vor dem Ort**: eine lange
+  Halle mit Satteldach, davor der Exerzierplatz mit Pfahlzaun und zwei
+  Übungspfählen – zwischen die Häuser gehört kein Exerzierplatz. Die Verwaltung
+  steht auf ihrem eigenen Feld daneben: ein gepflasterter Platz mit einer
+  Säulenreihe an beiden Seiten und der Rednerbühne in der Mitte.
 - **Farm und Kornspeicher**: Ein Ort lebt von dem, was um ihn herum wächst.
   Die **Farm** (**180 Gold**, **2 Runden**) legt das Ackerland an: **50 % mehr
   Zuwachs** je Runde. **Auf der Karte liegen ihre Äcker neben der Stadt**: drei
   Schläge in Grün und Reifegelb, die Furchen dazwischen, am Rand der Schuppen –
   auf dem flachsten Nachbarfeld, während das Fördergerüst des Bergwerks auf dem
-  höchsten steht. **Auf Wasser und Fels wird nichts gebaut**: In einer
+  höchsten steht. **Die Schläge liegen gerade im Feldraster**: ein Acker ist
+  ein Viereck, und ein Viereck, das schräg im Gelände liegt, sieht aus, als
+  hätte es jemand fallen lassen. Liegt der Acker auf einem Eckfeld, wird seine
+  Ausrichtung auf den rechten Winkel gerundet, sodass seine Kanten parallel zu
+  den Feldgrenzen und zu den Häusern laufen. **Auf Wasser und Fels wird nichts gebaut**: In einer
   Hafenstadt ist das flachste Nachbarfeld das Meer, und dort lagen die Äcker
   bis zuletzt – mitten auf dem Hafen. Jetzt kommen nur Landfelder infrage, und
   Farm, Viadukt und Bergwerk gehen einander aus dem Weg. **Auch die Straße
@@ -539,7 +572,9 @@ den Punkten durchblättern.
   (eine Insel, ein Ort zwischen Fels, Wasser und Straße), rückt das Bauwerk an
   den Ort selbst heran. Der **Kornspeicher** (**260 Gold**, **3 Runden**) setzt
   die Farm voraus und bewahrt die Ernte über den Winter – er hebt die
-  **Obergrenze der Einwohner um 25 %**. Da die Schatzkammer allein von der
+  **Obergrenze der Einwohner um 25 %**. Er steht **am Rand desselben Ackers**,
+  dessen Ernte er hält: ein Bau auf Stelzen, damit weder Nässe noch Ratten
+  hinkommen, mit Satteldach und Rampe – so stand ein Horreum. Da die Schatzkammer allein von der
   Kopfsteuer lebt, ist beides bares Geld, nur später.
 - **Viadukt**: Wasser über das Tal, auf Bögen, über Meilen. Es kostet **480
   Gold** und **5 Runden**, setzt eine **Verwaltung** voraus und bringt **25 %
@@ -559,6 +594,10 @@ den Punkten durchblättern.
   Werftbau; steht sie, erscheinen die bis zu drei Bauarten der Fraktion. Die
   Arbeitsteilung ist damit klar: **der Hafen trägt Handelsschiffe und
   Truppentransporte, die Werft die Kriegsschiffe**.
+  **Auf der Karte liegt sie am selben Ufer wie der Steg**, aber seitlich am Ort
+  vorbei: die **Helling**, darauf der halbfertige Rumpf – Kiel und Spanten,
+  noch keine Beplankung –, daneben der Kranbaum. Am Steg selbst wäre kein
+  Platz; sie läge zwischen den Häusern und wäre von keiner Seite zu sehen.
 - **Bergwerk**: Die beste Einnahmequelle, die ein Ort haben kann – und die
   einzige, die weder an seiner Größe noch an seinen Einwohnern hängt, sondern
   allein an dem, was im Berg liegt. Gerechnet wird über ein Quadrat von **zwei
@@ -1240,7 +1279,29 @@ den Punkten durchblättern.
   als sie, und ein marschierendes Heer war fast so hoch wie das Dorf, an dem es
   vorbeizog. Jetzt überragt ein Wald die Häuser, ein Lager duckt sich neben
   den Ort, und eine Kolonne ist ein Zug kleiner Gestalten. Man sieht einem
-  Bildausschnitt an, wie groß das ist, was darin steht. **Jede Fraktion beginnt mit denselben fünf Orten**: der
+  Bildausschnitt an, wie groß das ist, was darin steht.
+
+  **Straßen und Flüsse haben einen Körper.** Beide waren Bänder aus einer
+  einzigen Fläche, flach auf das Land gelegt: von oben sah das niemand, aber
+  diese Karte wird schräg angesehen, und einem Aufkleber fehlt aus jeder
+  anderen Richtung genau das, was ihn zu einem Weg macht – eine Kante. Jetzt
+  liegt die Straße auf einem **Damm**, dessen Böschung im Schrägblick einen
+  Schatten wirft, und der Fluss in einem **Bett**: zwei Uferbänke aus Kies,
+  dazwischen das eingesenkte Wasser. Dazu sind beide auf ihr Maß gebracht –
+  eine Straße ist so breit, dass zwei Karren aneinander vorbeikommen, also
+  ungefähr ein Haus lang und nicht drei nebeneinander; sie war vorher um zwei
+  Drittel zu breit und um einen Ton zu hell. Die Brücke darüber ist etwas
+  breiter als die Straße, die sie trägt.
+
+  **Und es stehen mehr Bäume da.** Ein Waldfeld trug einen einzigen Baum; ein
+  Wald aus einem Baum ist kein Wald. Jetzt stehen auf einem Waldfeld **vier bis
+  sechs**, und weil ein Land nicht an der Waldgrenze aufhört, steht auch auf
+  jedem zweiten Hügelfeld und jedem vierten Ebenenfeld einer, in der Ebene in
+  kleinen Gruppen. Wo ein Ort, sein Umland oder eine Straße liegt, wächst
+  keiner: eine Eiche mitten auf dem Pflaster ist keine Landschaft, sondern ein
+  Versehen. Aus rund 350 Bäumen sind so etwa 2.500 geworden – gezeichnet wird
+  das weiterhin in zwei Aufrufen, denn alle Stämme und alle Kronen sind je eine
+  Instanzenwolke. **Jede Fraktion beginnt mit denselben fünf Orten**: der
   Hauptstadt als Große Stadt, zwei Städten und zwei Dörfern. Wo einer sitzt,
   sagt die Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt
   reicher als das andere. **27 Orte gehören niemandem** und sind frei zu

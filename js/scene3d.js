@@ -334,9 +334,9 @@ export function zoomCamera(factor) {
 // Props are collected as plain transforms first and drawn as instanced meshes
 // afterwards. On a map this size there are thousands of them, and one draw
 // call per tree would cost more than everything else on screen put together.
-function collectTree(props, col, row, rng) {
-  const jx = (rng() - 0.5) * 0.4;
-  const jz = (rng() - 0.5) * 0.4;
+function collectTree(props, col, row, rng, streuung = 0.4) {
+  const jx = (rng() - 0.5) * streuung;
+  const jz = (rng() - 0.5) * streuung;
   const scale = 0.8 + rng() * 0.5;
   // Auf dem Boden dort, wo der Baum wirklich steht - nicht auf der Höhe der
   // Feldmitte, die am Hang mehrere Meter daneben liegt.
@@ -537,6 +537,16 @@ export function buildMap(state) {
   scene.add(roadsGroup);
   const rng = seededRandomFactory(11);
 
+  // Wo schon etwas steht, wächst kein Baum: die Orte selbst und ihre
+  // unmittelbare Nachbarschaft (dort stehen Acker, Viadukt, Stollen und
+  // Kaserne) und jedes Feld, über das eine Straße läuft.
+  const besetzteFelder = new Set(Object.keys(currentRoads));
+  for (const city of state.cities) {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) besetzteFelder.add(`${city.col + dc},${city.row + dr}`);
+    }
+  }
+
   const positions = new Float32Array(mapCols * mapRows * 3);
   const colors = new Float32Array(mapCols * mapRows * 3);
   const uvs = new Float32Array(mapCols * mapRows * 2);
@@ -557,7 +567,23 @@ export function buildMap(state) {
       uvs[i * 2 + 1] = row / 3;
 
       if (tile.type !== 'water') {
-        if (TILE_TYPES[tile.type].deco === 'tree' && rng() < 0.85) collectTree(props, col, row, rng);
+        // Bäume: ein Wald ist ein Wald und nicht ein Baum je Feld. Auf einem
+        // Waldfeld stehen vier bis sechs, und weil ein Land nicht an der
+        // Waldgrenze aufhört, steht auch in der Ebene und auf den Hügeln hier
+        // und da einer. Wo ein Ort oder eine Straße liegt, wächst keiner: eine
+        // Eiche mitten auf dem Pflaster ist keine Landschaft, sondern ein
+        // Versehen.
+        const frei = !besetzteFelder.has(`${col},${row}`);
+        if (TILE_TYPES[tile.type].deco === 'tree') {
+          const zahl = frei ? 4 + Math.floor(rng() * 3) : 2;
+          for (let i = 0; i < zahl; i++) collectTree(props, col, row, rng, 0.84);
+        } else if (frei && tile.type === 'hills' && rng() < 0.5) {
+          collectTree(props, col, row, rng, 0.7);
+        } else if (frei && tile.type === 'plains' && rng() < 0.26) {
+          // In der Ebene stehen sie in Gruppen, nicht einzeln verteilt.
+          const zahl = rng() < 0.4 ? 2 : 1;
+          for (let i = 0; i < zahl; i++) collectTree(props, col, row, rng, 0.55);
+        }
         if (TILE_TYPES[tile.type].deco === 'peak') collectPeak(props, col, row, tile.elevation, rng);
       }
     }
@@ -1317,7 +1343,16 @@ function bandY(x, z) {
   return Math.max(groundY(colF, rowF), SEA_LEVEL_Y);
 }
 
-function pushQuad(positions, ax, az, bx, bz, halfWidth, lift = 0.18) {
+// Ein Band mit Körper: die Oberseite und, wenn `schuerze` gesetzt ist, zwei
+// Längsseiten, die an den Rändern in den Boden laufen.
+//
+// Ein Band aus einer einzigen Fläche ist ein Aufkleber. Von oben sieht das
+// niemand, aber diese Karte wird schräg angesehen, und aus jeder anderen
+// Richtung fehlt einem Aufkleber genau das, was ihn zu einem Weg macht: eine
+// Kante. Straße und Fluss lagen deshalb wie aufgemalt auf dem Land, während
+// Häuser, Bäume und Zelte danebenstanden - der Damm einer Straße und das Ufer
+// eines Flusses gehören in dieselbe Perspektive wie alles andere.
+function pushBand(positions, ax, az, bx, bz, halfWidth, lift = 0.18, schuerze = 0) {
   const dx = bx - ax;
   const dz = bz - az;
   const length = Math.hypot(dx, dz) || 1;
@@ -1326,11 +1361,28 @@ function pushQuad(positions, ax, az, bx, bz, halfWidth, lift = 0.18) {
   const corners = [
     [ax + nx, az + nz], [bx + nx, bz + nz], [bx - nx, bz - nz], [ax - nx, az - nz],
   ];
-  for (const [i, j, k] of [[0, 1, 2], [0, 2, 3]]) {
-    for (const corner of [corners[i], corners[j], corners[k]]) {
-      positions.push(corner[0], bandY(corner[0], corner[1]) + lift, corner[1]);
-    }
+  const oben = corners.map(([x, z]) => [x, bandY(x, z) + lift, z]);
+  const dreieck = (p, q, r) => {
+    positions.push(p[0], p[1], p[2], q[0], q[1], q[2], r[0], r[1], r[2]);
+  };
+  dreieck(oben[0], oben[1], oben[2]);
+  dreieck(oben[0], oben[2], oben[3]);
+  if (!schuerze) return;
+  // Die beiden Längsseiten. Die Querseiten bleiben offen: dort stößt das
+  // nächste Stück an, und an einem Ende sieht man sie im Schrägblick ohnehin
+  // nicht.
+  for (const [i, j] of [[0, 1], [2, 3]]) {
+    const p = oben[i];
+    const q = oben[j];
+    const pu = [p[0], p[1] - schuerze, p[2]];
+    const qu = [q[0], q[1] - schuerze, q[2]];
+    dreieck(p, pu, q);
+    dreieck(q, pu, qu);
   }
+}
+
+function pushQuad(positions, ax, az, bx, bz, halfWidth, lift = 0.18) {
+  pushBand(positions, ax, az, bx, bz, halfWidth, lift, 0);
 }
 
 // --- Flüsse und Brücken ----------------------------------------------------
@@ -1344,7 +1396,14 @@ let riversGroup = null;
 // dem Boden - hoch genug, dass ein Knick im Gelände es nicht verschluckt,
 // flach genug, dass es nicht über der Landschaft schwebt.
 const RIVER_PIECES = 5;
-const RIVER_LIFT = 0.2;
+// Das Ufer liegt eine Handbreit über dem Land, das Wasser darunter: ein Fluss
+// hat ein Bett. Vorher lag ein blaues Band flach obenauf, und der Fluss sah
+// aus wie ein Strich auf einer Landkarte statt wie Wasser im Gelände.
+const RIVER_BANK_LIFT = 0.22;
+const RIVER_BANK_SKIRT = 0.36;
+// Das Wasser liegt eine Handbreit tiefer als die Uferkante - tiefer als der
+// Boden darf es nicht liegen, sonst verschluckt ihn das Gelände.
+const RIVER_LIFT = 0.06;
 
 // Die beiden Feldmitten einer Kante und der Punkt dazwischen.
 function riverEdgeTiles(key, cols) {
@@ -1365,6 +1424,7 @@ function buildRivers(state) {
   if (!rivers || !rivers.size) return;
 
   const positions = [];
+  const ufer = [];
   const bridges = [];
   const half = TILE_SIZE / 2;
 
@@ -1378,8 +1438,11 @@ function buildRivers(state) {
     // Zwei Stücke, die im rechten Winkel aufeinandertreffen, überlappen sich
     // dadurch in der Ecke; ohne diesen Überstand blieb dort außen ein Zwickel
     // frei, und ein Lauf über viele Ecken sah aus wie eine gestrichelte Linie.
-    const width = TILE_SIZE * 0.12;
-    const reach = half + width;
+    // Das Wasser ist so breit wie ein Karren, die Uferbank beiderseits halb so
+    // breit noch einmal dazu.
+    const width = TILE_SIZE * 0.085;
+    const bank = TILE_SIZE * 0.035;
+    const reach = half + width + 2 * bank;
     const from = alongX ? [mx, mz - reach] : [mx - reach, mz];
     const to = alongX ? [mx, mz + reach] : [mx + reach, mz];
     // In Stücke zerlegt, damit das Band dem Gelände folgt. Ein Uferstück ist
@@ -1389,10 +1452,20 @@ function buildRivers(state) {
     for (let piece = 0; piece < RIVER_PIECES; piece++) {
       const t0 = piece / RIVER_PIECES;
       const t1 = (piece + 1) / RIVER_PIECES;
-      pushQuad(positions,
-        from[0] + (to[0] - from[0]) * t0, from[1] + (to[1] - from[1]) * t0,
-        from[0] + (to[0] - from[0]) * t1, from[1] + (to[1] - from[1]) * t1,
-        width, RIVER_LIFT);
+      const ax = from[0] + (to[0] - from[0]) * t0;
+      const az = from[1] + (to[1] - from[1]) * t0;
+      const bx = from[0] + (to[0] - from[0]) * t1;
+      const bz = from[1] + (to[1] - from[1]) * t1;
+      // Zwei Uferbänke, links und rechts, und dazwischen das eingesenkte
+      // Wasser. Eine einzige Bank über die ganze Breite wäre ein Deckel: das
+      // Wasser läge darunter und wäre nicht zu sehen.
+      for (const seite of [-1, 1]) {
+        const ox = alongX ? seite * (width + bank) : 0;
+        const oz = alongX ? 0 : seite * (width + bank);
+        pushBand(ufer, ax + ox, az + oz, bx + ox, bz + oz,
+          bank, RIVER_BANK_LIFT, RIVER_BANK_SKIRT);
+      }
+      pushQuad(positions, ax, az, bx, bz, width, RIVER_LIFT);
     }
 
     const roads = state.roads || {};
@@ -1407,16 +1480,22 @@ function buildRivers(state) {
     }
   }
 
-  if (positions.length) {
+  const bandMesh = (daten, material) => {
+    if (!daten.length) return;
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(daten), 3));
     geometry.computeVertexNormals();
-    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-      color: '#3f7fb8', roughness: 0.35, side: THREE.DoubleSide,
-    }));
+    const mesh = new THREE.Mesh(geometry, material);
     mesh.frustumCulled = false;
     riversGroup.add(mesh);
-  }
+  };
+  // Kies und Schwemmland am Ufer, darin das Wasser.
+  bandMesh(ufer, new THREE.MeshStandardMaterial({
+    color: '#9a8b62', roughness: 1, side: THREE.DoubleSide,
+  }));
+  bandMesh(positions, new THREE.MeshStandardMaterial({
+    color: '#3f7fb8', roughness: 0.35, side: THREE.DoubleSide,
+  }));
 
   for (const bridge of bridges) buildBridge(riversGroup, bridge);
 }
@@ -1441,7 +1520,9 @@ function buildBridge(parent, bridge) {
   const bankA = bandY(mx - dirX * half, mz - dirZ * half);
   const bankB = bandY(mx + dirX * half, mz + dirZ * half);
   const base = Math.max(bankA, bankB);
-  const width = TILE_SIZE * 0.34;
+  // Etwas breiter als die Straße, die darüber führt - eine Brücke, auf der
+  // ein Karren gerade so Platz hat, ist keine.
+  const width = ROAD_HALF * 2.4;
   // Knapp über dem Wasser: eine Holzbrücke steigt nicht an.
   const deck = 0.46;
 
@@ -1523,7 +1604,13 @@ const BRIDGE_TIMBER_DARK = new THREE.MeshStandardMaterial({ color: '#6f4d29', ro
 // In so viele Stücke wird ein Straßenabschnitt zerlegt, und so weit liegt er
 // über dem Boden.
 const ROAD_PIECES = 4;
-const ROAD_LIFT = 0.22;
+// Eine Straße ist so breit, dass zwei Karren aneinander vorbeikommen - also
+// ungefähr so breit wie ein Haus lang ist, und nicht wie drei nebeneinander.
+// Sie liegt auf einem Damm: die Schürze an den Rändern macht aus dem Band
+// einen Körper, der von schräg oben eine Kante wirft.
+const ROAD_HALF = TILE_SIZE * 0.105;
+const ROAD_LIFT = 0.17;
+const ROAD_SKIRT = 0.3;
 
 function buildRoadNetwork(state) {
   while (roadsGroup.children.length) {
@@ -1536,7 +1623,7 @@ function buildRoadNetwork(state) {
   // Basalt. Ein Stück gehört der niedrigeren der beiden Stufen an seinen
   // Enden - so endet das Pflaster dort, wo der Ausbau endet.
   const bahnen = { 1: [], 2: [] };
-  const half = TILE_SIZE * 0.17;
+  const half = ROAD_HALF;
 
   for (const key of Object.keys(roads)) {
     const [col, row] = key.split(',').map(Number);
@@ -1545,8 +1632,8 @@ function buildRoadNetwork(state) {
     const positions = bahnen[Math.min(2, stufe)];
     const x = worldX(col);
     const z = worldZ(row);
-    pushQuad(positions, x - half, z, x + half, z, half, ROAD_LIFT);
-    pushQuad(positions, x, z - half, x, z + half, half, ROAD_LIFT);
+    pushBand(positions, x - half, z, x + half, z, half, ROAD_LIFT, ROAD_SKIRT);
+    pushBand(positions, x, z - half, x, z + half, half, ROAD_LIFT, ROAD_SKIRT);
     for (const [dc, dr] of [[1, 0], [0, 1]]) {
       const nachbar = roadLevelOf(roads[`${col + dc},${row + dr}`]);
       if (!nachbar) continue;
@@ -1561,10 +1648,10 @@ function buildRoadNetwork(state) {
       for (let piece = 0; piece < ROAD_PIECES; piece++) {
         const t0 = piece / ROAD_PIECES;
         const t1 = (piece + 1) / ROAD_PIECES;
-        pushQuad(stueck,
+        pushBand(stueck,
           x + (bx - x) * t0, z + (bz - z) * t0,
           x + (bx - x) * t1, z + (bz - z) * t1,
-          half, ROAD_LIFT);
+          half, ROAD_LIFT, ROAD_SKIRT);
       }
     }
   }
@@ -1575,7 +1662,9 @@ function buildRoadNetwork(state) {
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
     geometry.computeVertexNormals();
     const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-      color: Number(stufe) >= 2 ? '#cfc7b8' : '#a9895c',
+      // Etwas dunkler als früher: eine helle Bahn quer über die grüne Karte
+      // zog den Blick stärker auf sich als die Orte, die sie verbindet.
+      color: Number(stufe) >= 2 ? '#b8b0a1' : '#94764b',
       roughness: Number(stufe) >= 2 ? 0.7 : 1,
       side: THREE.DoubleSide,
     }));
@@ -2459,6 +2548,198 @@ function buildFarm(scale) {
 
 
 
+// --- Kaserne, Speicher, Forum und Werft ------------------------------------
+// Was ein Ort bauen kann, soll man ihm auch ansehen. Acker, Viadukt, Stollen
+// und Hafensteg standen schon auf der Karte; Kaserne, Kornspeicher, Forum und
+// Werft waren nur Zeilen in der Ortsansicht. Jetzt steht jedes gebaute Werk
+// da, wo es hingehört: das Forum am Rand des Orts, die Kaserne davor, der
+// Speicher am Acker, die Werft neben dem Steg.
+//
+// Alle im selben Maßstab wie die Häuser: das Haus ist die Eins.
+
+// Satteldächer brauchen beide Seiten: die Dachflächen sind einzelne Dreiecke
+// ohne Rückseite, und von der falschen Seite gesehen wäre das Dach nicht da.
+const ROOF_TIMBER = new THREE.MeshStandardMaterial({
+  color: '#7a5a34', roughness: 0.9, side: THREE.DoubleSide,
+});
+const ROOF_THATCH = new THREE.MeshStandardMaterial({
+  color: '#b39456', roughness: 1, side: THREE.DoubleSide,
+});
+
+// Die Kaserne: eine lange Halle mit Satteldach, davor der Exerzierplatz mit
+// Pfahlzaun und zwei Übungspfählen.
+function buildBarracks(scale) {
+  const kaserne = new THREE.Group();
+  const halle = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2 * scale, 0.72 * scale, 0.9 * scale),
+    CITY_MATERIALS.plaster
+  );
+  halle.position.set(0, 0.36 * scale, -0.8 * scale);
+  kaserne.add(halle);
+  const dach = new THREE.Mesh(
+    makeGableRoof(2.2 * scale, 0.9 * scale, 0.5 * scale), ROOF_TIMBER
+  );
+  dach.position.set(0, 0.72 * scale, -0.8 * scale);
+  kaserne.add(dach);
+
+  // Der Zaun um den Exerzierplatz: kurze Pfähle in Abständen, keine Wand -
+  // drei Seiten, denn die vierte ist die Halle.
+  const zaun = [];
+  for (let i = -3; i <= 3; i++) zaun.push([i * 0.37, 1.15]);
+  for (let j = 0; j <= 3; j++) {
+    zaun.push([-1.11, 1.15 - j * 0.42]);
+    zaun.push([1.11, 1.15 - j * 0.42]);
+  }
+  for (const [x, z] of zaun) {
+    const pfahl = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05 * scale, 0.06 * scale, 0.44 * scale, 5),
+      CITY_MATERIALS.wood
+    );
+    pfahl.position.set(x * scale, 0.22 * scale, z * scale);
+    kaserne.add(pfahl);
+  }
+  // Zwei Übungspfähle auf dem Platz - daran erkennt man einen Exerzierplatz
+  // und nicht einen Viehpferch.
+  for (const x of [-0.55, 0.55]) {
+    const pfahl = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08 * scale, 0.09 * scale, 0.85 * scale, 6),
+      CITY_MATERIALS.wood
+    );
+    pfahl.position.set(x * scale, 0.42 * scale, 0.35 * scale);
+    kaserne.add(pfahl);
+    const arm = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42 * scale, 0.07 * scale, 0.07 * scale),
+      CITY_MATERIALS.wood
+    );
+    arm.position.set(x * scale, 0.74 * scale, 0.35 * scale);
+    kaserne.add(arm);
+  }
+  return kaserne;
+}
+
+// Der Kornspeicher: ein Bau auf Stelzen, damit weder Nässe noch Ratten
+// hinkommen - so stand ein Horreum, und so steht er hier.
+function buildGranary(scale) {
+  const speicher = new THREE.Group();
+  for (const x of [-0.42, 0.42]) {
+    for (const z of [-0.3, 0.3]) {
+      const stelze = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07 * scale, 0.08 * scale, 0.34 * scale, 5),
+        CITY_MATERIALS.stone
+      );
+      stelze.position.set(x * scale, 0.17 * scale, z * scale);
+      speicher.add(stelze);
+    }
+  }
+  const kasten = new THREE.Mesh(
+    new THREE.BoxGeometry(1.15 * scale, 0.6 * scale, 0.82 * scale),
+    CITY_MATERIALS.plaster
+  );
+  kasten.position.set(0, 0.64 * scale, 0);
+  speicher.add(kasten);
+  const dach = new THREE.Mesh(
+    makeGableRoof(1.15 * scale, 0.82 * scale, 0.4 * scale), ROOF_THATCH
+  );
+  dach.position.set(0, 0.94 * scale, 0);
+  speicher.add(dach);
+  // Die Rampe hinauf zur Tür.
+  const rampe = new THREE.Mesh(
+    new THREE.BoxGeometry(0.3 * scale, 0.06 * scale, 0.62 * scale),
+    CITY_MATERIALS.wood
+  );
+  rampe.position.set(0, 0.2 * scale, 0.62 * scale);
+  rampe.rotation.x = -0.5;
+  speicher.add(rampe);
+  return speicher;
+}
+
+// Das Forum: ein gepflasterter Platz mit einer Säulenreihe an zwei Seiten und
+// der Rednerbühne in der Mitte. Es steht am Rand des Orts, dort, wo die Straße
+// hereinkommt.
+function buildForum(scale) {
+  const forum = new THREE.Group();
+  const platz = new THREE.Mesh(
+    new THREE.BoxGeometry(2.1 * scale, 0.1 * scale, 1.7 * scale),
+    CITY_MATERIALS.marble
+  );
+  platz.position.y = 0.05 * scale;
+  forum.add(platz);
+  for (const z of [-0.72, 0.72]) {
+    for (let i = -3; i <= 3; i++) {
+      const saeule = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07 * scale, 0.08 * scale, 0.62 * scale, 6),
+        CITY_MATERIALS.marble
+      );
+      saeule.position.set(i * 0.32 * scale, 0.41 * scale, z * scale);
+      forum.add(saeule);
+    }
+    // Das Gebälk über den Säulen.
+    const balken = new THREE.Mesh(
+      new THREE.BoxGeometry(2.05 * scale, 0.14 * scale, 0.22 * scale),
+      CITY_MATERIALS.marble
+    );
+    balken.position.set(0, 0.79 * scale, z * scale);
+    forum.add(balken);
+  }
+  // Die Rednerbühne.
+  const buehne = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5 * scale, 0.26 * scale, 0.5 * scale),
+    CITY_MATERIALS.marble
+  );
+  buehne.position.set(0, 0.23 * scale, 0);
+  forum.add(buehne);
+  return forum;
+}
+
+// Die Werft: die Helling mit dem halbfertigen Rumpf auf den Stapelblöcken und
+// dem Kranbaum daneben. Sie steht am Ufer neben dem Steg - was hier vom
+// Stapel läuft, liegt eine Runde später im Hafen.
+function buildShipyard(scale) {
+  const werft = new THREE.Group();
+  // Die Helling: eine schiefe Ebene, die ins Wasser führt.
+  const helling = new THREE.Mesh(
+    new THREE.BoxGeometry(1.9 * scale, 0.1 * scale, 1.1 * scale),
+    CITY_MATERIALS.wood
+  );
+  helling.position.set(0, 0.16 * scale, 0);
+  helling.rotation.z = 0.12;
+  werft.add(helling);
+  // Der Rumpf im Bau: Kiel, Spanten, noch keine Beplankung.
+  const kiel = new THREE.Mesh(
+    new THREE.BoxGeometry(1.5 * scale, 0.13 * scale, 0.16 * scale),
+    CITY_MATERIALS.timber
+  );
+  kiel.position.set(0, 0.4 * scale, 0);
+  werft.add(kiel);
+  for (let i = -2; i <= 2; i++) {
+    const spant = new THREE.Mesh(
+      new THREE.TorusGeometry(0.26 * scale, 0.035 * scale, 4, 8, Math.PI),
+      CITY_MATERIALS.timber
+    );
+    spant.position.set(i * 0.3 * scale, 0.42 * scale, 0);
+    spant.rotation.y = Math.PI / 2;
+    spant.rotation.z = Math.PI;
+    werft.add(spant);
+  }
+  // Der Kranbaum: ein schräger Mast mit Strebe, wie er zum Setzen der Spanten
+  // gebraucht wurde.
+  const mast = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06 * scale, 0.08 * scale, 1.3 * scale, 5),
+    CITY_MATERIALS.wood
+  );
+  mast.position.set(-0.85 * scale, 0.62 * scale, -0.5 * scale);
+  mast.rotation.z = 0.28;
+  werft.add(mast);
+  const ausleger = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04 * scale, 0.05 * scale, 0.8 * scale, 4),
+    CITY_MATERIALS.wood
+  );
+  ausleger.position.set(-0.6 * scale, 1.16 * scale, -0.5 * scale);
+  ausleger.rotation.z = 1.15;
+  werft.add(ausleger);
+  return werft;
+}
+
 // --- Das Viadukt -----------------------------------------------------------
 // Wasser über das Tal, auf Bögen, über Meilen: eine Reihe Pfeiler mit Bögen
 // dazwischen und der Rinne obendrauf, die vom höchsten Nachbarfeld zur Stadt
@@ -2541,7 +2822,14 @@ function neighbourSpot(city, prefer, taken = []) {
   return { dir: best, y: bestY };
 }
 
-function placeAt(group, city, cityY, spot, abstand = 1) {
+// `gerade` richtet das Bauwerk am Feldraster aus statt auf den Ort zu: ein
+// Acker ist ein Viereck, und ein Viereck, das schräg im Gelände liegt, sieht
+// aus wie hingeworfen. Die Häuser, die Straße und die Feldgrenzen laufen alle
+// in denselben zwei Richtungen; die Schläge tun es jetzt auch.
+// `quer` verschiebt zusätzlich seitwärts - so steht der Speicher am Rand
+// desselben Ackers, auf dem die Schläge liegen.
+function placeAt(group, city, cityY, spot, abstand = 1, optionen = {}) {
+  const { gerade = false, quer = 0 } = optionen;
   if (!spot.dir) {
     // Kein Nachbarfeld, auf dem etwas stehen könnte - eine Insel, ein Ort
     // zwischen Fels und Wasser: dann drängt sich das Bauwerk an den Ort selbst,
@@ -2552,12 +2840,37 @@ function placeAt(group, city, cityY, spot, abstand = 1) {
   }
   const [dc, dr] = spot.dir;
   const laenge = Math.hypot(dc, dr) || 1;
-  group.position.set(
-    (dc / laenge) * TILE_SIZE * abstand,
-    (spot.y - cityY) * 0.5,
-    (dr / laenge) * TILE_SIZE * abstand
-  );
-  group.rotation.y = Math.atan2(-dr, dc);
+  const winkel = Math.atan2(-dr, dc);
+  // Quer zur Richtung: (dr, -dc), auf Länge eins gebracht.
+  const lx = (dc / laenge) * TILE_SIZE * abstand + (dr / laenge) * quer;
+  const lz = (dr / laenge) * TILE_SIZE * abstand - (dc / laenge) * quer;
+  // Die Höhe wird am Boden genommen, nicht geschätzt: vorher stand hier die
+  // halbe Höhendifferenz zum Nachbarfeld, und ein Bauwerk, das nicht genau
+  // auf einer Feldmitte steht - am Ortsrand, am Feldrain -, stand damit im
+  // Hang oder schwebte darüber.
+  group.position.set(lx, bandY(worldX(city.col) + lx, worldZ(city.row) + lz) - cityY, lz);
+  // Auf den rechten Winkel gerundet: das Bauwerk steht dann parallel zum
+  // Feldraster, auch wenn es auf einem Eckfeld liegt.
+  group.rotation.y = gerade
+    ? Math.round(winkel / (Math.PI / 2)) * (Math.PI / 2)
+    : winkel;
+}
+
+// Die Werft ans Ufer, aber seitlich am Ort vorbei: die Helling liegt neben dem
+// Mauerring, mit dem Kiel zum Wasser. Stünde sie am Steg, läge sie zwischen
+// den Häusern und wäre von keiner Seite zu sehen.
+function placeShipyard(werft, city, sea, cityY, spread) {
+  const dx = sea.col - city.col;
+  const dz = sea.row - city.row;
+  const laenge = Math.max(1, Math.hypot(dx, dz));
+  const ux = dx / laenge;
+  const uz = dz / laenge;
+  const quer = 2.2 * spread + 1.6;
+  const lx = ux * TILE_SIZE * 0.4 + uz * quer;
+  const lz = uz * TILE_SIZE * 0.4 - ux * quer;
+  werft.position.set(lx,
+    bandY(worldX(city.col) + lx, worldZ(city.row) + lz) - cityY, lz);
+  werft.rotation.y = Math.atan2(-uz, ux);
 }
 
 // Setzt den Steg ans Ufer zwischen Stadt und offenem Wasser, mit dem Kopf zum
@@ -3140,6 +3453,18 @@ export function syncEntities(state) {
     }
     if (entry.harbour) entry.harbour.visible = !!city.harbour;
 
+    // Die Werft steht an demselben Ufer wie der Steg, aber neben dem Ort:
+    // eine Helling braucht Platz, und zwischen den Häusern ist keiner.
+    if (city.shipyard && !entry.shipyard) {
+      const sea = harbourTile(state, city);
+      if (sea) {
+        entry.shipyard = buildShipyard(entry.bau);
+        placeShipyard(entry.shipyard, city, sea, surfaceY(city.col, city.row), entry.scale);
+        entry.group.add(entry.shipyard);
+      }
+    }
+    if (entry.shipyard) entry.shipyard.visible = !!city.shipyard;
+
     // Die Belagerung: Pfähle und Zelte um den Ort, solange sie läuft.
     const belagert = !!city.siege;
     if (belagert && !entry.siege) {
@@ -3161,11 +3486,25 @@ export function syncEntities(state) {
       // Äcker liegen im flachsten Gelände, nicht am Hang - und nicht im
       // Wasser: das flachste Nachbarfeld einer Hafenstadt wäre das Meer.
       const flach = neighbourSpot(city, 'low');
-      placeAt(entry.farm, city, surfaceY(city.col, city.row), flach, 1.05);
+      // Und sie liegen gerade im Raster: ein Acker ist ein Viereck, und ein
+      // schräg liegendes Viereck sieht aus, als hätte es jemand fallen lassen.
+      placeAt(entry.farm, city, surfaceY(city.col, city.row), flach, 1.05,
+        { gerade: true });
+      entry.farmSpot = flach;
       entry.farmDir = flach.dir;
       entry.group.add(entry.farm);
     }
     if (entry.farm) entry.farm.visible = !!city.farm;
+
+    // Der Kornspeicher steht am Rand desselben Ackers - er hält dessen Ernte,
+    // und ohne den Acker gibt es ihn ohnehin nicht.
+    if (city.granary && entry.farmSpot && !entry.granary) {
+      entry.granary = buildGranary(entry.bau * 1.1);
+      placeAt(entry.granary, city, surfaceY(city.col, city.row), entry.farmSpot, 1.05,
+        { gerade: true, quer: TILE_SIZE * 0.42 });
+      entry.group.add(entry.granary);
+    }
+    if (entry.granary) entry.granary.visible = !!city.granary;
 
     // Das Viadukt läuft vom höchsten Nachbarfeld auf die Stadt zu - dort liegt
     // die Quelle, und dorthin gehören die Bögen.
@@ -3190,9 +3529,37 @@ export function syncEntities(state) {
       const hoch = neighbourSpot(city, 'high',
         [entry.viaductDir, entry.farmDir].filter(Boolean));
       placeAt(entry.mine, city, surfaceY(city.col, city.row), hoch, 0.88);
+      entry.mineDir = hoch.dir;
       entry.group.add(entry.mine);
     }
     if (entry.mine) entry.mine.visible = !!city.mine;
+
+    // Die Kaserne liegt vor dem Ort: ein Exerzierplatz gehört nicht zwischen
+    // die Häuser.
+    if (city.barracks && !entry.barracks) {
+      entry.barracks = buildBarracks(entry.bau);
+      const platz = neighbourSpot(city, 'low',
+        [entry.farmDir, entry.viaductDir, entry.mineDir].filter(Boolean));
+      placeAt(entry.barracks, city, surfaceY(city.col, city.row), platz, 0.95,
+        { gerade: true });
+      entry.barracksDir = platz.dir;
+      entry.group.add(entry.barracks);
+    }
+    if (entry.barracks) entry.barracks.visible = !!city.barracks;
+
+    // Das Forum steht auf dem eigenen Feld vor dem Ort - wie Acker, Stollen
+    // und Kaserne. Am Mauerring selbst hatte es keinen Platz: dort fällt bei
+    // einer Hafenstadt das Gelände schon zum Wasser ab, und der Marktplatz
+    // stand knietief in der Brandung.
+    if (city.forum && !entry.forum) {
+      entry.forum = buildForum(entry.bau);
+      const rand = neighbourSpot(city, 'low',
+        [entry.farmDir, entry.viaductDir, entry.mineDir, entry.barracksDir].filter(Boolean));
+      placeAt(entry.forum, city, surfaceY(city.col, city.row), rand, 0.92,
+        { gerade: true });
+      entry.group.add(entry.forum);
+    }
+    if (entry.forum) entry.forum.visible = !!city.forum;
 
     // Only the stage that actually stands is built, and only when it is built.
     const level = city.wallLevel || 0;
