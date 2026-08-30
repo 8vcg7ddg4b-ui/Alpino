@@ -14,6 +14,7 @@
 // dreißig Renderer offen hält.
 
 import { COMBAT_ROLES, TILE_TYPES, unitDefs } from './data.js';
+import { emblemTexture } from './scene3d.js';
 
 // Wie viele Mann ein Klotz darstellt und wie viele Klötze eine Seite höchstens
 // bekommt. Ein Heer von 2.000 Mann als 2.000 Würfel zu zeichnen sähe nicht
@@ -52,7 +53,13 @@ let onFinished = null; // was danach geschieht
 // --- Aufbau ---------------------------------------------------------------
 
 function makeRenderer(canvas) {
-  const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  // `preserveDrawingBuffer` kostet auf dieser kleinen Leinwand kaum etwas und
+  // sorgt dafür, dass das gezeigte Bild auch außerhalb des Zeichenaufrufs noch
+  // dasteht - sonst zeigt jeder Griff nach dem Bild (ein Bildschirmfoto, eine
+  // Prüfung) irgendeinen früheren Zustand statt des aktuellen.
+  const r = new THREE.WebGLRenderer({
+    canvas, antialias: true, alpha: false, preserveDrawingBuffer: true,
+  });
   r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   r.shadowMap.enabled = false;
   return r;
@@ -98,11 +105,110 @@ function makeWall(multiplier, color) {
   return group;
 }
 
+// Die Fahne über einer Aufstellung: Stange, Tuch, Wappen. Dasselbe Tuch wie
+// im Zelt - eine zweite Sammlung derselben Wappen wäre eine zu viel.
+function makeBanner(factionId, color) {
+  const group = new THREE.Group();
+  const stange = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.09, 0.09, 5.2, 6),
+    new THREE.MeshLambertMaterial({ color: 0x6b5433 })
+  );
+  stange.position.y = 2.6;
+  group.add(stange);
+  const tuch = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.5, 2.4),
+    new THREE.MeshLambertMaterial({
+      map: emblemTexture(factionId, color), side: THREE.DoubleSide,
+    })
+  );
+  tuch.position.set(0.78, 3.9, 0);
+  group.add(tuch);
+  group.userData = { tuch };
+  return group;
+}
+
+// Ein Schiff in derselben Sprache wie die Klötze: Rumpf, Mast, Segel. Für die
+// Seeschlacht - auf dem Wasser stünde ein Würfel schlecht.
+function makeShip(color, scale = 1) {
+  const group = new THREE.Group();
+  const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(color) });
+  const rumpf = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.5, 0.8), material);
+  rumpf.position.y = 0.25;
+  group.add(rumpf);
+  // Der Bug läuft spitz zu: ein zweiter, schmalerer Kasten davor.
+  const bug = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.42, 0.36), material);
+  bug.position.set(1.5, 0.3, 0);
+  group.add(bug);
+  const mast = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.07, 2.1, 5),
+    new THREE.MeshLambertMaterial({ color: 0x6b5433 })
+  );
+  mast.position.set(-0.1, 1.3, 0);
+  group.add(mast);
+  const segel = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.25, 1.15),
+    new THREE.MeshLambertMaterial({ color: 0xf0e6d0, side: THREE.DoubleSide })
+  );
+  // Das Segel steht längs statt quer: von der Seite - und von dort sieht man
+  // die Schlacht - wäre ein quer gerafftes Rahsegel nur ein Strich.
+  segel.position.set(-0.1, 1.6, 0.02);
+  group.add(segel);
+  group.scale.setScalar(scale);
+  return group;
+}
+
+// Die Eröffnungssalve: eine Handvoll Pfeile, die im Bogen hinüberfliegen.
+// Sie treffen niemanden - was sie anrichten, steht schon im Bericht -, aber
+// sie sagen, warum die erste Runde anders aussieht als die zweite.
+const ARROWS = 34;
+
+function makeArrows(color) {
+  const group = new THREE.Group();
+  const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(color) });
+  const geometry = new THREE.CylinderGeometry(0.06, 0.06, 1.1, 4);
+  for (let i = 0; i < ARROWS; i++) {
+    const pfeil = new THREE.Mesh(geometry, material);
+    pfeil.userData = {
+      // Jeder Pfeil startet ein wenig anders und fliegt ein wenig anders weit.
+      versatz: (Math.random() - 0.5) * 11,
+      hoehe: 3.4 + Math.random() * 3.4,
+      start: Math.random() * 0.45,
+    };
+    pfeil.visible = false;
+    group.add(pfeil);
+  }
+  group.visible = false;
+  return group;
+}
+
+// Setzt die Pfeile auf ihre Flugbahn. `p` läuft von 0 (Abschuss) bis 1
+// (Einschlag); außerhalb sind sie unsichtbar.
+function flyArrows(group, p, vonX, nachX) {
+  if (p <= 0 || p >= 1) {
+    group.visible = false;
+    return;
+  }
+  group.visible = true;
+  for (const pfeil of group.children) {
+    const { versatz, hoehe, start } = pfeil.userData;
+    const q = (p - start) / (1 - start);
+    if (q <= 0 || q >= 1) { pfeil.visible = false; continue; }
+    pfeil.visible = true;
+    const x = vonX + (nachX - vonX) * q;
+    pfeil.position.set(x, 0.4 + Math.sin(q * Math.PI) * hoehe, versatz);
+    // Die Spitze zeigt in die Flugrichtung: erst steigend, dann fallend. Ein
+    // Zylinder liegt entlang seiner Y-Achse, deshalb der Viertelkreis Abzug.
+    const dy = Math.cos(q * Math.PI) * hoehe * Math.PI;
+    const dx = nachX - vonX;
+    pfeil.rotation.z = Math.atan2(dy, dx) - Math.PI / 2;
+  }
+}
+
 // Eine Aufstellung: so viele Klötze, wie die Truppe Blöcke hat, in Reihen und
 // Gliedern. Zurückgegeben wird die Liste der Klötze in der Reihenfolge, in der
 // sie fallen sollen - von vorn nach hinten, damit die Front ausdünnt und nicht
 // die Mitte Löcher bekommt.
-function makeFormation(units, factionId, color, facing) {
+function makeFormation(units, factionId, color, facing, naval = false) {
   const group = new THREE.Group();
   const bloecke = [];
   const defs = unitDefs(factionId);
@@ -110,12 +216,19 @@ function makeFormation(units, factionId, color, facing) {
   // Wie viele Klötze auf diese Seite entfallen - bei sehr großen Heeren
   // gedeckelt, damit die Zahl der Quader beherrschbar bleibt.
   const mann = COMBAT_ROLES.reduce((sum, key) => sum + (units[key] || 0), 0);
-  const gesamt = Math.max(1, Math.min(MAX_BLOCKS, Math.ceil(mann / MEN_PER_BLOCK)));
+  // Schiffe zählen anders als Mann: ein Geschwader sind sechzig Schiffe, und
+  // vier davon je Modell sehen nach Flotte aus, sechzig nach Gewimmel.
+  const proBlock = naval ? 4 : MEN_PER_BLOCK;
+  const gesamt = Math.max(1, Math.min(MAX_BLOCKS, Math.ceil(mann / proBlock)));
   const proMann = mann > 0 ? gesamt / mann : 0;
 
-  // Ein Block, kein Gänsemarsch: ungefähr doppelt so breit wie tief.
-  const reihen = Math.max(1, Math.min(8, Math.round(Math.sqrt(gesamt / 2.2))));
+  // Ein Block, kein Gänsemarsch: ungefähr doppelt so breit wie tief. Auf See
+  // fahren die Schiffe in loserer Ordnung und brauchen mehr Platz.
+  const reihen = Math.max(1, Math.min(naval ? 4 : 8,
+    Math.round(Math.sqrt(gesamt / (naval ? 4 : 2.2)))));
   const jeReihe = Math.ceil(gesamt / reihen);
+  const tiefe = naval ? 3.6 : 1.45;
+  const breite = naval ? 2.7 : 1.3;
   let index = 0;
   for (const key of COMBAT_ROLES) {
     const anzahl = Math.round((units[key] || 0) * proMann);
@@ -123,23 +236,59 @@ function makeFormation(units, factionId, color, facing) {
     for (let i = 0; i < anzahl && index < gesamt; i++, index++) {
       const reihe = Math.floor(index / jeReihe);
       const glied = index % jeReihe;
-      const wuerfel = new THREE.Mesh(
-        new THREE.BoxGeometry(form.w, form.h, form.d),
-        material
-      );
-      wuerfel.position.set(
-        facing * reihe * 1.45,
-        form.h / 2,
-        (glied - (jeReihe - 1) / 2) * 1.3
-      );
-      // Die vorderste Reihe fällt zuerst: die Liste wird danach sortiert.
-      wuerfel.userData = { reihe, hoehe: form.h, rolle: key };
-      group.add(wuerfel);
-      bloecke.push(wuerfel);
+      // Auf dem Wasser fährt ein Schiff, kein Würfel.
+      const stueck = naval || key === 'ships'
+        ? makeShip(color, 1.05)
+        : new THREE.Mesh(new THREE.BoxGeometry(form.w, form.h, form.d), material);
+      const hoehe = naval || key === 'ships' ? 0.5 : form.h;
+      if (!(naval || key === 'ships')) stueck.position.y = form.h / 2;
+      stueck.position.x = facing * reihe * tiefe;
+      stueck.position.z = (glied - (jeReihe - 1) / 2) * breite;
+      // Die Schiffe fahren mit dem Bug zum Feind.
+      if (naval || key === 'ships') stueck.rotation.y = facing < 0 ? 0 : Math.PI;
+      stueck.userData = {
+        reihe, hoehe, rolle: key, schiff: naval || key === 'ships',
+        z: stueck.position.z, gefallen: 0, phase: Math.random() * 6.3,
+      };
+      group.add(stueck);
+      bloecke.push(stueck);
     }
   }
   bloecke.sort((a, b) => a.userData.reihe - b.userData.reihe);
   return { group, bloecke, defs };
+}
+
+// Was mit einem Klotz geschieht, der gefallen ist: er kippt zur Seite und
+// sinkt ein. Vorher verschwanden die Verluste einfach - jetzt liegt am Ende
+// dort, was die Schlacht gekostet hat.
+const FALLZEIT = 0.45;
+
+function updateFallen(bloecke, t) {
+  for (const stueck of bloecke) {
+    const { gefallen, hoehe, schiff, z, phase } = stueck.userData;
+    if (!gefallen) {
+      // Wer noch steht, atmet: auf See schaukeln die Schiffe, an Land steht
+      // die Linie ruhig.
+      if (schiff) {
+        stueck.position.y = Math.sin(t * 1.6 + phase) * 0.12;
+        stueck.rotation.z = Math.sin(t * 1.3 + phase) * 0.07;
+      }
+      continue;
+    }
+    const p = Math.min(1, (t - gefallen) / FALLZEIT);
+    const weich = p * p;
+    if (schiff) {
+      // Ein Wrack legt sich auf die Seite und geht unter.
+      stueck.rotation.z = weich * 1.3;
+      stueck.position.y = -weich * 1.1;
+      stueck.visible = p < 1;
+    } else {
+      stueck.rotation.z = weich * (Math.PI / 2);
+      stueck.position.y = hoehe / 2 - weich * (hoehe / 2 - 0.1);
+      // Ein wenig zur Seite, damit die Gefallenen nicht in der Reihe liegen.
+      stueck.position.z = z + weich * 0.35;
+    }
+  }
 }
 
 // --- Der Ablauf ------------------------------------------------------------
@@ -190,14 +339,32 @@ export function playBattle(canvas, report, hooks = {}) {
   const angreiferFarbe = hooks.attackerColor || '#c0392b';
   const verteidigerFarbe = hooks.defenderColor || '#3f6fa8';
 
+  const zurSee = !!report.naval;
   const angreifer = makeFormation(report.attackerEngaged || {},
-    report.attackerFactionId, angreiferFarbe, -1);
+    report.attackerFactionId, angreiferFarbe, -1, zurSee);
   const verteidiger = makeFormation(report.defenderEngaged || {},
-    report.defenderFactionId, verteidigerFarbe, 1);
+    report.defenderFactionId, verteidigerFarbe, 1, zurSee);
   angreifer.group.position.x = -START_GAP;
   verteidiger.group.position.x = START_GAP;
   schauScene.add(angreifer.group);
   schauScene.add(verteidiger.group);
+
+  // Über jeder Aufstellung die Fahne ihres Reichs: so weiß man auch nach dem
+  // dritten Zusammenprall noch, wer wer ist.
+  const fahneA = makeBanner(report.attackerFactionId, angreiferFarbe);
+  const fahneD = makeBanner(report.defenderFactionId, verteidigerFarbe);
+  fahneA.position.set(-2.6, 0, -(zurSee ? 5.5 : 4.2));
+  fahneD.position.set(2.6, 0, -(zurSee ? 5.5 : 4.2));
+  angreifer.group.add(fahneA);
+  verteidiger.group.add(fahneD);
+
+  // Die Pfeile der Eröffnungssalve - eine Wolke je Seite, aber nur, wenn dort
+  // auch Schützen stehen.
+  const hatSchuetzen = (units) => (units && units.ranged > 0);
+  const pfeileA = hatSchuetzen(report.attackerEngaged) ? makeArrows('#efe0bc') : null;
+  const pfeileD = hatSchuetzen(report.defenderEngaged) ? makeArrows('#efe0bc') : null;
+  if (pfeileA) schauScene.add(pfeileA);
+  if (pfeileD) schauScene.add(pfeileD);
 
   let wall = null;
   if ((report.wallMultiplier || 1) > 1) {
@@ -234,12 +401,12 @@ export function playBattle(canvas, report, hooks = {}) {
   };
   resize();
 
-  const zeige = (bloecke, wieViele) => {
-    for (let i = 0; i < bloecke.length; i++) {
-      const steht = i < wieViele;
-      const w = bloecke[i];
-      if (steht === w.visible) continue;
-      w.visible = steht;
+  // Wer über die Zahl hinaus in der Liste steht, ist gefallen: er bekommt
+  // seinen Zeitpunkt und kippt von da an um. Rückwärts geht das nicht - eine
+  // Schlacht gibt niemanden zurück.
+  const zeige = (bloecke, wieViele, t) => {
+    for (let i = wieViele; i < bloecke.length; i++) {
+      if (!bloecke[i].userData.gefallen) bloecke[i].userData.gefallen = t;
     }
   };
 
@@ -272,8 +439,19 @@ export function playBattle(canvas, report, hooks = {}) {
       const vorherD = rundenIndex > 0 ? buch.runden[rundenIndex - 1].verteidigerLinks : startD;
       const jetztA = vorherA + (runde.angreiferLinks - vorherA) * anteil;
       const jetztD = vorherD + (runde.verteidigerLinks - vorherD) * anteil;
-      zeige(angreifer.bloecke, bloeckeFuer(zahlA, startA, jetztA));
-      zeige(verteidiger.bloecke, bloeckeFuer(zahlD, startD, jetztD));
+      zeige(angreifer.bloecke, bloeckeFuer(zahlA, startA, jetztA), t);
+      zeige(verteidiger.bloecke, bloeckeFuer(zahlD, startD, jetztD), t);
+      // Die Salve fliegt in der ersten Hälfte der Runde, in der sie fällt.
+      if (runde.volley) {
+        // Die Salve fliegt über drei Viertel der Runde - lang genug, dass man
+        // sie sieht, kurz genug, dass sie vor dem Handgemenge einschlägt.
+        const flug = inRunde / 0.75;
+        if (pfeileA) flyArrows(pfeileA, flug, -abstand + stoss, abstand - stoss);
+        if (pfeileD) flyArrows(pfeileD, flug, abstand - stoss, -abstand + stoss);
+      } else {
+        if (pfeileA) pfeileA.visible = false;
+        if (pfeileD) pfeileD.visible = false;
+      }
       if (rundenIndex !== letzteRunde) {
         letzteRunde = rundenIndex;
         if (hooks.onRound) {
@@ -306,6 +484,20 @@ export function playBattle(canvas, report, hooks = {}) {
       }
     }
 
+    // Was gefallen ist, kippt um; was auf See schwimmt, schaukelt.
+    updateFallen(angreifer.bloecke, t);
+    updateFallen(verteidiger.bloecke, t);
+    // Die Fahne des Geschlagenen senkt sich am Ende.
+    const senken = (fahne, fallen) => {
+      const tuch = fahne.userData.tuch;
+      if (tuch) tuch.position.y = 3.9 - fallen * 2.6;
+      fahne.rotation.z = fallen * 0.5;
+    };
+    const endeT = T_MARCH + buch.runden.length * T_ROUND;
+    const fallen = Math.max(0, Math.min(1, (t - endeT) / T_END));
+    senken(fahneA, sieger === 'attacker' ? 0 : fallen);
+    senken(fahneD, sieger === 'defender' ? 0 : fallen);
+
     // Eine ruhige Kamera: sie steht schräg über dem Feld und schwenkt nur
     // wenig. Eine Fahrt rundherum wäre hübsch und würde den Blick auf das
     // Wesentliche - wer noch steht - jede Sekunde ändern.
@@ -315,6 +507,9 @@ export function playBattle(canvas, report, hooks = {}) {
     schauCamera.lookAt(blick);
 
     schauRenderer.render(schauScene, schauCamera);
+    // Wer das fertige Bild braucht - eine Prüfung, ein Bildschirmfoto -,
+    // bekommt es hier, unmittelbar nach dem Zeichnen.
+    if (hooks.onFrame) hooks.onFrame(t, canvas);
     schauRaf = requestAnimationFrame(schritt);
   };
 

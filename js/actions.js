@@ -2044,27 +2044,47 @@ export function campSiegeTarget(state, army) {
 // Die Seeräuber sind ausgenommen: sie haben ihre eigene Regel (halber Ertrag
 // auf jedem Seeweg in ihrer Reichweite) und sollen einem Reich nicht mit
 // einem einzigen Segel die Steuer nehmen.
+// Eine Belagerung führt ein Reich, nicht zwei. Stehen die Heere zweier
+// Fraktionen vor demselben Tor, dann belagert nur eines von beiden - das,
+// das angefangen hat, solange es steht, und sonst das stärkere. Das andere
+// steht daneben: es schneidet nichts ab, hungert niemanden aus und bekommt
+// den Ort auch nicht durch Warten. Wer ihn will, muss den Belagerer zuerst
+// vom Feld schlagen. Vorher konnten sich vier Reiche eine Stadt teilen, und
+// die Belagerung lief für alle zugleich.
 export function siegeForces(state, city) {
   if (!city) return null;
-  const land = [];
-  const sea = [];
+  const nachReich = new Map();
   for (const army of state.armies) {
     if (army.factionId === city.factionId) continue;
     if (isPirate(army)) continue;
     if (!atWar(state, city.factionId, army.factionId)) continue;
     if (Math.abs(army.col - city.col) + Math.abs(army.row - city.row) > SIEGE_RANGE) continue;
+    const eintrag = nachReich.get(army.factionId)
+      || { land: [], sea: [], mann: 0 };
     if (isFleet(army) || army.embarked) {
       // Ein Schiff belagert nur, was einen Hafen hat: vor einer Binnenstadt
       // liegt keine Flotte, und vor einer Küste ohne Kai nimmt sie nichts.
-      if (city.harbour) sea.push(army);
+      if (!city.harbour) continue;
+      eintrag.sea.push(army);
     } else {
-      land.push(army);
+      eintrag.land.push(army);
     }
+    eintrag.mann += unitTotalCount(army.units);
+    nachReich.set(army.factionId, eintrag);
   }
-  if (!land.length && !sea.length) return null;
+  if (!nachReich.size) return null;
+
+  // Wer sie angefangen hat, behält sie, solange er davorsteht.
+  let halter = city.siege && nachReich.has(city.siege.by) ? city.siege.by : null;
+  if (!halter) {
+    halter = [...nachReich.entries()]
+      .sort((a, b) => b[1].mann - a[1].mann || (a[0] < b[0] ? -1 : 1))[0][0];
+  }
+  const { land, sea } = nachReich.get(halter);
+  const daneben = [...nachReich.keys()].filter((id) => id !== halter);
   // Ein Belagerungslager ist etwas anderes als ein Heer, das zufällig
   // danebensteht: es schneidet vom ersten Tag an ab und zehrt schneller.
-  return { land, sea, camp: land.some((a) => a.camp) };
+  return { factionId: halter, land, sea, camp: land.some((a) => a.camp), daneben };
 }
 
 // Alles, was die Seitenleiste über eine Belagerung wissen muss - live aus der
@@ -2074,7 +2094,6 @@ export function siegeInfo(state, city) {
   const forces = siegeForces(state, city);
   if (!forces) return null;
   const alle = [...forces.land, ...forces.sea];
-  const factions = [...new Set(alle.map((a) => a.factionId))];
   const seit = city.siege ? Math.max(0, state.turn - city.siege.since) : 0;
   const frist = forces.camp ? CAMP_SIEGE_STARVE_AFTER : SIEGE_STARVE_AFTER;
   return {
@@ -2082,7 +2101,12 @@ export function siegeInfo(state, city) {
     sea: forces.sea.length,
     camp: !!forces.camp,
     men: alle.reduce((sum, a) => sum + unitTotalCount(a.units), 0),
-    factions,
+    // Belagert wird von einem Reich. `factions` bleibt eine Liste, damit die
+    // Anzeige unverändert damit rechnen kann - sie hat jetzt genau einen Namen.
+    factions: [forces.factionId],
+    by: forces.factionId,
+    // Wer sonst noch davorsteht, ohne die Belagerung zu führen.
+    daneben: forces.daneben,
     seit,
     hungert: seit >= frist,
     bisHunger: Math.max(0, frist - seit),
@@ -2109,15 +2133,15 @@ export function updateSieges(state) {
       }
       continue;
     }
-    const factions = [...new Set([...forces.land, ...forces.sea].map((a) => a.factionId))];
-    if (!city.siege) {
-      city.siege = { since: state.turn, factions };
+    // Wechselt der Belagerer - der erste zieht ab, ein zweiter steht schon da -,
+    // beginnt die Belagerung von vorn: die Frist bis zum Hunger läuft für den
+    // Neuen neu, er hat die Stadt ja nicht ausgehungert.
+    if (!city.siege || city.siege.by !== forces.factionId) {
+      city.siege = { since: state.turn, by: forces.factionId, factions: [forces.factionId] };
       begonnen.push(city);
-      const feind = factions.map((id) => factionById(state, id).name).join(' und ');
+      const feind = factionById(state, forces.factionId).name;
       logOwn(state, city.factionId, `⚔️ ${city.name} wird von ${feind} belagert: `
         + 'keine Steuer, kein Nachschub, kein Bau.');
-    } else {
-      city.siege.factions = factions;
     }
   }
   return begonnen;

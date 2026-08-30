@@ -235,6 +235,20 @@ den Punkten durchblättern.
   *„Überspringen"* oder Esc bricht ab, *„📜 Zum Bericht"* führt weiter zum
   gewohnten Schlachtbericht. Das Fenster hat seinen eigenen Renderer und räumt
   ihn beim Schließen wieder ab.
+  Die **zweite Ausbaustufe** hat vier Dinge dazugelegt:
+  - **Die Eröffnungssalve ist zu sehen**: Wo Schützen stehen, geht in der
+    ersten Runde eine Wolke von Pfeilen im Bogen hinüber – von jeder Seite, die
+    welche hat. Sie trifft niemanden; was sie anrichtet, steht im Bericht.
+  - **Fahnen mit dem Wappen**: Über jeder Aufstellung steht das Feldzeichen
+    ihres Reichs – dieselben Wappen wie im Zelt und in der Rangliste. Am Ende
+    **senkt sich die Fahne des Geschlagenen**.
+  - **Seeschlachten sehen aus wie Seeschlachten**: Auf dem Wasser fahren
+    **Schiffe** statt Klötze – Rumpf, Bug, Mast und Segel –, sie schaukeln im
+    Seegang, und ein versenktes legt sich auf die Seite und geht unter. Ein
+    Modell steht für vier Schiffe.
+  - **Gefallene bleiben liegen**: Ein Block, der fällt, kippt zur Seite und
+    sinkt ein, statt einfach zu verschwinden. Am Ende liegt auf dem Feld, was
+    die Schlacht gekostet hat.
 - **Vier Schiffsarten, bis zu drei je Fraktion**: die **Quinquereme** mit Turm
   und Enterbrücke (50/52, 220 Gold) – schwer und im Rammstoß überlegen; die
   **Triere**, das Arbeitspferd jeder Flotte (46/45, 190 Gold) – wendig genug zum
@@ -471,7 +485,12 @@ den Punkten durchblättern.
   Zuwachs** je Runde. **Auf der Karte liegen ihre Äcker neben der Stadt**: drei
   Schläge in Grün und Reifegelb, die Furchen dazwischen, am Rand der Schuppen –
   auf dem flachsten Nachbarfeld, während das Fördergerüst des Bergwerks auf dem
-  höchsten steht. Der **Kornspeicher** (**260 Gold**, **3 Runden**) setzt
+  höchsten steht. **Auf Wasser und Fels wird nichts gebaut**: In einer
+  Hafenstadt ist das flachste Nachbarfeld das Meer, und dort lagen die Äcker
+  bis zuletzt – mitten auf dem Hafen. Jetzt kommen nur Landfelder infrage, und
+  Farm, Viadukt und Bergwerk gehen einander aus dem Weg; hat ein Ort gar kein
+  freies Nachbarfeld (eine Insel, ein Ort zwischen Fels und Wasser), rückt das
+  Bauwerk an den Ort selbst heran. Der **Kornspeicher** (**260 Gold**, **3 Runden**) setzt
   die Farm voraus und bewahrt die Ernte über den Winter – er hebt die
   **Obergrenze der Einwohner um 25 %**. Da die Schatzkammer allein von der
   Kopfsteuer lebt, ist beides bares Geld, nur später.
@@ -685,6 +704,15 @@ den Punkten durchblättern.
   sie aus. Nach der Schlacht gehen die Überlebenden zurück in die Gassen: auf
   der Mauer bleibt nur die eigene Stadtwache, und **die gefallenen Bürger
   fehlen dem Ort danach wirklich** – seine Einwohnerzahl sinkt.
+- **Eine Belagerung führt ein Reich, nicht zwei**: Stehen die Heere zweier
+  Fraktionen vor demselben Tor, dann belagert nur **eines** von beiden – das,
+  das angefangen hat, solange es davorsteht, und sonst das stärkere. Das andere
+  steht daneben: es schneidet nichts ab, hungert niemanden aus und bekommt den
+  Ort auch nicht durch Warten. Wer ihn will, muss den Belagerer zuerst vom Feld
+  schlagen. Die Ortsanzeige nennt beide – den Belagerer und den, der „ebenfalls
+  davorsteht, die Belagerung aber nicht führt". Zieht der Belagerer ab und ein
+  zweiter steht schon da, **beginnt die Belagerung von vorn**: die Frist bis
+  zum Hunger läuft für den Neuen neu, er hat die Stadt ja nicht ausgehungert.
 - **Was eine Eroberung anrichtet**: Eine Stadt, die im Sturm genommen wird, ist
   danach keine heile Stadt. Die **Mauer verliert eine Stufe** – eine Bresche ist
   keine Mauer –, und **jedes Bauwerk liegt mit 50 % Wahrscheinlichkeit in

@@ -765,7 +765,9 @@ function tentFabric(color) {
 // nichts mehr.
 const emblemTextures = new Map();
 
-function emblemTexture(factionId, colour) {
+// Auch das Schaubild der Schlacht hängt seine Fahnen daran - eine zweite
+// Sammlung derselben Tücher wäre eine zu viel.
+export function emblemTexture(factionId, colour) {
   const key = `${factionId}|${colour}`;
   if (emblemTextures.has(key)) return emblemTextures.get(key);
 
@@ -2449,23 +2451,46 @@ function buildViaduct(scale) {
 
 // Wo ein Bauwerk neben der Stadt steht: das höchste oder das flachste
 // Nachbarfeld, und nie dasselbe zweimal.
+// Ob auf diesem Feld überhaupt etwas stehen kann. Ohne diese Prüfung suchte
+// die Farm sich das flachste Nachbarfeld - und das ist an jeder Küste das
+// Meer: die Äcker lagen dann im Wasser, mitten auf dem Hafen. Fels und Eis
+// scheiden aus demselben Grund aus.
+function baugrund(col, row) {
+  if (!currentMap) return false;
+  if (col < 0 || col >= currentMap.cols || row < 0 || row >= currentMap.rows) return false;
+  const tile = currentMap.tiles[row][col];
+  return tile.type !== 'water' && tile.type !== 'mountain';
+}
+
 function neighbourSpot(city, prefer, taken = []) {
   const belegt = new Set(taken.map(([dc, dr]) => `${dc},${dr}`));
   let best = null;
   let bestY = prefer === 'high' ? -Infinity : Infinity;
   for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
     if (belegt.has(`${dc},${dr}`)) continue;
+    if (!baugrund(city.col + dc, city.row + dr)) continue;
     const y = surfaceY(city.col + dc, city.row + dr);
     if (!Number.isFinite(y)) continue;
     if (prefer === 'high' ? y <= bestY : y >= bestY) continue;
     bestY = y;
     best = [dc, dr];
   }
+  // Eine Insel, um die herum nur Wasser liegt: dann steht das Bauwerk am Ort
+  // selbst, nicht im Meer.
+  if (!best) return { dir: null, y: surfaceY(city.col, city.row) };
   return { dir: best, y: bestY };
 }
 
 function placeAt(group, city, cityY, spot, abstand = 1) {
-  const [dc, dr] = spot.dir || [1, -1];
+  if (!spot.dir) {
+    // Kein Nachbarfeld, auf dem etwas stehen könnte - eine Insel, ein Ort
+    // zwischen Fels und Wasser: dann drängt sich das Bauwerk an den Ort selbst,
+    // statt ins Meer zu rutschen.
+    group.position.set(TILE_SIZE * 0.34, 0, -TILE_SIZE * 0.34);
+    group.rotation.y = Math.PI * 0.25;
+    return;
+  }
+  const [dc, dr] = spot.dir;
   const laenge = Math.hypot(dc, dr) || 1;
   group.position.set(
     (dc / laenge) * TILE_SIZE * abstand,
@@ -2965,9 +2990,11 @@ export function syncEntities(state) {
     // Eroberung sie niederbrennt.
     if (city.farm && !entry.farm) {
       entry.farm = buildFarm(entry.scale * 1.55);
-      // Äcker liegen im flachsten Gelände, nicht am Hang.
-      placeAt(entry.farm, city, surfaceY(city.col, city.row),
-        neighbourSpot(city, 'low'), 1.05);
+      // Äcker liegen im flachsten Gelände, nicht am Hang - und nicht im
+      // Wasser: das flachste Nachbarfeld einer Hafenstadt wäre das Meer.
+      const flach = neighbourSpot(city, 'low');
+      placeAt(entry.farm, city, surfaceY(city.col, city.row), flach, 1.05);
+      entry.farmDir = flach.dir;
       entry.group.add(entry.farm);
     }
     if (entry.farm) entry.farm.visible = !!city.farm;
@@ -2976,7 +3003,9 @@ export function syncEntities(state) {
     // die Quelle, und dorthin gehören die Bögen.
     if (city.viaduct && !entry.viaduct) {
       entry.viaduct = buildViaduct(entry.scale * 1.25);
-      const hoch = neighbourSpot(city, 'high');
+      // Auf dem Acker stehen die Bögen nicht: jedes Bauwerk bekommt sein
+      // eigenes Feld, solange eines frei ist.
+      const hoch = neighbourSpot(city, 'high', entry.farmDir ? [entry.farmDir] : []);
       placeAt(entry.viaduct, city, surfaceY(city.col, city.row), hoch, 1.0);
       entry.viaductDir = hoch.dir;
       entry.group.add(entry.viaduct);
@@ -2990,7 +3019,8 @@ export function syncEntities(state) {
       entry.mine = buildMine(entry.scale * 1.35);
       // Beide wollen die Höhe: steht das Viadukt schon auf dem höchsten
       // Nachbarfeld, nimmt der Schacht das zweithöchste.
-      const hoch = neighbourSpot(city, 'high', entry.viaductDir ? [entry.viaductDir] : []);
+      const hoch = neighbourSpot(city, 'high',
+        [entry.viaductDir, entry.farmDir].filter(Boolean));
       placeAt(entry.mine, city, surfaceY(city.col, city.row), hoch, 0.88);
       entry.group.add(entry.mine);
     }

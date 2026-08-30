@@ -706,10 +706,19 @@ function siegeHTML(state, city, isMine) {
   const hunger = info.hungert
     ? ' Es wird gehungert: jede Runde kostet Besatzung und Bürger.'
     : ` Nach ${info.bisHunger} ${info.bisHunger === 1 ? 'Runde' : 'Runden'} beginnt der Hunger.`;
+  // Wer sonst noch davorsteht, führt die Belagerung nicht mit: ein Ort wird
+  // von einem Reich belagert, nicht von zweien.
+  const daneben = (info.daneben || [])
+    .map((id) => escapeHTML(factionById(state, id).name));
+  const auchDa = daneben.length
+    ? ` <span class="muted">· ${daneben.join(' und ')} ${daneben.length === 1
+      ? 'steht ebenfalls davor, führt die Belagerung aber nicht'
+      : 'stehen ebenfalls davor, führen die Belagerung aber nicht'}.</span>`
+    : '';
   return `<p class="siege-line">⚔️ Belagert ${art} – ${feind},
     ${info.men.toLocaleString('de-DE')} Mann${info.seit > 0
     ? `, seit ${info.seit} ${info.seit === 1 ? 'Runde' : 'Runden'}` : ''}
-    <span class="muted">· ${folgen}${hunger}</span></p>`;
+    <span class="muted">· ${folgen}${hunger}</span>${auchDa}</p>`;
 }
 
 // --- Bauwerke -------------------------------------------------------------
