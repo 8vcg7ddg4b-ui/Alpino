@@ -2399,44 +2399,80 @@ function buildFarm(scale) {
   return farm;
 }
 
-// Äcker liegen im flachsten Gelände, nicht am Hang - und auf der anderen Seite
-// als das Bergwerk, damit sich beides nicht überlagert.
-function placeFarm(farm, city, cityY) {
-  let best = null;
-  let bestY = Infinity;
-  for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
-    const y = surfaceY(city.col + dc, city.row + dr);
-    if (!Number.isFinite(y) || y >= bestY) continue;
-    bestY = y;
-    best = [dc, dr];
+
+
+// --- Das Viadukt -----------------------------------------------------------
+// Wasser über das Tal, auf Bögen, über Meilen: eine Reihe Pfeiler mit Bögen
+// dazwischen und der Rinne obendrauf, die vom höchsten Nachbarfeld zur Stadt
+// führt. Von oben ist es das, woran man ein römisches Land erkennt.
+const VIADUCT_ARCHES = 5;
+
+function buildViaduct(scale) {
+  const viadukt = new THREE.Group();
+  const spanne = 0.95 * scale;
+  const hoehe = 1.35 * scale;
+  for (let i = 0; i < VIADUCT_ARCHES; i++) {
+    const x = (i - (VIADUCT_ARCHES - 1) / 2) * spanne;
+    const pfeiler = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3 * scale, hoehe, 0.42 * scale),
+      CITY_MATERIALS.stone
+    );
+    pfeiler.position.set(x, hoehe / 2, 0);
+    viadukt.add(pfeiler);
+    // Der Bogen: ein halber Ring zwischen zwei Pfeilern.
+    if (i < VIADUCT_ARCHES - 1) {
+      const bogen = new THREE.Mesh(
+        new THREE.TorusGeometry(spanne * 0.36, 0.09 * scale, 6, 10, Math.PI),
+        CITY_MATERIALS.stone
+      );
+      bogen.position.set(x + spanne / 2, hoehe - 0.02 * scale, 0);
+      viadukt.add(bogen);
+    }
   }
-  const [dc, dr] = best || [-1, 1];
-  const laenge = Math.hypot(dc, dr) || 1;
-  farm.position.set(
-    (dc / laenge) * TILE_SIZE * 1.05,
-    Math.min(0, bestY - cityY) * 0.5,
-    (dr / laenge) * TILE_SIZE * 1.05
+  // Die Rinne obendrauf, in der das Wasser läuft.
+  const rinne = new THREE.Mesh(
+    new THREE.BoxGeometry(VIADUCT_ARCHES * spanne, 0.26 * scale, 0.5 * scale),
+    CITY_MATERIALS.marble
   );
-  farm.rotation.y = Math.atan2(-dr, dc);
+  rinne.position.y = hoehe + 0.13 * scale;
+  viadukt.add(rinne);
+  const wasser = new THREE.Mesh(
+    new THREE.BoxGeometry(VIADUCT_ARCHES * spanne * 0.94, 0.06 * scale, 0.22 * scale),
+    new THREE.MeshStandardMaterial({
+      color: '#4f92c4', roughness: 0.25, emissive: '#123249', emissiveIntensity: 0.35,
+    })
+  );
+  wasser.position.y = hoehe + 0.26 * scale;
+  viadukt.add(wasser);
+  return viadukt;
 }
 
-function placeMine(mine, city, cityY) {
+// Wo ein Bauwerk neben der Stadt steht: das höchste oder das flachste
+// Nachbarfeld, und nie dasselbe zweimal.
+function neighbourSpot(city, prefer, taken = []) {
+  const belegt = new Set(taken.map(([dc, dr]) => `${dc},${dr}`));
   let best = null;
-  let bestY = -Infinity;
+  let bestY = prefer === 'high' ? -Infinity : Infinity;
   for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+    if (belegt.has(`${dc},${dr}`)) continue;
     const y = surfaceY(city.col + dc, city.row + dr);
-    if (!Number.isFinite(y) || y <= bestY) continue;
+    if (!Number.isFinite(y)) continue;
+    if (prefer === 'high' ? y <= bestY : y >= bestY) continue;
     bestY = y;
     best = [dc, dr];
   }
-  const [dc, dr] = best || [1, -1];
+  return { dir: best, y: bestY };
+}
+
+function placeAt(group, city, cityY, spot, abstand = 1) {
+  const [dc, dr] = spot.dir || [1, -1];
   const laenge = Math.hypot(dc, dr) || 1;
-  mine.position.set(
-    (dc / laenge) * TILE_SIZE * 0.88,
-    Math.max(0, bestY - cityY) * 0.5,
-    (dr / laenge) * TILE_SIZE * 0.88
+  group.position.set(
+    (dc / laenge) * TILE_SIZE * abstand,
+    (spot.y - cityY) * 0.5,
+    (dr / laenge) * TILE_SIZE * abstand
   );
-  mine.rotation.y = Math.atan2(-dr, dc);
+  group.rotation.y = Math.atan2(-dr, dc);
 }
 
 // Setzt den Steg ans Ufer zwischen Stadt und offenem Wasser, mit dem Kopf zum
@@ -2929,17 +2965,33 @@ export function syncEntities(state) {
     // Eroberung sie niederbrennt.
     if (city.farm && !entry.farm) {
       entry.farm = buildFarm(entry.scale * 1.55);
-      placeFarm(entry.farm, city, surfaceY(city.col, city.row));
+      // Äcker liegen im flachsten Gelände, nicht am Hang.
+      placeAt(entry.farm, city, surfaceY(city.col, city.row),
+        neighbourSpot(city, 'low'), 1.05);
       entry.group.add(entry.farm);
     }
     if (entry.farm) entry.farm.visible = !!city.farm;
+
+    // Das Viadukt läuft vom höchsten Nachbarfeld auf die Stadt zu - dort liegt
+    // die Quelle, und dorthin gehören die Bögen.
+    if (city.viaduct && !entry.viaduct) {
+      entry.viaduct = buildViaduct(entry.scale * 1.25);
+      const hoch = neighbourSpot(city, 'high');
+      placeAt(entry.viaduct, city, surfaceY(city.col, city.row), hoch, 1.0);
+      entry.viaductDir = hoch.dir;
+      entry.group.add(entry.viaduct);
+    }
+    if (entry.viaduct) entry.viaduct.visible = !!city.viaduct;
 
     // Das Fördergerüst entsteht mit dem Bergwerk und bleibt, solange es fördert.
     if (city.mine && !entry.mine) {
       // Etwas größer als die Häuser: ein Fördergerüst ist kein Schuppen, und
       // hinter der Palisade wäre es sonst nicht zu sehen.
       entry.mine = buildMine(entry.scale * 1.35);
-      placeMine(entry.mine, city, surfaceY(city.col, city.row));
+      // Beide wollen die Höhe: steht das Viadukt schon auf dem höchsten
+      // Nachbarfeld, nimmt der Schacht das zweithöchste.
+      const hoch = neighbourSpot(city, 'high', entry.viaductDir ? [entry.viaductDir] : []);
+      placeAt(entry.mine, city, surfaceY(city.col, city.row), hoch, 0.88);
       entry.group.add(entry.mine);
     }
     if (entry.mine) entry.mine.visible = !!city.mine;

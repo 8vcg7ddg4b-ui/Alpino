@@ -431,6 +431,10 @@ den Punkten durchblättern.
   Gold** und **5 Runden**, setzt eine **Verwaltung** voraus und bringt **25 %
   mehr Zuwachs** und eine um **ein Fünftel größere Garnison** – Wasser ist das,
   woran eine Belagerung zuerst scheitert.
+  **Auf der Karte steht es da**: fünf Pfeiler mit Bögen dazwischen und der
+  Rinne obendrauf, in der das Wasser läuft, vom höchsten Nachbarfeld auf die
+  Stadt zu – dort liegt die Quelle, und dorthin gehören die Bögen. Das
+  Fördergerüst eines Bergwerks weicht ihm auf das zweithöchste Feld aus.
 - **Werft**: Ein Hafen ist ein Kai, an dem etwas anlegt – ein Kriegsschiff
   entsteht dort nicht. Dafür braucht es eine Helling, Bauholz, Pech, Werg und
   Leute, die es können: die **Werft** kostet **350 Gold** und **3 Runden**,
@@ -578,9 +582,11 @@ den Punkten durchblättern.
   kostet sich acht Punkte Ansehen und sieht so bald keinen zweiten.
 - **Das Aufgebot der freien Orte**: Eine unabhängige Stadt hat keinen Herrn,
   der ihr ein Heer schickt. Steht ein Feind vor dem Tor, greift sie zu dem, was
-  sie hat: **6 % ihrer Einwohner** treten unter die Waffen (höchstens 420, unter
-  40 gar nicht) und kämpfen als Stadtwache auf der eigenen Mauer mit – Massilia
-  bringt so 216 Bürger auf, ein Dorf 54. Die Kampfvorschau nennt sie, damit ein
+  sie hat: **12,5 % ihrer Einwohner** treten unter die Waffen (höchstens 900,
+  unter 40 gar nicht) und kämpfen als Stadtwache auf der eigenen Mauer mit –
+  Massilia bringt so 450 Bürger auf, ein Dorf 113. Die 27 freien Orte stellen
+  zusammen über 4.200 Mann: ein Handstreich gegen eine unabhängige Stadt kostet
+  jetzt wirklich Legionen. Die Kampfvorschau nennt sie, damit ein
   Angreifer nicht überrascht wird, und die Aufklärung eines freien Orts weist
   sie aus. Nach der Schlacht gehen die Überlebenden zurück in die Gassen: auf
   der Mauer bleibt nur die eigene Stadtwache, und **die gefallenen Bürger
@@ -801,6 +807,19 @@ den Punkten durchblättern.
   nur verlieren, wer eine hat. Was die eigene Fraktion trifft, kommt in einem
   **eigenen Fenster** – mit Bild, Begebenheit und der Zeile, was es gekostet
   oder gebracht hat. Was den anderen zustößt, steht nur im Protokoll.
+- **Die Reiche im Vergleich** (Reiter **Fraktionen** in der Seitenleiste):
+  Wer ist der **Mächtigste**, wer der **militärisch Stärkste**, wer der
+  **Reichste**? Drei Knöpfe sortieren die Liste nach der Frage, die gerade
+  interessiert, und daneben steht, woraus sich die Antwort ergibt: Orte, Mann
+  im Feld, Mann auf der Mauer, Schatz – und die **Bilanz**, also Einnahmen
+  minus Sold, die jede Runde übrig bleibt. Ein Balken zeigt jedes Reich im
+  Verhältnis zum Ersten.
+  **Macht** ist dabei keine einzelne Zahl, sondern die Summe dreier: **zehn
+  Punkte je Ort, einer je hundert Mann, einer je dreihundert Gold** – Land
+  wiegt am schwersten, denn es trägt alles andere.
+  Die Übersicht rechnet mit dem, was auf der Karte steht: sie ist der
+  strategische Blick von oben. Was ein Herrscher vom anderen *weiß*, steht im
+  Diplomatiefenster.
 - **Reichsübersicht** (🏛 in der Kopfzeile): ein Fenster über den ganzen
   Besitz – Schatz, Einnahmen, Sold und Bilanz, dazu Orte, Heere, Flotten und
   Stadtwachen, und darunter jeder eigene Ort mit seinen Einnahmen einzeln

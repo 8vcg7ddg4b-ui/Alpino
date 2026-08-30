@@ -220,9 +220,16 @@ html, body {
 }
 #factionList li .muted { margin-left: auto; font-size: 0.78rem; white-space: nowrap; }
 /* Die eigene Fraktion steht in der Übersicht hervorgehoben und ganz oben. */
-#factionList li.faction-self { color: var(--gold); }
-#factionList li.faction-self::after { content: 'du'; font-size: 0.66rem; letter-spacing: 0.1em; }
-#factionList li.faction-dead { opacity: 0.4; text-decoration: line-through; }
+#factionList li.faction-self { color: var(--gold); border-color: var(--gold); }
+/* Das "du" gehört an den Namen, nicht unter die Zeile: seit die Karte drei
+   Zeilen hat, stünde es sonst allein darunter. */
+#factionList li.faction-self .fl-name::after {
+  content: ' · du';
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+}
+#factionList li.faction-dead { opacity: 0.4; }
+#factionList li.faction-dead .fl-name { text-decoration: line-through; }
 
 .dot {
   width: 10px;
@@ -1954,6 +1961,38 @@ kbd {
 }
 .log-filter button:hover { color: var(--text); }
 .log-filter button.active { color: var(--gold); border-color: var(--gold); }
+
+/* --- Die Reiche im Vergleich --------------------------------------------- */
+/* Je Reich drei Zeilen: Name mit der Zahl, nach der sortiert wird, ein Balken
+   im Verhältnis zum Ersten, und darunter, woraus sich das ergibt. */
+#factionList li {
+  display: block;
+  padding: 7px 8px;
+  margin-bottom: 5px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.fl-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+}
+.fl-name { flex: 1; }
+.fl-value { color: var(--gold); font-size: 0.8rem; }
+.fl-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  margin: 5px 0 4px;
+}
+.fl-bar span { display: block; height: 100%; }
+.fl-facts { font-size: 0.71rem; line-height: 1.4; }
+.fl-plus { color: #8fc79a; }
+.fl-minus { color: #d97a6c; }
+#factionNote { font-size: 0.7rem; line-height: 1.4; }
 
 /* --- Weltwunder und Wahrzeichen ------------------------------------------ */
 .wonder-panel {

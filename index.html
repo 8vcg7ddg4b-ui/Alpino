@@ -214,7 +214,13 @@
           <div id="terrainPanel"></div>
         </section>
         <section id="factionSection" data-panel="factions" hidden>
+          <div id="factionSort" class="log-filter">
+            <button data-sort="macht" class="active" title="Orte, Mann und Schatz zusammen">Mächtigste</button>
+            <button data-sort="militaer" title="Mann unter Waffen">Militärisch</button>
+            <button data-sort="gold" title="Schatz und Bilanz">Reichste</button>
+          </div>
           <ul id="factionList"></ul>
+          <p id="factionNote" class="emp-note muted"></p>
         </section>
         <section id="logSection" data-panel="log" hidden>
           <!-- Standardmäßig steht hier nur, was die eigene Fraktion angeht. -->

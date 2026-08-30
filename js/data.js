@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.15.0';
+export const GAME_VERSION = '1.16.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1290,11 +1290,15 @@ export function populationCeiling(city) {
 // Leuten. Aus der Bevölkerung tritt ein Teil unter die Waffen - schlecht
 // bewaffnet, aber zahlreich und auf der eigenen Mauer.
 //
-// Der Anteil ist bewusst klein: nicht die halbe Stadt zieht in den Kampf,
-// sondern die wehrfähigen Männer, die man in Eile zusammenbekommt.
-export const LEVY_SHARE = 0.06;
+// Wie viele es sind: jeder achte Kopf, und in einer großen Stadt bis zu
+// neunhundert. Das ist mehr, als ein Aufgebot in Ruhe zusammenbrächte - aber
+// es geht nicht um Ruhe. Eine freie Stadt hat keinen Herrn, der ihr ein Heer
+// schickt; steht der Feind vor dem Tor, greift jeder zu, der eine Sense halten
+// kann. Vorher war es jeder sechzehnte und höchstens vierhundert, und ein
+// unabhängiger Ort fiel dem ersten Heer zu, das vorbeikam.
+export const LEVY_SHARE = 0.125;
 // Mehr als so viele werden es nicht, auch in der größten Stadt nicht.
-export const LEVY_MAX = 420;
+export const LEVY_MAX = 900;
 // Und unter dieser Zahl lohnt es nicht - ein Dorf mit zwanzig Mann wehrt sich
 // nicht anders als ohne sie.
 export const LEVY_MIN = 40;

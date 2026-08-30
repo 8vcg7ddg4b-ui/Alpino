@@ -5,7 +5,7 @@ import {
 } from './data.js';
 import {
   renderUI, battleReportHTML, battlePreviewHTML, tileInfoHTML, visibleLogCount, empireHTML,
-  diplomacyHTML, setDiploTab,
+  diplomacyHTML, setDiploTab, setFactionSort, getFactionSort,
 } from './ui.js';
 import { setupInput } from './input.js';
 import { computeReachable } from './pathfind.js';
@@ -1012,6 +1012,23 @@ function stopChronicle() {
   chronicleTimer = null;
 }
 
+// Die Fraktionsübersicht: nach Macht, Militär oder Schatz sortiert. Die Wahl
+// bleibt stehen, solange das Spiel läuft.
+function setupFactionSort() {
+  const box = document.getElementById('factionSort');
+  if (!box) return;
+  box.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    setFactionSort(button.dataset.sort);
+    box.querySelectorAll('button').forEach((b) => {
+      b.classList.toggle('active', b.dataset.sort === getFactionSort());
+    });
+    sfx.select();
+    refresh();
+  });
+}
+
 function setupMapModeButton() {
   const button = document.getElementById('mapModeBtn');
   if (!button) return;
@@ -1821,6 +1838,7 @@ setupQuitButton();
 setupMuteButton();
 setupBorderButton();
 setupMapModeButton();
+setupFactionSort();
 setupDpad();
 
 document.getElementById('reportClose').addEventListener('click', hideBattleReport);

@@ -1586,6 +1586,105 @@ export function empireHTML(state) {
       Der Sold wird beim Rundenwechsel vom Schatz abgezogen.</p>`;
 }
 
+// --- Die Reiche im Vergleich -----------------------------------------------
+// Wer ist der Stärkste, wer der Reichste, wer der Mächtigste? Die Liste
+// beantwortet alle drei Fragen - sortiert wird nach der, die gerade
+// interessiert, und daneben steht, woraus sich die Antwort ergibt. Vorher
+// standen dort nur Orte und Heere, immer in derselben Reihenfolge.
+//
+// Die Übersicht rechnet mit dem, was auf der Karte steht: sie ist der
+// strategische Blick von oben, nicht der Bericht eines Gesandten. Was ein
+// Herrscher von einem anderen weiß, steht im Diplomatiefenster.
+const FACTION_SORTS = ['macht', 'militaer', 'gold'];
+let factionSort = 'macht';
+
+export function setFactionSort(sort) {
+  factionSort = FACTION_SORTS.includes(sort) ? sort : 'macht';
+  return factionSort;
+}
+
+export function getFactionSort() {
+  return factionSort;
+}
+
+// Macht ist keine einzelne Zahl, sondern die Summe dreier: Land, Heer, Kasse.
+// Zehn Punkte je Ort, einer je hundert Mann, einer je dreihundert Gold.
+export function factionPower(entry) {
+  return Math.round(entry.cities * 10 + entry.men / 100 + entry.gold / 300);
+}
+
+function factionRows(state) {
+  return state.factions.filter((f) => !f.isNeutral).map((f) => {
+    const cities = state.cities.filter((c) => c.factionId === f.id);
+    const armies = state.armies.filter((a) => a.factionId === f.id);
+    const feld = armies.reduce((sum, a) => sum + unitTotalCount(a.units), 0);
+    const wache = cities.reduce((sum, c) => sum + unitTotalCount(c.garrison), 0);
+    const einnahmen = Math.round(factionIncome(state, f.id));
+    const sold = Math.round(armyUpkeep(state, f.id));
+    const entry = {
+      faction: f,
+      cities: cities.length,
+      armies: armies.length,
+      men: feld + wache,
+      field: feld,
+      gold: f.gold,
+      income: einnahmen,
+      upkeep: sold,
+      balance: einnahmen - sold,
+    };
+    entry.power = factionPower(entry);
+    return entry;
+  });
+}
+
+function renderFactionList(state) {
+  const list = document.getElementById('factionList');
+  if (!list) return;
+  const rows = factionRows(state);
+  const key = factionSort === 'militaer' ? 'men' : factionSort === 'gold' ? 'gold' : 'power';
+  rows.sort((a, b) => (b.faction.alive ? 1 : 0) - (a.faction.alive ? 1 : 0)
+    || b[key] - a[key] || b.power - a.power);
+  const spitze = rows.length ? Math.max(1, rows[0][key]) : 1;
+
+  list.innerHTML = rows.map((entry) => {
+    const { faction } = entry;
+    const classes = [!faction.alive ? 'faction-dead' : '', faction.isPlayer ? 'faction-self' : '']
+      .filter(Boolean).join(' ');
+    const bilanz = `${entry.balance >= 0 ? '+' : '−'}${Math.abs(entry.balance)}`;
+    // Die Zahl, nach der sortiert wird, steht vorn und als Balken darunter.
+    const wert = factionSort === 'militaer'
+      ? `${entry.men.toLocaleString('de-DE')} Mann`
+      : factionSort === 'gold'
+        ? `${entry.gold.toLocaleString('de-DE')} Gold`
+        : `Macht ${entry.power}`;
+    return `<li class="${classes}">
+      <div class="fl-head"><span class="fl-emblem">${
+  emblemSVG(faction.id, { size: 20, color: faction.color })}</span>
+        <span class="fl-name">${escapeHTML(faction.name)}</span>
+        <span class="fl-value">${wert}</span></div>
+      <div class="fl-bar"><span style="width:${Math.max(2, Math.round((entry[key] / spitze) * 100))}%;
+        background:${faction.color}"></span></div>
+      <div class="fl-facts muted">🏛️ ${entry.cities} ·
+        ⚔️ ${entry.field.toLocaleString('de-DE')} im Feld ·
+        🛡️ ${(entry.men - entry.field).toLocaleString('de-DE')} auf der Mauer</div>
+      <div class="fl-facts muted">💰 ${entry.gold.toLocaleString('de-DE')} Gold ·
+        Einnahmen ${entry.income} − Sold ${entry.upkeep} =
+        <span class="${entry.balance >= 0 ? 'fl-plus' : 'fl-minus'}">${bilanz} je Runde</span></div>
+    </li>`;
+  }).join('');
+
+  const note = document.getElementById('factionNote');
+  if (note) {
+    note.textContent = factionSort === 'militaer'
+      ? 'Sortiert nach Mann unter Waffen – im Feld und auf den Mauern zusammen.'
+      : factionSort === 'gold'
+        ? 'Sortiert nach dem Schatz. Die Bilanz daneben ist, was jede Runde übrig '
+          + 'bleibt: Einnahmen minus Sold.'
+        : 'Sortiert nach Macht: zehn Punkte je Ort, einer je hundert Mann, einer je '
+          + 'dreihundert Gold. Land wiegt am schwersten – es trägt alles andere.';
+  }
+}
+
 export function renderUI(state, handlers) {
   // Eine Runde ist ein Monat, drei Monate sind eine Jahreszeit. Angezeigt wird
   // der Monat: er wechselt mit jeder Runde und sagt damit von selbst, wie weit
@@ -1597,26 +1696,7 @@ export function renderUI(state, handlers) {
   const player = playerFaction(state);
   document.getElementById('goldLabel').textContent = `💰 ${player.gold} Gold`;
 
-  // Die eigene Fraktion zuerst, danach die lebenden nach Größe - wer vorne
-  // steht, ist die Frage, die den Spieler betrifft.
-  const factionList = document.getElementById('factionList');
-  const rows = state.factions
-    .filter((f) => !f.isNeutral)
-    .map((f) => ({
-      faction: f,
-      cities: state.cities.filter((c) => c.factionId === f.id).length,
-      armies: state.armies.filter((a) => a.factionId === f.id).length,
-    }))
-    .sort((a, b) => (b.faction.isPlayer ? 1 : 0) - (a.faction.isPlayer ? 1 : 0)
-      || b.cities - a.cities || b.armies - a.armies);
-  factionList.innerHTML = rows.map(({ faction, cities, armies }) => {
-    const classes = [!faction.alive ? 'faction-dead' : '', faction.isPlayer ? 'faction-self' : '']
-      .filter(Boolean).join(' ');
-    return `<li class="${classes}"><span class="fl-emblem">${
-      emblemSVG(faction.id, { size: 20, color: faction.color })}</span>${
-      escapeHTML(faction.name)}
-      <span class="muted">🏛️${cities} · ⚔️${armies}</span></li>`;
-  }).join('');
+  renderFactionList(state);
 
   const panel = document.getElementById('selectedPanel');
   if (state.selectedArmyId) {
