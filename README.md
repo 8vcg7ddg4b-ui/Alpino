@@ -1165,7 +1165,19 @@ den Punkten durchblättern.
 - **107 Siedlungen in drei Größen**: **Große Stadt** (viel Bevölkerung, starke
   Garnison), **Stadt** (Normalmaß) und **Dorf** (klein – leicht zu nehmen und
   gute Sprungbretter). Was ein Ort trägt, hängt an seinen Einwohnern, nicht an
-  seinem Rang. **Jede Fraktion beginnt mit denselben fünf Orten**: der
+  seinem Rang.
+  **Auf der Karte hat jedes Gebäude überall dasselbe Maß.** Vorher wuchsen mit
+  dem Rang eines Orts einfach alle Gebäude mit – dieselben vier Hütten, nur
+  größer gezeichnet; eine Große Stadt sah aus wie ein Dorf für Riesen, und zwei
+  Orte nebeneinander waren nicht zu vergleichen. Maßstab ist jetzt **das Dorf**:
+  Ein Haus ist ein Haus, ob es in einem Weiler oder in einer Metropole steht.
+  Der Rang zeigt sich daran, **wie viele** Häuser dort stehen und wie weit sie
+  sich ausbreiten – ein **Dorf** hat vier Hütten, eine **Stadt** eine Halle und
+  fünfzehn Häuser in zwei Ringen, eine **Große Stadt** eine Halle, zwanzig
+  Häuser in zwei weiteren Ringen und einen **Tempel**. Der Mauerring wächst mit
+  der Ausbreitung mit, die Häuser darin nicht. Dasselbe gilt für alles, was um
+  einen Ort herum steht: **Hafensteg, Äcker, Viadukt und Fördergerüst haben in
+  jedem Ort dieselbe Größe**. **Jede Fraktion beginnt mit denselben fünf Orten**: der
   Hauptstadt als Große Stadt, zwei Städten und zwei Dörfern. Wo einer sitzt,
   sagt die Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt
   reicher als das andere. **27 Orte gehören niemandem** und sind frei zu

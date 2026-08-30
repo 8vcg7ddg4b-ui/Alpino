@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.22.0';
+export const GAME_VERSION = '1.23.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -579,7 +579,7 @@ export const SETTLEMENT_TIERS = {
     population: 5200,
     populationCapital: 6400,
     populationNeutral: 3600,
-    modelScale: 1.35,
+    spread: 1.3,
   },
   city: {
     key: 'city',
@@ -588,7 +588,7 @@ export const SETTLEMENT_TIERS = {
     population: 3500,
     populationCapital: 6000,
     populationNeutral: 2000,
-    modelScale: 1,
+    spread: 1,
   },
   village: {
     key: 'village',
@@ -597,9 +597,14 @@ export const SETTLEMENT_TIERS = {
     population: 1400,
     populationCapital: 2600,
     populationNeutral: 900,
-    modelScale: 0.68,
+    spread: 0.68,
   },
 };
+
+// `spread` ist die Ausbreitung eines Orts auf der Karte: danach richten sich
+// der Mauerring und die Ringe, auf denen die Häuser stehen - nicht die Größe
+// der Häuser. Die ist überall dieselbe, damit ein Haus in der Metropole so
+// groß ist wie eines im Weiler.
 
 export const SETTLEMENT_ORDER = ['large', 'city', 'village'];
 export const DEFAULT_SETTLEMENT_SIZE = 'city';

@@ -1904,55 +1904,86 @@ function addStandard(group, tinted, height, bannerWidth) {
   return banner;
 }
 
+// --- Wie groß ein Ort gezeichnet wird -------------------------------------
+// Ein Haus ist ein Haus, ob es in einem Dorf oder in einer großen Stadt steht.
+// Vorher wuchsen mit dem Rang eines Orts einfach alle Gebäude mit: dieselben
+// vier Hütten, nur größer gezeichnet - eine große Stadt sah aus wie ein Dorf
+// für Riesen, und zwei Orte nebeneinander waren nicht zu vergleichen.
+//
+// Jetzt hat jedes Gebäude überall dasselbe Maß, und zwar das des Dorfs. Der
+// Rang eines Orts zeigt sich daran, WIE VIELE Häuser dort stehen und wie weit
+// sie sich ausbreiten - ein Dorf hat vier, eine Stadt vierzehn, eine große
+// Stadt sechsundzwanzig und dazu einen Tempel.
+const BUILD_SCALE = 0.68;
+
+// Wie weit sich ein Ort ausbreitet, steht bei den Siedlungsstufen in data.js
+// (`spread`): davon hängen der Mauerring, die Höhe des Namensschilds und die
+// Ringe ab, auf denen die Häuser stehen - nicht die Größe der Häuser selbst.
+// Der Mauerring hat die halbe Spannweite 2,2 · Ausbreitung; die Häuser müssen
+// innerhalb davon bleiben, sonst stehen sie auf der Mauer.
+
+// Die Ringe, auf denen die Häuser stehen: Radius (in Feldeinheiten, mal
+// Ausbreitung) und wie viele Gebäude darauf Platz haben.
+const SETTLEMENT_RINGS = {
+  village: [{ r: 1.7, n: 3 }],
+  city: [{ r: 1.15, n: 6 }, { r: 1.8, n: 9 }],
+  large: [{ r: 1.35, n: 8 }, { r: 1.95, n: 12 }],
+};
+
 function buildCityGroup(city) {
   const group = new THREE.Group();
-  const tier = settlementTier(city.size);
-  const scale = tier.modelScale * (city.capital ? 1.12 : 1);
+  const spread = settlementTier(city.size).spread * (city.capital ? 1.05 : 1);
+  const bau = BUILD_SCALE;
   const tinted = [];
   const rng = seededRandomFactory(city.col * 733 + city.row * 197 + 11);
+  const ringe = SETTLEMENT_RINGS[city.size] || SETTLEMENT_RINGS.city;
 
   if (city.size === 'village') {
-    // Ein Weiler: eine größere Hütte, ein paar kleinere darum.
-    addHut(group, 0, 0, 0.85 * scale, 1.15 * scale);
-    for (let i = 0; i < 3; i++) {
-      const angle = (i / 3) * Math.PI * 2 + rng() * 0.7;
-      addHut(group, Math.cos(angle) * 1.7 * scale, Math.sin(angle) * 1.7 * scale,
-        0.52 * scale, 0.78 * scale);
+    // Ein Weiler: eine größere Hütte, ein paar kleinere darum. Dieses Bild ist
+    // der Maßstab für alles andere.
+    addHut(group, 0, 0, 0.85 * bau, 1.15 * bau);
+    for (const ring of ringe) {
+      for (let i = 0; i < ring.n; i++) {
+        const angle = (i / ring.n) * Math.PI * 2 + rng() * 0.7;
+        addHut(group, Math.cos(angle) * ring.r * spread, Math.sin(angle) * ring.r * spread,
+          0.52 * bau, 0.78 * bau);
+      }
     }
     // Am Dorf ist das Banner das Einzige, was die Zugehörigkeit zeigt - es
     // muss also von weitem zu sehen sein.
-    addStandard(group, tinted, 3.6 * scale, 1.15 * scale);
+    addStandard(group, tinted, 3.6 * bau, 1.15 * bau);
   } else {
     const large = city.size === 'large';
     // Die Halle in der Mitte, quer gestellt, damit sie nicht wie ein Würfel
-    // wirkt.
-    // Die Halle nach hinten, damit der Tempel in der Standardansicht davor
-    // steht und nicht dahinter verschwindet.
-    addHouse(group, tinted, 0, -0.85 * scale, 2.7 * scale, 1.7 * scale, 1.5 * scale, 0);
-    const houses = large ? 7 : 5;
-    const ring = (large ? 2.6 : 2.3) * scale;
-    for (let i = 0; i < houses; i++) {
-      // Die Häuser weichen dem Tempel im Süden aus.
-      const angle = (i / houses) * Math.PI * 2 + (large ? 2.0 : 0.4);
-      const width = (0.85 + rng() * 0.5) * scale;
-      addHouse(group, tinted,
-        Math.cos(angle) * ring, Math.sin(angle) * ring,
-        width, width * 0.72, (0.75 + rng() * 0.45) * scale, angle);
+    // wirkt - und nach hinten, damit der Tempel in der Standardansicht davor
+    // steht und nicht dahinter verschwindet. Sie ist das einzige Gebäude, das
+    // größer ist als ein Haus, und in jeder Stadt gleich groß.
+    addHouse(group, tinted, 0, -0.9 * spread, 1.9 * bau, 1.25 * bau, 1.15 * bau, 0);
+    for (const [nr, ring] of ringe.entries()) {
+      for (let i = 0; i < ring.n; i++) {
+        // Jeder Ring beginnt anderswo, sonst stehen die Häuser in Speichen.
+        const angle = (i / ring.n) * Math.PI * 2 + (large ? 2.0 : 0.4) + nr * 0.55;
+        const width = (0.78 + rng() * 0.34) * bau;
+        addHouse(group, tinted,
+          Math.cos(angle) * ring.r * spread, Math.sin(angle) * ring.r * spread,
+          width, width * 0.72, (0.7 + rng() * 0.3) * bau, angle);
+      }
     }
-    // Innerhalb des Mauerrings (halbe Spannweite 2,2 · scale), sonst steht der
-    // Tempel vor den Toren.
-    if (large) addTemple(group, tinted, 0, 1.35 * scale, 2.1 * scale, 0);
-    addStandard(group, tinted, (large ? 4.6 : 3.8) * scale, (large ? 1.3 : 1.05) * scale);
+    // Der Tempel steht nur in der großen Stadt - und dort in derselben Größe
+    // wie in jeder anderen großen Stadt.
+    if (large) addTemple(group, tinted, 0, 0.7 * spread, 1.55 * bau, 0);
+    addStandard(group, tinted, 4.0 * bau, 1.1 * bau);
   }
 
   const label = makeLabelSprite(city.name, { scale: city.capital ? 1.15 : 0.95 });
-  label.position.y = (city.size === 'village' ? 4.2 : city.size === 'large' ? 6.6 : 5.6) * scale;
+  // Das Schild steht über dem höchsten Dach, nicht über einer gedachten Größe.
+  label.position.y = (city.size === 'village' ? 2.9 : 3.4) * bau + 1.2 * spread;
   group.add(label);
 
   // Die Befestigungen entstehen erst, wenn sie gebaut sind: die meisten Orte
   // haben keine, und jedes ungenutzte Modell kostet Zeichenaufrufe.
   return {
-    group, label, tinted, scale, walls: [null, null, null], harbour: null,
+    group, label, tinted, scale: spread, bau, walls: [null, null, null], harbour: null,
   };
 }
 
@@ -3077,7 +3108,8 @@ export function syncEntities(state) {
     if (city.harbour && !entry.harbour) {
       const sea = harbourTile(state, city);
       if (sea) {
-        entry.harbour = buildHarbour(entry.scale);
+        // Ein Steg ist ein Steg - in jedem Ort derselbe.
+        entry.harbour = buildHarbour(entry.bau);
         placeHarbour(entry.harbour, city, sea, surfaceY(city.col, city.row));
         entry.group.add(entry.harbour);
       }
@@ -3101,7 +3133,7 @@ export function syncEntities(state) {
     // Die Äcker entstehen mit der Farm - und verschwinden wieder, wenn eine
     // Eroberung sie niederbrennt.
     if (city.farm && !entry.farm) {
-      entry.farm = buildFarm(entry.scale * 1.55);
+      entry.farm = buildFarm(entry.bau * 1.55);
       // Äcker liegen im flachsten Gelände, nicht am Hang - und nicht im
       // Wasser: das flachste Nachbarfeld einer Hafenstadt wäre das Meer.
       const flach = neighbourSpot(city, 'low');
@@ -3114,7 +3146,7 @@ export function syncEntities(state) {
     // Das Viadukt läuft vom höchsten Nachbarfeld auf die Stadt zu - dort liegt
     // die Quelle, und dorthin gehören die Bögen.
     if (city.viaduct && !entry.viaduct) {
-      entry.viaduct = buildViaduct(entry.scale * 1.25);
+      entry.viaduct = buildViaduct(entry.bau * 1.25);
       // Auf dem Acker stehen die Bögen nicht: jedes Bauwerk bekommt sein
       // eigenes Feld, solange eines frei ist.
       const hoch = neighbourSpot(city, 'high', entry.farmDir ? [entry.farmDir] : []);
@@ -3128,7 +3160,7 @@ export function syncEntities(state) {
     if (city.mine && !entry.mine) {
       // Etwas größer als die Häuser: ein Fördergerüst ist kein Schuppen, und
       // hinter der Palisade wäre es sonst nicht zu sehen.
-      entry.mine = buildMine(entry.scale * 1.35);
+      entry.mine = buildMine(entry.bau * 1.35);
       // Beide wollen die Höhe: steht das Viadukt schon auf dem höchsten
       // Nachbarfeld, nimmt der Schacht das zweithöchste.
       const hoch = neighbourSpot(city, 'high',
