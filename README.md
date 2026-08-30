@@ -294,6 +294,20 @@ den Punkten durchblättern.
     Steuerruder, sieben Riemen je Seite, eine Rah am Mast und den **Rammsporn**
     dicht über der Wasserlinie, mit dem die meisten Seeschlachten dieser Zeit
     endeten.
+  - **Die Gefallenen bleiben liegen, wo sie gefallen sind.** Sie hingen an
+    derselben Aufstellung wie die Lebenden – und die weicht am Ende vom Feld.
+    Mit dem geschlagenen Heer zog sich deshalb auch sein Leichenfeld zurück,
+    und am Ende lag auf dem Schlachtfeld niemand mehr. Jetzt merkt sich jeder
+    Gefallene die Stelle, an der er gefallen ist: die Überlebenden fliehen, die
+    Toten bleiben, und was zwischen den beiden Linien liegt, ist das, was die
+    Schlacht gekostet hat.
+  - **Ein verladenes Heer fährt auf Transportern.** Wo ein Heer über See
+    angegriffen wird, standen bisher dieselben Kriegsschiffe wie in einer
+    Seeschlacht – Rammsporne und Riemenreihen, wo bauchige Getreidesegler
+    liegen. Jetzt erkennt das Schaubild den Fall am Bericht (keine Schiffe,
+    aber Mannschaft) und zeigt **so viele Transporter, wie das Heer braucht** –
+    fünfzig Mann auf einen Rumpf –, mit breitem Rahsegel und den Schilden des
+    Heeres an der Reling.
 - **Vier Schiffsarten, bis zu drei je Fraktion**: die **Quinquereme** mit Turm
   und Enterbrücke (50/52, 220 Gold) – schwer und im Rammstoß überlegen; die
   **Triere**, das Arbeitspferd jeder Flotte (46/45, 190 Gold) – wendig genug zum
@@ -428,6 +442,13 @@ den Punkten durchblättern.
   Neigung und Zoom zurück und holt die eigene **Hauptstadt** in die Mitte
   (ist sie gefallen, die nächste eigene Stadt, sonst das letzte Heer).
   Nach dem Drehen bleiben Steuerkreuz und Pfeiltasten bildschirmbezogen.
+- **Die Windrose**: In der **unteren linken Ecke der Karte**, über den
+  Steuerknöpfen, steht eine goldene Windrose. Sie dreht sich mit der Kamera:
+  die helle Spitze und das **N** zeigen immer nach Norden, gleich wohin der
+  Blick geschwenkt ist – in der Grundansicht also nach oben rechts. Wer die
+  Karte gedreht hat und nicht mehr weiß, wo Gallien liegt, sieht es dort. Sie
+  ist eine Auskunft und kein Knopf: Klicks gehen durch sie hindurch auf die
+  Karte.
 - **Städte**: anklicken, um Einheiten zu rekrutieren und Garnisonen zu
   Feldarmeen auszuheben. Welche drei Einheiten zur Wahl stehen, hängt von der
   Fraktion ab, der die Stadt gehört – Rom hebt Legionäre aus, ein dakisches
@@ -498,6 +519,19 @@ den Punkten durchblättern.
   Küstenstadt muss ihn bauen. Erobert man eine Stadt, übernimmt man ihren
   Hafen. Am Ufer steht dann ein Steg mit vertäutem Boot, damit man von weitem
   sieht, wo eine Flotte auslaufen kann.
+- **Ein Hafen lässt sich sperren**: Liegen feindliche Schiffe – eine Flotte
+  oder ein Heer auf Transportern – **im Hafen oder vor seiner Einfahrt**, dann
+  läuft dort nichts mehr aus: keine Werft, keine Überfahrt, und die
+  **Seehandelswege dieses Hafens tragen nichts**, solange die Rümpfe dort
+  liegen. Der Weg selbst bleibt bestehen und trägt wieder, sobald sie fort
+  sind. Gemessen wird über die **Reichweite des Hafens** – zwei Felder, so weit
+  wie seine Liegeplätze reichen – und nicht mehr über die einer Belagerung:
+  vorher zählte nur das unmittelbare Nachbarfeld, und ein feindliches
+  Geschwader, das mitten im Hafen ankerte, störte niemanden. Eine Sperre ist
+  keine Belagerung: aushungern kann nur, wer sie erklärt hat. Ein Meldefenster
+  sagt es, wenn ein eigener Hafen gesperrt wird; in der Ortsansicht steht dann
+  „⚓ vorhanden · ⛔ gesperrt", und der betroffene Handelsweg trägt das Zeichen
+  ⛔ statt ⛵.
 - **Der Bauen-Reiter zeigt nur, was gilt**: was in diesem Ort steht, was
   gerade gebaut wird, und was sich hier und jetzt bauen ließe. Ein Bauwerk,
   dessen Voraussetzung fehlt – der Kornspeicher ohne Farm, das Viadukt ohne
@@ -539,6 +573,20 @@ den Punkten durchblättern.
   der das Bauwerk wirklich steht, und nicht mehr aus der Höhe des
   Nachbarfelds geschätzt – vorher stand ein Werk am Ortsrand deshalb schon
   einmal im Hang oder knietief im Wasser.
+  **Und keine zwei Werke mehr auf demselben Feld.** Jedes Bauwerk führte seine
+  eigene Liste der schon vergebenen Nachbarfelder, und die waren nicht
+  vollständig: das Viadukt kannte die Kaserne nicht, der Stollen das Forum
+  nicht – zwei Werke standen ineinander. Jetzt gibt es **einen** Merkzettel für
+  alle Werke eines Orts, und wer nach einem Feld fragt, bekommt eines, das noch
+  frei ist.
+- **Jeder Ort steht auf einem Fundament.** Die Häuser eines Orts stehen alle
+  auf der Höhe seiner Feldmitte – das Gelände darunter nicht. Am Hang stand
+  deshalb die halbe Siedlung in der Luft oder steckte im Boden. Jetzt trägt sie
+  eine **Terrasse**: ein gestampfter Unterbau, der so tief reicht, wie der
+  Boden unter der Siedlung fällt, mit der Oberkante auf der Höhe des Orts. Sie
+  ist rund, wo der Ort einen Ring zieht (ein Dorf), und im Geviert, wo er eine
+  Mauer hat. In der Ebene sieht man von ihr fast nichts; am Hang trägt sie den
+  ganzen Ort.
 - **Das Bauamt meldet**: Ein Bauauftrag läuft über mehrere Runden, und wenn er
   fertig wird, ist der Spieler längst woanders. Deshalb hält die Runde jetzt an
   und sagt es: Sobald ein **Bauwerk**, eine **Befestigung** oder eine
@@ -568,8 +616,11 @@ den Punkten durchblättern.
   **Beide stehen auf der Karte.** Die Kaserne liegt **vor dem Ort**: eine lange
   Halle mit Satteldach, davor der Exerzierplatz mit Pfahlzaun und zwei
   Übungspfählen – zwischen die Häuser gehört kein Exerzierplatz. Die Verwaltung
-  steht auf ihrem eigenen Feld daneben: ein gepflasterter Platz mit einer
-  Säulenreihe an beiden Seiten und der Rednerbühne in der Mitte.
+  steht auf ihrem eigenen Feld daneben, und zwar als das, was sie ist: ein
+  **großes Säulengebäude**. Vorher stand dort eine niedrige Kolonnade um eine
+  Rednerbühne, und aus der Feldherrnperspektive sah das aus wie ein Zaun. Jetzt
+  ist es eine Basilika – zwei Stufen, ein geschlossener Kern, Säulen ringsum,
+  Gebälk und ein Satteldach mit Giebel.
 - **Farm und Kornspeicher**: Ein Ort lebt von dem, was um ihn herum wächst.
   Die **Farm** (**180 Gold**, **2 Runden**) legt das Ackerland an: **50 % mehr
   Zuwachs** je Runde. **Auf der Karte liegen ihre Äcker neben der Stadt**: drei
@@ -773,6 +824,19 @@ den Punkten durchblättern.
   dann marschieren. Und die KI greift von sich aus nie ein Reich an, mit dem
   ihr Herrscher im Frieden steht – über Krieg entscheidet der Herrscher, nicht
   der Feldherr.
+- **Wer im fremden Land zurückbleibt, wird heimgeleitet**: Ein Friede, der
+  geschlossen wird, während das eigene Heer noch im Land des anderen steht,
+  oder ein Betretungsrecht, das ausläuft – und ein Heer steht mitten in fremdem
+  Gebiet, wo **jeder Schritt eine Kriegserklärung wäre**. Der Feldherr hätte
+  die Wahl zwischen Krieg und Stillstand, und beides ist keine. Deshalb gibt
+  der Herrscher, in dessen Land es steht, ihm **Geleit bis zur Grenze**: es
+  steht in der nächsten Runde im nächstgelegenen eigenen Ort, erschöpft vom
+  Marsch und ohne Bewegungspunkte. Geprüft wird die Lage, nicht die Absicht –
+  heimgeleitet wird nur, wer wirklich feststeckt: wer irgendein Feld erreichen
+  kann, ohne eine Grenze zu verletzen, marschiert selbst. Ein Meldefenster
+  sagt es, wenn es ein eigenes Heer betrifft. Über einen ganzen Feldzug von 150
+  Runden geschieht das in der ganzen Welt rund **zwanzigmal** – es ist eine
+  Rettung, keine Regel, die den Feldzug bestimmt.
 - **Verträge**: Zwischen Krieg und Frieden liegt mehr als nichts. Vier
   Verträge lassen sich schließen; alle vier setzen den Frieden voraus, und alle
   vier fallen mit ihm.

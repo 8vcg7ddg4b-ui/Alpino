@@ -182,6 +182,51 @@
           <div id="tileInfoBody"></div>
         </div>
 
+        <!-- Die Windrose in der unteren linken Ecke der Karte. Sie dreht sich
+             mit der Kamera mit: die Spitze zeigt immer nach Norden, gleich
+             wohin der Blick geschwenkt ist. -->
+        <div id="compass" aria-hidden="true">
+          <svg viewBox="0 0 100 100" width="100%" height="100%">
+            <defs>
+              <radialGradient id="compassFace" cx="38%" cy="32%" r="72%">
+                <stop offset="0%" stop-color="#4a3a24"/>
+                <stop offset="100%" stop-color="#1a140d"/>
+              </radialGradient>
+              <linearGradient id="compassGold" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f6e39f"/>
+                <stop offset="55%" stop-color="#d4af37"/>
+                <stop offset="100%" stop-color="#8a6a1e"/>
+              </linearGradient>
+            </defs>
+            <circle cx="50" cy="50" r="46" fill="url(#compassFace)"
+              stroke="url(#compassGold)" stroke-width="3.5"/>
+            <g id="compassRose">
+              <circle cx="50" cy="50" r="33" fill="none" stroke="#d4af37"
+                stroke-width="0.7" opacity="0.45"/>
+              <!-- Die vier Zwischenstriche -->
+              <g stroke="#d4af37" stroke-width="1.4" opacity="0.6">
+                <line x1="72" y1="28" x2="66" y2="34"/>
+                <line x1="28" y1="72" x2="34" y2="66"/>
+                <line x1="28" y1="28" x2="34" y2="34"/>
+                <line x1="72" y1="72" x2="66" y2="66"/>
+              </g>
+              <!-- Der Stern: Nord hell, Süd dunkel, Ost und West dazwischen -->
+              <polygon points="50,20 56,50 50,55 44,50" fill="url(#compassGold)"/>
+              <polygon points="50,80 56,50 50,45 44,50" fill="#6b5a33"/>
+              <polygon points="20,50 50,44 55,50 50,56" fill="#9c8348"/>
+              <polygon points="80,50 50,44 45,50 50,56" fill="#9c8348"/>
+              <circle cx="50" cy="50" r="3.4" fill="url(#compassGold)"/>
+              <g font-family="Georgia, 'Times New Roman', serif" font-size="11"
+                 text-anchor="middle" dominant-baseline="central">
+                <text x="50" y="10" fill="#f6e39f">N</text>
+                <text x="50" y="90" fill="#a08a55">S</text>
+                <text x="90" y="50" fill="#a08a55">O</text>
+                <text x="10" y="50" fill="#a08a55">W</text>
+              </g>
+            </g>
+          </svg>
+        </div>
+
         <div id="mapControls">
           <div class="dpad">
             <button class="dpad-btn dpad-up" data-pan="0,-1">▲</button>

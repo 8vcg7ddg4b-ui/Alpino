@@ -48,7 +48,7 @@ import {
   warBlocked,
   OPINION_PER_BATTLE, OPINION_PER_CITY_TAKEN,
 } from './diplomacy.js';
-import { borderViolation } from './territory.js';
+import { borderViolation, territoryOwner } from './territory.js';
 
 export function removeArmy(state, armyId) {
   const idx = state.armies.findIndex((a) => a.id === armyId);
@@ -1749,6 +1749,10 @@ export function tradeRouteIncome(state, a, b) {
   // Ein Seeweg trägt nur, solange auf ihm niemand kreuzt: liegen Seeräuber vor
   // einem der beiden Häfen, kommt die Hälfte der Ladung nie an.
   const kind = tradeLinkKind(state, a, b);
+  // Ein gesperrter Hafen trägt gar nichts: aus ihm läuft kein Handelsschiff
+  // aus, solange die feindlichen Rümpfe davorliegen. Der Weg selbst bleibt
+  // bestehen - er trägt wieder, sobald sie fort sind.
+  if (kind === 'sea' && (cityBlockaded(state, a) || cityBlockaded(state, b))) return 0;
   const zoll = kind === 'sea' ? pirateTollFactor(state, a, b) : 1;
   // Was über See kommt, ist mehr wert: ein Schiff trägt, was kein Karren trägt.
   const see = kind === 'sea' ? TRADE_SEA_BONUS : 1;
@@ -1761,6 +1765,13 @@ export function tradeRouteRaided(state, a, b) {
   if (!a || !b) return false;
   if (tradeLinkKind(state, a, b) !== 'sea') return false;
   return pirateTollFactor(state, a, b) < 1;
+}
+
+// Und ob er gerade von einer Blockade stillsteht - dann trägt er nichts.
+export function tradeRouteBlockaded(state, a, b) {
+  if (!a || !b) return false;
+  if (tradeLinkKind(state, a, b) !== 'sea') return false;
+  return cityBlockaded(state, a) || cityBlockaded(state, b);
 }
 
 // Was der Handel diesem Ort insgesamt einbringt.
@@ -2154,16 +2165,27 @@ export function siegeInfo(state, city) {
 
 // Ob einem Hafenort die See gesperrt ist: dann geht kein Heer an Bord und
 // läuft kein Schiff vom Stapel.
-export function cityBlockaded(state, city) {
-  if (!city || !city.harbour) return false;
-  // Eine Sperre ist keine Belagerung: dafür genügt es, dass Schiffe vor der
-  // Hafeneinfahrt kreuzen. Aushungern kann nur, wer die Belagerung erklärt
-  // hat - aber auslaufen kann aus einem verstellten Hafen niemand.
-  return state.armies.some((army) => army.factionId !== city.factionId
+// Wer den Hafen sperrt - null, wenn niemand davorliegt.
+//
+// Gemessen wird über die Reichweite des Hafens, nicht über die einer
+// Belagerung: ein Hafen reicht zwei Felder weit ins Wasser, und genau dort
+// liegen seine Liegeplätze. Vorher zählte nur das Nachbarfeld, und ein
+// feindliches Geschwader, das mitten im Hafen ankerte, störte niemanden -
+// gebaut und verladen wurde weiter, als läge es nicht da.
+export function blockadingFleets(state, city) {
+  if (!city || !city.harbour) return [];
+  return state.armies.filter((army) => army.factionId !== city.factionId
     && !isPirate(army)
     && atWar(state, city.factionId, army.factionId)
     && (isFleet(army) || army.embarked)
-    && Math.abs(army.col - city.col) + Math.abs(army.row - city.row) <= SIEGE_RANGE);
+    && Math.abs(army.col - city.col) + Math.abs(army.row - city.row) <= PORT_RANGE);
+}
+
+// Eine Sperre ist keine Belagerung: dafür genügt es, dass Schiffe im Hafen
+// oder vor seiner Einfahrt liegen. Aushungern kann nur, wer die Belagerung
+// erklärt hat - aber auslaufen kann aus einem verstellten Hafen niemand.
+export function cityBlockaded(state, city) {
+  return blockadingFleets(state, city).length > 0;
 }
 
 // Einmal je Runde festhalten, seit wann ein Ort belagert wird. Nur die Dauer
@@ -2315,6 +2337,74 @@ export function growSettlements(state) {
       + `${jetzt} – ${city.population.toLocaleString('de-DE')} Einwohner.`);
   }
   return gewachsen;
+}
+
+// --- Heere, die im fremden Land zurückbleiben ------------------------------
+// Ein Friede, der geschlossen wird, während das eigene Heer noch im Land des
+// anderen steht, oder ein Betretungsrecht, das ausläuft: dann steht ein Heer
+// mitten in fremdem Gebiet, und jeder Schritt, den es tut, wäre eine
+// Kriegserklärung. Der Feldherr hätte die Wahl zwischen Krieg und Stillstand -
+// und beides ist keine.
+//
+// Deshalb wird ein solches Heer heimgeleitet: der Herrscher, in dessen Land es
+// steht, gibt ihm Geleit bis zur Grenze, und es steht in der nächsten Runde im
+// nächstgelegenen eigenen Ort. Es kommt erschöpft an und hat in dieser Runde
+// keinen Schritt mehr - ein Geleitmarsch ist ein Marsch.
+//
+// Geprüft wird die Lage, nicht die Absicht: heimgeleitet wird nur, wer wirklich
+// feststeckt - wer ein Feld erreichen kann, ohne eine Grenze zu verletzen,
+// marschiert selbst.
+export function escortStrandedArmies(state) {
+  const heimgeleitet = [];
+  for (const army of [...state.armies]) {
+    // Auf See gehört das Wasser niemandem, und eine Flotte steckt nie fest.
+    if (army.embarked) continue;
+    const faction = factionById(state, army.factionId);
+    if (!faction || faction.isNeutral) continue;
+    const wirt = territoryOwner(state, army.col, army.row);
+    if (!wirt || wirt === army.factionId) continue;
+    if (atWar(state, army.factionId, wirt)) continue;
+    if (hasPassage(state, army.factionId, wirt)) continue;
+
+    // Gibt es irgendein erreichbares Feld ohne Grenzverletzung, marschiert das
+    // Heer selbst - dann ist es nicht gestrandet, sondern nur auf dem Rückweg.
+    const felder = computeReachable(state, army);
+    let freierWeg = false;
+    for (const eintrag of felder.values()) {
+      if (!eintrag.border && !eintrag.declare) { freierWeg = true; break; }
+    }
+    if (freierWeg) continue;
+
+    // Wohin: in den nächstgelegenen eigenen Ort. Hat das Reich keinen mehr,
+    // bleibt das Heer stehen - heimgeleitet wird man nur nach Hause.
+    let ziel = null;
+    let beste = Infinity;
+    for (const city of state.cities) {
+      if (city.factionId !== army.factionId) continue;
+      const d = Math.abs(city.col - army.col) + Math.abs(city.row - army.row);
+      if (d < beste) { beste = d; ziel = city; }
+    }
+    if (!ziel) continue;
+    // Nicht auf ein besetztes Feld: dort steht schon jemand.
+    const besetzt = state.armies.some((a) => a.id !== army.id
+      && a.col === ziel.col && a.row === ziel.row);
+    if (besetzt) continue;
+
+    const wirtName = (factionById(state, wirt) || {}).name || wirt;
+    army.col = ziel.col;
+    army.row = ziel.row;
+    army.movement = 0;
+    army.camp = false;
+    army.embarked = false;
+    adjustExhaustion(army, 12);
+    heimgeleitet.push({ army, city: ziel, wirt, wirtName, felder: beste });
+    logOwn(state, army.factionId, `🚩 ${army.name} stand im Land von ${wirtName} `
+      + `und wäre keinen Schritt mehr gekommen, ohne den Krieg zu erklären. `
+      + `Es ist unter Geleit nach ${ziel.name} zurückgeführt worden.`);
+    logOwn(state, wirt, `🚩 ${faction.name} hat ein Heer aus unserem Land `
+      + 'zurückgezogen – unter Geleit bis zur Grenze.');
+  }
+  return heimgeleitet;
 }
 
 // Die Stadtwache stellt sich aus der Bevölkerung nach - Runde für Runde ein

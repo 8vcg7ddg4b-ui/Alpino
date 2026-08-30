@@ -22,6 +22,7 @@ import {
   buyBuilding, advanceConstruction, mineIncomeOf,
   updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp, besiegeCity,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations, growSettlements,
+  escortStrandedArmies, blockadingFleets,
 } from './actions.js';
 import {
   offerPeace, declareWar, sendGift, rulersTakeTurn, rulerOf, GIFT_COST,
@@ -36,6 +37,7 @@ import {
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
   setBordersVisible, areBordersVisible,
   setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled, captureFrame,
+  northOnScreen,
 } from './scene3d.js';
 import {
   sfx, unlockAudio, toggleMuted, isMuted, stopMarch, startTheme, stopTheme, setMusicEnabled,
@@ -56,6 +58,27 @@ import { rollEvents } from './events.js';
 const canvas = document.getElementById('gameCanvas');
 const appEl = document.getElementById('app');
 let state = null;
+
+// --- Die Windrose ---------------------------------------------------------
+// Sie dreht sich mit der Kamera: die Spitze zeigt nach Norden, gleich wohin
+// der Blick geschwenkt ist. Damit das nirgends vergessen wird, hängt sie am
+// Zeichnen selbst - jeder Schwenk, jeder Zoom und jeder Zug gehen ohnehin
+// durch `render`.
+const compassRose = document.getElementById('compassRose');
+let compassDrehung = null;
+// `zeichneKarte` statt `render`: im gebündelten Artefakt teilen sich alle
+// Dateien einen Namensraum, und ein zweites `render` überschriebe das aus
+// `scene3d.js`.
+function zeichneKarte() {
+  if (compassRose) {
+    const grad = Math.round((northOnScreen() * 1800) / Math.PI) / 10;
+    if (grad !== compassDrehung) {
+      compassDrehung = grad;
+      compassRose.style.transform = `rotate(${grad}deg)`;
+    }
+  }
+  render();
+}
 
 // --- Einstellungen --------------------------------------------------------
 loadSettings();
@@ -177,7 +200,7 @@ function hideHerald() {
   if (wasOpen && state) {
     resetCameraOrientation();
     focusOwnCapital();
-    render();
+    zeichneKarte();
   }
 }
 
@@ -497,7 +520,12 @@ function collectDiploNews() {
 // Fenster, alles andere im Protokoll - und wer eine Stadt verlor, erfuhr es
 // erst, wenn er hinsah.
 function snapshotOwn() {
-  if (!state) return { orte: new Set(), heere: new Map(), piraten: new Set() };
+  if (!state) {
+    return {
+      orte: new Set(), heere: new Map(), piraten: new Set(),
+      staemme: new Set(), gesperrt: new Set(),
+    };
+  }
   const me = playerFaction(state).id;
   return {
     orte: new Set(state.cities.filter((c) => c.factionId === me).map((c) => c.id)),
@@ -508,6 +536,11 @@ function snapshotOwn() {
     // Und welche Züge aus dem Osten. Die sind immer eine Meldung wert: ein
     // Volk in Bewegung geht die ganze Welt an, nicht nur den, gegen den es zieht.
     staemme: new Set(hordes(state).map((h) => h.id)),
+    // Welche eigenen Häfen schon gesperrt waren - eine neue Sperre ist eine
+    // Meldung, eine bestehende nicht.
+    gesperrt: new Set(state.cities
+      .filter((c) => c.factionId === me && blockadingFleets(state, c).length)
+      .map((c) => c.id)),
   };
 }
 
@@ -757,7 +790,7 @@ function observeMapSize() {
   if (typeof ResizeObserver !== 'function') return;
   const observer = new ResizeObserver(() => {
     resizeScene();
-    render();
+    zeichneKarte();
   });
   observer.observe(canvas.parentElement);
 }
@@ -916,7 +949,7 @@ function setSidebarCollapsed(collapsed) {
   // ResizeObserver picks the new size up, but resize now so the very next
   // frame is already correct.
   resizeScene();
-  render();
+  zeichneKarte();
 }
 
 function setupSidebarToggle() {
@@ -1060,7 +1093,7 @@ function setupMapModeButton() {
     setMapMode(getMapMode() === 'tactical' ? 'terrain' : 'tactical', state);
     refreshMapModeButton();
     sfx.select();
-    render();
+    zeichneKarte();
   });
   refreshMapModeButton();
 }
@@ -1088,7 +1121,7 @@ function setupBorderButton() {
     setBordersVisible(!areBordersVisible(), state);
     refreshBorderButton();
     sfx.select();
-    render();
+    zeichneKarte();
   });
 }
 
@@ -1443,7 +1476,7 @@ function refresh() {
     }
   }
   syncEntities(state);
-  render();
+  zeichneKarte();
   renderUI(state, {
     onRecruit: (cityId, unitKey) => {
       pushUndo();
@@ -1654,6 +1687,9 @@ function endTurn() {
   // abgerechnet wird: eine belagerte Stadt zahlt keine Steuer.
   const belagert = updateSieges(state);
   applySiegeAttrition(state);
+  // Wer im fremden Land zurückgeblieben ist und keinen Schritt mehr tun kann,
+  // ohne den Krieg zu erklären, wird unter Geleit heimgeführt.
+  const heimgeleitet = escortStrandedArmies(state);
   // Eroberungen der KI können Handelswege gekappt haben - das muss stehen,
   // bevor abgerechnet wird, sonst zahlt ein Weg, den es nicht mehr gibt.
   pruneTradeRoutes(state);
@@ -1731,6 +1767,34 @@ function endTurn() {
             + `${g.city.population.toLocaleString('de-DE')} Einwohner`,
         })),
         effect: 'Mit dem Rang wachsen Einnahmen, Wache und das Bild auf der Karte.',
+      });
+    }
+    // Häfen, die in dieser Runde gesperrt worden sind.
+    for (const city of state.cities) {
+      if (city.factionId !== me || vorher.gesperrt.has(city.id)) continue;
+      const flotten = blockadingFleets(state, city);
+      if (!flotten.length) continue;
+      const feind = [...new Set(flotten.map((f) => factionById(state, f.factionId).name))]
+        .join(' und ');
+      diploNewsQueue.push({
+        icon: '⛔', kind: 'Der Hafen ist gesperrt',
+        title: `Fremde Schiffe liegen vor ${city.name}`,
+        text: `${feind} hält mit ${flotten.length === 1 ? 'einem Verband' : `${flotten.length} Verbänden`} `
+          + `den Hafen von ${city.name} besetzt.`,
+        effect: 'Solange sie dort liegen, läuft kein Schiff aus: keine Werft, keine '
+          + 'Überfahrt, und die Seehandelswege dieses Hafens tragen nichts.',
+      });
+    }
+    // Heere, die aus fremdem Land heimgeführt worden sind.
+    for (const zug of heimgeleitet) {
+      if (zug.army.factionId !== me) continue;
+      diploNewsQueue.push({
+        icon: '🚩', kind: 'Ein Heer ist heimgeführt',
+        title: `${zug.army.name} steht wieder in ${zug.city.name}`,
+        text: `Das Heer stand im Land von ${zug.wirtName} und wäre keinen Schritt `
+          + 'mehr gekommen, ohne den Krieg zu erklären. Es hat Geleit bis zur Grenze '
+          + 'bekommen.',
+        effect: 'Der Marsch hat es erschöpft, und in dieser Runde zieht es nicht mehr.',
       });
     }
     collectOwnNews(vorher, previousHead);
@@ -1869,21 +1933,21 @@ function setupDpad() {
       // Screen-relative: once the map is turned, "up" must still mean away
       // from the viewer rather than north on the tile grid.
       panCameraRelative(dc * STEP, dr * STEP);
-      render();
+      zeichneKarte();
     });
   });
   document.querySelectorAll('[data-zoom]').forEach((btn) => {
     const factor = Number(btn.dataset.zoom);
     btn.addEventListener('click', () => {
       zoomCamera(factor);
-      render();
+      zeichneKarte();
     });
   });
   document.querySelectorAll('[data-rotate]').forEach((btn) => {
     const amount = Number(btn.dataset.rotate);
     btn.addEventListener('click', () => {
       rotateCamera(amount);
-      render();
+      zeichneKarte();
     });
   });
   const resetBtn = document.getElementById('resetViewBtn');
@@ -1891,7 +1955,7 @@ function setupDpad() {
     resetBtn.addEventListener('click', () => {
       resetCameraOrientation();
       focusOwnCapital();
-      render();
+      zeichneKarte();
     });
   }
 }
@@ -2110,7 +2174,7 @@ function startNewGame(factionId = chosenFaction) {
 
 window.addEventListener('resize', () => {
   resizeScene();
-  render();
+  zeichneKarte();
 });
 
 setupFullscreenButton(document.getElementById('fullscreenBtn'));

@@ -13,7 +13,7 @@
 // wird alles wieder abgeräumt, damit ein Feldzug mit dreißig Schlachten nicht
 // dreißig Renderer offen hält.
 
-import { COMBAT_ROLES, TILE_TYPES, unitDefs } from './data.js';
+import { COMBAT_ROLES, SHIP_ROLE, TILE_TYPES, unitDefs, transportCount } from './data.js';
 import { emblemTexture } from './scene3d.js';
 import { weatherInfo } from './weather.js';
 
@@ -478,6 +478,49 @@ function makeShip(color, scale = 1) {
   return group;
 }
 
+// Ein Transportschiff: bauchiger Rumpf, ein breites Rahsegel, kein Rammsporn.
+// Wo ein Heer über See fährt, fährt es auf diesen und nicht auf Kriegsschiffen
+// - das Schaubild einer Seeschlacht mit einem verladenen Heer zeigte bisher
+// Rammsporne, wo Getreidesegler liegen.
+function makeTransport(color, scale = 1) {
+  const group = new THREE.Group();
+  const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(color) });
+  const holz = new THREE.MeshLambertMaterial({ color: 0x6b5433 });
+  // Bauchig und kurz: ein Frachtsegler ist kein Ruderer.
+  const rumpf = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.62, 1.05), material);
+  rumpf.position.y = 0.31;
+  group.add(rumpf);
+  for (const seite of [-1, 1]) {
+    const steven = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.72, 0.6), material);
+    steven.position.set(seite * 1.05, 0.42, 0);
+    group.add(steven);
+  }
+  // Die Schilde des Heeres hängen an der Reling - daran sieht man, dass hier
+  // Truppen fahren und keine Fracht.
+  for (let i = -1; i <= 1; i++) {
+    for (const seite of [-1, 1]) {
+      const schild = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.06), material);
+      schild.position.set(i * 0.5, 0.6, seite * 0.55);
+      group.add(schild);
+    }
+  }
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.8, 5), holz);
+  mast.position.set(0, 1.4, 0);
+  group.add(mast);
+  const rah = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.5, 4), holz);
+  rah.position.set(0, 2.1, 0);
+  rah.rotation.x = Math.PI / 2;
+  group.add(rah);
+  const segel = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.35, 1.2),
+    new THREE.MeshLambertMaterial({ color: 0xe8dcc0, side: THREE.DoubleSide })
+  );
+  segel.position.set(0, 1.5, 0.02);
+  group.add(segel);
+  group.scale.setScalar(scale);
+  return group;
+}
+
 // Die Eröffnungssalve: eine Handvoll Pfeile, die im Bogen hinüberfliegen.
 // Sie treffen niemanden - was sie anrichten, steht schon im Bericht -, aber
 // sie sagen, warum die erste Runde anders aussieht als die zweite.
@@ -658,10 +701,16 @@ function makeFormation(units, factionId, color, facing, naval = false) {
   // Wie viele Gestalten auf diese Seite entfallen - bei sehr großen Heeren
   // gedeckelt, damit die Zahl der Figuren beherrschbar bleibt.
   const mann = COMBAT_ROLES.reduce((sum, key) => sum + (units[key] || 0), 0);
+  // Ein Heer, das über See fährt, fährt nicht auf Kriegsschiffen: hat diese
+  // Seite keine Schiffe, aber Mannschaft, dann liegt sie auf Transportern -
+  // so viele, wie das Heer braucht, und keine mehr.
+  const transport = naval && !(units[SHIP_ROLE] > 0) && mann > 0;
   // Schiffe zählen anders als Mann: ein Geschwader sind sechzig Schiffe, und
   // vier davon je Modell sehen nach Flotte aus, sechzig nach Gewimmel.
   const proBlock = naval ? 4 : MEN_PER_BLOCK;
-  const gesamt = Math.max(1, Math.min(MAX_BLOCKS, Math.ceil(mann / proBlock)));
+  const gesamt = transport
+    ? Math.max(1, Math.min(MAX_BLOCKS, transportCount(mann)))
+    : Math.max(1, Math.min(MAX_BLOCKS, Math.ceil(mann / proBlock)));
   const proMann = mann > 0 ? gesamt / mann : 0;
 
   // Ein Block, kein Gänsemarsch: ungefähr doppelt so breit wie tief. Auf See
@@ -729,8 +778,8 @@ function makeFormation(units, factionId, color, facing, naval = false) {
       };
       if (schiff) {
         // Auf dem Wasser fährt ein Schiff, keine Gestalt - und mit dem Bug
-        // zum Feind.
-        stueck.gruppe = makeShip(color, 1.05);
+        // zum Feind. Ein verladenes Heer fährt auf Transportern.
+        stueck.gruppe = transport ? makeTransport(color, 1.05) : makeShip(color, 1.05);
         stueck.ry = blick;
         group.add(stueck.gruppe);
       }
@@ -748,7 +797,7 @@ function makeFormation(units, factionId, color, facing, naval = false) {
 // vorderste Reihe stößt zu, der Rest tritt auf der Stelle.
 const FALLZEIT = 0.45;
 
-function updateFallen(bloecke, t, gefecht = 0) {
+function updateFallen(bloecke, t, gefecht = 0, gruppeX = 0) {
   for (const stueck of bloecke) {
     if (!stueck.gefallen) {
       if (stueck.schiff) {
@@ -765,6 +814,12 @@ function updateFallen(bloecke, t, gefecht = 0) {
       setzeInstanz(stueck);
       continue;
     }
+    // Ein Gefallener bleibt liegen, wo er gefallen ist. Er hängt an derselben
+    // Aufstellung wie die Lebenden, und die weicht am Ende vom Feld - ohne
+    // diesen Anker zog sich mit dem geschlagenen Heer auch sein Leichenfeld
+    // zurück, und am Ende lag auf dem Schlachtfeld niemand mehr.
+    if (stueck.weltX === undefined) stueck.weltX = stueck.x + gruppeX;
+    stueck.x = stueck.weltX - gruppeX;
     const p = Math.min(1, (t - stueck.gefallen) / FALLZEIT);
     const weich = p * p;
     if (stueck.schiff) {
@@ -1016,8 +1071,8 @@ export function playBattle(canvas, report, hooks = {}) {
 
     // Was gefallen ist, kippt um; was auf See schwimmt, schaukelt; wer
     // ficht, stößt zu.
-    updateFallen(angreifer.bloecke, t, gefecht);
-    updateFallen(verteidiger.bloecke, t, gefecht);
+    updateFallen(angreifer.bloecke, t, gefecht, angreifer.group.position.x);
+    updateFallen(verteidiger.bloecke, t, gefecht, verteidiger.group.position.x);
     // Die Fahne des Geschlagenen senkt sich am Ende.
     const senken = (fahne, fallen) => {
       const tuch = fahne.userData.tuch;

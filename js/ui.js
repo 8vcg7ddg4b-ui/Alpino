@@ -35,7 +35,8 @@ import {
   armyUpkeep, factionIncome,
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
   siegeStatus,
-  tradeRouteRaided, mineOre, mineIncomeOf, canBuildBuilding, siegeInfo, citySieged,
+  tradeRouteRaided, tradeRouteBlockaded, blockadingFleets,
+  mineOre, mineIncomeOf, canBuildBuilding, siegeInfo, citySieged,
   campStatus, campSiegeTarget, buildingPrice, buildingRuined, wallRuined, stoneTargets,
 } from './actions.js';
 import {
@@ -546,7 +547,10 @@ function foreignCityHTML(state, city, intel) {
     ['Rang', `${settlementLabel(city)}${city.capital ? ' · Hauptstadt' : ''}`],
     ['Herr', faction.name],
     ['Befestigung', level ? `${wallLevelInfo(level).icon} ${wallLevelName(level)}` : 'offen'],
-    ['Hafen', city.harbour ? `⚓ vorhanden${city.shipyard ? ' · 🔨 Werft' : ''}` : 'keiner'],
+    ['Hafen', city.harbour
+      ? `⚓ vorhanden${city.shipyard ? ' · 🔨 Werft' : ''}${
+        blockadingFleets(state, city).length ? ' · ⛔ gesperrt' : ''}`
+      : 'keiner'],
     ['Besatzung', intel === 'scouted'
       ? `${roughly(total, 50)} Mann · ${garrisonWord(total)}`
       : garrisonWord(total)],
@@ -871,14 +875,16 @@ function tradeHTML(state, city, isMine, player) {
     // Ein Seeweg, auf dem Seeräuber kreuzen, trägt nur die Hälfte - das steht
     // hier, sonst wundert man sich über die fehlenden Einnahmen.
     const gekapert = tradeRouteRaided(state, city, other);
+    // Und ein Seeweg, dessen Hafen gesperrt ist, trägt gar nichts.
+    const gesperrt = tradeRouteBlockaded(state, city, other);
     const fremd = other.factionId !== city.factionId
       ? factionById(state, other.factionId) : null;
-    return `<p class="wall-line ${gekapert ? '' : 'wall-done'} trade-line"><span>${
-  gekapert ? '🏴' : route.kind === 'sea' ? '⛵' : '🛣️'}
+    return `<p class="wall-line ${gekapert || gesperrt ? '' : 'wall-done'} trade-line"><span>${
+  gesperrt ? '⛔' : gekapert ? '🏴' : route.kind === 'sea' ? '⛵' : '🛣️'}
       ${escapeHTML(other.name)}${fremd ? ` <span class="muted">(${escapeHTML(fremd.name)})</span>` : ''}
       <span class="muted">· ${good.icon} ${escapeHTML(good.name)} ·
       +${tradeRouteIncome(state, city, other)} Gold je Runde${
-  gekapert ? ' · Seeräuber nehmen die Hälfte' : ''}</span></span>
+  gesperrt ? ' · der Hafen ist gesperrt' : gekapert ? ' · Seeräuber nehmen die Hälfte' : ''}</span></span>
       <button class="trade-close-btn" data-route="${route.id}">aufgeben</button></p>`;
   }).join('');
 

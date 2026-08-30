@@ -1010,6 +1010,35 @@ kbd {
   #topbar .brand span { display: none; }
 }
 
+/* Die Windrose: goldenes Messing auf dunklem Grund, in der unteren linken
+   Ecke der Karte - über den Steuerknöpfen, damit sie ihnen nicht im Weg
+   liegt. Sie ist eine Auskunft und kein Knopf: Klicks gehen durch sie
+   hindurch auf die Karte. */
+#compass {
+  position: absolute;
+  left: 16px;
+  bottom: 104px;
+  width: 74px;
+  height: 74px;
+  pointer-events: none;
+  opacity: 0.9;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.55));
+  z-index: 2;
+}
+
+#compassRose {
+  transform-origin: 50% 50%;
+  transition: transform 0.12s linear;
+}
+
+@media (max-width: 720px) {
+  #compass {
+    width: 54px;
+    height: 54px;
+    bottom: 96px;
+  }
+}
+
 #mapControls {
   position: absolute;
   left: 14px;

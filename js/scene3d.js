@@ -234,6 +234,14 @@ function applyCamera() {
   camera.updateProjectionMatrix();
 }
 
+// Wo Norden auf dem Bildschirm liegt: der Winkel, um den eine Nadel aus der
+// Senkrechten im Uhrzeigersinn gedreht werden muss, damit sie nach Norden
+// zeigt. Norden ist -z; die Blickrichtung der Kamera steht in `cam.azimuth`.
+// Dieselbe Rechnung dreht auch die Fahnentücher zur Kamera.
+export function northOnScreen() {
+  return Math.atan2(Math.cos(cam.azimuth), Math.sin(cam.azimuth));
+}
+
 export function rotateCamera(deltaAzimuth, deltaPolar = 0) {
   cam.azimuth += deltaAzimuth;
   cam.polar = Math.max(MIN_POLAR, Math.min(MAX_POLAR, cam.polar + deltaPolar));
@@ -1801,6 +1809,8 @@ const CITY_MATERIALS = {
   gold: new THREE.MeshStandardMaterial({ color: '#d9b451', roughness: 0.4, metalness: 0.35 }),
   // Bruchstein, wie er am Schacht aufgeschichtet wird.
   stone: new THREE.MeshStandardMaterial({ color: '#8e8577', roughness: 0.95 }),
+  // Der gestampfte Untergrund, auf dem ein Ort steht.
+  terrace: new THREE.MeshStandardMaterial({ color: '#93836a', roughness: 1 }),
 };
 
 // Ein Haus mit Walmdach. Das Dach trägt die Fraktionsfarbe - es ist das, was
@@ -2049,6 +2059,21 @@ function buildCityGroup(city) {
   const group = new THREE.Group();
   const spread = settlementTier(city.size).spread * (city.capital ? 1.05 : 1);
   const bau = BUILD_SCALE;
+  // Das Fundament: die Terrasse, auf der der Ort steht. Alle Häuser stehen auf
+  // der Höhe der Feldmitte, das Gelände darunter nicht - am Hang stand deshalb
+  // die halbe Siedlung in der Luft oder steckte im Boden. Die Terrasse trägt
+  // sie: ihre Oberkante liegt bei null, ihre Tiefe wird beim Setzen des Orts
+  // an das Gelände darunter angepasst.
+  const grundRadius = 2.2 * spread + 0.55;
+  const rund = city.size === 'village';
+  const fundament = new THREE.Mesh(
+    rund
+      ? new THREE.CylinderGeometry(grundRadius, grundRadius * 0.94, 1, 14)
+      : new THREE.BoxGeometry(grundRadius * 2, 1, grundRadius * 2),
+    CITY_MATERIALS.terrace
+  );
+  fundament.position.y = -0.5;
+  group.add(fundament);
   const tinted = [];
   const rng = seededRandomFactory(city.col * 733 + city.row * 197 + 11);
   const ringe = SETTLEMENT_RINGS[city.size] || SETTLEMENT_RINGS.city;
@@ -2099,6 +2124,7 @@ function buildCityGroup(city) {
   // haben keine, und jedes ungenutzte Modell kostet Zeichenaufrufe.
   return {
     group, label, tinted, scale: spread, bau, size: city.size,
+    fundament, grundRadius,
     walls: [null, null, null], harbour: null,
   };
 }
@@ -2680,41 +2706,68 @@ function buildGranary(scale) {
   return speicher;
 }
 
-// Das Forum: ein gepflasterter Platz mit einer Säulenreihe an zwei Seiten und
-// der Rednerbühne in der Mitte. Es steht am Rand des Orts, dort, wo die Straße
-// hereinkommt.
+// Das Forum: die Basilika des Orts - ein Säulenbau mit Giebel, kein
+// gepflasterter Platz mit einem Geländer. Vorher stand hier eine niedrige
+// Kolonnade um eine Rednerbühne; aus der Feldherrnperspektive sah das aus wie
+// ein Zaun. Was gemeint ist, ist ein großes Säulengebäude, und so steht es
+// jetzt da: Stufen, Säulen ringsum, Gebälk, Dach mit Giebel.
 function buildForum(scale) {
   const forum = new THREE.Group();
-  const platz = new THREE.Mesh(
-    new THREE.BoxGeometry(2.1 * scale, 0.1 * scale, 1.7 * scale),
-    CITY_MATERIALS.marble
-  );
-  platz.position.y = 0.05 * scale;
-  forum.add(platz);
-  for (const z of [-0.72, 0.72]) {
-    for (let i = -3; i <= 3; i++) {
-      const saeule = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07 * scale, 0.08 * scale, 0.62 * scale, 6),
-        CITY_MATERIALS.marble
-      );
-      saeule.position.set(i * 0.32 * scale, 0.41 * scale, z * scale);
-      forum.add(saeule);
-    }
-    // Das Gebälk über den Säulen.
-    const balken = new THREE.Mesh(
-      new THREE.BoxGeometry(2.05 * scale, 0.14 * scale, 0.22 * scale),
+  const breite = 2.4 * scale;
+  const tiefe = 1.7 * scale;
+
+  // Der Unterbau: zwei Stufen, auf denen das Haus steht.
+  for (let i = 0; i < 2; i++) {
+    const ueberstand = (0.34 - i * 0.17) * scale;
+    const stufe = new THREE.Mesh(
+      new THREE.BoxGeometry(breite + ueberstand, 0.13 * scale, tiefe + ueberstand),
       CITY_MATERIALS.marble
     );
-    balken.position.set(0, 0.79 * scale, z * scale);
-    forum.add(balken);
+    stufe.position.y = (0.065 + i * 0.13) * scale;
+    forum.add(stufe);
   }
-  // Die Rednerbühne.
-  const buehne = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5 * scale, 0.26 * scale, 0.5 * scale),
+
+  // Die Cella: der geschlossene Kern zwischen den Säulen.
+  const kern = new THREE.Mesh(
+    new THREE.BoxGeometry(breite * 0.66, 0.95 * scale, tiefe * 0.6),
+    CITY_MATERIALS.plaster
+  );
+  kern.position.y = 0.74 * scale;
+  forum.add(kern);
+
+  // Die Säulen: eine Reihe an jeder Längsseite, drei an jeder Schmalseite.
+  const saeule = new THREE.CylinderGeometry(0.09 * scale, 0.1 * scale, 0.95 * scale, 7);
+  const stellen = [];
+  for (let i = -3; i <= 3; i++) {
+    stellen.push([i * (breite / 7.4), tiefe / 2 - 0.1 * scale]);
+    stellen.push([i * (breite / 7.4), -tiefe / 2 + 0.1 * scale]);
+  }
+  for (const seite of [-1, 1]) {
+    stellen.push([seite * (breite / 2 - 0.1 * scale), 0]);
+  }
+  for (const [x, z] of stellen) {
+    const s2 = new THREE.Mesh(saeule, CITY_MATERIALS.marble);
+    s2.position.set(x, 0.74 * scale, z);
+    forum.add(s2);
+  }
+
+  // Das Gebälk über den Säulen.
+  const gebaelk = new THREE.Mesh(
+    new THREE.BoxGeometry(breite + 0.12 * scale, 0.18 * scale, tiefe + 0.12 * scale),
     CITY_MATERIALS.marble
   );
-  buehne.position.set(0, 0.23 * scale, 0);
-  forum.add(buehne);
+  gebaelk.position.y = 1.31 * scale;
+  forum.add(gebaelk);
+
+  // Das Dach mit Giebel - dasselbe Satteldach wie über einem Haus, nur groß.
+  const dach = new THREE.Mesh(
+    makeGableRoof(breite + 0.2 * scale, tiefe + 0.2 * scale, 0.5 * scale),
+    new THREE.MeshStandardMaterial({
+      color: '#c8623f', roughness: 0.7, side: THREE.DoubleSide,
+    })
+  );
+  dach.position.y = 1.4 * scale;
+  forum.add(dach);
   return forum;
 }
 
@@ -3478,6 +3531,19 @@ export function syncEntities(state) {
     if (!entry) {
       entry = buildCityGroup(city);
       entry.group.position.set(worldX(city.col), surfaceY(city.col, city.row), worldZ(city.row));
+      // Wie tief die Terrasse reicht: bis unter die tiefste Stelle des Bodens,
+      // den sie überdeckt. Am Hang ist das mehr als einen Meter, in der Ebene
+      // fast nichts - und sichtbar ist ohnehin nur, was aus dem Boden ragt.
+      const cityY = surfaceY(city.col, city.row);
+      const r = entry.grundRadius;
+      let tief = 0.5;
+      for (const [dx, dz] of [[-r, -r], [r, -r], [-r, r], [r, r], [-r, 0], [r, 0],
+        [0, -r], [0, r]]) {
+        const boden = bandY(worldX(city.col) + dx, worldZ(city.row) + dz);
+        tief = Math.max(tief, cityY - boden + 0.3);
+      }
+      entry.fundament.scale.y = tief;
+      entry.fundament.position.y = -tief / 2;
       scene.add(entry.group);
       cityGroups.set(city.id, entry);
     }
@@ -3517,18 +3583,28 @@ export function syncEntities(state) {
       }
     }
 
+    // Welche Nachbarfelder schon vergeben sind. Vorher führte jedes Bauwerk
+    // seine eigene Liste, und sie waren nicht vollständig: das Viadukt kannte
+    // die Kaserne nicht, der Stollen das Forum nicht - und zwei Werke standen
+    // ineinander. Jetzt gibt es einen Merkzettel für alle.
+    entry.belegt = entry.belegt || [];
+    const freiesFeld = (prefer) => {
+      const spot = neighbourSpot(city, prefer, entry.belegt);
+      if (spot.dir) entry.belegt.push(spot.dir);
+      return spot;
+    };
+
     // Die Äcker entstehen mit der Farm - und verschwinden wieder, wenn eine
     // Eroberung sie niederbrennt.
     if (city.farm && !entry.farm) {
       entry.farm = buildFarm(entry.bau * 1.55);
       // Äcker liegen im flachsten Gelände, nicht am Hang - und nicht im
       // Wasser: das flachste Nachbarfeld einer Hafenstadt wäre das Meer.
-      const flach = neighbourSpot(city, 'low');
+      const flach = freiesFeld('low');
       // Und sie liegen gerade im Raster: ein Acker ist ein Viereck, und ein
       // schräg liegendes Viereck sieht aus, als hätte es jemand fallen lassen.
       placeAt(entry.farm, city, surfaceY(city.col, city.row), flach, 1.05,
         { gerade: true });
-      entry.farmDir = flach.dir;
       entry.group.add(entry.farm);
     }
     if (entry.farm) entry.farm.visible = !!city.farm;
@@ -3544,9 +3620,8 @@ export function syncEntities(state) {
       entry.viaduct = buildViaduct(entry.bau * 1.25);
       // Auf dem Acker stehen die Bögen nicht: jedes Bauwerk bekommt sein
       // eigenes Feld, solange eines frei ist.
-      const hoch = neighbourSpot(city, 'high', entry.farmDir ? [entry.farmDir] : []);
+      const hoch = freiesFeld('high');
       placeAt(entry.viaduct, city, surfaceY(city.col, city.row), hoch, 1.0);
-      entry.viaductDir = hoch.dir;
       entry.group.add(entry.viaduct);
     }
     if (entry.viaduct) entry.viaduct.visible = !!city.viaduct;
@@ -3558,10 +3633,8 @@ export function syncEntities(state) {
       entry.mine = buildMine(entry.bau * 1.35);
       // Beide wollen die Höhe: steht das Viadukt schon auf dem höchsten
       // Nachbarfeld, nimmt der Schacht das zweithöchste.
-      const hoch = neighbourSpot(city, 'high',
-        [entry.viaductDir, entry.farmDir].filter(Boolean));
+      const hoch = freiesFeld('high');
       placeAt(entry.mine, city, surfaceY(city.col, city.row), hoch, 0.88);
-      entry.mineDir = hoch.dir;
       entry.group.add(entry.mine);
     }
     if (entry.mine) entry.mine.visible = !!city.mine;
@@ -3570,11 +3643,9 @@ export function syncEntities(state) {
     // die Häuser.
     if (city.barracks && !entry.barracks) {
       entry.barracks = buildBarracks(entry.bau);
-      const platz = neighbourSpot(city, 'low',
-        [entry.farmDir, entry.viaductDir, entry.mineDir].filter(Boolean));
+      const platz = freiesFeld('low');
       placeAt(entry.barracks, city, surfaceY(city.col, city.row), platz, 0.95,
         { gerade: true });
-      entry.barracksDir = platz.dir;
       entry.group.add(entry.barracks);
     }
     if (entry.barracks) entry.barracks.visible = !!city.barracks;
@@ -3585,8 +3656,7 @@ export function syncEntities(state) {
     // stand knietief in der Brandung.
     if (city.forum && !entry.forum) {
       entry.forum = buildForum(entry.bau);
-      const rand = neighbourSpot(city, 'low',
-        [entry.farmDir, entry.viaductDir, entry.mineDir, entry.barracksDir].filter(Boolean));
+      const rand = freiesFeld('low');
       placeAt(entry.forum, city, surfaceY(city.col, city.row), rand, 0.92,
         { gerade: true });
       entry.group.add(entry.forum);
