@@ -350,10 +350,24 @@ den Punkten durchblättern.
   Runde. Auf der Mauer taugt sie (Verteidigung 8), im Angriff wäre sie nichts –
   weshalb sie auch nicht mitmarschieren kann. Wer ein Heer aufstellen will,
   hebt dafür Truppen aus; die Wache bleibt.
+- **Eine Aushebung kostet Einwohner**: Ein Soldat kommt nicht aus der
+  Schatzkammer, sondern aus der Stadt. Wer **100 Mann** aushebt, hat danach
+  **100 Einwohner weniger** – Mann für Mann. Das ist die zweite Rechnung neben
+  dem Gold und die härtere: Einwohner wachsen mit **0,35 % je Runde** nach,
+  Gold kommt jede Runde neu herein. Und es kostet mehr als Köpfe: weniger
+  Einwohner heißt weniger **Steuer** (ein Gold je 80), eine kleinere
+  **Stadtwache** (sie stellt sich aus ihnen nach) und eine niedrigere
+  **Garnisonsgrenze** (ein Mann je 8 Einwohner). Unter **300 Einwohner** hebt
+  niemand mehr aus – der Knopf ist dann ausgegraut und sagt, warum. Auf jedem
+  Aushebungsknopf steht beides: `120 Gold · −100 Einw.`
+  Über 120 Runden gemessen hält das die Karte im Gleichgewicht: die
+  Gesamtbevölkerung steht die erste Spielhälfte still und wächst danach wieder.
 - **Armeen in der Stadt verstärken**: Steht eine eigene Armee in einer eigenen
   Stadt, kann sie dort direkt Truppen kaufen – je 100 Mann, die sofort in die
   Armee eintreten, statt den Umweg über die Garnison zu nehmen. Wie bei jeder
-  Aushebung verdünnen die Neuen die Erfahrung der Armee.
+  Aushebung verdünnen die Neuen die Erfahrung der Armee – **und sie kostet
+  denselben Preis an Einwohnern**: sonst wäre die Verstärkung im Feld das
+  Schlupfloch, durch das man die Aushebung umgeht.
 - **Erfahrung**: Jede Armee sammelt im Feld Erfahrung – ein Stern nach etwa
   zwei Schlachten, drei Sterne nach rund sieben. Jeder Stern bringt **+12 %
   Kampfkraft**, und die Sterne stehen im Armee-Panel, auf der Karte am
@@ -378,12 +392,15 @@ den Punkten durchblättern.
   die Häuser, eine Stadt baut geradeaus und mit Ecken): **Holzpalisade** (200 Gold, 3 Runden,
   +30 % Verteidigung), **Große Holzpalisade** (450 Gold, 4 Runden, +60 %) und
   **Steinmauer** (900 Gold, 6 Runden, +100 %). Gekauft wird immer nur die
-  nächste Stufe, und immer nur eine zur Zeit. **Kein Ort steht offen in der
-  Landschaft**: jede Siedlung einer Fraktion beginnt mit der Holzpalisade,
-  Hauptstädte mit der Großen – die Steinmauer bleibt auch ihnen zu bauen. Die
-  **unabhängigen Städte** haben ebenfalls die Große: sie haben niemanden über
-  sich und müssen sich selbst verteidigen. Ihre Dörfer kommen wie alle anderen
-  mit der einfachen aus. Jede Stufe
+  nächste Stufe, und immer nur eine zur Zeit. **Die Dörfer der Reiche stehen
+  offen**: Höfe, ein Speicher, kein Wall – wer sie halten will, baut die
+  Palisade selbst, und das ist die erste Entscheidung an jeder Grenze (32 von
+  107 Orten beginnen so). Städte einer Fraktion haben die **Holzpalisade**,
+  Hauptstädte die **Große** – die Steinmauer bleibt auch ihnen zu bauen. Die
+  **unabhängigen Städte** haben ebenfalls die Große und ihre **Dörfer die
+  einfache**: sie haben keinen Herrn, der ihnen ein Heer schickt, und stehen
+  für sich. Ein freies Dorf ist damit von Anfang an härter zu nehmen als das
+  Grenzdorf eines Reichs. Jede Stufe
   sieht anders aus: angespitzte Stämme, hölzerner Wehrgang mit Türmen,
   Quadermauer mit Rundtürmen.
 - **Hafenbau**: Ohne Hafen kann in einer Stadt keine Armee an Bord gehen –
@@ -604,7 +621,12 @@ den Punkten durchblättern.
   aus.
   Das **⚖️ Handelsabkommen** (ab **55 Ansehen**, **30 Runden**) öffnet die
   Grenze für Waren: **beide Seiten dürfen Handelswege in die Städte des anderen
-  legen**, und jede verdient an ihrem Ende. Fällt das Abkommen, fallen die Wege.
+  legen**, und jede verdient an ihrem Ende. Von da an zählen die Orte des
+  Partners im Handel-Reiter wie eigene – es gelten dieselben Bedingungen wie
+  daheim (eine durchgehende **Straße**, oder auf **beiden Seiten ein Hafen** am
+  selben Meer, höchstens 26 Felder). Fremde Orte tragen dort den Namen ihres
+  Reichs, und über den Partnern steht, mit wem ein Abkommen gilt; ohne Abkommen
+  sagt dieselbe Zeile, was eines brächte. Fällt das Abkommen, fallen die Wege.
   Das **🛡️ Bündnis** (ab **70 Ansehen**, ohne Frist) schließt das
   Betretungsrecht ein – Verbündete marschieren durcheinander hindurch, sonst
   wären sie keine. Es setzt einen Pakt voraus,
@@ -868,6 +890,13 @@ den Punkten durchblättern.
   Wer es genauer wissen will, hält den Zeiger auf eine Zeile: der **Tooltip**
   schlüsselt sie auf – Orte, Heere, Mann im Feld, Mann auf den Mauern,
   Einnahmen minus Sold.
+  **Gezählt wird nur, was du kennst.** Ein Reich, dem noch keiner deiner Männer
+  begegnet ist, steht nicht in der Rangliste – es hätte dort einen Platz, und
+  schon der wäre eine Auskunft, die niemand hat. Es steht darunter, gestrichelt
+  und ohne Zahlen: **„Ein unbekanntes Reich"** und eine Himmelsrichtung. Die
+  Fußnote sagt, wie viele es noch sind. Wer einem fremden Heer oder einer
+  fremden Stadt nahe kommt, lernt sie kennen – und von da an steht das Reich
+  mit allem in der Liste.
   **Macht** ist dabei keine einzelne Zahl, sondern die Summe dreier: **zehn
   Punkte je Ort, einer je hundert Mann, einer je dreihundert Gold** – Land
   wiegt am schwersten, denn es trägt alles andere.

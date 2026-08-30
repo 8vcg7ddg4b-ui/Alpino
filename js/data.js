@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.18.0';
+export const GAME_VERSION = '1.19.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -882,6 +882,11 @@ export function startingWallLevel(def) {
     return (def.size || DEFAULT_SETTLEMENT_SIZE) === 'village'
       ? START_WALL_LEVEL : FREE_CITY_WALL_LEVEL;
   }
+  // Ein Dorf eines Reichs ist ein offener Weiler: Höfe, ein Speicher, kein
+  // Wall. Wer es halten will, baut die Palisade selbst - das ist die erste
+  // Entscheidung an jeder Grenze. Die unabhängigen Orte behalten ihre: sie
+  // haben keinen Herrn, der ihnen ein Heer schickt, und stehen für sich.
+  if ((def.size || DEFAULT_SETTLEMENT_SIZE) === 'village') return 0;
   return START_WALL_LEVEL;
 }
 
@@ -1594,3 +1599,22 @@ export function garrisonCapacity(city, faction) {
     * factionGarrisonFactor(faction) * wasser);
 }
 export const RECRUIT_BATCH = 100;
+
+// --- Was eine Aushebung den Ort kostet -------------------------------------
+// Ein Soldat kommt nicht aus der Schatzkammer, sondern aus der Stadt: wer
+// hundert Mann unter die Waffen stellt, hat hundert Bauern, Handwerker und
+// Steuerzahler weniger - Mann für Mann. Das ist die zweite Rechnung neben dem
+// Gold, und die härtere: Einwohner wachsen mit 0,35 % je Runde nach, Gold
+// kommt jede Runde neu herein. Wer ohne Maß aushebt, hat bald ein großes Heer
+// und ein leeres Land - weniger Steuer, weniger Nachwuchs und eine kleinere
+// Wache, denn auch die stellt sich aus den Einwohnern nach.
+// Gemessen über 120 Runden hält das die Karte im Gleichgewicht: die
+// Gesamtbevölkerung steht die erste Hälfte still und wächst danach wieder.
+export const RECRUIT_POP_SHARE = 1;
+// Unter diese Grenze hebt niemand aus: ein Ort, aus dem der letzte Mann geht,
+// ist kein Ort mehr.
+export const RECRUIT_MIN_POPULATION = 300;
+
+export function recruitPopCost(count = RECRUIT_BATCH) {
+  return Math.round(count * RECRUIT_POP_SHARE);
+}

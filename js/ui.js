@@ -6,6 +6,7 @@ import {
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
   shipTypesOf, shipTypeByKey,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
+  recruitPopCost, RECRUIT_MIN_POPULATION,
   STONE_ROAD_MOVE_COST, roadLevelOf, roadStepCost,
   CAMP_NAME, CAMP_COST, CAMP_DEFENCE,
   TRANSPORT_NAME, transportCount,
@@ -23,7 +24,7 @@ import {
   GIFT_COST, knowsFaction, roughDirection,
   diploLock, offerFrom,
   TREATIES, TREATY_KEYS, treatyOf, treatiesOf, treatyVerdict, isAllied, hasPact,
-  hasPassage, vertragDenAkk, warBound,
+  hasPassage, vertragDenAkk, warBound, hasTradePact,
 } from './diplomacy.js';
 import {
   unitTotalCount, playerFaction, factionById, tilePosition, cityAt, armyAt,
@@ -356,6 +357,9 @@ function reinforceHTML(state, army, city) {
   const player = playerFaction(state);
   if (army.embarked) return '';
   if (!city || city.factionId !== army.factionId || army.factionId !== player.id) return '';
+  // Auch die Verstärkung im Feld nimmt Männer aus dem Ort, in dem sie steht.
+  const leute = recruitPopCost();
+  const entvoelkert = city.population - leute < RECRUIT_MIN_POPULATION;
   return `
     <p class="road-head">⚔️ Verstärkung kaufen <span class="muted">· je ${RECRUIT_BATCH} Mann,
       tritt sofort in die Armee ein</span></p>
@@ -364,11 +368,14 @@ function reinforceHTML(state, army, city) {
     const def = unitDef(city.factionId, k);
     const tooPoor = player.gold < def.cost;
     return `<button class="reinforce-btn" data-unit="${k}" data-army="${army.id}"
-        ${tooPoor ? 'disabled' : ''}>
-        ${def.icon} ${escapeHTML(def.name)}<br><small>${def.cost} Gold</small>
+        ${tooPoor || entvoelkert ? 'disabled' : ''}>
+        ${def.icon} ${escapeHTML(def.name)}<br><small>${def.cost} Gold · −${leute} Einw.</small>
       </button>`;
   }).join('')}
-    </div>`;
+    </div>
+    <p class="wall-line muted recruit-note">${entvoelkert
+    ? `👥 ${escapeHTML(city.name)} gibt keinen Mann mehr her.`
+    : `👥 Aus ${escapeHTML(city.name)}: ${leute} Einwohner je Trupp.`}</p>`;
 }
 
 // --- Das Lager -------------------------------------------------------------
@@ -561,16 +568,25 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
   // Kaserne baut, steht ohnehin darüber.
   let recruitHTML = '';
   if (isMine && city.barracks) {
+    // Eine Aushebung kostet zweierlei: Gold aus der Truhe und Menschen aus der
+    // Stadt. Beides steht auf dem Knopf, ehe er gedrückt wird.
+    const leute = recruitPopCost();
+    const entvoelkert = city.population - leute < RECRUIT_MIN_POPULATION;
     recruitHTML = `
       <div class="recruit-row">
         ${UNIT_ROLES.map((k) => {
           const def = unitDef(city.factionId, k);
-          const disabled = current >= maxTotal || player.gold < def.cost;
+          const disabled = current >= maxTotal || player.gold < def.cost || entvoelkert;
           return `<button class="recruit-btn" data-unit="${k}" ${disabled ? 'disabled' : ''}>
-            ${def.icon} ${def.name}<br><small>${def.cost} Gold</small>
+            ${def.icon} ${def.name}<br><small>${def.cost} Gold · −${leute} Einw.</small>
           </button>`;
         }).join('')}
       </div>
+      <p class="wall-line muted recruit-note">${entvoelkert
+    ? `👥 ${escapeHTML(city.name)} ist zu klein für eine weitere Aushebung – `
+      + `unter ${RECRUIT_MIN_POPULATION.toLocaleString('de-DE')} Einwohner geht niemand.`
+    : `👥 Jede Aushebung nimmt ${RECRUIT_BATCH} Mann aus ${escapeHTML(city.name)}: `
+      + `${leute} Einwohner weniger, und damit auch weniger Steuer und Wache.`}</p>
       <button class="raise-btn" ${field === 0 ? 'disabled' : ''}>🚩 Armee ausheben / verstärken
         <small>${field === 0
     ? 'Erst Truppen ausheben – die Stadtwache rückt nicht aus.'
@@ -821,9 +837,12 @@ function tradeHTML(state, city, isMine, player) {
     // Ein Seeweg, auf dem Seeräuber kreuzen, trägt nur die Hälfte - das steht
     // hier, sonst wundert man sich über die fehlenden Einnahmen.
     const gekapert = tradeRouteRaided(state, city, other);
+    const fremd = other.factionId !== city.factionId
+      ? factionById(state, other.factionId) : null;
     return `<p class="wall-line ${gekapert ? '' : 'wall-done'} trade-line"><span>${
   gekapert ? '🏴' : route.kind === 'sea' ? '⛵' : '🛣️'}
-      ${escapeHTML(other.name)} <span class="muted">· ${good.icon} ${escapeHTML(good.name)} ·
+      ${escapeHTML(other.name)}${fremd ? ` <span class="muted">(${escapeHTML(fremd.name)})</span>` : ''}
+      <span class="muted">· ${good.icon} ${escapeHTML(good.name)} ·
       +${tradeRouteIncome(state, city, other)} Gold je Runde${
   gekapert ? ' · Seeräuber nehmen die Hälfte' : ''}</span></span>
       <button class="trade-close-btn" data-route="${route.id}">aufgeben</button></p>`;
@@ -833,20 +852,38 @@ function tradeHTML(state, city, isMine, player) {
     return `${head}${open}
       <p class="wall-line muted">Mehr Wege trägt ${escapeHTML(city.name)} nicht.</p>`;
   }
+  // Mit wem ein Handelsabkommen steht: dessen Städte zählen wie eigene, wenn
+  // eine Straße oder zwei Häfen dazwischenliegen. Das steht hier, weil man den
+  // Vertrag im Diplomatiefenster schließt und die Wirkung hier sieht.
+  const paktMit = state.factions
+    .filter((f) => !f.isNeutral && f.alive && f.id !== city.factionId
+      && hasTradePact(state, city.factionId, f.id))
+    .map((f) => f.name);
+  const paktZeile = paktMit.length
+    ? `<p class="wall-line muted">⚖️ Handelsabkommen mit ${escapeHTML(paktMit.join(', '))}
+       – deren Städte stehen dir offen wie eigene.</p>`
+    : '<p class="wall-line muted">⚖️ Ohne Handelsabkommen handelst du nur zwischen '
+      + 'eigenen Orten. Ein Abkommen im Diplomatiefenster öffnet dir auch die Städte '
+      + 'des anderen Reichs.</p>';
+
   if (!partners.length) {
     return `${head}${open}
       <p class="wall-line muted">Kein Ort in Reichweite, mit dem sich handeln ließe.
-      Es braucht eine durchgehende Straße – oder auf beiden Seiten einen Hafen.</p>`;
+      Es braucht eine durchgehende Straße – oder auf beiden Seiten einen Hafen.</p>
+      ${paktZeile}`;
   }
-  return `${head}${open}
+  return `${head}${open}${paktZeile}
     <p class="road-head">⚖️ Handelsweg eröffnen <span class="muted">· einmalig
       ${TRADE_ROUTE_COST} Gold, trägt beiden Enden</span></p>
     <div class="road-row">
       ${partners.map((p) => {
         const tooPoor = player.gold < TRADE_ROUTE_COST;
         const good = TRADE_GOODS[p.good];
+        const fremd = p.city.factionId !== city.factionId
+          ? factionById(state, p.city.factionId) : null;
         return `<button class="trade-btn" data-target="${p.city.id}" ${tooPoor ? 'disabled' : ''}>
-          ${p.kind === 'sea' ? '⛵' : '🛣️'} ${escapeHTML(p.city.name)}
+          ${p.kind === 'sea' ? '⛵' : '🛣️'} ${escapeHTML(p.city.name)}${
+  fremd ? ` <em>· ${escapeHTML(fremd.name)}</em>` : ''}
           <small>${good.icon} ${escapeHTML(good.name)} · +${p.income} Gold je Seite${
   tooPoor ? ' · zu wenig Gold' : ''}</small>
         </button>`;
@@ -1640,7 +1677,15 @@ function factionRows(state) {
 function renderFactionList(state) {
   const list = document.getElementById('factionList');
   if (!list) return;
-  const rows = factionRows(state);
+  const player = playerFaction(state);
+  const alle = factionRows(state);
+  // Gezählt wird nur, was man kennt. Über ein Reich, dem noch niemand von uns
+  // begegnet ist, weiß auch der Feldherr im Zelt nichts - weder wie viele Orte
+  // es hält noch wie voll seine Truhe ist. Es steht deshalb nicht in der
+  // Rangliste, sondern darunter, mit nichts als einer Himmelsrichtung.
+  const rows = alle.filter((entry) => entry.faction.id === player.id
+    || knowsFaction(state, player.id, entry.faction.id));
+  const fremde = alle.filter((entry) => !rows.includes(entry));
   const key = factionSort === 'militaer' ? 'men' : factionSort === 'gold' ? 'gold' : 'power';
   rows.sort((a, b) => (b.faction.alive ? 1 : 0) - (a.faction.alive ? 1 : 0)
     || b[key] - a[key] || b.power - a.power);
@@ -1682,6 +1727,21 @@ function renderFactionList(state) {
     </li>`;
   }).join('');
 
+  // Die Unbekannten stehen darunter: dass es sie gibt, weiß man - mehr nicht.
+  list.innerHTML += fremde.map((entry) => {
+    const { faction } = entry;
+    const richtung = roughDirection(state, player.id, faction.id);
+    return `<li class="fl-row faction-unknown"
+      title="Ein Reich, dem noch keiner deiner Männer begegnet ist. Was es hält und was es besitzt, erfährst du erst, wenn ihr einander begegnet.">
+      <span class="fl-rank">?</span>
+      <span class="fl-emblem">❔</span>
+      <div class="fl-main">
+        <div class="fl-head"><span class="fl-name">Ein unbekanntes Reich</span></div>
+        <div class="fl-facts muted">${escapeHTML(richtung)} · nichts Genaues bekannt</div>
+      </div>
+    </li>`;
+  }).join('');
+
   const note = document.getElementById('factionNote');
   if (note) {
     // Kurz halten: die Zeile erklärt die Sortierung, nicht das Spiel. Die
@@ -1692,6 +1752,10 @@ function renderFactionList(state) {
         ? '🏛️ Orte · ⚔️ Mann · 💰 Schatz und Bilanz. Sortiert nach dem Schatz.'
         : '🏛️ Orte · ⚔️ Mann · 💰 Schatz und Bilanz. Macht: 10 je Ort, 1 je 100 Mann, '
           + '1 je 300 Gold.';
+    if (fremde.length) {
+      note.textContent += ` ${fremde.length === 1 ? 'Ein Reich kennst du noch nicht'
+        : `${fremde.length} Reiche kennst du noch nicht`} – über sie steht hier nichts.`;
+    }
   }
 }
 

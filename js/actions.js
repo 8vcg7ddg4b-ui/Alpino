@@ -1,7 +1,8 @@
 import {
   UNIT_ROLES, GARRISON_ROLES, COMBAT_ROLES, WATCH_ROLE, watchTarget, watchGrowth,
   unitDef, MAX_MOVEMENT, cityTax,
-  RECRUIT_BATCH, TILE_TYPES, settlementTier, garrisonCapacity,
+  RECRUIT_BATCH, recruitPopCost, RECRUIT_MIN_POPULATION,
+  TILE_TYPES, settlementTier, garrisonCapacity,
   MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
   MORALE_REST, MORALE_REST_IN_CITY, EXHAUSTION_PER_MOVE, EXHAUSTION_REST,
   EXHAUSTION_REST_IN_CITY, EXHAUSTION_PER_BATTLE,
@@ -878,10 +879,19 @@ export function recruitUnit(state, cityId, unitKey) {
   const maxTotal = garrisonCapacity(city, faction);
   if (unitTotalCount(city.garrison) >= maxTotal) return { ok: false, reason: 'full' };
   if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
+  // Die Männer kommen aus der Stadt, nicht aus der Truhe: jede Aushebung
+  // kostet Einwohner - und damit Steuer, Nachwuchs und die Wache, die sich
+  // aus ihnen nachstellt. Unter die Untergrenze geht es nicht.
+  const leute = recruitPopCost(RECRUIT_BATCH);
+  if (city.population - leute < RECRUIT_MIN_POPULATION) {
+    return { ok: false, reason: 'population', needed: leute };
+  }
   faction.gold -= def.cost;
+  city.population -= leute;
   city.garrison[unitKey] = (city.garrison[unitKey] || 0) + RECRUIT_BATCH;
-  logOwn(state, faction.id, `${RECRUIT_BATCH} ${def.name} in ${city.name} ausgehoben.`);
-  return { ok: true };
+  logOwn(state, faction.id, `${RECRUIT_BATCH} ${def.name} in ${city.name} ausgehoben `
+    + `– ${leute} Einwohner weniger (${city.population.toLocaleString('de-DE')}).`);
+  return { ok: true, pop: leute };
 }
 
 // --- Flottenbau -----------------------------------------------------------
@@ -978,13 +988,21 @@ export function reinforceArmy(state, armyId, unitKey) {
   if (!faction || faction.isNeutral) return { ok: false };
   const def = unitDef(city.factionId, unitKey);
   if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
+  // Auch diese Männer kommen aus der Stadt - sonst wäre die Verstärkung im
+  // Feld das Schlupfloch, durch das man die Aushebung umgeht.
+  const leute = recruitPopCost(RECRUIT_BATCH);
+  if (city.population - leute < RECRUIT_MIN_POPULATION) {
+    return { ok: false, reason: 'population', needed: leute };
+  }
 
   faction.gold -= def.cost;
+  city.population -= leute;
   const veterans = unitTotalCount(army.units);
   army.experience = ((army.experience || 0) * veterans) / (veterans + RECRUIT_BATCH);
   army.units[unitKey] = (army.units[unitKey] || 0) + RECRUIT_BATCH;
-  logOwn(state, faction.id, `${RECRUIT_BATCH} ${def.name} verstärken ${army.name} in ${city.name}.`);
-  return { ok: true };
+  logOwn(state, faction.id, `${RECRUIT_BATCH} ${def.name} verstärken ${army.name} in ${city.name} `
+    + `– ${leute} Einwohner weniger.`);
+  return { ok: true, pop: leute };
 }
 
 export function raiseArmyFromGarrison(state, cityId) {

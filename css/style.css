@@ -244,6 +244,9 @@ html, body {
   font-size: 0.66rem;
   letter-spacing: 0.1em;
 }
+/* Ein Reich, dem noch niemand begegnet ist: es steht da, aber ohne Zahlen. */
+#factionList li.faction-unknown { opacity: 0.55; border-style: dashed; }
+#factionList li.faction-unknown .fl-name { font-style: italic; }
 #factionList li.faction-dead { opacity: 0.4; }
 #factionList li.faction-dead .fl-name { text-decoration: line-through; }
 
@@ -504,6 +507,11 @@ html, body {
   text-align: left;
 }
 .trade-btn small { display: block; color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
+/* Ein fremder Ort trägt den Namen seines Reichs - man handelt dort nur, weil
+   ein Abkommen dahintersteht. */
+.trade-btn em { font-style: normal; color: var(--muted); font-size: 0.72rem; }
+/* Was eine Aushebung die Stadt kostet, steht direkt unter den Knöpfen. */
+.recruit-note { margin-top: 6px; font-size: 0.72rem; line-height: 1.4; }
 .trade-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
 .trade-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 /* Der Weg links, der Knopf am rechten Rand - sonst rutscht "aufgeben" auf

@@ -8,7 +8,7 @@ import {
   moveArmy, recruitUnit, raiseArmyFromGarrison, embarkArmy, embarkStatus,
   previewTileCombat, roadProjectOf, buyRoad, roadNetworkFrom,
   buyHarbour, canBuildHarbour, buildFleet, raiseIndependentArmies,
-  buyCityWalls, nextWallLevel, tradePartners, openTradeRoute,
+  buyCityWalls, nextWallLevel, cityWallLevel, tradePartners, openTradeRoute,
   canBuildMine, buyMine, mineOre, buyShipyard,
   buyBuilding, canBuildBuilding, buildCamp, campStatus,
   stoneTargets, upgradeRoad,
@@ -736,9 +736,15 @@ function wallPlan(state, faction, threats) {
   if (state.cities.some((c) => c.factionId === faction.id && c.wallBuilding)) return null;
   const danger = new Map(threats.map((t) => [t.city.id, t.strength]));
   const rank = { large: 0, city: 1, village: 2 };
+  // Ein Ort ganz ohne Wall geht vor: von keiner Befestigung zur Palisade ist
+  // der größte Schritt, den ein Ort je macht - jeder weitere Ausbau bringt
+  // weniger. Seit die Dörfer offen beginnen, ist das die erste Ausgabe an
+  // jeder Grenze.
+  const offen = (c) => (cityWallLevel(c) > 0 ? 1 : 0);
   const city = state.cities
     .filter((c) => c.factionId === faction.id && nextWallLevel(c))
     .sort((a, b) => (danger.get(b.id) || 0) - (danger.get(a.id) || 0)
+      || offen(a) - offen(b)
       || (b.capital ? 1 : 0) - (a.capital ? 1 : 0)
       || (rank[a.size] ?? 3) - (rank[b.size] ?? 3))[0];
   if (!city) return null;
