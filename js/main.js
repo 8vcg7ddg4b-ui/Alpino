@@ -398,7 +398,8 @@ function showNotice(meldung) {
     close.parentNode.insertBefore(button, close);
   }
   diploNewsOverlay.classList.remove('hidden');
-  sfx.raise();
+  // Eine Baumeldung klingt nach Handwerk, ein Herold nach Horn.
+  (meldung.sound === 'bau' ? sfx.built : sfx.raise)();
 }
 
 function showNextDiploNews() {
@@ -1455,6 +1456,7 @@ function collectBuildNews(wallsDone, roadsDone, builtDone) {
     const e = eintraege[0];
     diploNewsQueue.push({
       icon: e.icon,
+      sound: 'bau',
       kind: 'Das Bauamt meldet',
       title: `${e.name} ist fertig`,
       text: 'Die Gerüste sind gefallen, die Arbeiter abgezogen. Von dieser Runde '
@@ -1465,6 +1467,7 @@ function collectBuildNews(wallsDone, roadsDone, builtDone) {
   }
   diploNewsQueue.push({
     icon: '🏗️',
+    sound: 'bau',
     kind: 'Das Bauamt meldet',
     title: `${zahlwort(eintraege.length).replace(/^./, (c) => c.toUpperCase())} `
       + 'Bauaufträge sind abgeschlossen',
@@ -1481,7 +1484,6 @@ function endTurn() {
   hideBattlePreview();
   pushUndo();
   sfx.endTurn();
-  const wallsBuilding = state.cities.filter((c) => c.wallBuilding).length;
   // Identify new reports by the previous head, not by length: the list is
   // capped, so once it is full its length stops growing.
   const previousHead = state.battleReports.length ? state.battleReports[0].id : null;
@@ -1556,10 +1558,9 @@ function endTurn() {
     else if (myEvent) showEvent(myEvent);
   }
 
-  if (roadsDone.length || builtDone.length
-    || (wallsBuilding && state.cities.filter((c) => c.wallBuilding).length < wallsBuilding)) {
-    sfx.wallDone();
-  }
+  // Die Fanfare am Rundenende ist entfallen: sie schlug auch an, wenn ein
+  // fremdes Reich irgendwo eine Straße fertigstellte. Was den Spieler angeht,
+  // meldet jetzt das Bauamt - mit seinem eigenen Klang.
   if (state.gameOver) (state.gameOver.result === 'victory' ? sfx.victory : sfx.defeat)();
 }
 

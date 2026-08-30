@@ -218,7 +218,23 @@ html, body {
   font-size: 0.86rem;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
+/* Die Rangliste: Platzziffer und Wappen links, zwei knappe Zeilen daneben.
+   Alles Weitere steht im Tooltip der Zeile, nicht auf dem Schirm. */
+#factionList li.fl-row { align-items: flex-start; gap: 7px; padding: 6px 4px; }
+.fl-rank {
+  flex: none;
+  width: 1.5em;
+  padding-top: 1px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+#factionList li.fl-row .fl-emblem { padding-top: 1px; }
+#factionList li.fl-row .fl-emblem svg { width: 18px; height: 18px; }
+.fl-main { flex: 1; min-width: 0; }
 #factionList li .muted { margin-left: auto; font-size: 0.78rem; white-space: nowrap; }
+#factionList li.fl-row .muted { margin-left: 0; }
 /* Die eigene Fraktion steht in der Übersicht hervorgehoben und ganz oben. */
 #factionList li.faction-self { color: var(--gold); border-color: var(--gold); }
 /* Das "du" gehört an den Namen, nicht unter die Zeile: seit die Karte drei
@@ -1976,13 +1992,16 @@ kbd {
 .log-filter button:hover { color: var(--text); }
 .log-filter button.active { color: var(--gold); border-color: var(--gold); }
 
-/* --- Die Reiche im Vergleich --------------------------------------------- */
-/* Je Reich drei Zeilen: Name mit der Zahl, nach der sortiert wird, ein Balken
-   im Verhältnis zum Ersten, und darunter, woraus sich das ergibt. */
+/* --- Die Rangliste der Reiche -------------------------------------------- */
+/* Je Reich eine Karte: links Platzziffer und Wappen, rechts daneben der Name
+   mit der Zahl, nach der sortiert wird, ein Balken im Verhältnis zum Ersten
+   und eine knappe Zeile mit Orten, Mann, Schatz und Bilanz. */
 #factionList li {
-  display: block;
-  padding: 7px 8px;
-  margin-bottom: 5px;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--panel-2);
@@ -1993,17 +2012,29 @@ kbd {
   gap: 6px;
   font-size: 0.86rem;
 }
-.fl-name { flex: 1; }
-.fl-value { color: var(--gold); font-size: 0.8rem; }
+.fl-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-value { color: var(--gold); font-size: 0.8rem; white-space: nowrap; }
+.fl-value small { color: var(--muted); font-size: 0.68rem; }
+/* Die drei ersten Plätze heben sich ab - eine Rangliste liest man von oben. */
+#factionList li.fl-row:nth-child(1) .fl-rank { color: var(--gold); font-weight: bold; }
+#factionList li.fl-row:nth-child(2) .fl-rank,
+#factionList li.fl-row:nth-child(3) .fl-rank { color: #c9b98c; }
 .fl-bar {
-  height: 4px;
+  height: 3px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.35);
   overflow: hidden;
   margin: 5px 0 4px;
 }
 .fl-bar span { display: block; height: 100%; }
-.fl-facts { font-size: 0.71rem; line-height: 1.4; }
+.fl-facts {
+  font-size: 0.71rem;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fl-facts .fl-plus, .fl-facts .fl-minus { margin-left: 4px; }
 .fl-plus { color: #8fc79a; }
 .fl-minus { color: #d97a6c; }
 #factionNote { font-size: 0.7rem; line-height: 1.4; }

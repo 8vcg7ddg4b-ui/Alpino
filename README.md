@@ -502,6 +502,29 @@ den Punkten durchblättern.
   Runden. Erklärt dir jemand den Krieg, sagt es dir ein **Herold in einem
   eigenen Fenster**, mit Namen, Titel und Grund; was zwischen anderen geschieht,
   steht im Protokoll – aber nur, wenn du beide kennst.
+- **Der Herrscher führt auch im Feld**: Seine Eigenschaften entscheiden nicht
+  nur, mit wem er Krieg führt, sondern **wie seine Heere ihn führen**. Aus
+  Angriffslust und Habgier folgen vier Zahlen, nach denen seine Feldherren
+  entscheiden:
+  - **Wie sicher er sich sein will, ehe er stürmt.** Segimer (88 Angriffslust)
+    greift bei **32 %** Siegchance an, Orontes (34) erst bei **58 %** – mit
+    denselben Truppen auf demselben Feld. Die Einstellung *Verhalten der
+    Gegner* verschiebt alle zugleich (vorsichtig +18, draufgängerisch −18
+    Punkte), der Herrscher sich selbst.
+  - **Wann er jemanden zu Hause lässt.** Ein Kriegslüsterner deckt seine Orte
+    erst, wenn der Feind auf **sechs Felder** heran ist, und schickt bis dahin
+    alles nach vorn; ein Zurückhaltender lässt von **vierzehn Feldern** an ein
+    Heer daheim.
+  - **Was ihn lockt.** Einem Habgierigen ist eine reiche Stadt einen Umweg wert
+    (Ptolemaios rechnet tausend Einwohner gegen **drei Felder** Marsch auf,
+    Areus gegen **keins**) – er zieht am Feldheer vorbei zur Kasse.
+  - **Woraus er aushebt.** Der Angreifer will Reiter (bis 27 %), der
+    Verteidiger Schützen auf der Mauer (bis 23 %). Steht der Feind vor dem Tor,
+    hebt jeder Schützen aus – da ist kein Platz für Geschmack.
+  Was daraus wird, ist nicht einfach „aggressiv gewinnt": über fünf Läufe zu
+  sechzig Runden stehen die stürmischsten Reiche nicht oben – wer bei einem
+  Drittel Siegchance angreift, verliert eben auch zwei von drei Schlachten.
+  **Ehre** bleibt, wo sie hingehört: bei Wort und Vertrag.
   **Bekannte und unbekannte Reiche** sind getrennt: zu Beginn kennt jede
   Fraktion nur ihre Nachbarn (Rom weiß von Karthago, Numidien und den Illyrern,
   nicht von den Parthern). Wer einem fremden Heer oder einer fremden Stadt auf
@@ -834,13 +857,17 @@ den Punkten durchblättern.
   nur verlieren, wer eine hat. Was die eigene Fraktion trifft, kommt in einem
   **eigenen Fenster** – mit Bild, Begebenheit und der Zeile, was es gekostet
   oder gebracht hat. Was den anderen zustößt, steht nur im Protokoll.
-- **Die Reiche im Vergleich** (Reiter **Fraktionen** in der Seitenleiste):
+- **Die Rangliste der Reiche** (Reiter **Fraktionen** in der Seitenleiste):
   Wer ist der **Mächtigste**, wer der **militärisch Stärkste**, wer der
-  **Reichste**? Drei Knöpfe sortieren die Liste nach der Frage, die gerade
-  interessiert, und daneben steht, woraus sich die Antwort ergibt: Orte, Mann
-  im Feld, Mann auf der Mauer, Schatz – und die **Bilanz**, also Einnahmen
-  minus Sold, die jede Runde übrig bleibt. Ein Balken zeigt jedes Reich im
-  Verhältnis zum Ersten.
+  **Reichste**? Drei Knöpfe sortieren danach, und das Ergebnis ist eine
+  **Rangliste, keine Akte**: je Reich der **Platz**, das Wappen, der Name, die
+  Zahl, nach der sortiert wird, ein Balken im Verhältnis zum Ersten – und
+  darunter **eine** knappe Zeile: `🏛️ Orte · ⚔️ Mann · 💰 Schatz` und die
+  **Bilanz** (Einnahmen minus Sold je Runde) in Grün oder Rot. Sechzehn Reiche
+  stehen so auf zwei Bildschirmlängen statt auf vier.
+  Wer es genauer wissen will, hält den Zeiger auf eine Zeile: der **Tooltip**
+  schlüsselt sie auf – Orte, Heere, Mann im Feld, Mann auf den Mauern,
+  Einnahmen minus Sold.
   **Macht** ist dabei keine einzelne Zahl, sondern die Summe dreier: **zehn
   Punkte je Ort, einer je hundert Mann, einer je dreihundert Gold** – Land
   wiegt am schwersten, denn es trägt alles andere.
@@ -886,6 +913,24 @@ den Punkten durchblättern.
   ist bewusst nur ein trockener Klick, kein Ton – bei jedem zweiten Handgriff
   wäre ein Piepser eine Belästigung. Die Musik lässt sich in den
   Einstellungen getrennt abschalten – Titelmusik wie Fraktionsmusik.
+  Vier Regeln halten den Klang sauber, statt ihn lauter zu machen:
+  - **Nichts doppelt sich selbst.** Jeder Klang hat eine eigene Sperrfrist
+    (der Klick 70 ms, der Zusammenstoß eine halbe Sekunde). Zwanzig Klicks im
+    Stakkato erzeugen so **zehn** Klänge statt zwanzig übereinander.
+  - **Höchstens fünf auf einmal.** Fällt mehr zusammen, wird der Rest
+    verworfen, ehe der erste Oszillator entsteht – das erspart dem Browser die
+    Arbeit an dem, was ohnehin im Brei unterginge.
+  - **Die Musik tritt beiseite.** Ein Zusammenstoß, ein Trommelschlag zum
+    Rundenende, ein Hornruf senken die Musik für einen Augenblick um 30 bis
+    50 % und heben sie danach wieder – so ist das Ereignis deutlich zu hören,
+    ohne dass irgendetwas näher an die Übersteuerung rückt (gemessene Spitze
+    am Ausgang: **0,22** von 1,0).
+  - **Jeder Anschlag ein wenig anders.** Ein paar Cent Streuung je Ton und
+    Trommelschlag, sonst klingen zwei Schläge wie einer, der zweimal abgespielt
+    wurde.
+  Und wenn eine Weile nichts zu hören ist, **hält sich der Tonapparat selbst
+  an** und wacht beim nächsten Klang wieder auf – ein schlafender Kontext
+  kostet keinen Strom.
 - **Vollbildmodus**: ist der Normalfall – das Spiel geht beim Start hinein.
   Ein Wisch über die Karte zieht nicht mehr am Browserfenster: alles, was nicht
   in einer scrollbaren Leiste beginnt, wird abgefangen, damit ein Streichen nach

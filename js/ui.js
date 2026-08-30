@@ -1646,42 +1646,52 @@ function renderFactionList(state) {
     || b[key] - a[key] || b.power - a.power);
   const spitze = rows.length ? Math.max(1, rows[0][key]) : 1;
 
-  list.innerHTML = rows.map((entry) => {
+  // Eine Rangliste, keine Akte: Platz, Wappen, Name, die Zahl, nach der
+  // sortiert wird - und darunter eine einzige knappe Zeile mit Orten, Mann,
+  // Schatz und Bilanz. Was sich daraus zusammensetzt, steht im Tooltip; auf
+  // dem Schirm bleibt es kurz.
+  list.innerHTML = rows.map((entry, i) => {
     const { faction } = entry;
-    const classes = [!faction.alive ? 'faction-dead' : '', faction.isPlayer ? 'faction-self' : '']
-      .filter(Boolean).join(' ');
+    const classes = ['fl-row', !faction.alive ? 'faction-dead' : '',
+      faction.isPlayer ? 'faction-self' : ''].filter(Boolean).join(' ');
     const bilanz = `${entry.balance >= 0 ? '+' : '−'}${Math.abs(entry.balance)}`;
-    // Die Zahl, nach der sortiert wird, steht vorn und als Balken darunter.
+    // Die Zahl, nach der sortiert wird, steht rechts und als Balken darunter.
     const wert = factionSort === 'militaer'
-      ? `${entry.men.toLocaleString('de-DE')} Mann`
+      ? entry.men.toLocaleString('de-DE')
       : factionSort === 'gold'
-        ? `${entry.gold.toLocaleString('de-DE')} Gold`
-        : `Macht ${entry.power}`;
-    return `<li class="${classes}">
-      <div class="fl-head"><span class="fl-emblem">${
-  emblemSVG(faction.id, { size: 20, color: faction.color })}</span>
-        <span class="fl-name">${escapeHTML(faction.name)}</span>
-        <span class="fl-value">${wert}</span></div>
-      <div class="fl-bar"><span style="width:${Math.max(2, Math.round((entry[key] / spitze) * 100))}%;
-        background:${faction.color}"></span></div>
-      <div class="fl-facts muted">🏛️ ${entry.cities} ·
-        ⚔️ ${entry.field.toLocaleString('de-DE')} im Feld ·
-        🛡️ ${(entry.men - entry.field).toLocaleString('de-DE')} auf der Mauer</div>
-      <div class="fl-facts muted">💰 ${entry.gold.toLocaleString('de-DE')} Gold ·
-        Einnahmen ${entry.income} − Sold ${entry.upkeep} =
-        <span class="${entry.balance >= 0 ? 'fl-plus' : 'fl-minus'}">${bilanz} je Runde</span></div>
+        ? entry.gold.toLocaleString('de-DE')
+        : String(entry.power);
+    const einheit = factionSort === 'militaer' ? 'Mann'
+      : factionSort === 'gold' ? 'Gold' : 'Macht';
+    const tooltip = `${faction.name}: ${entry.cities} Orte, ${entry.armies} Heere, `
+      + `${entry.field.toLocaleString('de-DE')} Mann im Feld, `
+      + `${(entry.men - entry.field).toLocaleString('de-DE')} auf den Mauern. `
+      + `Einnahmen ${entry.income} − Sold ${entry.upkeep} = ${bilanz} je Runde.`;
+    return `<li class="${classes}" title="${escapeHTML(tooltip)}">
+      <span class="fl-rank">${i + 1}</span>
+      <span class="fl-emblem">${emblemSVG(faction.id, { size: 18, color: faction.color })}</span>
+      <div class="fl-main">
+        <div class="fl-head"><span class="fl-name">${escapeHTML(faction.name)}</span>
+          <span class="fl-value">${wert}<small> ${einheit}</small></span></div>
+        <div class="fl-bar"><span style="width:${
+  Math.max(2, Math.round((entry[key] / spitze) * 100))}%;background:${faction.color}"></span></div>
+        <div class="fl-facts muted">🏛️ ${entry.cities} · ⚔️ ${
+  entry.men.toLocaleString('de-DE')} · 💰 ${entry.gold.toLocaleString('de-DE')}
+          <span class="${entry.balance >= 0 ? 'fl-plus' : 'fl-minus'}">${bilanz}</span></div>
+      </div>
     </li>`;
   }).join('');
 
   const note = document.getElementById('factionNote');
   if (note) {
+    // Kurz halten: die Zeile erklärt die Sortierung, nicht das Spiel. Die
+    // Aufschlüsselung je Reich steht im Tooltip der Zeile.
     note.textContent = factionSort === 'militaer'
-      ? 'Sortiert nach Mann unter Waffen – im Feld und auf den Mauern zusammen.'
+      ? '🏛️ Orte · ⚔️ Mann · 💰 Schatz und Bilanz. Sortiert nach Mann unter Waffen.'
       : factionSort === 'gold'
-        ? 'Sortiert nach dem Schatz. Die Bilanz daneben ist, was jede Runde übrig '
-          + 'bleibt: Einnahmen minus Sold.'
-        : 'Sortiert nach Macht: zehn Punkte je Ort, einer je hundert Mann, einer je '
-          + 'dreihundert Gold. Land wiegt am schwersten – es trägt alles andere.';
+        ? '🏛️ Orte · ⚔️ Mann · 💰 Schatz und Bilanz. Sortiert nach dem Schatz.'
+        : '🏛️ Orte · ⚔️ Mann · 💰 Schatz und Bilanz. Macht: 10 je Ort, 1 je 100 Mann, '
+          + '1 je 300 Gold.';
   }
 }
 

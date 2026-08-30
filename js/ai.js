@@ -59,18 +59,22 @@ function crowdAround(state, army, target, ownerId) {
 
 function nearestTarget(state, army, walkable) {
   const candidates = [];
+  const stil = feldherrnStil(state, army.factionId);
   // Ein Ziel ist nur, womit man im Krieg steht. Steht der Friede, marschiert
   // dieses Heer daran vorbei - oder gar nicht erst los.
   for (const city of state.cities) {
     if (city.factionId !== army.factionId && atWar(state, army.factionId, city.factionId)) {
       candidates.push({ col: city.col, row: city.row, ownerId: city.factionId,
-        weight: unitTotalCount(city.garrison) + 5 });
+        weight: unitTotalCount(city.garrison) + 5,
+        // Was in der Stadt zu holen ist. Einem Hanno oder Ptolemaios ist ein
+        // reicher Ort einen Umweg wert, einem Areus fast nichts.
+        beute: (city.population || 0) / 1000 });
     }
   }
   for (const other of state.armies) {
     if (other.factionId !== army.factionId && atWar(state, army.factionId, other.factionId)) {
       candidates.push({ col: other.col, row: other.row, ownerId: other.factionId,
-        weight: unitTotalCount(other.units) });
+        weight: unitTotalCount(other.units), beute: 0 });
     }
   }
   if (!candidates.length) return null;
@@ -85,7 +89,8 @@ function nearestTarget(state, army, walkable) {
   for (const c of candidates) {
     const dist = Math.abs(c.col - army.col) + Math.abs(c.row - army.row);
     const score = dist + c.weight * 0.05
-      + crowdAround(state, army, c, c.ownerId) * CROWD_PENALTY;
+      + crowdAround(state, army, c, c.ownerId) * CROWD_PENALTY
+      - (c.beute || 0) * stil.beute;
     const reachable = !walkable || walkable(c.col, c.row);
     if (reachable) {
       if (score < bestScore) {
@@ -118,11 +123,48 @@ export function setAiStance(threshold) {
   aiMinWinChance = threshold;
 }
 
+// --- Der Stil eines Herrschers --------------------------------------------
+// Die Einstellung im Menü sagt, wie die Gegner im Ganzen auftreten. Wer von
+// ihnen wie auftritt, sagt sein Herrscher: aus seinen drei Eigenschaften
+// werden hier die Zahlen, nach denen seine Feldherren im Feld entscheiden.
+// Ein Segimer stürmt, wo ein Orontes wartet - mit denselben Truppen auf
+// demselben Feld.
+function klemme(wert, min, max) {
+  return Math.max(min, Math.min(max, wert));
+}
+
+export function feldherrnStil(state, factionId) {
+  const ruler = rulerOf(state, factionId);
+  // -1 (friedfertig) bis +1 (kriegslüstern), dasselbe für die Habgier.
+  const lust = klemme((ruler.angriffslust - 50) / 50, -1, 1);
+  const gier = klemme((ruler.habgier - 50) / 50, -1, 1);
+  return {
+    lust,
+    gier,
+    // Wie sicher er sich sein will, ehe er angreift. Die Einstellung im Menü
+    // verschiebt alle Herrscher zugleich, der Herrscher sich selbst.
+    mut: klemme(aiMinWinChance - lust * 0.24, 0.12, 0.92),
+    // Wie stark eine reiche Stadt lockt: so viele Felder Umweg ist ihm ein
+    // Ort mit tausend Einwohnern wert.
+    beute: klemme(1.4 + gier * 2.4, 0, 4),
+    // Wie nah der Feind sein muss, ehe er ein Heer zur Deckung zu Hause
+    // lässt. Wer angreift, deckt spät; wer hält, deckt immer.
+    wacheAb: Math.round(HOME_GUARD_RANGE * klemme(1 - lust * 0.62, 0.3, 1.6)),
+    // Woraus er aushebt: der Angreifer will Reiter, der Verteidiger Schützen
+    // auf der Mauer.
+    mischung: {
+      infantry: 0.6,
+      cavalry: klemme(0.2 + lust * 0.09, 0.05, 0.35),
+      ranged: klemme(0.2 - lust * 0.09, 0.05, 0.35),
+    },
+  };
+}
+
 function worthAttacking(state, army, col, row) {
   const preview = previewTileCombat(state, army.id, col, row, AI_FORECAST_SAMPLES);
   if (!preview) return true;
   if (preview.unopposed) return true;
-  return preview.forecast.attackerWinChance >= aiMinWinChance;
+  return preview.forecast.attackerWinChance >= feldherrnStil(state, army.factionId).mut;
 }
 
 // So viel bleibt in der Truhe, ehe ein Lager davon bezahlt wird.
@@ -240,16 +282,17 @@ const AI_EMERGENCY_BATCHES = 3;
 
 // Woraus eine Garnison bestehen soll. Vorher würfelte die KI die Waffengattung
 // aus und stellte damit reihenweise reine Reiterheere auf: teuer im Sold, im
-// Angriff gut, hinter einer Mauer aber das Falsche.
+// Angriff gut, hinter einer Mauer aber das Falsche. Die Sollmischung selbst
+// hängt am Herrscher: wer angreift, will Reiter, wer hält, will Schützen.
 const AI_COMPOSITION = { infantry: 0.6, cavalry: 0.2, ranged: 0.2 };
 
 // Die Gattung, an der es gemessen an der Sollmischung am meisten fehlt.
-function neediestRole(units) {
+function neediestRole(units, mischung = AI_COMPOSITION) {
   const total = UNIT_ROLES.reduce((sum, key) => sum + (units[key] || 0), 0);
   let best = UNIT_ROLES[0];
   let bestGap = -Infinity;
   for (const key of UNIT_ROLES) {
-    const gap = (AI_COMPOSITION[key] || 0) * total - (units[key] || 0);
+    const gap = (mischung[key] || 0) * total - (units[key] || 0);
     if (gap > bestGap) {
       bestGap = gap;
       best = key;
@@ -266,6 +309,7 @@ function aiEconomy(state, faction, savingForFleet, buildReserve = 0, threats = [
   // hebt später aus und behält mehr. Zwischen einem Segimer und einem
   // Ptolemaios liegt hier fast das Doppelte.
   const ruler = rulerOf(state, faction.id);
+  const stil = feldherrnStil(state, faction.id);
   const truhe = Math.round(AI_TREASURY_FLOOR
     * (1.3 - ruler.angriffslust / 200 + ruler.habgier / 250));
   let floor = savingForFleet
@@ -290,7 +334,10 @@ function aiEconomy(state, faction, savingForFleet, buildReserve = 0, threats = [
     const batches = danger ? AI_EMERGENCY_BATCHES : 1;
     for (let i = 0; i < batches; i++) {
       if (faction.gold <= cityFloor) break;
-      if (!recruitUnit(state, city.id, neediestRole(city.garrison)).ok) break;
+      // Vor dem Tor braucht jeder Schützen auf der Mauer; sonst hebt jeder
+      // nach dem Geschmack seines Herrschers aus.
+      const soll = danger ? { infantry: 0.55, cavalry: 0.1, ranged: 0.35 } : stil.mischung;
+      if (!recruitUnit(state, city.id, neediestRole(city.garrison, soll)).ok) break;
     }
 
     // Wo der Feind vor dem Tor steht, bleibt die Aushebung hinter der Mauer:
@@ -553,10 +600,15 @@ function aiMilitary(state, faction, threats) {
   // Sending every army at the nearest enemy leaves nothing behind, and a
   // faction with neighbours on three sides loses its towns behind its own
   // army's back. With more than one host, the nearest one stays home.
+  // Wie früh das geschieht, entscheidet der Herrscher: ein Segimer lässt erst
+  // jemanden zurück, wenn der Feind schon vor der Stadt steht, ein Orontes
+  // von Anfang an. Dieselbe Lage, zwei Feldzüge.
+  const stil = feldherrnStil(state, faction.id);
   let guard = null;
   let guardHome = null;
   if (armies.length > 1) {
-    const home = threats.length ? threats[0].city : null;
+    const home = threats.length && threats[0].distance <= stil.wacheAb
+      ? threats[0].city : null;
     if (home) {
       guard = armies.reduce((closest, army) => {
         const distance = Math.abs(army.col - home.col) + Math.abs(army.row - home.row);

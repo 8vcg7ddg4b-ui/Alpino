@@ -19,6 +19,7 @@ let master = null;      // trockenes Summensignal
 let wetGain = null;     // Hallanteil
 let compressor = null;
 let musicBus = null;    // eigener Regler, damit die Musik getrennt schaltbar ist
+let musicDuck = null;   // senkt die Musik kurz ab, wenn es laut wird
 let muted = false;
 let musicEnabled = true;
 
@@ -77,8 +78,28 @@ function ensureContext() {
 
   musicBus = ctx.createGain();
   musicBus.gain.value = 0;
-  musicBus.connect(master);
+  // Ein zweiter Regler hinter der Musik, nur zum kurzen Absenken. Er muss vom
+  // Ein- und Ausblenden getrennt sein, sonst reißt ein Trommelschlag die
+  // Blende auf, die gerade läuft.
+  musicDuck = ctx.createGain();
+  musicDuck.gain.value = 1;
+  musicBus.connect(musicDuck);
+  musicDuck.connect(master);
   return ctx;
+}
+
+// Ein lauter Klang schiebt die Musik für einen Augenblick beiseite, statt sich
+// mit ihr zu überlagern. Das ist billiger als lauter machen: der Zusammenstoß
+// wird deutlicher, ohne dass irgendetwas näher an die Übersteuerung rückt.
+function duckMusic(context, tiefe = 0.45, halten = 0.3) {
+  if (!musicDuck) return;
+  const now = context.currentTime;
+  const g = musicDuck.gain;
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(g.value, now);
+  g.linearRampToValueAtTime(tiefe, now + 0.05);
+  g.setValueAtTime(tiefe, now + 0.05 + halten);
+  g.linearRampToValueAtTime(1, now + 0.05 + halten + 0.55);
 }
 
 // Browser halten den Kontext angehalten, bis der Spieler wirklich etwas
@@ -94,9 +115,16 @@ export function audioProbe() {
   return {
     state: ctx ? ctx.state : 'keiner',
     theme: musicHandle !== null,
+    // Im Feldzug läuft die Hymne der eigenen Fraktion, nicht das Titelstück -
+    // eine Prüfung, die nur nach `theme` sieht, hielte das für Stille.
+    anthem: anthemHandle !== null ? anthemId : null,
     wartet: !!themeWanted,
     muted,
     musicEnabled,
+    // Wie weit die Musik gerade beiseitegeschoben ist (1 = gar nicht) und wie
+    // viele Klänge im laufenden Fenster schon durchgelassen wurden.
+    duck: musicDuck ? Math.round(musicDuck.gain.value * 100) / 100 : 1,
+    stimmen: stimmenZahl,
   };
 }
 
@@ -160,12 +188,22 @@ function noiseBurst(context, when, {
   source.stop(when + duration + 0.02);
 }
 
+// Zweimal derselbe Ton auf denselben Hundertstelherz klingt nach Apparat.
+// Ein paar Cent Streuung je Anschlag genügen, damit zwei Schläge nach zwei
+// Schlägen klingen und nicht nach einem, der zweimal abgespielt wurde.
+const STREUUNG = 7;
+
+function streu() {
+  return (Math.random() * 2 - 1) * STREUUNG;
+}
+
 function tone(context, when, {
   frequency = 440, duration = 0.3, gain = 0.25, type = 'triangle', slideTo = null,
   attack = 0.02, destination = null,
 } = {}) {
   const osc = context.createOscillator();
   osc.type = type;
+  osc.detune.value = streu();
   osc.frequency.setValueAtTime(frequency, when);
   if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, when + duration);
 
@@ -199,11 +237,12 @@ function brass(context, when, {
   filter.frequency.linearRampToValueAtTime(frequency * brightness, when + attack * 1.6);
   filter.frequency.exponentialRampToValueAtTime(frequency * 1.8, when + duration);
 
+  const abweichung = streu();
   for (const cents of [-detune, detune]) {
     const osc = context.createOscillator();
     osc.type = 'sawtooth';
     osc.frequency.value = frequency;
-    osc.detune.value = cents;
+    osc.detune.value = cents + abweichung;
     osc.connect(filter);
     osc.start(when);
     osc.stop(when + duration + 0.05);
@@ -343,8 +382,9 @@ function frameDrum(context, when, {
 function drum(context, when, { gain = 0.5, pitch = 96, destination = null } = {}) {
   const osc = context.createOscillator();
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(pitch, when);
-  osc.frequency.exponentialRampToValueAtTime(pitch * 0.42, when + 0.18);
+  const hoehe = pitch * (0.97 + Math.random() * 0.06);
+  osc.frequency.setValueAtTime(hoehe, when);
+  osc.frequency.exponentialRampToValueAtTime(hoehe * 0.42, when + 0.18);
 
   const envelope = context.createGain();
   envelope.gain.setValueAtTime(0, when);
@@ -359,12 +399,65 @@ function drum(context, when, { gain = 0.5, pitch = 96, destination = null } = {}
   });
 }
 
-function play(builder) {
+// --- Wie viel gleichzeitig klingen darf -----------------------------------
+// Zwei Dinge machen aus guten Klängen einen Brei: derselbe Klang zu schnell
+// hintereinander (ein Klick, der bei jedem Handgriff hängen bleibt) und zu
+// viele auf einmal (die KI nimmt in einer Runde vier Orte). Beides wird hier
+// abgefangen, ehe irgendein Oszillator entsteht - das spart nebenbei die
+// Arbeit, die der Browser sonst für Unhörbares täte.
+const KLANG_SPERRE = new Map();   // Name -> wann er zuletzt lief
+const STIMMEN_FENSTER = 0.12;     // Sekunden, über die gezählt wird
+const STIMMEN_MAX = 5;            // so viele Klänge in diesem Fenster
+let stimmenSeit = 0;
+let stimmenZahl = 0;
+
+// Ohne Ton passiert lange nichts - dann kostet ein laufender Audiokontext nur
+// Strom. Er wird angehalten und beim nächsten Klang wieder geweckt.
+const RUHE_NACH = 25000;          // ms ohne Ton, ehe der Apparat schläft
+let ruheTimer = null;
+
+function haltePause() {
+  ruheTimer = null;
+  if (!ctx || ctx.state !== 'running') return;
+  // Solange etwas läuft, wird nichts angehalten - aber später noch einmal
+  // nachgesehen, sonst schläft der Apparat nach einem langen Marsch nie mehr
+  // ein.
+  if (marchHandle !== null || musicHandle !== null || anthemHandle !== null) {
+    ruheTimer = setTimeout(haltePause, RUHE_NACH);
+    return;
+  }
+  ctx.suspend().catch(() => {});
+}
+
+function wachHalten() {
+  if (ruheTimer !== null) clearTimeout(ruheTimer);
+  ruheTimer = setTimeout(haltePause, RUHE_NACH);
+}
+
+function play(builder, { key = null, gap = 0.05, duck = 0 } = {}) {
   if (muted) return;
   const context = ensureContext();
   if (!context) return;
   if (context.state === 'suspended') context.resume().catch(() => {});
-  builder(context, context.currentTime + 0.01);
+  const now = context.currentTime;
+
+  // Derselbe Klang zu schnell hintereinander wird verschluckt.
+  if (key) {
+    const zuletzt = KLANG_SPERRE.get(key);
+    if (zuletzt !== undefined && now - zuletzt < gap) return;
+    KLANG_SPERRE.set(key, now);
+  }
+  // Und zu viele auf einmal ebenso.
+  if (now - stimmenSeit > STIMMEN_FENSTER) {
+    stimmenSeit = now;
+    stimmenZahl = 0;
+  }
+  if (stimmenZahl >= STIMMEN_MAX) return;
+  stimmenZahl++;
+
+  if (duck > 0) duckMusic(context, 1 - duck, 0.3);
+  builder(context, now + 0.01);
+  wachHalten();
 }
 
 // --- Die einzelnen Ereignisse ---------------------------------------------
@@ -374,14 +467,14 @@ export const sfx = {
   // Tonhöhe. Ein Piepser wird bei jedem zweiten Handgriff zur Belästigung.
   select: () => play((c, t) => {
     noiseBurst(c, t, {
-      duration: 0.035, gain: 0.3, frequency: 2600, q: 0.9, type: 'highpass', attack: 0.001,
+      duration: 0.035, gain: 0.26, frequency: 2600, q: 0.9, type: 'highpass', attack: 0.001,
     });
-  }),
+  }, { key: 'select', gap: 0.07 }),
 
   denied: () => play((c, t) => {
     noiseBurst(c, t, { duration: 0.12, gain: 0.22, frequency: 300, q: 0.7, type: 'lowpass' });
     tone(c, t, { frequency: 132, duration: 0.26, gain: 0.16, type: 'triangle', slideTo: 88 });
-  }),
+  }, { key: 'denied', gap: 0.25 }),
 
   // Der Zusammenstoß in drei Schichten: der Aufprall zweier Linien, dann Eisen
   // auf Schild, darüber das Geschrei.
@@ -398,24 +491,24 @@ export const sfx = {
     noiseBurst(c, t + 0.1, {
       duration: 0.75, gain: 0.13, frequency: 700, q: 0.9, attack: 0.2,
     });
-  }),
+  }, { key: 'clash', gap: 0.5, duck: 0.5 }),
 
   recruit: () => play((c, t) => {
     noiseBurst(c, t, { duration: 0.1, gain: 0.22, frequency: 3400, q: 5, attack: 0.001 });
     tone(c, t, { frequency: 1180, duration: 0.3, gain: 0.09, type: 'triangle' });
     tone(c, t + 0.09, { frequency: 1760, duration: 0.26, gain: 0.07, type: 'triangle' });
-  }),
+  }, { key: 'recruit', gap: 0.12 }),
 
   // Der Hornruf zum Sammeln: eine steigende Quinte auf dem Blech.
   raise: () => play((c, t) => {
     brass(c, t, { frequency: 196, duration: 0.4, gain: 0.17 });
     brass(c, t + 0.22, { frequency: 294, duration: 0.66, gain: 0.19 });
-  }),
+  }, { key: 'raise', gap: 0.4, duck: 0.35 }),
 
   disband: () => play((c, t) => {
     brass(c, t, { frequency: 262, duration: 0.5, gain: 0.13, brightness: 3 });
     brass(c, t + 0.18, { frequency: 175, duration: 0.7, gain: 0.13, brightness: 2.4 });
-  }),
+  }, { key: 'disband', gap: 0.4, duck: 0.3 }),
 
   // Steinarbeit: drei Schläge Hammer auf Quader.
   wallBuy: () => play((c, t) => {
@@ -425,30 +518,43 @@ export const sfx = {
       });
       noiseBurst(c, t + i * 0.13, { duration: 0.07, gain: 0.1, frequency: 2800, q: 3 });
     }
-  }),
+  }, { key: 'wallBuy', gap: 0.35 }),
 
   wallDone: () => play((c, t) => {
     [262, 330, 392].forEach((f, i) => brass(c, t + i * 0.12, {
       frequency: f, duration: 0.7, gain: 0.14,
     }));
-  }),
+  }, { key: 'wallDone', gap: 0.6, duck: 0.35 }),
+
+  // Das Bauamt meldet: zwei Hammerschläge auf Stein, dann eine kurze Quinte -
+  // Handwerk, kein Hornruf. Der Hornruf gehört den Heeren.
+  built: () => play((c, t) => {
+    for (let i = 0; i < 2; i++) {
+      noiseBurst(c, t + i * 0.15, {
+        duration: 0.18, gain: 0.22, frequency: 420, q: 1.5, type: 'lowpass', attack: 0.002,
+      });
+      noiseBurst(c, t + i * 0.15, { duration: 0.06, gain: 0.08, frequency: 3000, q: 3 });
+    }
+    brass(c, t + 0.34, { frequency: 294, duration: 0.5, gain: 0.12, brightness: 3.6 });
+    brass(c, t + 0.46, { frequency: 440, duration: 0.62, gain: 0.11, brightness: 4.2 });
+  }, { key: 'built', gap: 0.6, duck: 0.3 }),
 
   // Rundenende: zwei Schläge auf die Kriegstrommel.
   endTurn: () => play((c, t) => {
     drum(c, t, { gain: 0.5 });
     drum(c, t + 0.26, { gain: 0.38, pitch: 84 });
-  }),
+  }, { key: 'endTurn', gap: 0.5, duck: 0.3 }),
 
   undo: () => play((c, t) => {
     tone(c, t, { frequency: 320, duration: 0.22, gain: 0.11, type: 'sine', slideTo: 640 });
-  }),
+  }, { key: 'undo', gap: 0.15 }),
 
   // Ablegen: knarrendes Holz, Wasser, und die Pfeife des Bootsmanns.
   embark: () => play((c, t) => {
     noiseBurst(c, t, { duration: 0.6, gain: 0.2, frequency: 800, q: 0.6, type: 'lowpass', attack: 0.1 });
     tone(c, t + 0.05, { frequency: 170, duration: 0.42, gain: 0.1, type: 'sawtooth', slideTo: 115 });
     tone(c, t + 0.3, { frequency: 780, duration: 0.36, gain: 0.09, type: 'sine', slideTo: 1240 });
-  }),
+  }, { key: 'embark', gap: 0.5, duck: 0.25 }),
 
   // Eine Stadt fällt: ein Dreiklang auf dem Blech über einem Trommelschlag.
   capture: () => play((c, t) => {
@@ -456,7 +562,7 @@ export const sfx = {
     [196, 294, 392].forEach((f, i) => brass(c, t + i * 0.1, {
       frequency: f, duration: 0.9, gain: 0.15,
     }));
-  }),
+  }, { key: 'capture', gap: 0.8, duck: 0.5 }),
 
   victory: () => play((c, t) => {
     drum(c, t, { gain: 0.5 });
@@ -464,13 +570,13 @@ export const sfx = {
       frequency: f, duration: 1.3, gain: 0.16,
     }));
     brass(c, t + 0.68, { frequency: 523, duration: 1.8, gain: 0.17 });
-  }),
+  }, { key: 'victory', gap: 2, duck: 0.7 }),
 
   defeat: () => play((c, t) => {
     [392, 330, 262, 175].forEach((f, i) => brass(c, t + i * 0.3, {
       frequency: f, duration: 1.2, gain: 0.15, brightness: 2.6, attack: 0.12,
     }));
-  }),
+  }, { key: 'defeat', gap: 2, duck: 0.7 }),
 };
 
 // --- Marschtritt -----------------------------------------------------------
