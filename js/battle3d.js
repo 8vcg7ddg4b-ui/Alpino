@@ -15,6 +15,7 @@
 
 import { COMBAT_ROLES, TILE_TYPES, unitDefs } from './data.js';
 import { emblemTexture } from './scene3d.js';
+import { weatherInfo } from './weather.js';
 
 // Wie viele Mann ein Klotz darstellt und wie viele Klötze eine Seite höchstens
 // bekommt. Ein Heer von 2.000 Mann als 2.000 Würfel zu zeichnen sähe nicht
@@ -26,22 +27,20 @@ const MAX_BLOCKS = 110;
 // gegenüber und treffen sich in der Mitte.
 const FIELD_WIDTH = 46;
 const START_GAP = 16;
-const CLASH_GAP = 3.6;
+// Wie nah sich die beiden Fronten kommen. Solange auf dem Feld Quader
+// standen, durfte hier eine Lücke bleiben; Gestalten, die sich mit dem Speer
+// erreichen sollen, müssen dicht aneinander stehen.
+const CLASH_GAP = 1.6;
+// Zur See ist mehr Platz nötig: ein Schiff ist länger als ein Mann.
+const CLASH_GAP_SEE = 3.3;
 
 // Wie lange die Abschnitte dauern (Sekunden).
 const T_MARCH = 1.5;
 const T_ROUND = 1.15;
 const T_END = 2.2;
 
-// Jede Waffengattung hat ihre Form: Fußvolk breit und niedrig, Reiter hoch,
-// Schützen schmal, die Stadtwache ein gedrungener Klotz, Schiffe lang.
-const SHAPES = {
-  infantry: { w: 1.05, h: 1.0, d: 0.85, icon: '⚔️' },
-  cavalry: { w: 1.1, h: 1.65, d: 1.05, icon: '🐎' },
-  ranged: { w: 0.8, h: 0.9, d: 0.7, icon: '🏹' },
-  watch: { w: 1.0, h: 1.1, d: 0.9, icon: '🛡️' },
-  ships: { w: 2.1, h: 0.7, d: 0.9, icon: '⛵' },
-};
+// Wie hoch eine Gestalt steht - daran hängt alles andere auf dem Feld.
+const FIGURE = 1.0;
 
 let schauRenderer = null;
 let schauScene = null;
@@ -65,11 +64,14 @@ function makeRenderer(canvas) {
   return r;
 }
 
-function makeLights(target) {
-  const sun = new THREE.DirectionalLight(0xfff2d8, 1.05);
+function makeLights(target, wetter) {
+  // Unter einer Wolkendecke steht die Sonne nicht wie an einem klaren Tag:
+  // im Regen und im Sandsturm fällt das Licht flach und stumpf.
+  const trueb = wetter ? 0.6 : 1;
+  const sun = new THREE.DirectionalLight(0xfff2d8, 1.05 * trueb);
   sun.position.set(18, 30, 14);
   target.add(sun);
-  target.add(new THREE.HemisphereLight(0xbfd4ff, 0x4a4030, 0.75));
+  target.add(new THREE.HemisphereLight(0xbfd4ff, 0x4a4030, wetter ? 0.95 : 0.75));
 }
 
 // Der Boden in der Farbe des Geländes, auf dem wirklich gefochten wurde.
@@ -86,22 +88,314 @@ function makeGround(terrainType, naval) {
   return mesh;
 }
 
-// Die Mauer, wenn hinter einer gefochten wurde: ein Riegel aus Quadern quer
-// vor der Verteidigerlinie. Je stärker die Befestigung, desto höher.
+// Die Mauer, wenn hinter einer gefochten wurde: ein Riegel quer vor der
+// Verteidigerlinie. Je stärker die Befestigung, desto höher - und aus dem,
+// woraus sie gebaut ist: eine Palisade ist eine Reihe gespitzter Stämme, eine
+// Stadtmauer ein durchgehender Quaderriegel mit Zinnenkranz und Torhaus.
+const MAUER_LAENGE = 13;
+const TOR_BREITE = 2;
+
 function makeWall(multiplier, color) {
   const group = new THREE.Group();
   const hoehe = multiplier >= 2 ? 3.2 : multiplier >= 1.6 ? 2.4 : 1.7;
+  const stein = multiplier >= 2;
   const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(color) });
-  const geometry = new THREE.BoxGeometry(1.1, hoehe, 1.3);
-  // Nur so lang wie die Front, sonst verdeckt der Riegel die Verteidiger.
-  for (let i = -5; i <= 5; i++) {
-    const stein = new THREE.Mesh(geometry, material);
-    // Ein Zinnenkranz: jeder zweite Stein steht höher.
-    const zinne = i % 2 === 0 ? 1 : 0.78;
-    stein.scale.y = zinne;
-    stein.position.set(0, (hoehe * zinne) / 2, i * 1.45);
-    group.add(stein);
+  const halb = MAUER_LAENGE / 2;
+
+  if (stein) {
+    // Zwei Mauerläufe, dazwischen das Tor.
+    const lauf = (MAUER_LAENGE - TOR_BREITE) / 2;
+    for (const seite of [-1, 1]) {
+      const mauer = new THREE.Mesh(new THREE.BoxGeometry(1, hoehe, lauf), material);
+      mauer.position.set(0, hoehe / 2, seite * (TOR_BREITE / 2 + lauf / 2));
+      group.add(mauer);
+    }
+    // Der Zinnenkranz: jede zweite Lücke bleibt offen.
+    const zinne = new THREE.BoxGeometry(1.14, 0.46, 0.42);
+    for (let z = -halb + 0.3; z <= halb; z += 0.84) {
+      if (Math.abs(z) < TOR_BREITE / 2) continue;
+      const stueck = new THREE.Mesh(zinne, material);
+      stueck.position.set(0, hoehe + 0.23, z);
+      group.add(stueck);
+    }
+    // Zwei Türme flankieren das Tor - daran erkennt man von weitem, wo der
+    // Sturm hin muss.
+    for (const seite of [-1, 1]) {
+      const turm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.75, 0.85, hoehe * 1.35, 8), material
+      );
+      turm.position.set(0, hoehe * 0.675, seite * (TOR_BREITE / 2 + 0.55));
+      group.add(turm);
+    }
+  } else {
+    // Die Palisade: gespitzte Stämme, dicht an dicht. Sie stehen nicht in
+    // Reih und Glied - eine Palisade wird gerammt, nicht gemauert.
+    const stamm = new THREE.CylinderGeometry(0.17, 0.19, hoehe, 6);
+    const spitze = new THREE.ConeGeometry(0.19, 0.34, 6);
+    for (let z = -halb; z <= halb; z += 0.34) {
+      if (Math.abs(z) < TOR_BREITE / 2) continue;
+      const wank = (Math.random() - 0.5) * 0.06;
+      const pfahl = new THREE.Mesh(stamm, material);
+      pfahl.position.set((Math.random() - 0.5) * 0.08, hoehe / 2, z);
+      pfahl.rotation.x = wank;
+      group.add(pfahl);
+      const kopf = new THREE.Mesh(spitze, material);
+      kopf.position.set(pfahl.position.x, hoehe + 0.17, z);
+      kopf.rotation.x = wank;
+      group.add(kopf);
+    }
   }
+
+  // Das Tor: zwei Flügel aus Bohlen, darüber der Sturz.
+  const holz = new THREE.MeshLambertMaterial({ color: 0x5b4223 });
+  for (const seite of [-1, 1]) {
+    const fluegel = new THREE.Mesh(
+      new THREE.BoxGeometry(stein ? 1.05 : 0.34, hoehe * 0.72, TOR_BREITE / 2 - 0.04), holz
+    );
+    fluegel.position.set(0, hoehe * 0.36, seite * TOR_BREITE / 4);
+    group.add(fluegel);
+  }
+  const sturz = new THREE.Mesh(
+    new THREE.BoxGeometry(stein ? 1.1 : 0.4, hoehe * 0.28, TOR_BREITE), material
+  );
+  sturz.position.set(0, hoehe * 0.72 + hoehe * 0.14, 0);
+  group.add(sturz);
+
+  // Der Wehrgang: der Erdwall hinter der Brüstung, auf dem die Verteidiger
+  // stehen. Ohne ihn stünden sie hinter der Mauer und niemand sähe, wie ihre
+  // Reihen dünner werden - und gestanden haben sie dort auch wirklich.
+  const gang = hoehe * 0.62;
+  const wehrgang = new THREE.Mesh(
+    new THREE.BoxGeometry(2.6, gang, MAUER_LAENGE),
+    new THREE.MeshLambertMaterial({ color: stein ? 0x8c8377 : 0x6b5b45 })
+  );
+  wehrgang.position.set(1.5, gang / 2, 0);
+  group.add(wehrgang);
+
+  group.userData = { hoehe, gang };
+  return group;
+}
+
+// --- Das Gelände ----------------------------------------------------------
+// Bisher war das Schlachtfeld eine eingefärbte Fläche: man las die Farbe und
+// wusste, es war ein Wald. Jetzt steht der Wald auch da. Alles bleibt am
+// Rand - hinter den Linien und weit auf den Flanken -, denn was zählt, ist
+// wer noch steht, und davor darf kein Baum stehen.
+//
+// Der Maßstab ist derselbe wie auf der Karte: ein Baum ist zweieinhalb Mann
+// hoch, ein Busch reicht bis zur Hüfte, ein Fels ist ein Fels.
+const FELD_TIEFE = -18;   // dahinter beginnt die Landschaft
+const FELD_FLANKE = 21;   // davor bleiben die Flanken frei
+
+// Streut `anzahl` Plätze in die Landschaft und ruft für jeden zurück.
+function streuePlaetze(anzahl, rng, fn, nurHinten = false) {
+  for (let i = 0; i < anzahl; i++) {
+    let x; let z;
+    if (nurHinten) {
+      // Was groß ist - ein Hügelrücken, eine Düne -, gehört weit nach hinten:
+      // neben dem Feld stünde es quer vor der Schlacht.
+      x = (rng() - 0.5) * 190;
+      z = FELD_TIEFE - 22 - rng() * 60;
+      fn(x, z, i);
+      continue;
+    }
+    if (rng() < 0.55) {
+      // Hinter den Linien, quer über die ganze Breite.
+      x = (rng() - 0.5) * 150;
+      z = FELD_TIEFE - rng() * 58;
+    } else {
+      // Auf den Flanken, links und rechts vom Feld.
+      x = (rng() < 0.5 ? -1 : 1) * (FELD_FLANKE + rng() * 52);
+      z = (rng() - 0.5) * 70;
+    }
+    fn(x, z, i);
+  }
+}
+
+// Ein Baum in Kartengröße: Stamm und Krone, zu einer Geometrie verschmolzen.
+function baumGeometrie(nadel) {
+  const hoehe = 2.6;
+  const teile = [
+    teil(new THREE.CylinderGeometry(0.1, 0.16, hoehe * 0.4, 5), 0, hoehe * 0.2, 0),
+  ];
+  if (nadel) {
+    teile.push(teil(new THREE.ConeGeometry(hoehe * 0.26, hoehe * 0.75, 6), 0, hoehe * 0.62, 0));
+  } else {
+    teile.push(teil(new THREE.SphereGeometry(hoehe * 0.3, 6, 5), 0, hoehe * 0.66, 0));
+  }
+  return mergeParts(teile);
+}
+
+// Alles, was auf einem Schlachtfeld herumsteht, in einer Wolke je Art.
+function streuung(geometrie, farbe, anzahl, rng, platz, nurHinten = false) {
+  const wolke = new THREE.InstancedMesh(
+    geometrie, new THREE.MeshLambertMaterial({ color: new THREE.Color(farbe) }), anzahl
+  );
+  wolke.frustumCulled = false;
+  const hilfe = new THREE.Object3D();
+  let n = 0;
+  streuePlaetze(anzahl, rng, (x, z, i) => {
+    platz(hilfe, x, z, i, rng);
+    hilfe.updateMatrix();
+    wolke.setMatrixAt(n++, hilfe.matrix);
+  }, nurHinten);
+  return wolke;
+}
+
+// Das Gelände zum Geländetyp des Berichts. Zur See bleibt das Wasser leer:
+// dort steht nichts herum, und der Horizont ist die Landschaft.
+function makeField(terrainType, naval) {
+  const group = new THREE.Group();
+  if (naval) return group;
+  // Immer dasselbe Gelände für dieselbe Schlacht: ein eigener kleiner
+  // Zufall, aus dem Geländenamen gezogen.
+  let saat = 1;
+  for (const c of String(terrainType || 'plains')) saat = (saat * 31 + c.charCodeAt(0)) % 65536;
+  const rng = () => {
+    saat = (saat * 1103515245 + 12345) % 2147483648;
+    return saat / 2147483648;
+  };
+  const setze = (hilfe, x, z, skala, drehung) => {
+    hilfe.position.set(x, 0, z);
+    hilfe.rotation.set(0, drehung, 0);
+    hilfe.scale.setScalar(skala);
+  };
+
+  if (terrainType === 'forest') {
+    group.add(streuung(baumGeometrie(false), '#3d6b34', 110, rng,
+      (h, x, z, i, r) => setze(h, x, z, 0.8 + r() * 0.6, r() * 6.3)));
+    group.add(streuung(baumGeometrie(true), '#2f5a30', 60, rng,
+      (h, x, z, i, r) => setze(h, x, z, 0.85 + r() * 0.7, r() * 6.3)));
+  } else if (terrainType === 'hills') {
+    // Hügel: flache Kuppen, die sich hinter der Linie stapeln.
+    const kuppe = new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    group.add(streuung(kuppe, '#a08f5f', 18, rng, (h, x, z, i, r) => {
+      h.position.set(x, -0.4, z);
+      h.rotation.set(0, r() * 6.3, 0);
+      h.scale.set(11 + r() * 20, 2.4 + r() * 4, 11 + r() * 18);
+    }, true));
+    group.add(streuung(baumGeometrie(false), '#5c7a3c', 26, rng,
+      (h, x, z, i, r) => setze(h, x, z, 0.6 + r() * 0.4, r() * 6.3)));
+  } else if (terrainType === 'desert') {
+    // Dünen und ein paar Steine: mehr gibt die Wüste nicht her.
+    const duene = new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    group.add(streuung(duene, '#cdb47c', 16, rng, (h, x, z, i, r) => {
+      h.position.set(x, -0.3, z);
+      h.rotation.set(0, r() * 6.3, 0);
+      h.scale.set(12 + r() * 22, 1.6 + r() * 2.6, 10 + r() * 16);
+    }, true));
+    group.add(streuung(new THREE.DodecahedronGeometry(0.5, 0), '#b09a6c', 22, rng,
+      (h, x, z, i, r) => setze(h, x, z, 0.5 + r() * 1.1, r() * 6.3)));
+  } else if (terrainType === 'mountain') {
+    group.add(streuung(new THREE.ConeGeometry(1, 2.2, 5), '#7d7d7d', 34, rng,
+      (h, x, z, i, r) => {
+        h.position.set(x, 0, z);
+        h.rotation.set(0, r() * 6.3, 0);
+        h.scale.set(2 + r() * 6, 2 + r() * 7, 2 + r() * 6);
+      }));
+  } else {
+    // Ebene: Büsche und ein einzelner Baum, damit die Weite eine Weite ist.
+    group.add(streuung(new THREE.SphereGeometry(0.34, 5, 4), '#7c964f', 90, rng,
+      (h, x, z, i, r) => {
+        h.position.set(x, 0.1, z);
+        h.rotation.set(0, r() * 6.3, 0);
+        h.scale.set(0.8 + r() * 1.4, 0.5 + r() * 0.7, 0.8 + r() * 1.4);
+      }));
+    group.add(streuung(baumGeometrie(false), '#4f7a3a', 18, rng,
+      (h, x, z, i, r) => setze(h, x, z, 0.8 + r() * 0.5, r() * 6.3)));
+  }
+  return group;
+}
+
+// --- Das Wetter -----------------------------------------------------------
+// Dasselbe Wetter, unter dem der Feldzug steht, steht auch über der Schlacht:
+// wenn der Bericht sagt, es habe geregnet und deshalb keine Salve gegeben,
+// dann regnet es hier auch.
+const SCHAU_WETTER = {
+  rain: {
+    anzahl: 900, farbe: '#bcd8f0', groesse: 0.3, fall: 34, drift: 5,
+    himmel: '#4e5a63', nebel: [38, 105],
+  },
+  storm: {
+    anzahl: 1300, farbe: '#d2e4f2', groesse: 0.32, fall: 46, drift: 18,
+    himmel: '#3a444c', nebel: [30, 88],
+  },
+  snow: {
+    anzahl: 750, farbe: '#ffffff', groesse: 0.5, fall: 6, drift: 4,
+    himmel: '#8d98a1', nebel: [38, 105],
+  },
+  sand: {
+    anzahl: 1200, farbe: '#f4dfae', groesse: 0.55, fall: 2, drift: 36,
+    himmel: '#a98c58', nebel: [22, 66],
+  },
+  fog: { anzahl: 0, himmel: '#8b908c', nebel: [16, 58] },
+  clouds: { anzahl: 0, himmel: '#57616a', nebel: [50, 125] },
+  heat: {
+    anzahl: 260, farbe: '#fff0cc', groesse: 0.6, fall: -3, drift: 7,
+    himmel: '#9c8757', nebel: [48, 122],
+  },
+};
+
+const WETTER_RAUM = 130;
+const WETTER_HOEHE = 26;
+
+// Die Wolke aus Tropfen, Flocken oder Sand. Bewegt wird sie rein rechnerisch
+// aus der verstrichenen Zeit - kein eigener Takt, kein eigener Zustand.
+function makeSchauWetter(look) {
+  if (!look || !look.anzahl) return null;
+  const lage = new Float32Array(look.anzahl * 3);
+  for (let i = 0; i < look.anzahl; i++) {
+    lage[i * 3] = (Math.random() - 0.5) * WETTER_RAUM;
+    lage[i * 3 + 1] = Math.random() * WETTER_HOEHE;
+    lage[i * 3 + 2] = (Math.random() - 0.5) * WETTER_RAUM;
+  }
+  const geometrie = new THREE.BufferGeometry();
+  geometrie.setAttribute('position', new THREE.Float32BufferAttribute(lage, 3));
+  const punkte = new THREE.Points(geometrie, new THREE.PointsMaterial({
+    color: new THREE.Color(look.farbe), size: look.groesse,
+    transparent: true, opacity: 0.8, depthWrite: false,
+  }));
+  punkte.frustumCulled = false;
+  punkte.userData = { start: Float32Array.from(lage), look };
+  return punkte;
+}
+
+function treibeWetter(punkte, t) {
+  if (!punkte) return;
+  const { start, look } = punkte.userData;
+  const lage = punkte.geometry.attributes.position.array;
+  const rund = (wert, spanne) => ((wert % spanne) + spanne) % spanne;
+  for (let i = 0; i < lage.length; i += 3) {
+    lage[i] = rund(start[i] + look.drift * t + WETTER_RAUM / 2, WETTER_RAUM) - WETTER_RAUM / 2;
+    lage[i + 1] = rund(start[i + 1] - look.fall * t, WETTER_HOEHE);
+    lage[i + 2] = start[i + 2];
+  }
+  punkte.geometry.attributes.position.needsUpdate = true;
+}
+
+// --- Der Sturm auf die Mauer ----------------------------------------------
+// Wer eine Mauer angreift, kommt nicht durch sie hindurch, sondern über sie:
+// die Leitern lehnen an der Brüstung, sobald das Handgemenge beginnt.
+function makeLadders(hoehe) {
+  const group = new THREE.Group();
+  const holz = new THREE.MeshLambertMaterial({ color: 0x7a5c33 });
+  const laenge = hoehe + 1.1;
+  const teile = [];
+  for (const seite of [-0.22, 0.22]) {
+    teile.push(teil(new THREE.BoxGeometry(0.08, laenge, 0.08), 0, laenge / 2, seite));
+  }
+  for (let i = 1; i * 0.42 < laenge - 0.2; i++) {
+    teile.push(teil(new THREE.BoxGeometry(0.06, 0.05, 0.5), 0, i * 0.42, 0));
+  }
+  const leiterGeometrie = mergeParts(teile);
+  for (const z of [-4.4, -1.5, 1.5, 4.4]) {
+    const leiter = new THREE.Mesh(leiterGeometrie, holz);
+    // Die Leiter lehnt von der Angreiferseite an die Mauer.
+    leiter.position.set(-0.9, 0, z + (Math.random() - 0.5) * 0.6);
+    leiter.rotation.z = -0.34;
+    group.add(leiter);
+  }
+  group.visible = false;
   return group;
 }
 
@@ -132,6 +426,7 @@ function makeBanner(factionId, color) {
 function makeShip(color, scale = 1) {
   const group = new THREE.Group();
   const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(color) });
+  const holz = new THREE.MeshLambertMaterial({ color: 0x6b5433 });
   const rumpf = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.5, 0.8), material);
   rumpf.position.y = 0.25;
   group.add(rumpf);
@@ -139,12 +434,38 @@ function makeShip(color, scale = 1) {
   const bug = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.42, 0.36), material);
   bug.position.set(1.5, 0.3, 0);
   group.add(bug);
-  const mast = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.07, 0.07, 2.1, 5),
-    new THREE.MeshLambertMaterial({ color: 0x6b5433 })
-  );
+  // Der Rammsporn dicht über der Wasserlinie - damit endeten die meisten
+  // Seeschlachten dieser Zeit.
+  const sporn = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.7, 5), material);
+  sporn.position.set(2.1, 0.12, 0);
+  sporn.rotation.z = -Math.PI / 2;
+  group.add(sporn);
+  // Das Heck steigt an und trägt das Steuerruder.
+  const heck = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.62, 0.72), material);
+  heck.position.set(-1.15, 0.5, 0);
+  group.add(heck);
+  const ruder = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.16), holz);
+  ruder.position.set(-1.45, 0.16, 0.32);
+  ruder.rotation.z = 0.5;
+  group.add(ruder);
+  // Die Riemen: eine Reihe je Seite, alle im selben Schlag.
+  const riemen = new THREE.BoxGeometry(0.06, 0.05, 0.62);
+  for (let i = -3; i <= 3; i++) {
+    for (const seite of [-1, 1]) {
+      const r = new THREE.Mesh(riemen, holz);
+      r.position.set(i * 0.28, 0.3, seite * 0.62);
+      r.rotation.x = seite * 0.42;
+      group.add(r);
+    }
+  }
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 2.1, 5), holz);
   mast.position.set(-0.1, 1.3, 0);
   group.add(mast);
+  // Die Rah, an der das Segel hängt.
+  const rah = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 4), holz);
+  rah.position.set(-0.1, 2.16, 0);
+  rah.rotation.x = Math.PI / 2;
+  group.add(rah);
   const segel = new THREE.Mesh(
     new THREE.PlaneGeometry(1.25, 1.15),
     new THREE.MeshLambertMaterial({ color: 0xf0e6d0, side: THREE.DoubleSide })
@@ -204,17 +525,138 @@ function flyArrows(group, p, vonX, nachX) {
   }
 }
 
-// Eine Aufstellung: so viele Klötze, wie die Truppe Blöcke hat, in Reihen und
-// Gliedern. Zurückgegeben wird die Liste der Klötze in der Reihenfolge, in der
-// sie fallen sollen - von vorn nach hinten, damit die Front ausdünnt und nicht
+// --- Die Kämpfer ----------------------------------------------------------
+// In der dritten Fassung steht auf dem Feld keine Reihe von Quadern mehr,
+// sondern eine Reihe von Gestalten: Fußvolk mit Schild und Speer, Reiter zu
+// Pferd, Schützen mit dem Bogen, die Stadtwache hinter einem großen Schild.
+//
+// Damit das bezahlbar bleibt, wird jede Gattung aus ihren Teilen zu EINER
+// Geometrie verschmolzen und als Instanz gezeichnet: hundert Fußsoldaten
+// kosten dann einen Zeichenaufruf statt fünfhundert. Three.js bringt in
+// dieser Fassung kein Werkzeug zum Verschmelzen mit; für unsere Teile - alle
+// ohne Index, alle nur mit Lage und Normale - genügen ein paar Zeilen.
+function mergeParts(parts) {
+  let laenge = 0;
+  const fertig = parts.map(({ geometry, matrix }) => {
+    const g = (geometry.index ? geometry.toNonIndexed() : geometry.clone());
+    g.applyMatrix4(matrix);
+    laenge += g.attributes.position.count * 3;
+    return g;
+  });
+  const lage = new Float32Array(laenge);
+  const norm = new Float32Array(laenge);
+  let versatz = 0;
+  for (const g of fertig) {
+    lage.set(g.attributes.position.array, versatz);
+    norm.set(g.attributes.normal.array, versatz);
+    versatz += g.attributes.position.count * 3;
+    g.dispose();
+  }
+  const ganz = new THREE.BufferGeometry();
+  ganz.setAttribute('position', new THREE.Float32BufferAttribute(lage, 3));
+  ganz.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
+  return ganz;
+}
+
+// Ein Teil an seinen Platz: Geometrie, Verschiebung, Drehung.
+function teil(geometry, x, y, z, rx = 0, ry = 0, rz = 0) {
+  const matrix = new THREE.Matrix4();
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz));
+  matrix.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, 1, 1));
+  return { geometry, matrix };
+}
+
+// Die Bausätze. Jede Gestalt schaut nach +X - das ist die Richtung, in die
+// eine Aufstellung blickt; gedreht wird sie später als Ganzes.
+function fighterGeometry(rolle) {
+  const rumpf = new THREE.CylinderGeometry(0.15, 0.19, FIGURE * 0.42, 6);
+  const kopf = new THREE.SphereGeometry(0.115, 7, 5);
+  const teile = [];
+
+  if (rolle === 'cavalry') {
+    // Das Pferd: Leib, vier Beine, Hals und Kopf - und der Reiter darauf.
+    const leib = new THREE.BoxGeometry(0.78, 0.26, 0.24);
+    const bein = new THREE.CylinderGeometry(0.045, 0.04, 0.42, 4);
+    const hals = new THREE.BoxGeometry(0.16, 0.3, 0.16);
+    teile.push(teil(leib, 0, 0.62, 0));
+    for (const [bx, bz] of [[0.3, 0.1], [0.3, -0.1], [-0.28, 0.1], [-0.28, -0.1]]) {
+      teile.push(teil(bein, bx, 0.21, bz));
+    }
+    teile.push(teil(hals, 0.42, 0.78, 0, 0, 0, -0.4));
+    teile.push(teil(new THREE.BoxGeometry(0.24, 0.14, 0.14), 0.56, 0.92, 0));
+    // Der Reiter sitzt, also kürzer als ein Fußsoldat.
+    teile.push(teil(new THREE.CylinderGeometry(0.14, 0.17, 0.34, 6), -0.02, 0.9, 0));
+    teile.push(teil(kopf, -0.02, 1.14, 0));
+    teile.push(teil(new THREE.CylinderGeometry(0.025, 0.025, 0.9, 4), 0.12, 1.0, 0.16, 0, 0, 0.35));
+    return mergeParts(teile);
+  }
+
+  // Fußvolk: zwei Beine, Rumpf, Schultern, Kopf. Erst die Beine machen aus
+  // dem Kegel, der hier stand, einen Mann - auf dieser Entfernung sieht man
+  // keine Gesichter, aber man sieht, ob etwas geht oder steht.
+  for (const seite of [-0.09, 0.09]) {
+    teile.push(teil(new THREE.CylinderGeometry(0.05, 0.045, FIGURE * 0.34, 4),
+      0, FIGURE * 0.17, seite));
+  }
+  teile.push(teil(rumpf, 0, FIGURE * 0.55, 0));
+  teile.push(teil(new THREE.BoxGeometry(0.19, 0.12, 0.36), 0, FIGURE * 0.75, 0));
+  teile.push(teil(kopf, 0, FIGURE * 0.9, 0));
+
+  if (rolle === 'ranged') {
+    // Der Bogen: ein halber Ring vor der Brust.
+    teile.push(teil(new THREE.TorusGeometry(0.2, 0.022, 4, 9, Math.PI),
+      0.14, FIGURE * 0.6, 0, Math.PI / 2, 0, 0));
+  } else if (rolle === 'watch') {
+    // Die Stadtwache steht hinter einem großen Schild.
+    teile.push(teil(new THREE.BoxGeometry(0.06, 0.58, 0.42), 0.19, FIGURE * 0.52, 0));
+  } else {
+    // Fußvolk: Schild am Arm, Speer in der Faust.
+    teile.push(teil(new THREE.BoxGeometry(0.05, 0.4, 0.32), 0.18, FIGURE * 0.56, 0.06));
+    teile.push(teil(new THREE.CylinderGeometry(0.022, 0.022, 1.05, 4),
+      -0.02, FIGURE * 0.72, -0.18, 0, 0, 0.12));
+  }
+  return mergeParts(teile);
+}
+
+// Wie hoch eine Gestalt jeder Gattung steht - daran hängt, wie sie umfällt.
+const FIGUR_HOEHE = { cavalry: 1.35, infantry: 1, ranged: 1, watch: 1 };
+
+// Ein Behelfskörper, um eine Matrix auszurechnen: Instanzen haben keine
+// eigene Lage, sie haben nur eine Matrix, und die will berechnet werden.
+let behelf = null;
+function setzeInstanz(stueck) {
+  if (stueck.schiff) {
+    stueck.gruppe.position.set(stueck.x, stueck.y, stueck.z);
+    stueck.gruppe.rotation.set(0, stueck.ry, stueck.rz);
+    stueck.gruppe.visible = stueck.sichtbar;
+    return;
+  }
+  if (!behelf) behelf = new THREE.Object3D();
+  behelf.position.set(stueck.x, stueck.y, stueck.z);
+  behelf.rotation.set(0, stueck.ry, stueck.rz);
+  // Ein Gefallener, der ganz verschwinden soll, wird auf null geschrumpft:
+  // eine einzelne Instanz lässt sich nicht ausblenden.
+  behelf.scale.setScalar(stueck.sichtbar ? stueck.skala : 0);
+  behelf.updateMatrix();
+  stueck.wolke.setMatrixAt(stueck.instanz, behelf.matrix);
+  stueck.wolke.instanceMatrix.needsUpdate = true;
+}
+
+// Eine Aufstellung: so viele Gestalten, wie die Truppe Blöcke hat, in Reihen
+// und Gliedern. Zurückgegeben wird die Liste in der Reihenfolge, in der sie
+// fallen sollen - von vorn nach hinten, damit die Front ausdünnt und nicht
 // die Mitte Löcher bekommt.
+//
+// Gezeichnet wird je Gattung EINE Instanzenwolke: hundert Fußsoldaten kosten
+// dann einen Zeichenaufruf. Ein Block ist deshalb kein Mesh mehr, sondern ein
+// Merkzettel - Platz, Drehung, Zeitpunkt des Falls -, aus dem jede Bildfolge
+// die Matrix seiner Instanz neu schreibt.
 function makeFormation(units, factionId, color, facing, naval = false) {
   const group = new THREE.Group();
   const bloecke = [];
   const defs = unitDefs(factionId);
-  const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(color) });
-  // Wie viele Klötze auf diese Seite entfallen - bei sehr großen Heeren
-  // gedeckelt, damit die Zahl der Quader beherrschbar bleibt.
+  // Wie viele Gestalten auf diese Seite entfallen - bei sehr großen Heeren
+  // gedeckelt, damit die Zahl der Figuren beherrschbar bleibt.
   const mann = COMBAT_ROLES.reduce((sum, key) => sum + (units[key] || 0), 0);
   // Schiffe zählen anders als Mann: ein Geschwader sind sechzig Schiffe, und
   // vier davon je Modell sehen nach Flotte aus, sechzig nach Gewimmel.
@@ -227,67 +669,116 @@ function makeFormation(units, factionId, color, facing, naval = false) {
   const reihen = Math.max(1, Math.min(naval ? 4 : 8,
     Math.round(Math.sqrt(gesamt / (naval ? 4 : 2.2)))));
   const jeReihe = Math.ceil(gesamt / reihen);
-  const tiefe = naval ? 3.6 : 1.45;
-  const breite = naval ? 2.7 : 1.3;
+  // Eine Gestalt ist schmaler als der Quader, der hier früher stand: die
+  // Reihen rücken enger zusammen, sonst steht dort eine Menschenkette.
+  const tiefe = naval ? 3.6 : 1.15;
+  const breite = naval ? 2.7 : 0.95;
+  // Die Gestalten schauen zum Feind: der Angreifer steht links und blickt
+  // nach +X, der Verteidiger rechts und blickt zurück.
+  const blick = facing < 0 ? 0 : Math.PI;
+
+  // Erst der Plan, dann der Bau: eine Instanzenwolke muss ihre Größe beim
+  // Anlegen kennen, also wird vorher gezählt, wer wie viele stellt.
+  const plan = [];
   let index = 0;
   for (const key of COMBAT_ROLES) {
-    const anzahl = Math.round((units[key] || 0) * proMann);
-    const form = SHAPES[key] || SHAPES.infantry;
-    for (let i = 0; i < anzahl && index < gesamt; i++, index++) {
-      const reihe = Math.floor(index / jeReihe);
-      const glied = index % jeReihe;
-      // Auf dem Wasser fährt ein Schiff, kein Würfel.
-      const stueck = naval || key === 'ships'
-        ? makeShip(color, 1.05)
-        : new THREE.Mesh(new THREE.BoxGeometry(form.w, form.h, form.d), material);
-      const hoehe = naval || key === 'ships' ? 0.5 : form.h;
-      if (!(naval || key === 'ships')) stueck.position.y = form.h / 2;
-      stueck.position.x = facing * reihe * tiefe;
-      stueck.position.z = (glied - (jeReihe - 1) / 2) * breite;
-      // Die Schiffe fahren mit dem Bug zum Feind.
-      if (naval || key === 'ships') stueck.rotation.y = facing < 0 ? 0 : Math.PI;
-      stueck.userData = {
-        reihe, hoehe, rolle: key, schiff: naval || key === 'ships',
-        z: stueck.position.z, gefallen: 0, phase: Math.random() * 6.3,
+    const anzahl = Math.min(Math.round((units[key] || 0) * proMann), gesamt - index);
+    if (anzahl > 0) {
+      plan.push({ key, anzahl, von: index });
+      index += anzahl;
+    }
+    if (index >= gesamt) break;
+  }
+  if (!plan.length) plan.push({ key: naval ? 'ships' : 'infantry', anzahl: 1, von: 0 });
+
+  for (const { key, anzahl, von } of plan) {
+    const schiff = naval || key === 'ships';
+    const wolke = schiff ? null : new THREE.InstancedMesh(
+      fighterGeometry(key),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(color) }),
+      anzahl
+    );
+    if (wolke) {
+      // Beim Fliehen und Fallen wandern die Instanzen weit aus der Hülle, mit
+      // der three.js sie sonst wegsortiert - deshalb hier keine Prüfung.
+      wolke.frustumCulled = false;
+      group.add(wolke);
+    }
+    for (let i = 0; i < anzahl; i++) {
+      const platz = von + i;
+      const reihe = Math.floor(platz / jeReihe);
+      const glied = platz % jeReihe;
+      const stueck = {
+        reihe, rolle: key, schiff,
+        wolke, instanz: i, gruppe: null,
+        // Keine Zinnsoldaten: jeder steht ein wenig anders in der Reihe.
+        x: facing * reihe * tiefe + (schiff ? 0 : (Math.random() - 0.5) * 0.18),
+        // Auf welcher Höhe dieser Mann steht: null auf dem Feld, der Wehrgang
+        // für die, die auf der Mauer stehen.
+        grund: 0,
+        y: 0,
+        z: (glied - (jeReihe - 1) / 2) * breite
+          + (schiff ? 0 : (Math.random() - 0.5) * 0.16),
+        ry: blick + (schiff ? 0 : (Math.random() - 0.5) * 0.28),
+        rz: 0,
+        skala: schiff ? 1 : 1.08 + Math.random() * 0.14,
+        hoehe: schiff ? 0.5 : (FIGUR_HOEHE[key] || FIGUR_HOEHE.infantry),
+        // Zu welcher Seite dieser Mann fällt.
+        seite: Math.random() < 0.5 ? -1 : 1,
+        gefallen: 0, phase: Math.random() * 6.3, sichtbar: true,
       };
-      group.add(stueck);
+      if (schiff) {
+        // Auf dem Wasser fährt ein Schiff, keine Gestalt - und mit dem Bug
+        // zum Feind.
+        stueck.gruppe = makeShip(color, 1.05);
+        stueck.ry = blick;
+        group.add(stueck.gruppe);
+      }
+      setzeInstanz(stueck);
       bloecke.push(stueck);
     }
   }
-  bloecke.sort((a, b) => a.userData.reihe - b.userData.reihe);
+  bloecke.sort((a, b) => a.reihe - b.reihe);
   return { group, bloecke, defs };
 }
 
-// Was mit einem Klotz geschieht, der gefallen ist: er kippt zur Seite und
+// Was mit einer Gestalt geschieht, die gefallen ist: sie kippt zur Seite und
 // sinkt ein. Vorher verschwanden die Verluste einfach - jetzt liegt am Ende
-// dort, was die Schlacht gekostet hat.
+// dort, was die Schlacht gekostet hat. Wer noch steht, bewegt sich: die
+// vorderste Reihe stößt zu, der Rest tritt auf der Stelle.
 const FALLZEIT = 0.45;
 
-function updateFallen(bloecke, t) {
+function updateFallen(bloecke, t, gefecht = 0) {
   for (const stueck of bloecke) {
-    const { gefallen, hoehe, schiff, z, phase } = stueck.userData;
-    if (!gefallen) {
-      // Wer noch steht, atmet: auf See schaukeln die Schiffe, an Land steht
-      // die Linie ruhig.
-      if (schiff) {
-        stueck.position.y = Math.sin(t * 1.6 + phase) * 0.12;
-        stueck.rotation.z = Math.sin(t * 1.3 + phase) * 0.07;
+    if (!stueck.gefallen) {
+      if (stueck.schiff) {
+        // Auf See schaukeln die Schiffe.
+        stueck.y = Math.sin(t * 1.6 + stueck.phase) * 0.12;
+        stueck.rz = Math.sin(t * 1.3 + stueck.phase) * 0.07;
+      } else {
+        // Ein leichtes Auf und Ab, damit die Linie nicht aus Zinn ist, und
+        // ein Stoß nach vorn für die, die gerade fechten.
+        stueck.y = stueck.grund + Math.abs(Math.sin(t * 3.1 + stueck.phase)) * 0.035;
+        const stoss = stueck.reihe === 0 ? gefecht : gefecht * 0.35;
+        stueck.rz = Math.sin(t * 5.5 + stueck.phase) * 0.14 * stoss;
       }
+      setzeInstanz(stueck);
       continue;
     }
-    const p = Math.min(1, (t - gefallen) / FALLZEIT);
+    const p = Math.min(1, (t - stueck.gefallen) / FALLZEIT);
     const weich = p * p;
-    if (schiff) {
+    if (stueck.schiff) {
       // Ein Wrack legt sich auf die Seite und geht unter.
-      stueck.rotation.z = weich * 1.3;
-      stueck.position.y = -weich * 1.1;
-      stueck.visible = p < 1;
+      stueck.rz = weich * 1.3;
+      stueck.y = -weich * 1.1;
+      stueck.sichtbar = p < 1;
     } else {
-      stueck.rotation.z = weich * (Math.PI / 2);
-      stueck.position.y = hoehe / 2 - weich * (hoehe / 2 - 0.1);
-      // Ein wenig zur Seite, damit die Gefallenen nicht in der Reihe liegen.
-      stueck.position.z = z + weich * 0.35;
+      stueck.rz = weich * (Math.PI / 2) * stueck.seite;
+      // Der Gefallene sinkt zu Boden - und wer auf der Mauer stand, stürzt
+      // von ihr herunter.
+      stueck.y = stueck.grund * (1 - weich) - weich * 0.06;
     }
+    setzeInstanz(stueck);
   }
 }
 
@@ -331,15 +822,28 @@ export function playBattle(canvas, report, hooks = {}) {
 
   schauRenderer = makeRenderer(canvas);
   schauScene = new THREE.Scene();
-  schauScene.background = new THREE.Color(0x1c1712);
-  schauScene.fog = new THREE.Fog(0x1c1712, 55, 130);
-  makeLights(schauScene);
+  // Das Wetter des Feldzugs steht auch über der Schlacht: es färbt den
+  // Himmel, zieht den Dunst näher heran und schickt seine Tropfen.
+  const wetterBild = SCHAU_WETTER[weatherInfo(report.weatherKey).effect] || null;
+  // Bei klarem Wetter ein dunstiger Tageshimmel: derselbe Ton wie der Nebel,
+  // damit die Ebene am Horizont in ihn übergeht statt an einer Kante zu enden.
+  const himmel = new THREE.Color(wetterBild ? wetterBild.himmel : '#93a9ba');
+  const dunst = wetterBild ? wetterBild.nebel : [55, 130];
+  schauScene.background = himmel;
+  schauScene.fog = new THREE.Fog(himmel.getHex(), dunst[0], dunst[1]);
+  makeLights(schauScene, wetterBild);
   schauScene.add(makeGround(report.terrainType, report.naval));
+  // Wald, Hügel, Dünen: die Landschaft, in der gefochten wird - immer am
+  // Rand, nie zwischen den Linien.
+  schauScene.add(makeField(report.terrainType, report.naval));
+  const wetter = makeSchauWetter(wetterBild);
+  if (wetter) schauScene.add(wetter);
 
   const angreiferFarbe = hooks.attackerColor || '#c0392b';
   const verteidigerFarbe = hooks.defenderColor || '#3f6fa8';
 
   const zurSee = !!report.naval;
+  const treffen = zurSee ? CLASH_GAP_SEE : CLASH_GAP;
   const angreifer = makeFormation(report.attackerEngaged || {},
     report.attackerFactionId, angreiferFarbe, -1, zurSee);
   const verteidiger = makeFormation(report.defenderEngaged || {},
@@ -367,13 +871,29 @@ export function playBattle(canvas, report, hooks = {}) {
   if (pfeileD) schauScene.add(pfeileD);
 
   let wall = null;
+  let leitern = null;
   if ((report.wallMultiplier || 1) > 1) {
     // Holz für die Palisade, Quaderstein für die Mauer - dieselbe Unter-
     // scheidung wie auf der Karte.
     wall = makeWall(report.wallMultiplier,
       report.wallMultiplier >= 2 ? '#9c968a' : '#6f5433');
-    wall.position.x = CLASH_GAP + 0.9;
+    // Die Mauer steht dicht vor der Verteidigerlinie - der Angreifer
+    // rennt gegen sie an, nicht gegen die Männer dahinter.
+    wall.position.x = treffen - 0.7;
     schauScene.add(wall);
+    // Und die Leitern, mit denen der Angreifer hinaufwill.
+    leitern = makeLadders(wall.userData.hoehe);
+    leitern.position.x = wall.position.x;
+    schauScene.add(leitern);
+    // Die vorderen Glieder des Verteidigers stehen auf dem Wehrgang - über
+    // der Brüstung, sichtbar, und mit dem weiten Weg nach unten.
+    for (const stueck of verteidiger.bloecke) {
+      if (stueck.reihe <= 1 && !stueck.schiff) {
+        stueck.grund = wall.userData.gang;
+        stueck.y = stueck.grund;
+        setzeInstanz(stueck);
+      }
+    }
   }
 
   schauCamera = new THREE.PerspectiveCamera(42, 16 / 9, 0.5, 320);
@@ -406,7 +926,7 @@ export function playBattle(canvas, report, hooks = {}) {
   // Schlacht gibt niemanden zurück.
   const zeige = (bloecke, wieViele, t) => {
     for (let i = wieViele; i < bloecke.length; i++) {
-      if (!bloecke[i].userData.gefallen) bloecke[i].userData.gefallen = t;
+      if (!bloecke[i].gefallen) bloecke[i].gefallen = t;
     }
   };
 
@@ -418,11 +938,16 @@ export function playBattle(canvas, report, hooks = {}) {
     // 1. Aufmarsch: beide Linien gehen aufeinander zu.
     const marsch = Math.min(1, t / T_MARCH);
     const weich = marsch * marsch * (3 - 2 * marsch);
-    const abstand = START_GAP + (CLASH_GAP - START_GAP) * weich;
+    const abstand = START_GAP + (treffen - START_GAP) * weich;
     angreifer.group.position.x = -abstand;
-    verteidiger.group.position.x = abstand;
+    // Wer hinter einer Mauer steht, marschiert nicht: er steht schon, wo er
+    // hingehört, und wartet.
+    verteidiger.group.position.x = wall ? treffen : abstand;
 
     // 2. Die Runden: je Runde ein Ruck nach vorn und die Verluste danach.
+    // `gefecht` sagt den Gestalten, ob gerade gefochten wird - dann stoßen
+    // sie zu, sonst stehen sie ruhig.
+    let gefecht = 0;
     const nachMarsch = Math.max(0, t - T_MARCH);
     const rundenIndex = Math.min(buch.runden.length - 1,
       Math.floor(nachMarsch / T_ROUND));
@@ -431,8 +956,9 @@ export function playBattle(canvas, report, hooks = {}) {
       const inRunde = (nachMarsch % T_ROUND) / T_ROUND;
       // Der Zusammenprall: ein kurzer Stoß aufeinander zu und zurück.
       const stoss = Math.sin(Math.min(1, inRunde * 2.2) * Math.PI) * 1.5;
+      gefecht = Math.min(1, stoss / 1.1);
       angreifer.group.position.x = -abstand + stoss;
-      verteidiger.group.position.x = abstand - stoss;
+      if (!wall) verteidiger.group.position.x = abstand - stoss;
       // Die Verluste dieser Runde erscheinen in ihrer zweiten Hälfte.
       const anteil = Math.max(0, Math.min(1, (inRunde - 0.45) / 0.4));
       const vorherA = rundenIndex > 0 ? buch.runden[rundenIndex - 1].angreiferLinks : startA;
@@ -471,12 +997,16 @@ export function playBattle(canvas, report, hooks = {}) {
     if (t > nachRunden) {
       const flucht = Math.min(1, (t - nachRunden) / T_END);
       const weg = flucht * 16;
+      // Wer flieht, steht nicht mehr auf der Mauer.
+      if (wall && sieger === 'attacker') {
+        for (const stueck of verteidiger.bloecke) stueck.grund = 0;
+      }
       if (sieger === 'attacker') {
-        verteidiger.group.position.x = CLASH_GAP + weg;
-        angreifer.group.position.x = -CLASH_GAP + weg * 0.35;
+        verteidiger.group.position.x = treffen + weg;
+        angreifer.group.position.x = -treffen + weg * 0.35;
       } else {
-        angreifer.group.position.x = -CLASH_GAP - weg;
-        verteidiger.group.position.x = CLASH_GAP - weg * 0.35;
+        angreifer.group.position.x = -treffen - weg;
+        verteidiger.group.position.x = treffen - weg * 0.35;
       }
       if (!fertig && flucht >= 1) {
         fertig = true;
@@ -484,9 +1014,10 @@ export function playBattle(canvas, report, hooks = {}) {
       }
     }
 
-    // Was gefallen ist, kippt um; was auf See schwimmt, schaukelt.
-    updateFallen(angreifer.bloecke, t);
-    updateFallen(verteidiger.bloecke, t);
+    // Was gefallen ist, kippt um; was auf See schwimmt, schaukelt; wer
+    // ficht, stößt zu.
+    updateFallen(angreifer.bloecke, t, gefecht);
+    updateFallen(verteidiger.bloecke, t, gefecht);
     // Die Fahne des Geschlagenen senkt sich am Ende.
     const senken = (fahne, fallen) => {
       const tuch = fahne.userData.tuch;
@@ -498,12 +1029,28 @@ export function playBattle(canvas, report, hooks = {}) {
     senken(fahneA, sieger === 'attacker' ? 0 : fallen);
     senken(fahneD, sieger === 'defender' ? 0 : fallen);
 
-    // Eine ruhige Kamera: sie steht schräg über dem Feld und schwenkt nur
-    // wenig. Eine Fahrt rundherum wäre hübsch und würde den Blick auf das
-    // Wesentliche - wer noch steht - jede Sekunde ändern.
-    const schwenk = Math.sin(t * 0.16) * 0.22;
-    const hoehe = 9.5 + Math.min(t, 8) * 0.3;
-    schauCamera.position.set(Math.sin(schwenk) * 22, hoehe, Math.cos(schwenk) * 22);
+    // Das Wetter zieht weiter, gleichgültig wie es steht.
+    if (wetter) treibeWetter(wetter, t);
+    // Die Leitern gehen hoch, sobald das Handgemenge beginnt.
+    if (leitern) leitern.visible = t > T_MARCH * 0.9;
+
+    // Die Kamera geht mit: beim Aufmarsch steht sie weit weg und zeigt beide
+    // Linien, beim Zusammenprall rückt sie heran - nah genug, dass man die
+    // Gestalten unterscheidet -, und wenn der Verlierer flieht, weicht sie
+    // zurück, damit man sieht, wohin. Ein Schwenk rundherum wäre hübsch und
+    // würde den Blick auf das Wesentliche jede Sekunde ändern; also nur ein
+    // langsames Wiegen.
+    const heran = Math.max(0, Math.min(1, (t - T_MARCH * 0.5) / (T_MARCH * 0.9)));
+    const zurueck = Math.max(0, Math.min(1, (t - nachRunden) / T_END));
+    const ferne = 26 - 6.5 * heran + 8 * zurueck;
+    // Über einer Mauer steht die Kamera höher: sonst sieht man vom
+    // Verteidiger nur die Brüstung, hinter der er steht.
+    const hoehe = 10.2 - 2.8 * heran + 3.4 * zurueck + (wall ? 3.4 : 0);
+    // Vor einer Mauer tritt die Kamera auf die Seite des Angreifers: von
+    // genau der Seite gesehen liefe die Mauer als Zaun in den Vordergrund und
+    // stünde vor allem, was dahinter geschieht.
+    const schwenk = Math.sin(t * 0.16) * 0.22 - (wall ? 0.6 : 0);
+    schauCamera.position.set(Math.sin(schwenk) * ferne, hoehe, Math.cos(schwenk) * ferne);
     schauCamera.lookAt(blick);
 
     schauRenderer.render(schauScene, schauCamera);

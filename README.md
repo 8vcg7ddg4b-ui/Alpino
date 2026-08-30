@@ -249,6 +249,51 @@ den Punkten durchblättern.
   - **Gefallene bleiben liegen**: Ein Block, der fällt, kippt zur Seite und
     sinkt ein, statt einfach zu verschwinden. Am Ende liegt auf dem Feld, was
     die Schlacht gekostet hat.
+
+  Die **dritte Ausbaustufe** macht aus dem Schaubild eine Schlacht:
+  - **Gestalten statt Klötze**: Auf dem Feld steht keine Reihe von Quadern
+    mehr, sondern eine Reihe von Männern – Fußvolk mit Schild und Speer,
+    Schützen mit dem Bogen, die Stadtwache hinter dem großen Schild, Reiter zu
+    Pferd mit der Lanze. Keiner steht wie der andere: Platz, Drehung und Größe
+    schwanken ein wenig. Wer ficht, stößt zu; wer fällt, kippt zur Seite. Damit
+    das bezahlbar bleibt, wird jede Gattung aus ihren Teilen zu **einer**
+    Geometrie verschmolzen und als Instanzenwolke gezeichnet – hundert
+    Fußsoldaten kosten einen Zeichenaufruf.
+  - **Die Linien berühren sich**: Der Abstand, in dem die Fronten
+    zusammentreffen, ist von 3,6 auf 1,6 zusammengezogen. Zwischen Quadern
+    durfte eine Lücke bleiben, Männer, die sich mit dem Speer erreichen sollen,
+    müssen dicht aneinanderstehen.
+  - **Das Gelände steht da**: Bisher war das Schlachtfeld eine eingefärbte
+    Fläche. Jetzt steht im **Wald** der Wald, in den **Hügeln** ziehen sich
+    Kuppen hinter der Linie hin, in der **Wüste** liegen Dünen und Steine, im
+    **Gebirge** stehen Felsen, in der **Ebene** Büsche und ein einzelner Baum.
+    Alles bleibt am Rand – hinter den Linien und weit auf den Flanken –, denn
+    was zählt, ist, wer noch steht, und davor darf kein Baum stehen. Das
+    Gelände ist für dieselbe Schlacht immer dasselbe.
+  - **Das Wetter des Feldzugs steht über der Schlacht**: Sagt der Bericht, es
+    habe geregnet und deshalb keine Salve gegeben, dann regnet es hier auch.
+    Regen, Sturm, Schnee, Sandsturm und Gluthitze bringen ihre Tropfen, Flocken
+    und Böen mit, färben den Himmel und ziehen den Dunst näher heran; Nebel und
+    Wolken tun das ohne Niederschlag. Bei klarem Wetter steht ein dunstiger
+    Tageshimmel über dem Feld, in den die Ebene am Horizont übergeht.
+  - **Der Sturm auf die Mauer**: Aus dem Riegel aus Kästen ist eine
+    Befestigung geworden – die **Palisade** eine Reihe gespitzter Stämme, die
+    **Stadtmauer** ein durchgehender Quaderriegel mit Zinnenkranz, zwei Türmen
+    und einem Tor aus Bohlen. Der Angreifer läuft nicht mehr gegen die Männer
+    dahinter an, sondern **gegen die Mauer**, und legt seine **Leitern** an,
+    sobald das Handgemenge beginnt. Der Verteidiger marschiert nicht auf: er
+    steht schon, und zwar auf dem **Wehrgang** hinter der Brüstung, sichtbar
+    über der Mauer. Wer dort fällt, stürzt hinunter; wer flieht, kommt herab.
+  - **Die Kamera geht mit**: Beim Aufmarsch steht sie weit weg und zeigt beide
+    Linien, beim Zusammenprall **rückt sie heran** – nah genug, dass man die
+    Gestalten unterscheidet –, und wenn der Verlierer flieht, weicht sie
+    zurück, damit man sieht, wohin. Vor einer Mauer tritt sie auf die Seite des
+    Angreifers und höher, sonst liefe die Mauer als Zaun in den Vordergrund und
+    stünde vor allem, was dahinter geschieht.
+  - **Schiffe mit Rammsporn und Riemen**: Zur See haben die Modelle Heck,
+    Steuerruder, sieben Riemen je Seite, eine Rah am Mast und den **Rammsporn**
+    dicht über der Wasserlinie, mit dem die meisten Seeschlachten dieser Zeit
+    endeten.
 - **Vier Schiffsarten, bis zu drei je Fraktion**: die **Quinquereme** mit Turm
   und Enterbrücke (50/52, 220 Gold) – schwer und im Rammstoß überlegen; die
   **Triere**, das Arbeitspferd jeder Flotte (46/45, 190 Gold) – wendig genug zum
@@ -1177,7 +1222,25 @@ den Punkten durchblättern.
   Häuser in zwei weiteren Ringen und einen **Tempel**. Der Mauerring wächst mit
   der Ausbreitung mit, die Häuser darin nicht. Dasselbe gilt für alles, was um
   einen Ort herum steht: **Hafensteg, Äcker, Viadukt und Fördergerüst haben in
-  jedem Ort dieselbe Größe**. **Jede Fraktion beginnt mit denselben fünf Orten**: der
+  jedem Ort dieselbe Größe**.
+  **Dieser Maßstab gilt jetzt für die ganze Karte**, nicht mehr nur für die
+  Orte. Gemessen wird alles am Haus, und das Haus ist die Eins:
+
+  | Ding | Höhe | woran man es sieht |
+  | --- | --- | --- |
+  | Haus, Hütte | 1,0 | der Maßstab selbst |
+  | Baum | 2,2 | gut doppelt so hoch wie ein Haus |
+  | Zelt eines Heeres | 0,8 | ein Zelt ist kein Haus |
+  | Mann in der Kolonne | 0,5 | halb so hoch wie ein Haus |
+  | Erzbrocken | 0,45 | ein Brocken, kein Findling |
+  | Bergkegel | 1–3 | nach der Höhe des Feldes |
+
+  Vorher hatte jedes dieser Dinge sein eigenes Maß, das irgendwann einmal gut
+  ausgesehen hatte: Wälder standen als Büschel neben Städten, die größer waren
+  als sie, und ein marschierendes Heer war fast so hoch wie das Dorf, an dem es
+  vorbeizog. Jetzt überragt ein Wald die Häuser, ein Lager duckt sich neben
+  den Ort, und eine Kolonne ist ein Zug kleiner Gestalten. Man sieht einem
+  Bildausschnitt an, wie groß das ist, was darin steht. **Jede Fraktion beginnt mit denselben fünf Orten**: der
   Hauptstadt als Große Stadt, zwei Städten und zwei Dörfern. Wo einer sitzt,
   sagt die Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt
   reicher als das andere. **27 Orte gehören niemandem** und sind frei zu
@@ -1235,8 +1298,9 @@ den Punkten durchblättern.
 - `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
   3D-Objekte, isometrische Kamera (Pan/Zoom), Raycasting-Feldauswahl
 - `js/battle3d.js` – das Schaubild der Schlacht: eigene Szene, eigener
-  Renderer, Klötze statt Modelle. Spielt Runde für Runde nach, was der
-  Schlachtbericht schon enthält, und würfelt nichts eigenes
+  Renderer, Gestalten als Instanzenwolken, dazu Gelände, Wetter, Mauer mit
+  Wehrgang und Leitern. Spielt Runde für Runde nach, was der Schlachtbericht
+  schon enthält, und würfelt nichts eigenes
 - `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
 - `js/weather.js` – Kalender, Klimazonen, Wettertypen und ihre Regelwirkung
 - `js/anthems.js` – die Partituren der sechzehn Fraktionen: Leitern, Grundtöne,

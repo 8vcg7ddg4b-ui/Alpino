@@ -343,8 +343,10 @@ function collectTree(props, col, row, rng) {
   const topY = groundY(col + jx, row + jz) - 0.1;
   const x = worldX(col) + jx * TILE_SIZE;
   const z = worldZ(row) + jz * TILE_SIZE;
-  props.trunks.push({ x, y: topY + 0.55 * scale, z, s: scale, r: 0 });
-  props.leaves.push({ x, y: topY + 1.9 * scale, z, s: scale, r: rng() * Math.PI });
+  // Stamm und Krone stehen im Maßstab der Häuser: ein Baum ist etwa doppelt
+  // so hoch wie ein Haus, nicht höher als ein ganzes Dorf.
+  props.trunks.push({ x, y: topY + 0.35 * scale, z, s: scale, r: 0 });
+  props.leaves.push({ x, y: topY + 1.45 * scale, z, s: scale, r: rng() * Math.PI });
 }
 
 // Peaks scale with how high the underlying crest already is, so a tile on the
@@ -357,7 +359,9 @@ function collectPeak(props, col, row, elevation, rng) {
   for (let i = 0; i < count; i++) {
     const jx = (rng() - 0.5) * 0.75;
     const jz = (rng() - 0.5) * 0.75;
-    const height = (1.1 + prominence * 3.4) * (0.55 + rng() * 0.75);
+    // Die Höhe trägt der Berg selbst - der Kegel ist nur seine Spitze und
+    // steht im selben Maßstab wie alles andere.
+    const height = (0.8 + prominence * 2.1) * (0.55 + rng() * 0.75);
     const snowy = prominence > 0.55 && rng() < 0.55 + prominence * 0.4;
     // Der Fuß des Kegels steckt ein Stück im Hang: am Rand eines Gebirgsfelds
     // fällt das Gelände steil ab, und ein Kegel auf der Höhe der Feldmitte
@@ -444,12 +448,12 @@ function collectOre(state, props) {
 function buildProps(props) {
   // Der aufgebrochene Fels und die Ader darin.
   addInstanced(
-    new THREE.DodecahedronGeometry(0.7, 0),
+    new THREE.DodecahedronGeometry(ORE_SIZE, 0),
     new THREE.MeshStandardMaterial({ color: '#5c5a55', flatShading: true, roughness: 1 }),
     props.oreRock
   );
   addInstanced(
-    new THREE.OctahedronGeometry(0.7, 0),
+    new THREE.OctahedronGeometry(ORE_SIZE, 0),
     new THREE.MeshStandardMaterial({
       color: '#d8a441', flatShading: true, roughness: 0.35, metalness: 0.6,
       emissive: '#4a3208', emissiveIntensity: 0.4,
@@ -457,12 +461,12 @@ function buildProps(props) {
     props.oreVein
   );
   addInstanced(
-    new THREE.CylinderGeometry(0.18, 0.24, 1.1, 6),
+    new THREE.CylinderGeometry(0.11, 0.15, TREE_HEIGHT * 0.32, 6),
     new THREE.MeshStandardMaterial({ color: '#5b3a22', roughness: 1 }),
     props.trunks
   );
   addInstanced(
-    new THREE.ConeGeometry(1.1, 2.4, 7),
+    new THREE.ConeGeometry(TREE_HEIGHT * 0.27, TREE_HEIGHT * 0.72, 7),
     new THREE.MeshStandardMaterial({ color: '#2f6b34', roughness: 0.9 }),
     props.leaves
   );
@@ -1916,6 +1920,24 @@ function addStandard(group, tinted, height, bannerWidth) {
 // Stadt sechsundzwanzig und dazu einen Tempel.
 const BUILD_SCALE = 0.68;
 
+// --- Der Maßstab der ganzen Welt ------------------------------------------
+// Alles auf der Karte misst sich am selben Haus. Ein Haus ist rund eine
+// Einheit hoch; daran hängen die übrigen Größen:
+//
+//   Haus / Hütte        1,0   (der Maßstab selbst)
+//   Baum                2,2   - doppelt so hoch wie ein Haus
+//   Zelt eines Heeres   0,8   - ein Zelt ist kein Haus
+//   Mann in der Kolonne 0,5   - halb so hoch wie ein Haus
+//   Erzbrocken          0,45  - ein Felsstück, kein Findling
+//   Bergkegel           1..3  - der Berg selbst trägt die Höhe, nicht der Kegel
+//
+// Vorher hatte jede dieser Größen ihre eigene Geschichte: ein einzelner Baum
+// war höher als ein ganzes Dorf, und ein Zelt überragte das Haus daneben.
+const TREE_HEIGHT = 2.2;
+const CAMP_TENT_HEIGHT = 0.8;
+const MARCHER_HEIGHT = 0.5;
+const ORE_SIZE = 0.45;
+
 // Wie weit sich ein Ort ausbreitet, steht bei den Siedlungsstufen in data.js
 // (`spread`): davon hängen der Mauerring, die Höhe des Namensschilds und die
 // Ringe ab, auf denen die Häuser stehen - nicht die Größe der Häuser selbst.
@@ -2840,21 +2862,21 @@ const COLUMN_MAX = 14;
 function buildColumn(color) {
   const group = new THREE.Group();
   const material = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
-  const koerper = new THREE.CylinderGeometry(0.3, 0.38, 1.05, 5);
-  const kopf = new THREE.SphereGeometry(0.22, 6, 5);
+  const koerper = new THREE.CylinderGeometry(0.17, 0.21, MARCHER_HEIGHT * 0.74, 5);
+  const kopf = new THREE.SphereGeometry(0.12, 6, 5);
   const marschierer = [];
   for (let i = 0; i < COLUMN_MAX; i++) {
     const mann = new THREE.Group();
     const rumpf = new THREE.Mesh(koerper, material);
-    rumpf.position.y = 0.52;
+    rumpf.position.y = MARCHER_HEIGHT * 0.37;
     mann.add(rumpf);
     const haupt = new THREE.Mesh(kopf, material);
-    haupt.position.y = 1.2;
+    haupt.position.y = MARCHER_HEIGHT * 0.86;
     mann.add(haupt);
     // Zwei Reihen nebeneinander, Glied für Glied nach hinten versetzt.
     const glied = Math.floor(i / 2);
-    const reihe = i % 2 ? 0.55 : -0.55;
-    mann.position.set(reihe, 0, -0.9 - glied * 1.05);
+    const reihe = i % 2 ? 0.3 : -0.3;
+    mann.position.set(reihe, 0, -0.55 - glied * 0.6);
     mann.userData = { phase: i * 0.7 };
     group.add(mann);
     marschierer.push(mann);
@@ -2962,14 +2984,16 @@ function syncArmyGroup(state, army, entry) {
     // Ring darum - und je mehr es werden, desto weiter wird der Ring.
     const big = idx === 0;
     const tent = new THREE.Mesh(
-      new THREE.ConeGeometry(big ? 0.72 : 0.5, big ? 1.5 : 1, 6),
+      // Ein Zelt ist niedriger als ein Haus - vorher überragte es jedes Dach.
+      new THREE.ConeGeometry(big ? 0.42 : 0.3,
+        big ? CAMP_TENT_HEIGHT : CAMP_TENT_HEIGHT * 0.7, 6),
       new THREE.MeshStandardMaterial({ color: faction.color })
     );
     const angle = ((idx - 1) / 7) * Math.PI * 2 + 0.4;
-    const radius = idx > 4 ? 1.85 : 1.15;
+    const radius = idx > 4 ? 1.2 : 0.72;
     tent.position.set(
       big ? 0 : Math.cos(angle) * radius,
-      big ? 0.75 : 0.5,
+      big ? CAMP_TENT_HEIGHT / 2 : (CAMP_TENT_HEIGHT * 0.7) / 2,
       big ? 0 : Math.sin(angle) * radius
     );
     tents.add(tent);
@@ -3726,7 +3750,7 @@ function setMarchBob(group, height, elapsed = 0) {
   if (!column || !column.visible) return;
   for (const mann of column.userData.marschierer) {
     if (!mann.visible) continue;
-    mann.position.y = Math.abs(Math.sin(elapsed * 9 + mann.userData.phase)) * 0.22;
+    mann.position.y = Math.abs(Math.sin(elapsed * 9 + mann.userData.phase)) * 0.12;
   }
 }
 
