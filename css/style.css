@@ -1351,6 +1351,26 @@ kbd {
 .mod-note.mod-sea { color: #9fd8e6; border-color: #3d6b78; }
 .mod-note.mod-front { color: #d8c6a8; border-color: #6b5b45; }
 .mod-note.mod-levy { color: #e0b98a; border-color: #6f5230; }
+/* Belagerungsgerät: dieselbe Farbfamilie wie die Mauer, nur eine Spur wärmer -
+   es gehört zur Mauer, es steht nur auf der anderen Seite. */
+.mod-note.mod-engine { color: #d8b06a; border-color: #7a5a26; }
+.engine-line strong { color: #e5c98a; }
+.engine-btn {
+  display: block;
+  width: 100%;
+  padding: 7px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-align: center;
+}
+.engine-btn:hover:not([disabled]) { border-color: var(--gold); }
+.engine-btn[disabled] { opacity: 0.45; cursor: default; }
+.engine-btn small { display: block; color: var(--muted); font-size: 0.72rem; }
 
 .odds-block { margin: 14px 0 10px; }
 

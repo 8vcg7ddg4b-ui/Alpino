@@ -1,7 +1,7 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost, shipTypesOf,
   wallLevelInfo, TRADE_ROUTE_COST, MINE_COST, SHIPYARD_COST, CAMP_COST,
-  BUILDINGS, buildingDef, FRONTAGE_BASE,
+  BUILDINGS, buildingDef, FRONTAGE_BASE, siegeEngineDef, engineCount,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
@@ -12,7 +12,7 @@ import {
   canBuildMine, buyMine, mineOre, buyShipyard,
   buyBuilding, canBuildBuilding, buildCamp, campStatus,
   besiegeCity, siegeStatus,
-  stoneTargets, upgradeRoad,
+  stoneTargets, upgradeRoad, buildSiegeEngine,
 } from './actions.js';
 import { borderViolation } from './territory.js';
 import {
@@ -475,6 +475,39 @@ function civicWish(state, faction, eigene, threats) {
   return null;
 }
 
+// --- Belagerungsgerät ------------------------------------------------------
+// Wer eine Mauer nehmen will, baut Gerät. Die KI zimmert eines, wenn sie ein
+// Heer in einer eigenen Stadt mit Kaserne stehen hat und in Reichweite eine
+// befestigte fremde Stadt liegt - und hört auf, sobald das Heer genug hat.
+const AI_ENGINE_TREASURY = 200;
+const AI_ENGINE_RANGE = 14;
+// So viele Stücke genügen der KI: mehr kostet Sold und Marschleistung.
+const AI_ENGINE_WANT = 3;
+
+function aiSiegeEngines(state, faction) {
+  const ziele = state.cities.filter((c) => c.factionId !== faction.id
+    && cityWallLevel(c) > 0 && atWar(state, faction.id, c.factionId));
+  if (!ziele.length) return false;
+  for (const army of state.armies) {
+    if (army.factionId !== faction.id || army.embarked || isFleet(army)) continue;
+    if (engineCount(army.engines) >= AI_ENGINE_WANT) continue;
+    const city = state.cities.find((c) => c.col === army.col && c.row === army.row
+      && c.factionId === faction.id && c.barracks);
+    if (!city) continue;
+    // Nur, wenn ein befestigtes Ziel überhaupt in erreichbarer Nähe liegt.
+    const nah = ziele.some((z) => Math.abs(z.col - army.col) + Math.abs(z.row - army.row)
+      <= AI_ENGINE_RANGE);
+    if (!nah) continue;
+    // Erst der Widder, dann das Katapult: der Widder nimmt der Mauer mehr.
+    const key = (army.engines && army.engines.ram) ? 'catapult' : 'ram';
+    const def = siegeEngineDef(key);
+    if (faction.gold < def.cost + AI_ENGINE_TREASURY) return true;
+    buildSiegeEngine(state, army.id, key);
+    return false;
+  }
+  return false;
+}
+
 function aiCivic(state, faction, threats) {
   const eigene = state.cities.filter((c) => c.factionId === faction.id);
   if (!eigene.length) return false;
@@ -894,8 +927,13 @@ export function aiTakeTurn(state, faction) {
     && aiCivic(state, faction, threats);
   const savingForMine = !savingForFleet && !savingForHarbour && !savingForCivic
     && aiMines(state, faction);
+  // Belagerungsgerät steht vor der eigenen Mauer, wenn ein Heer marschbereit
+  // vor einer fremden steht: eine Mauer, die man nicht nimmt, hält den Feldzug
+  // auf, eine eigene hält nur den eigenen Ort.
+  const savingForEngine = !savingForFleet && !savingForHarbour && !savingForCivic
+    && aiSiegeEngines(state, faction);
   const savingForWall = !savingForFleet && !savingForHarbour && !savingForMine
-    && !savingForCivic && aiWalls(state, faction, threats);
+    && !savingForCivic && !savingForEngine && aiWalls(state, faction, threats);
   const savingForRoad = !savingForHarbour && !savingForWall && !savingForMine
     && !savingForCivic && aiRoads(state, faction, savingForFleet);
   if (!savingForFleet && !savingForHarbour && !savingForWall && !savingForMine

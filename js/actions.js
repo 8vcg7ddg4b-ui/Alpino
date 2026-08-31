@@ -18,6 +18,8 @@ import {
   ROAD_EARTH, ROAD_STONE, roadLevelOf, stoneRoadCost, stoneRoadTurns,
   MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
   HUNT_RANGE, HUNT_GAME, HUNT_MIN_GAME, huntIncome, FISHERY_INCOME,
+  SIEGE_ENGINES, siegeEngineDef, SIEGE_ENGINE_MAX, SIEGE_ENGINE_MOVE,
+  engineCount, engineUpkeep, breachedWall, siegeVolley, siegeBreach,
   BUILDINGS, buildingDef, buildingName, growthFactor,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
@@ -219,6 +221,7 @@ function recordBattle(state, opts) {
   const {
     attackerFaction, defenderFaction, result, kind, city, col, row, combined,
     aftermath, naval, amphibious, weather, attackerExperience, defenderExperience,
+    engineSummary: gerät, engineBreach, wallBase, engines,
   } = opts;
   const report = {
     id: makeId('battle'),
@@ -256,6 +259,12 @@ function recordBattle(state, opts) {
     attackerEngagedShare: result.attackerEngagedShare,
     defenderEngagedShare: result.defenderEngagedShare,
     wallMultiplier: result.wallMultiplier,
+    // Was an Gerät davorstand und was es der Mauer genommen hat.
+    engineSummary: gerät || '',
+    engineBreach: engineBreach || 0,
+    wallBase: wallBase || result.wallMultiplier,
+    engines: engines || {},
+    siegeVolley: result.siegeVolley || 0,
     assaultScale: result.assaultScale,
     defenderMultiplier: result.defenderMultiplier,
     attackerMultiplier: result.attackerMultiplier,
@@ -349,6 +358,13 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
     amphibious,
     wallLevel,
     wallName: wallLevel ? wallLevelInfo(wallLevel).name : null,
+    // Was das Heer an Gerät mitführt und was es der Mauer nimmt - die Vorschau
+    // soll das nennen, sonst rechnet sie mit einer Zahl, die niemand sieht.
+    wallBase: wallDefenceMultiplier(wallLevel),
+    engineSummary: engineSummary(army.engines),
+    engineBreach: wallLevel ? siegeBreach(army.engines) : 0,
+    // Die Stückzahl selbst: das Schaubild stellt genau so viele auf das Feld.
+    engines: { ...(army.engines || {}) },
     weather: sky.weather,
     attackerExperience: army.experience || 0,
     defenceExperience,
@@ -365,7 +381,9 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       ...attackerOverrides,
       defenderMorale: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'morale'),
       defenderExhaustion: weightedCondition(defendingArmies, garrisonJoins ? city.garrison : null, 'exhaustion'),
-      wallMultiplier: wallDefenceMultiplier(wallLevel),
+      // Was von der Mauer übrig bleibt, wenn Gerät davorsteht.
+      wallMultiplier: breachedWall(wallDefenceMultiplier(wallLevel), army.engines),
+      siegeVolley: siegeVolley(army.engines),
       // Wer ein Lager stürmt, stürmt über Graben und Palisade - weniger als
       // eine Mauer, aber genug, dass es teuer wird.
       defenderMultiplier: !atSea && defendingArmies.some((a) => a.camp) ? CAMP_DEFENCE : 1,
@@ -482,6 +500,10 @@ export function previewTileCombat(state, armyId, destCol, destRow, sampleCount,
     naval: defence.atSea,
     amphibious: defence.amphibious,
     walled: defence.walled,
+    // Das Belagerungsgerät, das dieses Heer mitbringt.
+    engineSummary: defence.engineSummary,
+    engineBreach: defence.engineBreach,
+    wallBase: defence.wallBase,
     weather: defence.weather,
     attackerExperience: defence.attackerExperience,
     defenderExperience: defence.defenceExperience,
@@ -590,6 +612,11 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     if (awardExperience(army, result.outcome === 'attacker')) {
       promotions.push(army);
     }
+    // Was der Sturm dem Gerät gekostet hat - nur vor einer Mauer, im offenen
+    // Feld steht es hinten und kommt gar nicht erst zum Einsatz.
+    if ((defence.modifiers.wallMultiplier || 1) > 1) {
+      wearSiegeEngines(army, result.outcome === 'attacker');
+    }
     for (const defender of defendingArmies) {
       adjustExhaustion(defender, EXHAUSTION_PER_BATTLE);
       adjustMorale(defender, result.outcome === 'defender' ? MORALE_AFTER_WIN : MORALE_AFTER_LOSS);
@@ -653,6 +680,10 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       weather: defence.weather,
       attackerExperience: defence.attackerExperience,
       defenderExperience: defence.defenceExperience,
+      engineSummary: defence.engineSummary,
+      engineBreach: defence.engineBreach,
+      wallBase: defence.wallBase,
+      engines: defence.engines,
       aftermath,
     }));
   }
@@ -665,7 +696,8 @@ export function resolveTileCombat(state, army, destCol, destRow) {
         attackerExhaustion: army.exhaustion,
         defenderMorale: GARRISON_MORALE,
         defenderExhaustion: GARRISON_EXHAUSTION,
-        wallMultiplier: wallDefenceMultiplier(cityWallLevel(city)),
+        wallMultiplier: breachedWall(wallDefenceMultiplier(cityWallLevel(city)), army.engines),
+        siegeVolley: siegeVolley(army.engines),
         attackerFactionId: army.factionId,
         defenderFactionId: city.factionId,
       });
@@ -673,11 +705,16 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       adjustExhaustion(army, EXHAUSTION_PER_BATTLE);
       adjustMorale(army, result.outcome === 'attacker' ? MORALE_AFTER_WIN : MORALE_AFTER_LOSS);
       if (awardExperience(army, result.outcome === 'attacker')) promotions.push(army);
+      if (cityWallLevel(city) > 0) wearSiegeEngines(army, result.outcome === 'attacker');
       if (result.outcome === 'attacker') {
         capturedCity = true;
         reports.push(recordBattle(state, {
           attackerFaction, defenderFaction, result, kind: 'city', city,
           col: destCol, row: destRow,
+          engineSummary: engineSummary(army.engines),
+          engineBreach: siegeBreach(army.engines),
+          wallBase: wallDefenceMultiplier(cityWallLevel(city)),
+          engines: { ...(army.engines || {}) },
           aftermath: { fate: 'cityFell', garrisonCaptured: unitTotalCount(result.defenderSurvivors) },
         }));
       } else {
@@ -685,7 +722,12 @@ export function resolveTileCombat(state, army, destCol, destRow) {
         bounced = true;
         reports.push(recordBattle(state, {
           attackerFaction, defenderFaction, result, kind: 'city', city,
-          col: destCol, row: destRow, aftermath: { fate: 'held' },
+          col: destCol, row: destRow,
+          engineSummary: engineSummary(army.engines),
+          engineBreach: siegeBreach(army.engines),
+          wallBase: wallDefenceMultiplier(cityWallLevel(city)),
+          engines: { ...(army.engines || {}) },
+          aftermath: { fate: 'held' },
         }));
       }
     } else {
@@ -786,6 +828,18 @@ export function mergeArmies(state, mover, host) {
   }
   for (const key of COMBAT_ROLES) {
     if (mover.units[key]) host.units[key] = (host.units[key] || 0) + mover.units[key];
+  }
+  // Und das Gerät zieht mit - bis zur Obergrenze; was darüber hinausgeht,
+  // bleibt zurück. Mehr als sechs Stücke schleppt kein Heer.
+  if (engineCount(mover.engines)) {
+    host.engines = host.engines || {};
+    for (const def of SIEGE_ENGINES) {
+      const dazu = (mover.engines[def.key] || 0);
+      if (!dazu) continue;
+      const platz = SIEGE_ENGINE_MAX - engineCount(host.engines);
+      if (platz <= 0) break;
+      host.engines[def.key] = (host.engines[def.key] || 0) + Math.min(platz, dazu);
+    }
   }
   // Das vereinigte Heer hat den Marsch des Zuziehenden in den Knochen.
   host.movement = Math.min(host.movement, mover.movement);
@@ -1086,6 +1140,70 @@ export function reinforceArmy(state, armyId, unitKey) {
   logOwn(state, faction.id, `${RECRUIT_BATCH} ${def.name} verstärken ${army.name} in ${city.name} `
     + `– ${leute} Einwohner weniger.`);
   return { ok: true, pop: leute };
+}
+
+// --- Belagerungsgerät ------------------------------------------------------
+// Gezimmert wird es in einer Stadt mit Kaserne, und es geht an das Heer, das
+// dort steht - wie eine Verstärkung, nur dass keine Menschen dafür gebraucht
+// werden, sondern Balken, Eisen und Seil. Deshalb kostet es Gold und Sold,
+// aber keine Einwohner.
+export function canBuildEngine(state, armyId, key) {
+  const army = state.armies.find((a) => a.id === armyId);
+  const def = siegeEngineDef(key);
+  if (!army || !def) return { ok: false, reason: 'unknown' };
+  if (army.embarked) return { ok: false, reason: 'atSea' };
+  if (isFleet(army)) return { ok: false, reason: 'fleet' };
+  const city = cityAt(state, army.col, army.row);
+  if (!city || city.factionId !== army.factionId) return { ok: false, reason: 'noCity' };
+  if (!city.barracks) return { ok: false, reason: 'noBarracks' };
+  if (citySieged(state, city)) return { ok: false, reason: 'siege' };
+  if (engineCount(army.engines) >= SIEGE_ENGINE_MAX) return { ok: false, reason: 'full' };
+  const faction = factionById(state, army.factionId);
+  if (!faction || faction.isNeutral) return { ok: false, reason: 'neutral' };
+  if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
+  return { ok: true, city, def, faction };
+}
+
+export function buildSiegeEngine(state, armyId, key) {
+  const pruef = canBuildEngine(state, armyId, key);
+  if (!pruef.ok) return pruef;
+  const army = state.armies.find((a) => a.id === armyId);
+  const { city, def, faction } = pruef;
+  faction.gold -= def.cost;
+  army.engines = army.engines || {};
+  army.engines[key] = (army.engines[key] || 0) + 1;
+  // Zimmern kostet den Tag: das Heer zieht in dieser Runde nicht mehr.
+  army.movement = 0;
+  logOwn(state, faction.id, `In ${city.name} wird ein ${def.name} für ${army.name} `
+    + `gezimmert – ${def.cost} Gold.`);
+  return { ok: true, def };
+}
+
+// Was ein Heer an Gerät mit sich führt, in Worten: „2 Widder, 1 Katapult".
+export function engineSummary(engines) {
+  if (!engineCount(engines)) return '';
+  return SIEGE_ENGINES
+    .filter((def) => engines[def.key])
+    .map((def) => `${engines[def.key]} ${def.name}`)
+    .join(', ');
+}
+
+// Was der Sturm dem Gerät kostet. Ein Widder am Tor steht im Feuer, ein
+// Katapult wird gestürmt: nach jedem Sturm auf eine Mauer geht ein Teil zu
+// Bruch, und wer den Sturm verliert, lässt fast alles davor liegen.
+export function wearSiegeEngines(army, gewonnen, rng = Math.random) {
+  if (!army || !engineCount(army.engines)) return 0;
+  const anteil = gewonnen ? 0.3 : 0.7;
+  let verloren = 0;
+  for (const def of SIEGE_ENGINES) {
+    const hat = army.engines[def.key] || 0;
+    let weg = 0;
+    for (let i = 0; i < hat; i++) if (rng() < anteil) weg++;
+    if (!weg) continue;
+    army.engines[def.key] = hat - weg;
+    verloren += weg;
+  }
+  return verloren;
 }
 
 export function raiseArmyFromGarrison(state, cityId) {
@@ -2047,7 +2165,8 @@ export function armyUpkeep(state, factionId) {
     .filter((a) => a.factionId === factionId)
     .reduce((sum, a) => sum + COMBAT_ROLES.reduce(
       (inner, role) => inner + (a.units[role] || 0) * unitDef(factionId, role).upkeep, 0
-    ), 0);
+    // Auch das Gerät will bezahlt sein: Zimmerleute, Zugtiere, Seil und Pech.
+    ) + engineUpkeep(a.engines), 0);
 }
 
 export function factionIncome(state, factionId) {
@@ -2510,8 +2629,16 @@ export function regenerateGarrisons(state) {
   }
 }
 
+// Wie weit ein Heer in dieser Runde kommt. Wer Belagerungsgerät mitführt,
+// kommt weniger weit: ein Widder auf Rädern macht keine Tagesmärsche.
+export function movementAllowance(army) {
+  if (!army) return 0;
+  const grund = army.maxMovement || 0;
+  return engineCount(army.engines) ? Math.round(grund * SIEGE_ENGINE_MOVE) : grund;
+}
+
 export function resetMovement(state) {
-  for (const army of state.armies) army.movement = army.maxMovement;
+  for (const army of state.armies) army.movement = movementAllowance(army);
 }
 
 export function checkVictory(state) {

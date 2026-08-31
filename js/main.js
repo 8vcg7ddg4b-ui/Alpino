@@ -18,6 +18,7 @@ import { pirateFleets } from './piraten.js';
 import { hordes } from './staemme.js';
 import {
   recruitUnit, raiseArmyFromGarrison, reinforceArmy, collectIncome, regenerateGarrisons,
+  buildSiegeEngine,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, upgradeRoad, advanceRoadConstruction, buildFleet,
@@ -1682,6 +1683,13 @@ function refresh() {
       (ok ? sfx.recruit : sfx.denied)();
       refresh();
     },
+    // Belagerungsgerät: gezimmert wird in der Stadt, mitgeführt vom Heer.
+    onEngine: (armyId, key) => {
+      pushUndo();
+      const ok = buildSiegeEngine(state, armyId, key).ok;
+      (ok ? sfx.wallBuy : sfx.denied)();
+      refresh();
+    },
     onDisband: (armyId) => {
       pushUndo();
       const result = disbandArmyIntoCity(state, armyId);
@@ -2523,6 +2531,10 @@ window.__audioProbe = audioProbe;
 // Augenblick aus? Nur für die Prüfläufe.
 window.__mapProbe = () => ({ marching: isAnimating() });
 window.__mapFrame = captureFrame;
+// Und der Spielstand selbst: ein Prüflauf soll eine Armee auswählen können,
+// ohne die richtige Stelle auf dem Bildschirm zu treffen.
+window.__spqrState = () => state;
+window.__spqrRefresh = () => refresh();
 
 startChronicle();
 // Der Weg ins Spiel führt über die Fraktionswahl.

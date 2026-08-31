@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.31.0';
+export const GAME_VERSION = '1.32.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -843,6 +843,93 @@ export function wallAssaultScale(role, wallMultiplier) {
   const hoechste = WALL_LEVELS[WALL_LEVELS.length - 1].defence;
   const anteil = Math.max(0, Math.min(1, (wallMultiplier - 1) / (hoechste - 1)));
   return stufe.start + (stufe.full - stufe.start) * anteil;
+}
+
+// --- Belagerungsgerät ------------------------------------------------------
+// Eine Steinmauer verdoppelt die Kraft dessen, der dahintersteht. Dagegen half
+// bisher nur, mehr Männer davorzustellen - und genau so wurden Belagerungen
+// gewonnen: mit Masse. Das ist nicht, wie es war. Wer eine Mauer nehmen wollte,
+// baute Gerät: einen Widder gegen das Tor, Katapulte gegen die Brüstung.
+//
+// Beides hängt am Heer, nicht am Ort: es wird in einer Stadt mit Kaserne
+// gezimmert und zieht mit. Was es kostet, ist nicht nur Gold - ein Heer mit
+// Gerät marschiert langsamer, weil ein Widder auf Rädern keine Tagesmärsche
+// macht, und im Sturm geht ein Teil davon zu Bruch.
+export const SIEGE_ENGINES = [
+  {
+    key: 'ram',
+    name: 'Widder',
+    icon: '🪵',
+    cost: 240,
+    upkeep: 5,
+    // Was ein Stück von dem wegnimmt, was die Mauer über 1 hinaus trägt.
+    bruch: 0.2,
+    salve: 0,
+    note: 'Ein eisenbeschlagener Balken unter einem Schutzdach: er geht gegen '
+      + 'das Tor, und ein Tor ist die schwächste Stelle jeder Mauer.',
+  },
+  {
+    key: 'catapult',
+    name: 'Katapult',
+    icon: '🎯',
+    cost: 300,
+    upkeep: 7,
+    bruch: 0.12,
+    // Und was es zur Eröffnungssalve beiträgt - ein Katapult schießt, ehe der
+    // erste Mann die Leiter berührt.
+    salve: 0.45,
+    note: 'Wirft Steine über die Brüstung. Nimmt der Mauer weniger als der '
+      + 'Widder, schießt dafür schon vor dem Sturm.',
+  },
+];
+
+export function siegeEngineDef(key) {
+  return SIEGE_ENGINES.find((e) => e.key === key) || null;
+}
+
+export const SIEGE_ENGINE_KEYS = SIEGE_ENGINES.map((e) => e.key);
+
+// So viele Stücke trägt ein Heer höchstens mit sich - mehr wäre ein Tross,
+// kein Heer.
+export const SIEGE_ENGINE_MAX = 6;
+
+// Und so viel kann Gerät von einer Mauer höchstens wegnehmen. Auch die beste
+// Belagerung macht aus einer Quadermauer kein offenes Feld.
+export const SIEGE_BREACH_CAP = 0.6;
+
+// Wie weit ein Heer mit Gerät noch kommt: vier Fünftel seiner Marschleistung.
+export const SIEGE_ENGINE_MOVE = 0.8;
+
+// Wie viele Stücke ein Heer hat.
+export function engineCount(engines) {
+  if (!engines) return 0;
+  return SIEGE_ENGINE_KEYS.reduce((sum, key) => sum + (engines[key] || 0), 0);
+}
+
+// Was das Gerät dieses Heeres von einer Mauer wegnimmt - 0 bis SIEGE_BREACH_CAP.
+export function siegeBreach(engines) {
+  if (!engines) return 0;
+  const roh = SIEGE_ENGINES.reduce((sum, def) => sum + (engines[def.key] || 0) * def.bruch, 0);
+  return Math.min(SIEGE_BREACH_CAP, roh);
+}
+
+// Und was es zur Eröffnungssalve beiträgt.
+export function siegeVolley(engines) {
+  if (!engines) return 0;
+  return SIEGE_ENGINES.reduce((sum, def) => sum + (engines[def.key] || 0) * def.salve, 0);
+}
+
+// Was von einer Mauer übrig bleibt, wenn Gerät davorsteht. Unter 1 geht es
+// nicht: eine Bresche macht aus der Mauer offenes Feld, nicht weniger.
+export function breachedWall(wallMultiplier, engines) {
+  if (!(wallMultiplier > 1)) return wallMultiplier;
+  return 1 + (wallMultiplier - 1) * (1 - siegeBreach(engines));
+}
+
+// Der Sold für das Gerät eines Heeres.
+export function engineUpkeep(engines) {
+  if (!engines) return 0;
+  return SIEGE_ENGINES.reduce((sum, def) => sum + (engines[def.key] || 0) * def.upkeep, 0);
 }
 
 // --- Frontbreite ----------------------------------------------------------

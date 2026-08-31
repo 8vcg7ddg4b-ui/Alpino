@@ -1466,23 +1466,41 @@ export function playBattle(canvas, report, hooks = {}) {
   // Es gehört zur Mauer: ohne sie steht nichts davon auf dem Feld. Der Widder
   // rollt an das Tor, der Turm an die Brüstung, das Katapult bleibt hinter
   // der eigenen Linie stehen und schießt.
-  let widder = null;
+  // Auf dem Feld steht genau das Gerät, das der Angreifer wirklich mitgebracht
+  // hat - nicht mehr eines von jeder Sorte, weil da eine Mauer ist. Wer ohne
+  // Widder gegen ein Tor läuft, sieht das jetzt auch.
+  const gerät = report.engines || {};
+  const widderZahl = Math.min(3, gerät.ram || 0);
+  const katapultZahl = Math.min(3, gerät.catapult || 0);
+  const widderListe = [];
+  const katapultListe = [];
   let turm = null;
-  let katapult = null;
   if (wall) {
-    widder = makeRam(1);
-    widder.rotation.y = 0;
-    schauScene.add(widder);
-    if ((report.wallMultiplier || 1) >= 2) {
+    for (let i = 0; i < widderZahl; i++) {
+      const stueck = makeRam(1);
+      stueck.rotation.y = 0;
+      // Nebeneinander vor dem Tor, nicht ineinander.
+      stueck.userData.seite = (i - (widderZahl - 1) / 2) * 3.6;
+      schauScene.add(stueck);
+      widderListe.push(stueck);
+    }
+    // Der Turm gehört zu einer Belagerung, die ihren Namen verdient: erst ab
+    // zwei Stücken Gerät und vor einer Mauer, die ihn nötig macht.
+    if ((report.wallMultiplier || 1) >= 1.7 && widderZahl + katapultZahl >= 2) {
       turm = makeSiegeTower(wall.userData.hoehe, 1);
       schauScene.add(turm);
     }
-    // Das Katapult steht auf der Flanke hinter der eigenen Linie - weit genug
-    // zurück, dass es niemandem im Weg steht, nah genug, dass man es sieht.
-    katapult = makeCatapult(1.35);
-    katapult.position.set(-START_GAP + 4, bodenY(-START_GAP + 4, -9.5), -9.5);
-    katapult.rotation.y = Math.PI;
-    schauScene.add(katapult);
+    // Die Katapulte stehen auf der Flanke hinter der eigenen Linie - weit
+    // genug zurück, dass sie niemandem im Weg stehen.
+    for (let i = 0; i < katapultZahl; i++) {
+      const stueck = makeCatapult(1.35);
+      const x = -START_GAP + 4 - i * 2.6;
+      const z = -9.5 - i * 2.2;
+      stueck.position.set(x, bodenY(x, z), z);
+      stueck.rotation.y = Math.PI;
+      schauScene.add(stueck);
+      katapultListe.push(stueck);
+    }
   }
 
   // Der Staub über der Kampflinie - in der Farbe des Bodens, auf dem
@@ -1635,26 +1653,30 @@ export function playBattle(canvas, report, hooks = {}) {
     }
 
     // --- Das Sturmgerät -----------------------------------------------------
-    if (widder) {
-      // Der Widder rollt in der ersten Runde an das Tor und schlägt dann zu.
-      const anfahrt = Math.min(1, Math.max(0, (t - T_MARCH * 0.4) / (T_MARCH * 1.2)));
+    for (let i = 0; i < widderListe.length; i++) {
+      const stueck = widderListe[i];
+      // Jeder Widder rollt in der ersten Runde an das Tor und schlägt dann zu.
+      const anfahrt = Math.min(1, Math.max(0, (t - T_MARCH * 0.4 - i * 0.2) / (T_MARCH * 1.2)));
       const ziel = wall.position.x - 2.1;
       const start = -START_GAP + 2;
-      widder.position.x = start + (ziel - start) * anfahrt;
-      widder.position.y = bodenY(widder.position.x, 0);
-      const schlag = anfahrt >= 1 ? Math.max(0, Math.sin(t * 2.6)) : 0;
-      widder.userData.widder.position.x = schlag * schlag * 0.9;
-      // Der Balken steht ganz vorn, wenn der Sinus seinen Scheitel hat - eine
-      // Viertelperiode nach dem Anfang jedes Schwungs.
-      if (anfahrt >= 1) {
-        const takt = Math.floor(t * 2.6 / (Math.PI * 2) - 0.25);
-        if (takt !== letzterWidder) {
-          letzterWidder = takt;
-          if (hooks.onRam) hooks.onRam();
+      stueck.position.x = start + (ziel - start) * anfahrt;
+      stueck.position.z = stueck.userData.seite;
+      stueck.position.y = bodenY(stueck.position.x, stueck.position.z);
+      // Sie schlagen nicht im Gleichtakt: das klänge nach einer Maschine.
+      const takt = 2.6 + i * 0.24;
+      const schlag = anfahrt >= 1 ? Math.max(0, Math.sin(t * takt)) : 0;
+      stueck.userData.widder.position.x = schlag * schlag * 0.9;
+      if (i === 0) {
+        if (anfahrt >= 1) {
+          const zaehler = Math.floor(t * takt / (Math.PI * 2) - 0.25);
+          if (zaehler !== letzterWidder) {
+            letzterWidder = zaehler;
+            if (hooks.onRam) hooks.onRam();
+          }
         }
+        // Und das Tor bebt unter dem Schlag des ersten.
+        wall.position.x = (treffen - 0.7) + schlag * schlag * 0.12;
       }
-      // Und das Tor bebt unter jedem Schlag.
-      wall.position.x = (treffen - 0.7) + schlag * schlag * 0.12;
     }
     if (turm) {
       const anfahrt = Math.min(1, Math.max(0, (t - T_MARCH) / (T_ROUND * 2.5)));
@@ -1664,13 +1686,13 @@ export function playBattle(canvas, report, hooks = {}) {
       turm.position.z = -5.5;
       turm.position.y = bodenY(turm.position.x, turm.position.z);
     }
-    if (katapult) {
-      // Ein Wurf alle paar Sekunden: der Arm holt aus und schnellt vor.
-      const takt = (t % 3.4) / 3.4;
-      katapult.userData.arm.rotation.z = takt < 0.75
+    katapultListe.forEach((stueck, i) => {
+      // Ein Wurf alle paar Sekunden, jedes für sich - sie laden nicht im Takt.
+      const takt = ((t + i * 1.1) % 3.4) / 3.4;
+      stueck.userData.arm.rotation.z = takt < 0.75
         ? -0.9 + takt * 0.4
         : -0.6 + (takt - 0.75) * 4.6;
-    }
+    });
     // Die Fahne des Geschlagenen senkt sich am Ende.
     const senken = (fahne, fallen) => {
       const tuch = fahne.userData.tuch;

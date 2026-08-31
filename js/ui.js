@@ -14,6 +14,7 @@ import {
   RIVER_CROSSING_COST,
   MINE_NAME, MINE_ORE, MINE_RANGE, MINE_MIN_ORE,
   FISHERY_NAME, HUNT_NAME, HUNT_GAME, HUNT_RANGE, HUNT_MIN_GAME, HUNT_GROWTH, huntIncome,
+  SIEGE_ENGINES, SIEGE_ENGINE_MAX, SIEGE_ENGINE_MOVE, engineCount, siegeBreach,
   BUILDINGS, buildingDef, buildingName, mineIncome, TAX_PER_INHABITANTS,
   repairCost, repairTurns,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
@@ -39,6 +40,7 @@ import {
   siegeStatus,
   tradeRouteRaided, tradeRouteBlockaded, blockadingFleets,
   mineOre, mineIncomeOf, huntGame, huntIncomeOf, canBuildBuilding, siegeInfo, citySieged,
+  engineSummary, movementAllowance,
   campStatus, campSiegeTarget, buildingPrice, buildingRuined, wallRuined, stoneTargets,
 } from './actions.js';
 import {
@@ -180,6 +182,14 @@ function modifierNotesHTML(info) {
     notes.push(`<span class="mod-note mod-wall">${
       escapeHTML(info.wallName || 'Befestigung')}: +${
       Math.round((info.wallMultiplier - 1) * 100)}% Verteidigung</span>`);
+  }
+  // Was das Gerät davor davon wieder wegnimmt - und was die Katapulte schießen.
+  if (info.engineSummary) {
+    notes.push(`<span class="mod-note mod-engine">🪵 ${escapeHTML(info.engineSummary)}: ${
+      info.engineBreach ? `die Mauer zählt nur noch +${
+        Math.round((info.wallMultiplier - 1) * 100)}% statt +${
+        Math.round((info.wallBase - 1) * 100)}%` : 'vor dem Sturm ohne Wirkung'}${
+      info.siegeVolley ? ' · und sie schießen in der ersten Runde' : ''}</span>`);
   }
   // Wer stürmt, tut das zu Fuß: die Reiterei kommt an einer Mauer kaum zur
   // Wirkung. Ohne diese Zeile sieht ein Reiterheer aus, als hätte es schlicht
@@ -387,6 +397,44 @@ function reinforceHTML(state, army, city) {
     : `👥 Aus ${escapeHTML(city.name)}: ${leute} Einwohner je Trupp.`}</p>`;
 }
 
+// --- Belagerungsgerät ------------------------------------------------------
+// Was ein Heer an Widdern und Katapulten mitführt, und wo es welche bekommt.
+// Der Knopf steht bei der Armee, nicht beim Ort: das Gerät zieht mit dem Heer,
+// und ein Ort, in dem gerade keines steht, hat nichts davon.
+function engineLineHTML(army) {
+  const zahl = engineCount(army.engines);
+  if (!zahl) return '';
+  const bruch = Math.round(siegeBreach(army.engines) * 100);
+  return `<p class="ti-line engine-line">🪵 Belagerungsgerät:
+    <strong>${escapeHTML(engineSummary(army.engines))}</strong>
+    <span class="muted">· nimmt einer Mauer ${bruch} % ihrer Wirkung ·
+      ${Math.round((1 - SIEGE_ENGINE_MOVE) * 100)} % weniger Bewegung</span></p>`;
+}
+
+function engineBuildHTML(state, army, city) {
+  const player = playerFaction(state);
+  if (army.embarked || isFleet(army)) return '';
+  if (!city || city.factionId !== army.factionId || army.factionId !== player.id) return '';
+  if (!city.barracks) return '';
+  const voll = engineCount(army.engines) >= SIEGE_ENGINE_MAX;
+  return `
+    <p class="road-head">🪵 Belagerungsgerät zimmern
+      <span class="muted">· höchstens ${SIEGE_ENGINE_MAX} Stück je Heer</span></p>
+    <div class="recruit-row">
+      ${SIEGE_ENGINES.map((def) => {
+    const tooPoor = player.gold < def.cost;
+    return `<button class="engine-btn" data-engine="${def.key}" data-army="${army.id}"
+        title="${escapeHTML(def.note)}" ${tooPoor || voll ? 'disabled' : ''}>
+        ${def.icon} ${escapeHTML(def.name)}<br><small>${def.cost} Gold ·
+          −${Math.round(def.bruch * 100)} % Mauer${def.salve ? ' · schießt' : ''}</small>
+      </button>`;
+  }).join('')}
+    </div>
+    <p class="wall-line muted recruit-note">${voll
+    ? '🪵 Mehr als sechs Stücke schleppt kein Heer.'
+    : 'Zimmern kostet den Tag: das Heer zieht in dieser Runde nicht mehr.'}</p>`;
+}
+
 // --- Das Lager -------------------------------------------------------------
 // Graben, Wall, Palisade - und vor einer fremden Stadt aufgeschlagen die
 // Belagerung selbst. Der Knopf steht bei der Armee, weil das Lager zu ihr
@@ -459,16 +507,18 @@ function renderSelectedArmy(state, army) {
       ${army.embarked
     ? `<span class="afloat-tag">⛵ ${isFleet(army) ? 'Flotte' : 'auf Transportern'}</span>`
     : ''}</h3>
-    <p class="muted">${escapeHTML(faction.name)} · Bewegung: ${army.movement} / ${army.maxMovement}</p>
+    <p class="muted">${escapeHTML(faction.name)} · Bewegung: ${army.movement} / ${movementAllowance(army)}</p>
     ${veterancyHTML(army)}
     <div class="cond-block">
       ${conditionBarHTML('Moral', army.morale ?? 100, MORALE_SCALE, 'morale')}
       ${conditionBarHTML('Erschöpfung', army.exhaustion ?? 0, EXHAUSTION_SCALE, 'fatigue')}
     </div>
     <div class="unit-list">${unitBreakdownHTML(army.units, army.factionId)}</div>
+    ${engineLineHTML(army)}
     ${siegeButtonHTML(state, army)}
     ${campHTML(state, army)}
     ${reinforceHTML(state, army, city)}
+    ${engineBuildHTML(state, army, city)}
     ${canDisband
       ? `<button class="disband-btn" data-army="${army.id}">🏰 In ${escapeHTML(city.name)} auflösen – Garnison verstärken
           ${experienceStars(army.experience)
@@ -1893,6 +1943,9 @@ export function renderUI(state, handlers) {
     }
     panel.querySelectorAll('.reinforce-btn:not([disabled])').forEach((btn) => {
       btn.addEventListener('click', () => handlers.onReinforce(btn.dataset.army, btn.dataset.unit));
+    });
+    panel.querySelectorAll('.engine-btn:not([disabled])').forEach((btn) => {
+      btn.addEventListener('click', () => handlers.onEngine(btn.dataset.army, btn.dataset.engine));
     });
   } else if (state.selectedCityId) {
     const city = state.cities.find((c) => c.id === state.selectedCityId);

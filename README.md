@@ -35,8 +35,10 @@ Amphoren, die Ptolemäer einen steinernen Sitz mit Palme, die Germanen einen
 geschnitzten Hochsitz mit Fellen.
 
 Links davon steht auf einem eigenen Podest die **Rüstung des Reiches** auf
-ihrem Bock: der Panzer, darüber der Helm, daneben der Schild mit dem Wappen und
-der Speer. Es ist das eine Stück im Zelt, an dem man sieht, wessen Heer man
+ihrem **Rüstungsständer**: dreibeiniger Fuß, gedrechselte Säule mit Wulst,
+darüber eine hölzerne Büste – Brustform, zwei Schulterstücke, Halsklotz. Darauf
+sitzt der Panzer, auf dem Halsklotz der Helm, daneben lehnen der Schild mit dem
+Wappen und der Speer. Es ist das eine Stück im Zelt, an dem man sieht, wessen Heer man
 führt – der Thron sagt es nur über den Stil, das Feldzeichen nur über das
 Wappen. Fünf Rüstungen, nach dem, was die Völker wirklich trugen: die
 **gegliederte Schiene** Roms mit Schulterplatten und dem Querbusch des
@@ -1181,6 +1183,33 @@ den Punkten durchblättern.
   Schützen zuletzt.** Damit man das sieht, steht die Kolonne anderthalbmal so
   groß da wie das Lager – an einem Zelt ist nichts zu erkennen, an einer
   Gestalt schon.
+- **Belagerungsgerät**: Eine Steinmauer verdoppelt die Kraft dessen, der
+  dahintersteht. Dagegen half bisher nur, mehr Männer davorzustellen – und
+  genau so wurden Belagerungen gewonnen: mit Masse. So war es nicht. Wer eine
+  Mauer nehmen wollte, baute Gerät.
+  In einer eigenen Stadt mit **Kaserne** zimmert das Heer, das dort steht,
+  zweierlei: den **Widder** (240 Gold, 5 Sold) – ein eisenbeschlagener Balken
+  unter einem Schutzdach, der gegen das Tor geht – und das **Katapult**
+  (300 Gold, 7 Sold), das Steine über die Brüstung wirft. Jeder Widder nimmt
+  einer Mauer **20 %** ihrer Wirkung, jedes Katapult **12 %**; zusammen
+  höchstens **60 %**, denn auch die beste Belagerung macht aus einer
+  Quadermauer kein offenes Feld. Aus einer Steinmauer (+100 % Verteidigung)
+  werden mit zwei Widdern und einem Katapult **+48 %**. Katapulte schießen
+  außerdem in der **ersten Runde** mit, auch wenn kein Bogenschütze im Heer
+  steht.
+  Das kostet mehr als Gold: **sechs Stücke** trägt ein Heer höchstens, es
+  **marschiert ein Fünftel langsamer**, solange es Gerät mitführt, das Zimmern
+  kostet den Tag (das Heer zieht in dieser Runde nicht mehr), und im **Sturm
+  geht ein Teil zu Bruch** – gewonnen im Schnitt jedes dritte Stück, verloren
+  mehr als zwei von dreien. Vereinigen sich zwei Heere, zieht das Gerät bis
+  zur Obergrenze mit.
+  **Man sieht es**: die Armee nennt, was sie mitführt, die Kampfvorschau
+  rechnet vor, was von der Mauer übrig bleibt, und im Schaubild rollen genau
+  so viele Widder an das Tor und stehen so viele Katapulte auf der Flanke, wie
+  das Heer wirklich hat – wer ohne Widder gegen ein Tor läuft, sieht das auch.
+  Der Belagerungsturm kommt erst dazu, wenn wenigstens zwei Stücke Gerät
+  davorstehen. Die KI zimmert Gerät, sobald ein Heer von ihr in einer Stadt
+  mit Kaserne steht und eine befestigte fremde Stadt in Reichweite liegt.
 - **Feindliche Heere sind auf einen Blick zu erkennen**: Die Fraktionsfarbe
   sagt, wer da steht, aber nicht, ob er auf dich schießt – zwischen einem
   Verbündeten und einem Feind lag bisher nur die Erinnerung an das
@@ -1638,10 +1667,14 @@ den Punkten durchblättern.
   **Und die Welt lebt.** Eine Karte, auf der sich nichts rührt als die eigenen
   Heere, ist ein Plan; was aus ihr eine Welt macht, sind die Dinge, die ohne
   den Feldherrn geschehen. Über den Untiefen ziehen **Fischschwärme** in engen
-  Kreisen, weit draußen tauchen **Wale** auf, blasen und gehen wieder unter,
+  Kreisen, weit draußen tauchen **Wale** auf, blasen und gehen wieder unter – der Blas
+  ist kein Strahl, sondern ein Strauß feiner Strahlen in zwei Bögen, die oben
+  auseinandergehen und in Tropfen zerfallen –,
   über der Küste kreisen **Möwen** mit schlagenden Flügeln, und an den
   Waldrändern steht **Rotwild**; über die Straßen ziehen **Ochsenkarren** hin
-  und zurück, Gespann, Deichsel und Plane – rund 330 Fische, ein Dutzend Wale,
+  und zurück: zwei Pferde nebeneinander, jedes mit Leib, Hals, Kopf, vier
+  Läufen und Schweif, dazu Joch, Deichsel und der Kastenwagen mit Plane über
+  zwei Speichenrädern – rund 330 Fische, ein Dutzend Wale,
   vierzig Möwen, zweihundert Stück Wild und ein Fuhrwerk auf jedem Weg von
   einiger Länge. Eine Straße, auf der nie etwas fährt, ist ein Strich; die
   Karren fahren die wirklichen Wege ab und wenden an ihrem Ende. Nichts davon greift in die Regeln ein: es

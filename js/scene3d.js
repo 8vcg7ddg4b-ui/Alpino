@@ -649,9 +649,37 @@ function whaleGeometry() {
   return g;
 }
 
-// Der Blas: eine weiße Wolke über dem Rücken.
+// Der Blas: kein Kegel, sondern ein Busch. Ein Wal bläst nicht einen Strahl,
+// sondern einen Strauß feiner Strahlen, die oben auseinandergehen und in
+// Tropfen zerfallen - beim Grönlandwal sogar in zwei Bögen. Gebaut wird er
+// mit dem Fuß auf der Nullhöhe, damit die Instanz ihn von unten wachsen lässt.
 function spoutGeometry() {
-  return new THREE.ConeGeometry(0.3, 1.2, 5);
+  const strahl = new THREE.ConeGeometry(0.12, 1, 5);
+  const tropfen = new THREE.SphereGeometry(0.07, 5, 4);
+  const teile = [];
+  // Zwei Bögen, jeder aus drei Strahlen, die nach außen kippen.
+  for (const seite of [-1, 1]) {
+    for (let i = 0; i < 3; i++) {
+      const neigung = seite * (0.12 + i * 0.16);
+      const hoehe = 0.9 - i * 0.14;
+      const dreh = seite * (i - 1) * 0.5;
+      teile.push(shapePart(
+        strahl,
+        Math.sin(neigung) * hoehe * 0.5, hoehe * 0.5, Math.sin(dreh) * hoehe * 0.22,
+        dreh * 0.5, 0, neigung,
+        0.85 - i * 0.12, hoehe, 0.85 - i * 0.12
+      ));
+    }
+  }
+  // Und die Tropfen, die oben davonfliegen.
+  for (const [x, y, z] of [[0.4, 0.98, 0.1], [-0.42, 0.92, -0.12], [0.12, 1.08, -0.3],
+    [-0.16, 1.02, 0.28]]) {
+    teile.push(shapePart(tropfen, x, y, z));
+  }
+  const g = mergeShapes(teile);
+  strahl.dispose();
+  tropfen.dispose();
+  return g;
 }
 
 // Eine Möwe von unten: zwei Flügel und ein Rumpf dazwischen.
@@ -738,24 +766,52 @@ function amUfer(col, row) {
 // Karte misst ein Feld gut fünfzig Kilometer -, aber die Silhouette aus
 // Gespann und Plane liest sich auch aus der Feldherrnhöhe.
 function cartGeometry() {
-  const tier = new THREE.SphereGeometry(0.16, 6, 5);
-  const bein = new THREE.CylinderGeometry(0.03, 0.025, 0.2, 4);
+  const leib = new THREE.SphereGeometry(0.16, 7, 5);
+  const hals = new THREE.CylinderGeometry(0.05, 0.075, 0.2, 5);
+  const kopf = new THREE.SphereGeometry(0.062, 6, 5);
+  const schnauze = new THREE.SphereGeometry(0.045, 5, 4);
+  const bein = new THREE.CylinderGeometry(0.026, 0.02, 0.22, 4);
+  const schweif = new THREE.CylinderGeometry(0.018, 0.008, 0.18, 4);
+  const joch = new THREE.BoxGeometry(0.05, 0.04, 0.42);
   const deichsel = new THREE.BoxGeometry(0.5, 0.04, 0.04);
   const kasten = new THREE.BoxGeometry(0.46, 0.16, 0.3);
   const plane = new THREE.CylinderGeometry(0.17, 0.17, 0.44, 7, 1, false, 0, Math.PI);
   const rad = new THREE.CylinderGeometry(0.12, 0.12, 0.04, 8);
+  const speiche = new THREE.BoxGeometry(0.2, 0.03, 0.02);
   const teile = [];
-  // Das Gespann zieht nach +X, wie alles hier.
-  for (const z of [-0.1, 0.1]) {
-    teile.push(shapePart(tier, 0.52, 0.22, z, 0, 0, 0, 1.7, 0.9, 1));
-    for (const x of [0.4, 0.64]) teile.push(shapePart(bein, x, 0.1, z));
+
+  // Das Gespann zieht nach +X. Zwei Pferde nebeneinander, jedes mit Leib,
+  // Hals, Kopf, vier Läufen und Schweif - vorher waren es zwei Kugeln auf je
+  // zwei Stäbchen, und aus der Nähe sah das nach nichts aus.
+  for (const z of [-0.11, 0.11]) {
+    teile.push(shapePart(leib, 0.54, 0.27, z, 0, 0, 0, 1.75, 0.95, 0.9));
+    // Der Hals steigt nach vorn an, der Kopf sitzt schräg darauf.
+    teile.push(shapePart(hals, 0.72, 0.34, z, 0, 0, -0.62));
+    teile.push(shapePart(kopf, 0.85, 0.4, z, 0, 0, -0.3, 1.3, 1, 1));
+    teile.push(shapePart(schnauze, 0.93, 0.36, z));
+    // Vorder- und Hinterläufe, die vorderen etwas vorgestellt.
+    for (const [x, neigung] of [[0.68, -0.12], [0.62, 0.1], [0.42, -0.1], [0.36, 0.12]]) {
+      teile.push(shapePart(bein, x, 0.12, z + (neigung > 0 ? 0.03 : -0.03), 0, 0, neigung));
+    }
+    teile.push(shapePart(schweif, 0.33, 0.25, z, 0, 0, 0.9));
   }
+  // Das Joch quer über den Widerristen und die Deichsel zum Wagen.
+  teile.push(shapePart(joch, 0.6, 0.38, 0));
   teile.push(shapePart(deichsel, 0.2, 0.19, 0));
+
+  // Der Wagen: Kasten, Plane, zwei Speichenräder.
   teile.push(shapePart(kasten, -0.12, 0.22, 0));
   teile.push(shapePart(plane, -0.12, 0.3, 0, 0, 0, Math.PI / 2));
-  for (const z of [-0.17, 0.17]) teile.push(shapePart(rad, -0.12, 0.13, z, Math.PI / 2, 0, 0));
+  for (const z of [-0.17, 0.17]) {
+    teile.push(shapePart(rad, -0.12, 0.13, z, Math.PI / 2, 0, 0));
+    for (let i = 0; i < 3; i++) {
+      teile.push(shapePart(speiche, -0.12, 0.13, z, 0, 0, (i / 3) * Math.PI));
+    }
+  }
+
   const g = mergeShapes(teile);
-  for (const teil of [tier, bein, deichsel, kasten, plane, rad]) teil.dispose();
+  for (const teil of [leib, hals, kopf, schnauze, bein, schweif, joch, deichsel,
+    kasten, plane, rad, speiche]) teil.dispose();
   return g;
 }
 
@@ -1046,12 +1102,13 @@ function advanceWildlife(dt) {
         const weit = 1.3 * (tier.gross || 1);
         wildLage.set(
           tier.wo.x + Math.cos(tier.wo.r) * weit,
-          tier.wo.y + 0.55 * (tier.gross || 1),
+          tier.wo.y + 0.3 * (tier.gross || 1),
           tier.wo.z - Math.sin(tier.wo.r) * weit
         );
         wildDreh.setFromAxisAngle(WILDLIFE_ACHSE, 0);
         const dick = hoch * (tier.gross || 1);
-        wildMass.set(dick * 0.7, dick * 1.6, dick * 0.7);
+        // Breiter als hoch wächst er nicht: ein Blas steigt.
+        wildMass.set(dick * 0.9, dick * 2.1, dick * 0.9);
         wildMatrix.compose(wildLage, wildDreh, wildMass);
         extra.setMatrixAt(i, wildMatrix);
       }
@@ -1732,14 +1789,54 @@ function buildArmourStand(factionId, colour) {
   tentBox(group, TENT_MATERIALS.darkWood, 2.0, 0.24, 1.6, 0, 0, 0);
   tentBox(group, TENT_MATERIALS.darkWood, 1.6, 0.24, 1.3, 0, 0.24, 0);
 
-  // Der Bock: Fuß, Ständer, Querholz für die Schultern.
-  tentBox(group, TENT_MATERIALS.darkWood, 1.3, 0.16, 0.95, 0, 0.48, 0);
-  const pfosten = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.1, 0.12, 2.5, 7), TENT_MATERIALS.wood
+  // --- Der Rüstungsständer -------------------------------------------------
+  // Kein Pfahl mit einem Querholz, sondern ein Ständer, wie er in einer
+  // Waffenkammer steht: dreibeiniger Fuß, gedrechselte Säule, darüber eine
+  // hölzerne Büste - Brustform, Schultern, Halsklotz. Die Rüstung hängt nicht
+  // in der Luft, sie steckt auf etwas.
+  const teller = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.52, 0.6, 0.14, 12), TENT_MATERIALS.darkWood
   );
-  pfosten.position.y = 1.89;
-  group.add(pfosten);
-  tentBox(group, TENT_MATERIALS.wood, 1.3, 0.12, 0.15, 0, 2.5, 0);
+  teller.position.y = 0.55;
+  group.add(teller);
+  for (let i = 0; i < 3; i++) {
+    const winkel = (i / 3) * Math.PI * 2 + 0.4;
+    const fuss = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.07, 0.62, 5), TENT_MATERIALS.darkWood
+    );
+    fuss.position.set(Math.cos(winkel) * 0.34, 0.72, Math.sin(winkel) * 0.34);
+    fuss.rotation.set(Math.sin(winkel) * -0.3, 0, Math.cos(winkel) * 0.3);
+    group.add(fuss);
+  }
+  // Die Säule, in der Mitte durch einen Wulst geteilt.
+  const saeule = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.085, 0.105, 1.5, 8), TENT_MATERIALS.wood
+  );
+  saeule.position.y = 1.45;
+  group.add(saeule);
+  const wulst = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.045, 6, 12), TENT_MATERIALS.wood);
+  wulst.rotation.x = Math.PI / 2;
+  wulst.position.y = 1.45;
+  group.add(wulst);
+
+  // Die Büste: eine Brustform, die sich nach oben verjüngt, mit zwei
+  // Schulterstücken und einem Halsklotz für den Helm.
+  const bueste = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.3, 0.2, 1.1, 10), TENT_MATERIALS.wood
+  );
+  bueste.position.y = 2.72;
+  group.add(bueste);
+  for (const side of [-1, 1]) {
+    const schulter = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), TENT_MATERIALS.wood);
+    schulter.position.set(side * 0.29, 3.14, 0);
+    schulter.scale.set(1, 0.75, 0.85);
+    group.add(schulter);
+  }
+  const hals = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.11, 0.15, 0.28, 8), TENT_MATERIALS.wood
+  );
+  hals.position.y = 3.32;
+  group.add(hals);
 
   // Der Untergewand-Rock unter dem Panzer, in der Farbe des Reichs.
   const rock = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.44, 0.62, 10), tuch);
@@ -1911,8 +2008,10 @@ function buildTentBackdrop(tent, state, colour, floorY) {
   }
   // Die Rüstung des Reichs auf ihrem Bock, links neben dem Thron.
   const ruestung = buildArmourStand(id, colour);
-  ruestung.position.set(-5.0, 0, 2.4);
-  ruestung.rotation.y = 0.55;
+  // Neben dem Thron, aber nicht davor: weiter hinten steht der Ständer höher
+  // im Bild, und man sieht ihn ganz statt nur den Helm über der Tischkante.
+  ruestung.position.set(-5.2, 0, -1.4);
+  ruestung.rotation.y = 0.5;
   stage.add(ruestung);
 
   const furnishings = TENT_FURNISHINGS[id] || ['shields', 'spears'];

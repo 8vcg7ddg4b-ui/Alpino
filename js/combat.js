@@ -67,6 +67,10 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     // Eine Flotte fährt die Bauart, mit der sie vom Stapel lief - nicht die,
     // die ihre Werft heute baut. Wer keine mitgibt, fährt die der Fraktion.
     attackerShipKind = null, defenderShipKind = null,
+    // Was das Belagerungsgerät des Angreifers zur Eröffnungssalve beiträgt.
+    // Ein Katapult schießt, ehe der erste Mann die Leiter berührt - und es
+    // schießt auch dann, wenn kein Bogenschütze im Heer steht.
+    siegeVolley = 0,
     // Die Schlachtordnung, in der jede Seite antritt. Was sie bewirkt, steht
     // in `TACTICS` (data.js); hier wird sie nur eingerechnet.
     attackerTactic = null, defenderTactic = null,
@@ -120,6 +124,11 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
       atkPower += (attacker[key] || 0) * atkDef.attack
         * (ranged && atkDef.ranged ? 1 + 0.6 * atkOrdnung.salve : 1) * conditions
         * wallAssaultScale(key, wallMultiplier);
+      // Die Steine der Katapulte fallen in der ersten Runde und zählen für
+      // das ganze Heer, nicht je Gattung - deshalb nur einmal, beim Fußvolk.
+      if (ranged && siegeVolley > 0 && key === 'infantry') {
+        atkPower += (attacker[key] || 0) * atkDef.attack * siegeVolley * 0.35 * conditions;
+      }
       defPower += (defender[key] || 0) * defDef.defense * (1 + terrainBonus * 0.15)
         * (ranged && defDef.ranged ? 1 + 0.4 * defOrdnung.salve : 1) * conditions;
     }
@@ -188,6 +197,7 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     attackerEngagedShare: engagedShare(totalCount(attackerUnitsIn), attackerFrontage),
     defenderEngagedShare: engagedShare(totalCount(defenderUnitsIn), defenderFrontage),
     wallMultiplier,
+    siegeVolley,
     // Womit die Waffengattungen des Angreifers vor dieser Mauer gerechnet
     // wurden - der Bericht soll den Abschlag nennen können.
     assaultScale: wallMultiplier > 1
@@ -325,6 +335,7 @@ export function forecastBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mo
     attackerEngagedShare: sample ? sample.attackerEngagedShare : 1,
     defenderEngagedShare: sample ? sample.defenderEngagedShare : 1,
     wallMultiplier: modifiers.wallMultiplier ?? 1,
+    siegeVolley: modifiers.siegeVolley ?? 0,
     assaultScale: sample ? sample.assaultScale : null,
     defenderMultiplier: modifiers.defenderMultiplier ?? 1,
     attackerMultiplier: modifiers.attackerMultiplier ?? 1,
