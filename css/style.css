@@ -1090,24 +1090,195 @@ kbd {
   position: fixed;
   inset: 0;
   z-index: 20;
+  overflow: hidden;
+  background: #0d0906;
+}
+
+/* --- Das Triptychon ------------------------------------------------------
+   Drei Felder nebeneinander wie ein Altarbild: links die Chronik, in der
+   Mitte Titel und Menü, rechts die Merktafel. Die Mitte ist die Hauptsache
+   und bekommt die meiste Breite; die Flügel stehen etwas zurück, durch eine
+   goldene Fuge getrennt. Wird es schmal, stehen sie untereinander - und die
+   Mitteltafel zuerst, denn dort steht der Knopf, der ins Spiel führt. */
+.triptych {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(380px, 1.06fr) minmax(0, 0.84fr);
+  gap: 0;
+  overflow: hidden;
+}
+
+.tri-panel {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Die Flügel liegen tiefer als die Mitte - wie zurückgeklappte Tafeln. */
+.tri-wing {
+  background: #0b0805;
+}
+
+/* Der linke Flügel trägt ein Bild in einem Rahmen, keinen Hintergrund: eine
+   Szene im Breitformat, die den ganzen hohen Flügel füllen soll, zeigt nur
+   ihren mittleren Streifen. Also hängt sie als Tafel darin, mit der
+   Bildunterschrift darunter auf dem Grund des Flügels. */
+.tri-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding: 26px 22px;
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(212, 175, 55, 0.05), transparent 62%),
+    linear-gradient(170deg, #150f09, #0c0805);
+}
+.tri-wing::after {
+  /* Die Fuge zur Mitte: eine schmale goldene Kante und ein Schatten. */
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  z-index: 3;
+  pointer-events: none;
+}
+.tri-left::after {
+  right: 0;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.66));
+  border-right: 1px solid rgba(212, 175, 55, 0.5);
+  box-shadow: 1px 0 14px rgba(212, 175, 55, 0.12);
+}
+.tri-right::after {
+  left: 0;
+  background: linear-gradient(270deg, transparent, rgba(0, 0, 0, 0.66));
+  border-left: 1px solid rgba(212, 175, 55, 0.5);
+  box-shadow: -1px 0 14px rgba(212, 175, 55, 0.12);
+}
+
+/* Die Mitteltafel: Marmor mit einer Maserung aus zwei weichen Verläufen,
+   darüber ein Rahmen aus Gold. Kein Bild - das wäre eine Datei mehr. */
+.tri-mid {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  background: #100b07;
+  padding: 26px 22px;
+  background:
+    radial-gradient(ellipse at 28% 10%, rgba(255, 248, 232, 0.11), transparent 56%),
+    radial-gradient(ellipse at 78% 86%, rgba(255, 242, 214, 0.07), transparent 60%),
+    linear-gradient(178deg, #322418, #201710 58%, #150e09);
+  box-shadow: 0 0 90px rgba(0, 0, 0, 0.7) inset;
 }
 
 .start-box {
   position: relative;
   z-index: 2;
   text-align: center;
-  max-width: 480px;
-  padding: 36px 40px;
-  background: rgba(16, 11, 7, 0.62);
-  border: 1px solid rgba(212, 175, 55, 0.22);
-  border-radius: 14px;
-  backdrop-filter: blur(3px);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  width: 100%;
+  max-width: 420px;
+  padding: 34px 30px 30px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 4px;
+  background: rgba(12, 8, 5, 0.42);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 24px 60px rgba(0, 0, 0, 0.55);
+}
+/* Eine zweite, innere Linie: so sieht der Rahmen nach Stein aus und nicht
+   nach einem Kasten mit Rand. */
+.start-box::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(212, 175, 55, 0.14);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* --- Die Merktafel -------------------------------------------------------
+   Rechts steht, woran man anknüpft: der letzte Feldzug dieses Browsers - wer,
+   wie lange, wie weit gekommen - oder, wenn es keinen gab, worum es geht.
+   Über „Spielregeln" tritt an ihre Stelle die Bedienung. */
+.tri-right {
+  background:
+    radial-gradient(ellipse at 60% 8%, rgba(212, 175, 55, 0.06), transparent 60%),
+    linear-gradient(190deg, #171009, #0e0a06);
+}
+
+.memo-box {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  padding: 30px 26px 26px;
+  /* Die Tafel steht auf halber Höhe wie das Bild und die Mitteltafel - ein
+     Text, der oben klebt, während daneben alles mittig steht, sieht aus wie
+     ein Versehen. Reicht er über die Höhe hinaus, beginnt er wieder oben. */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.memo-box > * { flex: 0 0 auto; }
+
+.memo-head {
+  margin: 0 0 14px;
+  font-size: 0.82rem;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: normal;
+}
+
+.memo-sheet p {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+  margin: 10px 0;
+}
+.memo-sheet strong { color: var(--text); }
+
+/* Die Zeilen des letzten Feldzugs: Begriff links, Wert rechts, dünn getrennt. */
+.memo-rows { margin: 0 0 16px; }
+.memo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.12);
+  font-size: 0.86rem;
+}
+.memo-row:last-child { border-bottom: none; }
+.memo-row dt { color: var(--muted); }
+.memo-row dd { margin: 0; color: var(--text); text-align: right; }
+.memo-win { color: #7fbf6a; }
+.memo-loss { color: #d4776a; }
+
+.memo-crest {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+.memo-crest .memo-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.memo-note {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(212, 175, 55, 0.12);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .start-eagle { font-size: 3.2rem; margin-bottom: 6px; }
@@ -1162,23 +1333,69 @@ kbd {
 .start-menu .start-secondary-btn { margin-bottom: 0; }
 .start-menu + .start-help { margin-top: 22px; }
 
-.start-help {
-  text-align: left;
-  border-top: 1px solid var(--border);
-  padding-top: 18px;
-}
+/* Die Spielregeln stehen im rechten Flügel an der Stelle der Merktafel -
+   nicht unter dem Menü: dort schöbe der lange Text die Tafel auseinander. */
+.start-help { text-align: left; }
 .start-help p {
   color: var(--muted);
   font-size: 0.82rem;
-  margin: 8px 0;
-  line-height: 1.4;
+  margin: 9px 0;
+  line-height: 1.5;
 }
 .start-help strong { color: var(--text); }
+
+/* Wird es eng, schrumpfen zuerst die Flügel, dann fällt der rechte weg, und
+   zuletzt stehen alle drei untereinander - die Mitteltafel zuerst, denn dort
+   steht der Knopf, der ins Spiel führt. */
+@media (max-width: 1180px) {
+  .triptych { grid-template-columns: minmax(0, 0.82fr) minmax(320px, 1fr) minmax(0, 0.7fr); }
+  .start-box { padding: 26px 22px 22px; }
+  .start-title { font-size: 2.6rem; letter-spacing: 4px; }
+  .memo-box { padding: 22px 18px; }
+}
+
+@media (max-width: 900px) {
+  .triptych { grid-template-columns: minmax(0, 0.9fr) minmax(300px, 1fr); }
+  .tri-right { display: none; }
+  /* Sind die Regeln aufgeschlagen, legt sich der rechte Flügel über alles:
+     ohne ihn wären sie auf schmalen Schirmen gar nicht zu erreichen. */
+  #startScreen.help-open .tri-right {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    border-left: none;
+  }
+}
 
 @media (max-width: 800px) {
   #sidebar { width: 280px; }
   .brand small { display: none; }
   .start-title { font-size: 2.4rem; letter-spacing: 3px; }
+}
+
+@media (max-width: 700px) {
+  /* Untereinander: Mitteltafel, Chronik, Merktafel. Gescrollt wird die ganze
+     Reihe, nicht jedes Feld für sich. */
+  #startScreen { overflow-y: auto; overscroll-behavior: none; }
+  .triptych {
+    position: relative;
+    inset: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    min-height: 100%;
+  }
+  .tri-mid { order: 1; padding: 24px 16px; }
+  .tri-left { order: 2; }
+  .tri-left { padding: 16px 16px 20px; gap: 10px; }
+  #chronicleStage { max-height: none; aspect-ratio: 16 / 9; }
+  .tri-right { order: 3; display: block; position: relative; min-height: 240px; }
+  .memo-box { position: relative; inset: auto; padding: 22px 18px 30px; display: block; }
+  .tri-wing::after { display: none; }
+  .tri-left { border-top: 1px solid rgba(212, 175, 55, 0.24); }
+  .tri-right { border-top: 1px solid rgba(212, 175, 55, 0.24); }
+  #chronicleCaption { padding: 12px 16px 14px; }
+  #chronicleCaption figcaption { font-size: 0.78rem; }
 }
 
 /* --- Auf dem Telefon ------------------------------------------------------ */
@@ -1629,8 +1846,15 @@ kbd {
 
 /* --- Chronik der Republik im Startbildschirm ----------------------------- */
 #chronicleStage {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-height: 62%;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(212, 175, 55, 0.34);
+  border-radius: 3px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6), 0 0 0 6px rgba(0, 0, 0, 0.35);
   z-index: 0;
 }
 
@@ -1651,36 +1875,36 @@ kbd {
   to   { transform: scale(1.11) translate3d(0.9%, -0.9%, 0); }
 }
 
-/* The picture is a backdrop, not the subject: it is dimmed towards the middle
-   so the menu keeps its contrast, and towards the bottom for the caption. */
+/* Im Triptychon ist das Bild nicht mehr Hintergrund, sondern der linke Flügel:
+   es darf hell bleiben. Abgedunkelt wird nur, was unter der Bildunterschrift
+   liegt, und die Kante zur Mitteltafel. */
+/* Im Rahmen braucht das Bild keine Abdunklung mehr - nur einen Hauch an den
+   Kanten, damit es nicht flach an der Kante endet. */
 .chron-veil {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 44%, rgba(10, 7, 4, 0.6), rgba(10, 7, 4, 0.16) 56%, transparent 74%),
-    linear-gradient(180deg, rgba(10, 7, 4, 0.34), transparent 24%, rgba(8, 5, 3, 0.8));
+    radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(8, 5, 3, 0.55)),
+    linear-gradient(180deg, rgba(10, 7, 4, 0.22), transparent 26%);
 }
 
 #chronicleCaption {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
   z-index: 2;
   margin: 0;
-  padding: 18px 26px 20px;
+  padding: 0 2px;
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 26px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  flex: 0 0 auto;
 }
 
 #chronicleCaption figcaption {
-  max-width: 720px;
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   line-height: 1.5;
   color: var(--muted);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
 }
 
 .chron-year {
@@ -1696,6 +1920,7 @@ kbd {
 .chron-nav {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   flex-shrink: 0;
 }

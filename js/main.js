@@ -892,6 +892,103 @@ function observeMapSize() {
   observer.observe(canvas.parentElement);
 }
 
+// --- Die Merktafel --------------------------------------------------------
+// Der rechte Flügel des Triptychons. Es gibt keinen Spielstand - ein Feldzug,
+// der zu Ende ist, ist zu Ende. Was bleibt, ist sein Andenken: wer man war,
+// wie weit man kam, wie es ausging. Das steht hier, damit der Startbildschirm
+// nicht bei jedem Aufruf so aussieht, als hätte man nie gespielt.
+const MEMO_KEY = 'spqr.letzterFeldzug';
+
+function ladeMerktafel() {
+  try {
+    const roh = localStorage.getItem(MEMO_KEY);
+    return roh ? JSON.parse(roh) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+// Aufgeschrieben wird beim Ende eines Feldzugs - ob gewonnen, verloren oder
+// abgebrochen. `ausgang` sagt, welches davon.
+function merkeFeldzug(ausgang) {
+  if (!state) return;
+  try {
+    const ich = playerFaction(state);
+    const orte = state.cities.filter((c) => c.factionId === ich.id);
+    const heere = state.armies.filter((a) => a.factionId === ich.id);
+    const { season, year } = calendarOfTurn(state.turn);
+    // Die letzte Schlacht, an der man selbst beteiligt war.
+    const schlacht = (state.battleReports || []).find((r) => r.involvesPlayer);
+    localStorage.setItem(MEMO_KEY, JSON.stringify({
+      fraktion: ich.name,
+      farbe: ich.color,
+      ausgang,
+      runde: state.turn,
+      jahr: `${season.icon} ${season.name} ${year} v. Chr.`,
+      orte: orte.length,
+      mann: heere.reduce((sum, a) => sum + unitTotalCount(a.units), 0),
+      gold: Math.round(ich.gold),
+      schlacht: schlacht ? {
+        wo: schlacht.cityName || `${schlacht.col},${schlacht.row}`,
+        sieg: (schlacht.attackerFactionId === ich.id) === (schlacht.outcome === 'attacker'),
+      } : null,
+    }));
+  } catch (err) {
+    // Ein Browser, der nichts speichern darf, ist kein Grund für einen Fehler.
+  }
+}
+
+const MEMO_AUSGANG = {
+  victory: { text: 'Sieg', klasse: 'memo-win' },
+  defeat: { text: 'Niederlage', klasse: 'memo-loss' },
+  abgebrochen: { text: 'abgebrochen', klasse: '' },
+};
+
+function zeigeMerktafel() {
+  const box = document.getElementById('startMemo');
+  if (!box) return;
+  const merk = ladeMerktafel();
+  if (!merk) {
+    box.innerHTML = `
+      <h2 class="memo-head">Worum es geht</h2>
+      <div class="memo-sheet">
+        <p>Ein Reich des Altertums, von <strong>264 v. Chr.</strong> an. Sechzehn
+          Mächte zwischen Atlantik und iranischer Hochebene, jede mit ihrem
+          Herrscher, ihren Truppen und ihrer Musik.</p>
+        <p>Der Feldzug wird über einer Karte geführt, die auf dem Tisch im eigenen
+          <strong>Feldherrnzelt</strong> liegt. Jede Runde ist ein Monat, drei
+          Monate sind eine Jahreszeit, und das Wetter zählt mit.</p>
+        <p>Gewonnen hat, wer <strong>zwanzig Orte</strong> hält. Verloren hat,
+          wer keinen mehr hat.</p>
+      </div>
+      <p class="memo-note">Es gibt keinen Spielstand: Was hier steht, wenn du
+        einmal gespielt hast, ist das Andenken an den letzten Feldzug – nicht
+        der Feldzug selbst.</p>`;
+    return;
+  }
+  const ausgang = MEMO_AUSGANG[merk.ausgang] || MEMO_AUSGANG.abgebrochen;
+  const zeile = (name, wert) => `<div class="memo-row"><dt>${name}</dt><dd>${wert}</dd></div>`;
+  box.innerHTML = `
+    <h2 class="memo-head">Dein letzter Feldzug</h2>
+    <div class="memo-crest">
+      <span class="memo-dot" style="background:${escapeText(merk.farbe || '#888')}"></span>
+      <strong>${escapeText(merk.fraktion || 'Unbekannt')}</strong>
+    </div>
+    <dl class="memo-rows">
+      ${zeile('Ausgang', `<span class="${ausgang.klasse}">${ausgang.text}</span>`)}
+      ${zeile('Zuletzt', escapeText(merk.jahr || '–'))}
+      ${zeile('Runden', merk.runde || 0)}
+      ${zeile('Orte', merk.orte || 0)}
+      ${zeile('Mann im Feld', (merk.mann || 0).toLocaleString('de-DE'))}
+      ${zeile('Schatz', `${(merk.gold || 0).toLocaleString('de-DE')} Gold`)}
+      ${merk.schlacht ? zeile('Letzte Schlacht',
+    `<span class="${merk.schlacht.sieg ? 'memo-win' : 'memo-loss'}">${
+      merk.schlacht.sieg ? 'Sieg' : 'Niederlage'}</span> bei ${escapeText(merk.schlacht.wo)}`) : ''}
+    </dl>
+    <p class="memo-note">Es gibt keinen Spielstand – ein neuer Feldzug beginnt
+      von vorn. Diese Tafel ist nur das Andenken.</p>`;
+}
+
 // --- Feldzug beenden ------------------------------------------------------
 // Zurück ins Hauptmenü, mit Rückfrage: es gibt keinen Spielstand, der den
 // laufenden Feldzug zurückholt.
@@ -907,6 +1004,8 @@ function hideQuitDialog() {
 }
 
 function quitToMenu() {
+  // Ehe der Spielstand losgelassen wird, wird er noch einmal gelesen.
+  merkeFeldzug(state && state.gameOver ? state.gameOver.result : 'abgebrochen');
   hideQuitDialog();
   hideHerald();
   hideEmpire();
@@ -926,6 +1025,7 @@ function quitToMenu() {
   appEl.classList.add('hidden');
   document.getElementById('startScreen').classList.remove('hidden');
   startChronicle();
+  zeigeMerktafel();
   syncMenuMusic();
 }
 
@@ -2002,7 +2102,11 @@ function endTurn() {
   // Die Fanfare am Rundenende ist entfallen: sie schlug auch an, wenn ein
   // fremdes Reich irgendwo eine Straße fertigstellte. Was den Spieler angeht,
   // meldet jetzt das Bauamt - mit seinem eigenen Klang.
-  if (state.gameOver) (state.gameOver.result === 'victory' ? sfx.victory : sfx.defeat)();
+  if (state.gameOver) {
+    (state.gameOver.result === 'victory' ? sfx.victory : sfx.defeat)();
+    // Der Feldzug ist entschieden - für die Merktafel im Startbild aufgeschrieben.
+    merkeFeldzug(state.gameOver.result);
+  }
 }
 
 let toastTimer = null;
@@ -2074,7 +2178,7 @@ function armFullscreenRestore() {
 // sonst zieht die Geste am Browserfenster, und das wirft das Spiel aus dem
 // Vollbild. Was der Browser selbst vom Bildschirmrand aus abfängt, kann eine
 // Seite nicht verhindern; dafür gibt es das Wiederherstellen oben.
-const SCROLLABLE = '#sidebar, .report-box, #settingsBody, #tileInfo, .empire-box, .start-box, #startHelp, #factionScreen';
+const SCROLLABLE = '#sidebar, .report-box, #settingsBody, #tileInfo, .empire-box, .start-box, .memo-box, #startScreen, #factionScreen';
 
 function blockPageGestures() {
   document.addEventListener('touchmove', (event) => {
@@ -2492,14 +2596,25 @@ for (const id of ['settingsBtn', 'menuSettingsBtn']) {
   if (button) button.addEventListener('click', showSettings);
 }
 
+// Die Spielregeln treten im rechten Flügel an die Stelle der Merktafel - und
+// wieder zurück. Auf schmalen Schirmen legt sich der Flügel dafür über alles;
+// das entscheidet das Stilblatt an `help-open`.
 const helpButton = document.getElementById('menuHelpBtn');
 if (helpButton) {
   helpButton.addEventListener('click', () => {
     const help = document.getElementById('startHelp');
-    const shown = help.classList.toggle('hidden');
-    helpButton.classList.toggle('active', !shown);
+    const memo = document.getElementById('startMemo');
+    const versteckt = help.classList.toggle('hidden');
+    if (memo) memo.classList.toggle('hidden', !versteckt);
+    helpButton.classList.toggle('active', !versteckt);
+    const screen = document.getElementById('startScreen');
+    if (screen) screen.classList.toggle('help-open', !versteckt);
+    sfx.select();
   });
 }
+
+// Die Merktafel steht beim ersten Bild schon da.
+zeigeMerktafel();
 
 // Die Version steht im Startbildschirm - eine Wahrheit aus data.js, damit sie
 // nicht zwischen Auslieferung und Anzeige auseinanderläuft.

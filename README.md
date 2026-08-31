@@ -192,18 +192,41 @@ Duduk über einem liegenden Ton, ohne jedes Schlagwerk) bis 112 (Numidien im
 Reitertempo), und Daker und Illyrer zählen im Siebentakt. Jedes Stück läuft
 abwechselnd einen lauten Durchgang mit Melodie und einen leisen ohne.
 
-Das Menü führt ins Spiel, zu den **Einstellungen** (Ton, Kampfvorschau,
-Marschgeschwindigkeit, Kartensicht beim Start, Verhalten der Gegner,
-Wettereffekte, Leben auf der Karte, Titelmusik, Bildwechsel)
-und zu den Spielregeln. Alle Einstellungen wirken sofort und werden im Browser
-gespeichert; die KI-Haltung legt fest, wie sicher sich die KI ihres Sieges sein
-muss, bevor sie einen Kampf überhaupt eingeht.
+### Der Startbildschirm: ein Triptychon
 
-Im Hintergrund läuft eine **Chronik der römischen Republik** in acht Bildern –
-von der Vertreibung der Könige 509 v. Chr. über Hannibals Alpenübergang und den
-Fall Karthagos bis Actium 31 v. Chr. Die Bilder sind vollständig als SVG
-gezeichnet (keine Bilddateien, funktioniert offline) und lassen sich mit ‹ › oder
-den Punkten durchblättern.
+Das Startbild ist kein Titel über einer Knopfleiste mehr, sondern **drei Felder
+nebeneinander wie ein Altarbild**, durch eine goldene Fuge getrennt:
+
+- **Linker Flügel – die Chronik.** Eine **Chronik der römischen Republik** in
+  acht Bildern, von der Vertreibung der Könige 509 v. Chr. über die Via Appia
+  und Hannibals Alpenübergang bis Actium 31 v. Chr. Sie hängt jetzt als
+  **gerahmte Tafel** im Flügel, mit der Bildunterschrift darunter auf dem Grund
+  – vorher füllte sie den ganzen Bildschirm als Hintergrund, und in einem hohen
+  Feld hätte eine Breitbildszene nur ihren mittleren Streifen gezeigt. Die
+  Bilder sind vollständig als SVG gezeichnet (keine Bilddateien, funktioniert
+  offline) und lassen sich mit ‹ › oder den Punkten durchblättern.
+- **Mitteltafel – Titel und Menü.** Adler, Titel, Untertitel und die vier
+  Knöpfe auf einer Steintafel mit doppelter Randlinie: **Neues Spiel**,
+  **Einstellungen** (Ton, Kampfvorschau, Marschgeschwindigkeit, Kartensicht
+  beim Start, Verhalten der Gegner, Wettereffekte, Leben auf der Karte,
+  Titelmusik, Bildwechsel), **Spielregeln**, **Vollbildmodus**, darunter die
+  Version. Alle Einstellungen wirken sofort und werden im Browser gespeichert;
+  die KI-Haltung legt fest, wie sicher sich die KI ihres Sieges sein muss,
+  bevor sie einen Kampf überhaupt eingeht.
+- **Rechter Flügel – die Merktafel.** Hier steht, woran man anknüpft: **dein
+  letzter Feldzug** – Reich, Ausgang, Jahr, Runden, Orte, Mann im Feld, Schatz
+  und die letzte Schlacht. Aufgeschrieben wird er, wenn ein Feldzug endet, ob
+  gewonnen, verloren oder abgebrochen; er liegt im Browser, nicht im Spielstand.
+  **Es gibt keinen Spielstand** – ein neuer Feldzug beginnt von vorn, und die
+  Tafel sagt das auch. Wer noch nie gespielt hat, liest dort stattdessen in drei
+  Sätzen, worum es geht. Und über **📜 Spielregeln** tritt an ihre Stelle die
+  Bedienung: der lange Text steht im Flügel statt unter dem Menü, wo er die
+  Tafel auseinandergeschoben hätte.
+
+**Wird es schmal**, geben zuerst die Flügel nach; unter 900 Punkten fällt der
+rechte weg (die Regeln legen sich dann darüber), und unter 700 Punkten stehen
+alle drei untereinander – **die Mitteltafel zuerst**, denn dort steht der Knopf,
+der ins Spiel führt.
 
 ## Bedienung
 
