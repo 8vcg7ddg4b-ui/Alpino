@@ -17,6 +17,7 @@ import {
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
   ROAD_EARTH, ROAD_STONE, roadLevelOf, stoneRoadCost, stoneRoadTurns,
   MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
+  HUNT_RANGE, HUNT_GAME, HUNT_MIN_GAME, huntIncome, FISHERY_INCOME,
   BUILDINGS, buildingDef, buildingName, growthFactor,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
@@ -1454,6 +1455,7 @@ export function buildingSiteOk(state, city, def) {
   if (!def || !def.site) return true;
   if (def.site === 'coast') return isCoastalCity(state, city);
   if (def.site === 'ore') return mineOre(state, city) >= MINE_MIN_ORE;
+  if (def.site === 'game') return huntGame(state, city) >= HUNT_MIN_GAME;
   return true;
 }
 
@@ -1563,6 +1565,33 @@ export function mineOre(state, city) {
 export function mineIncomeOf(state, city) {
   if (!city || !city.mine) return 0;
   return mineIncome(mineOre(state, city));
+}
+
+// Wie viel Wild im Umland dieses Orts steht. Dieselbe Rechnung wie beim Erz,
+// nur zählt hier der Wald statt des Bergs.
+export function huntGame(state, city) {
+  if (!city) return 0;
+  let wild = 0;
+  for (let dr = -HUNT_RANGE; dr <= HUNT_RANGE; dr++) {
+    const row = state.map.tiles[city.row + dr];
+    if (!row) continue;
+    for (let dc = -HUNT_RANGE; dc <= HUNT_RANGE; dc++) {
+      const tile = row[city.col + dc];
+      if (tile) wild += HUNT_GAME[tile.type] || 0;
+    }
+  }
+  return wild;
+}
+
+// Was Jagdhütte und Fischerei je Runde tragen - null, solange keine steht.
+export function huntIncomeOf(state, city) {
+  if (!city || !city.hunt) return 0;
+  return huntIncome(huntGame(state, city));
+}
+
+export function fisheryIncomeOf(city) {
+  if (!city || !city.fishery) return 0;
+  return FISHERY_INCOME;
 }
 
 // What a season in the field costs. An army under snow or in the desert sun
@@ -1988,7 +2017,10 @@ export function cityIncome(state, city) {
   // Ein belagerter Ort trägt nichts: die Felder sind abgeerntet, die Wege
   // gesperrt, die Karren aus dem Stollen kommen nicht durch.
   if (citySieged(state, city)) {
-    return { people: 0, wonders: 0, trade: 0, mine: 0, total: 0, besieged: true };
+    return {
+      people: 0, wonders: 0, trade: 0, mine: 0, fishery: 0, hunt: 0,
+      total: 0, besieged: true,
+    };
   }
   // Die Steuer der Einwohner ist die Grundlage: ein Ort wirft nichts dafür ab,
   // dass es ihn gibt, sondern nur für die, die in ihm wohnen.
@@ -1998,9 +2030,13 @@ export function cityIncome(state, city) {
   // Das Bergwerk trägt für sich: es hängt weder an der Größe des Orts noch an
   // seinen Einwohnern, sondern allein an dem, was im Berg liegt.
   const mine = mineIncomeOf(state, city);
+  // Fang und Jagd tragen wie der Stollen für sich: sie hängen am Umland, nicht
+  // an der Zahl der Einwohner.
+  const fang = fisheryIncomeOf(city);
+  const jagd = huntIncomeOf(state, city);
   return {
-    people, wonders, trade, mine,
-    total: people + wonders + trade + mine,
+    people, wonders, trade, mine, fishery: fang, hunt: jagd,
+    total: people + wonders + trade + mine + fang + jagd,
   };
 }
 
@@ -2353,7 +2389,13 @@ export function birthsIn(state, city) {
 
 export function growPopulations(state) {
   for (const city of state.cities) {
-    city.population += birthsIn(state, city);
+    // Was in dieser Runde dazugekommen ist, bleibt am Ort stehen: die
+    // Ortsansicht zeigt es als „+7" neben der Einwohnerzahl. Eine Zahl, die
+    // sich von Runde zu Runde ändert, ohne dass man sähe um wie viel, ist
+    // keine Auskunft.
+    const zuwachs = birthsIn(state, city);
+    city.lastGrowth = zuwachs;
+    city.population += zuwachs;
   }
 }
 

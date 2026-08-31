@@ -491,6 +491,431 @@ function buildProps(props) {
   );
 }
 
+// --- Was auf der Karte lebt ------------------------------------------------
+// Eine Karte, auf der sich nichts rührt als die eigenen Heere, ist ein Plan.
+// Was aus ihr eine Welt macht, sind die Dinge, die ohne den Feldherrn
+// geschehen: Fischschwärme, die über die Untiefen ziehen, Wale, die weit
+// draußen auftauchen und blasen, Möwen über der Küste und Rotwild an den
+// Waldrändern.
+//
+// Nichts davon greift in die Regeln ein - es ist Landschaft. Deshalb ist es
+// billig gebaut: je Gattung eine Instanzenwolke, und bewegt wird nur fünfzehnmal
+// je Sekunde. Wer es nicht mag, schaltet es in den Einstellungen ab; dann steht
+// die Karte still wie zuvor.
+const WILDLIFE_STEP = 1 / 15;   // so oft werden die Tiere bewegt
+let wildlifeGroup = null;
+let wildlifeAkku = 0;
+let wildlifeEnabled = true;
+// Je Gattung: die Instanzenwolken und die Tiere, die darin stecken.
+const wildlife = [];
+
+// Sichtbar ist, was lebt - aber nicht in der taktischen Sicht: dort geht es um
+// Grenzen und Heere, und ein Rudel Rotwild sagt darüber nichts.
+function zeigeWildlife() {
+  if (!wildlifeGroup) return;
+  wildlifeGroup.visible = wildlifeEnabled && mapMode !== 'tactical';
+}
+
+export function setWildlifeEnabled(flag) {
+  wildlifeEnabled = !!flag;
+  zeigeWildlife();
+  if (wildlifeAlive()) startAnimationLoop();
+  else render();
+}
+
+export function isWildlifeEnabled() {
+  return wildlifeEnabled;
+}
+
+// Für die Prüfläufe: wie viele Tiere welcher Gattung auf der Karte stehen.
+export function wildlifeProbe() {
+  return {
+    an: wildlifeEnabled,
+    sichtbar: !!(wildlifeGroup && wildlifeGroup.visible),
+    gattungen: wildlife.map((g) => ({
+      zahl: g.tiere.length,
+      blas: !!g.extra,
+      // Wo die ersten stehen - damit ein Prüflauf die Kamera dorthin schwenken
+      // kann, statt das Meer abzusuchen.
+      wo: g.tiere.slice(0, 3).map((t) => ({
+        col: colFromWorldX(t.mx), row: rowFromWorldZ(t.mz),
+        ueber: t.wo ? +(t.wo.y - SEA_LEVEL_Y).toFixed(2) : null,
+        blas: t.blas ? +t.blas.toFixed(2) : 0,
+      })),
+    })),
+  };
+}
+
+// Verschmilzt ein paar Teile zu einer Geometrie - vier Zeichenaufrufe je Hirsch
+// wären vierhundert für die Karte. Nur Lage und Normale; eine Textur trägt
+// keines dieser Tiere.
+function mergeShapes(parts) {
+  let laenge = 0;
+  const fertig = parts.map(({ geometry, matrix }) => {
+    const g = geometry.index ? geometry.toNonIndexed() : geometry.clone();
+    g.applyMatrix4(matrix);
+    laenge += g.attributes.position.count * 3;
+    return g;
+  });
+  const lage = new Float32Array(laenge);
+  const norm = new Float32Array(laenge);
+  let versatz = 0;
+  for (const g of fertig) {
+    lage.set(g.attributes.position.array, versatz);
+    norm.set(g.attributes.normal.array, versatz);
+    versatz += g.attributes.position.count * 3;
+    g.dispose();
+  }
+  const ganz = new THREE.BufferGeometry();
+  ganz.setAttribute('position', new THREE.Float32BufferAttribute(lage, 3));
+  ganz.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
+  return ganz;
+}
+
+function shapePart(geometry, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) {
+  const matrix = new THREE.Matrix4();
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz));
+  matrix.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(sx, sy, sz));
+  return { geometry, matrix };
+}
+
+// Ein Fisch, wie er von oben aussieht, wenn er dicht unter der Oberfläche
+// steht: ein dunkler Rücken und eine Schwanzflosse.
+function fishGeometry() {
+  const ruecken = new THREE.SphereGeometry(0.3, 6, 4);
+  const flosse = new THREE.ConeGeometry(0.16, 0.3, 3);
+  const g = mergeShapes([
+    shapePart(ruecken, 0, 0, 0, 0, 0, 0, 1.9, 0.5, 0.8),
+    shapePart(flosse, -0.62, 0, 0, 0, 0, Math.PI / 2, 1, 1, 0.4),
+  ]);
+  ruecken.dispose();
+  flosse.dispose();
+  return g;
+}
+
+// Ein Wal: ein langer Rücken und die Fluke. Er ist groß - auf dieser Karte
+// misst ein Feld gut fünfzig Kilometer, also ist jedes Tier ohnehin ein
+// Sinnbild und kein Maßstab.
+function whaleGeometry() {
+  const leib = new THREE.SphereGeometry(0.5, 8, 6);
+  const fluke = new THREE.ConeGeometry(0.34, 0.6, 3);
+  const finne = new THREE.ConeGeometry(0.12, 0.28, 4);
+  const g = mergeShapes([
+    shapePart(leib, 0, 0, 0, 0, 0, 0, 3.1, 0.72, 1),
+    shapePart(fluke, -1.6, 0.02, 0, 0, 0, Math.PI / 2, 1, 1, 0.35),
+    shapePart(finne, -0.2, 0.34, 0, 0, 0, 0, 1, 1, 0.5),
+  ]);
+  leib.dispose();
+  fluke.dispose();
+  finne.dispose();
+  return g;
+}
+
+// Der Blas: eine weiße Wolke über dem Rücken.
+function spoutGeometry() {
+  return new THREE.ConeGeometry(0.3, 1.2, 5);
+}
+
+// Eine Möwe von unten: zwei Flügel und ein Rumpf dazwischen.
+function gullGeometry() {
+  const fluegel = new THREE.BoxGeometry(0.12, 0.05, 0.8);
+  const leib = new THREE.SphereGeometry(0.13, 5, 4);
+  const g = mergeShapes([
+    shapePart(fluegel, 0, 0, 0.42, 0.35, 0, 0),
+    shapePart(fluegel, 0, 0, -0.42, -0.35, 0, 0),
+    shapePart(leib, 0, 0, 0, 0, 0, 0, 2.1, 1, 1),
+  ]);
+  fluegel.dispose();
+  leib.dispose();
+  return g;
+}
+
+// Rotwild: Leib, vier Läufe, Hals und Kopf. Das Geweih bleibt weg - aus der
+// Feldherrnperspektive wäre es ein Pixel, und es kostet Dreiecke.
+function deerGeometry() {
+  const leib = new THREE.SphereGeometry(0.3, 6, 5);
+  const lauf = new THREE.CylinderGeometry(0.05, 0.04, 0.42, 4);
+  const hals = new THREE.CylinderGeometry(0.07, 0.09, 0.34, 4);
+  const kopf = new THREE.SphereGeometry(0.11, 5, 4);
+  const teile = [shapePart(leib, 0, 0.52, 0, 0, 0, 0, 1.6, 0.85, 0.9)];
+  for (const x of [-0.28, 0.26]) {
+    for (const z of [-0.14, 0.14]) teile.push(shapePart(lauf, x, 0.21, z));
+  }
+  teile.push(shapePart(hals, 0.42, 0.66, 0, 0, 0, -0.45));
+  teile.push(shapePart(kopf, 0.58, 0.82, 0, 0, 0, 0, 1.5, 1, 1));
+  const g = mergeShapes(teile);
+  leib.dispose();
+  lauf.dispose();
+  hals.dispose();
+  kopf.dispose();
+  return g;
+}
+
+// Legt eine Gattung an: eine Instanzenwolke und die Liste ihrer Tiere.
+function addWildlife(geometry, material, tiere, aktualisieren, zusatz = null) {
+  if (!tiere.length) return;
+  const mesh = new THREE.InstancedMesh(geometry, material, tiere.length);
+  mesh.frustumCulled = false;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  wildlifeGroup.add(mesh);
+  let extra = null;
+  if (zusatz) {
+    extra = new THREE.InstancedMesh(zusatz.geometry, zusatz.material, tiere.length);
+    extra.frustumCulled = false;
+    extra.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    wildlifeGroup.add(extra);
+  }
+  wildlife.push({ mesh, extra, tiere, aktualisieren });
+}
+
+// Ob ein Feld Wasser ist - und wie weit das offene Meer reicht.
+function istWasser(col, row) {
+  if (!currentMap) return false;
+  if (col < 0 || col >= currentMap.cols || row < 0 || row >= currentMap.rows) return false;
+  return currentMap.tiles[row][col].type === 'water';
+}
+
+function offenesMeer(col, row, weite) {
+  for (let dr = -weite; dr <= weite; dr++) {
+    for (let dc = -weite; dc <= weite; dc++) {
+      if (!istWasser(col + dc, row + dr)) return false;
+    }
+  }
+  return true;
+}
+
+function amUfer(col, row) {
+  if (!istWasser(col, row)) return false;
+  for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const c = col + dc;
+    const r = row + dr;
+    if (c < 0 || c >= currentMap.cols || r < 0 || r >= currentMap.rows) continue;
+    if (currentMap.tiles[r][c].type !== 'water') return true;
+  }
+  return false;
+}
+
+// Wie viele es höchstens werden. Auf einer Karte mit fünftausend Feldern wären
+// "alle Küstenfelder" ein Teppich - es geht um Leben, nicht um eine Zählung.
+const WILDLIFE_MAX = { fische: 110, wale: 12, moewen: 70, wild: 120 };
+
+function buildWildlife(state) {
+  // Eine zweite Karte im selben Fenster erbt sonst die Tiere der ersten.
+  if (wildlifeGroup) {
+    scene.remove(wildlifeGroup);
+    wildlifeGroup.traverse((obj) => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    });
+  }
+  wildlife.length = 0;
+  wildlifeGroup = new THREE.Group();
+  scene.add(wildlifeGroup);
+  zeigeWildlife();
+  const rng = seededRandomFactory(77);
+  const { cols, rows, tiles } = state.map;
+
+  const ufer = [];
+  const tiefe = [];
+  const waelder = [];
+  for (let row = 1; row < rows - 1; row++) {
+    for (let col = 1; col < cols - 1; col++) {
+      const typ = tiles[row][col].type;
+      if (typ === 'water') {
+        if (amUfer(col, row)) ufer.push([col, row]);
+        else if (offenesMeer(col, row, 2)) tiefe.push([col, row]);
+      } else if (typ === 'forest' || (typ === 'hills' && rng() < 0.25)) {
+        waelder.push([col, row]);
+      }
+    }
+  }
+  const auswahl = (liste, hoechstens) => {
+    if (liste.length <= hoechstens) return liste;
+    const schritt = liste.length / hoechstens;
+    const raus = [];
+    for (let i = 0; i < hoechstens; i++) raus.push(liste[Math.floor(i * schritt)]);
+    return raus;
+  };
+
+  // --- Fischschwärme: dicht unter der Oberfläche, in engen Kreisen ----------
+  const fische = [];
+  for (const [col, row] of auswahl(ufer, WILDLIFE_MAX.fische)) {
+    // Ein Schwarm sind mehrere Rücken, die zusammen ziehen.
+    const mx = worldX(col) + (rng() - 0.5) * TILE_SIZE * 0.5;
+    const mz = worldZ(row) + (rng() - 0.5) * TILE_SIZE * 0.5;
+    const takt = 0.25 + rng() * 0.3;
+    const start = rng() * Math.PI * 2;
+    const weite = TILE_SIZE * (0.2 + rng() * 0.2);
+    for (let i = 0; i < 3; i++) {
+      fische.push({
+        mx, mz, takt, weite, start: start + i * 0.5,
+        seit: (rng() - 0.5) * 0.5, gross: 0.5 + rng() * 0.35,
+      });
+    }
+  }
+  addWildlife(
+    fishGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#2a4a63', roughness: 0.55 }),
+    fische,
+    (tier, t, matrix, lage, dreh, mass) => {
+      const winkel = tier.start + t * tier.takt;
+      lage.set(
+        tier.mx + Math.cos(winkel) * tier.weite,
+        SEA_LEVEL_Y + 0.02 + Math.sin(t * 1.4 + tier.start) * 0.05,
+        tier.mz + Math.sin(winkel) * tier.weite + tier.seit
+      );
+      dreh.setFromAxisAngle(WILDLIFE_ACHSE, -winkel - Math.PI / 2);
+      mass.setScalar(tier.gross);
+      matrix.compose(lage, dreh, mass);
+    }
+  );
+
+  // --- Wale: weit draußen, tauchen auf und blasen ---------------------------
+  const wale = [];
+  for (const [col, row] of auswahl(tiefe, WILDLIFE_MAX.wale)) {
+    wale.push({
+      mx: worldX(col), mz: worldZ(row),
+      takt: 0.05 + rng() * 0.05, weite: TILE_SIZE * (0.5 + rng() * 0.5),
+      start: rng() * Math.PI * 2, zyklus: 9 + rng() * 6, versatz: rng() * 15,
+      gross: 1.2 + rng() * 0.6,
+    });
+  }
+  addWildlife(
+    whaleGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#33414f', roughness: 0.6 }),
+    wale,
+    (tier, t, matrix, lage, dreh, mass) => {
+      const winkel = tier.start + t * tier.takt;
+      // Auftauchen und wieder weg: über den Zyklus liegt er meist unter Wasser
+      // und hebt den Rücken nur für ein paar Sekunden heraus.
+      const p = ((t + tier.versatz) % tier.zyklus) / tier.zyklus;
+      const auf = p < 0.4 ? Math.sin(p / 0.4 * Math.PI) : 0;
+      lage.set(
+        tier.mx + Math.cos(winkel) * tier.weite,
+        SEA_LEVEL_Y - 0.6 + auf * 1.0,
+        tier.mz + Math.sin(winkel) * tier.weite
+      );
+      dreh.setFromAxisAngle(WILDLIFE_ACHSE, -winkel - Math.PI / 2);
+      mass.setScalar(tier.gross);
+      matrix.compose(lage, dreh, mass);
+      tier.blas = p > 0.1 && p < 0.3 ? Math.sin((p - 0.1) / 0.2 * Math.PI) : 0;
+      tier.wo = { x: lage.x, y: lage.y, z: lage.z, r: -winkel - Math.PI / 2 };
+    },
+    {
+      geometry: spoutGeometry(),
+      material: new THREE.MeshStandardMaterial({
+        color: '#eef4f7', roughness: 0.4, transparent: true, opacity: 0.75,
+      }),
+    }
+  );
+
+  // --- Möwen: über der Küste, in weiten Kreisen -----------------------------
+  const moewen = [];
+  for (const [col, row] of auswahl(ufer, WILDLIFE_MAX.moewen)) {
+    if (rng() < 0.45) continue;
+    moewen.push({
+      mx: worldX(col), mz: worldZ(row),
+      takt: 0.4 + rng() * 0.4, weite: TILE_SIZE * (0.35 + rng() * 0.35),
+      start: rng() * Math.PI * 2, hoehe: 2.2 + rng() * 2.2, gross: 0.55 + rng() * 0.3,
+    });
+  }
+  addWildlife(
+    gullGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#f2f4f2', roughness: 0.8 }),
+    moewen,
+    (tier, t, matrix, lage, dreh, mass) => {
+      const winkel = tier.start + t * tier.takt;
+      lage.set(
+        tier.mx + Math.cos(winkel) * tier.weite,
+        SEA_LEVEL_Y + tier.hoehe + Math.sin(t * 0.9 + tier.start) * 0.4,
+        tier.mz + Math.sin(winkel) * tier.weite
+      );
+      dreh.setFromAxisAngle(WILDLIFE_ACHSE, -winkel - Math.PI / 2);
+      // Der Flügelschlag steckt in der Höhe des Tieres, nicht in seiner Form:
+      // ein bisschen gestaucht, ein bisschen gestreckt.
+      mass.set(tier.gross, tier.gross * (0.7 + Math.abs(Math.sin(t * 4 + tier.start)) * 0.6),
+        tier.gross);
+      matrix.compose(lage, dreh, mass);
+    }
+  );
+
+  // --- Rotwild: an den Waldrändern, äsend ------------------------------------
+  const wild = [];
+  for (const [col, row] of auswahl(waelder, WILDLIFE_MAX.wild)) {
+    const rudel = 1 + Math.floor(rng() * 3);
+    for (let i = 0; i < rudel; i++) {
+      wild.push({
+        mx: worldX(col) + (rng() - 0.5) * TILE_SIZE * 0.6,
+        mz: worldZ(row) + (rng() - 0.5) * TILE_SIZE * 0.6,
+        boden: groundY(col, row),
+        richtung: rng() * Math.PI * 2,
+        takt: 0.05 + rng() * 0.06, weite: TILE_SIZE * (0.05 + rng() * 0.1),
+        start: rng() * Math.PI * 2, gross: 0.5 + rng() * 0.18,
+      });
+    }
+  }
+  addWildlife(
+    deerGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#8d6039', roughness: 0.95 }),
+    wild,
+    (tier, t, matrix, lage, dreh, mass) => {
+      const winkel = tier.start + t * tier.takt;
+      lage.set(
+        tier.mx + Math.cos(winkel) * tier.weite,
+        tier.boden,
+        tier.mz + Math.sin(winkel) * tier.weite
+      );
+      dreh.setFromAxisAngle(WILDLIFE_ACHSE, -winkel - Math.PI / 2);
+      mass.setScalar(tier.gross);
+      matrix.compose(lage, dreh, mass);
+    }
+  );
+}
+
+const WILDLIFE_ACHSE = new THREE.Vector3(0, 1, 0);
+const wildMatrix = new THREE.Matrix4();
+const wildLage = new THREE.Vector3();
+const wildDreh = new THREE.Quaternion();
+const wildMass = new THREE.Vector3();
+let wildlifeZeit = 0;
+
+function wildlifeAlive() {
+  return wildlifeEnabled && wildlife.length > 0 && mapMode !== 'tactical';
+}
+
+function advanceWildlife(dt) {
+  wildlifeZeit += dt;
+  const t = wildlifeZeit;
+  for (const gattung of wildlife) {
+    const { mesh, extra, tiere, aktualisieren } = gattung;
+    for (let i = 0; i < tiere.length; i++) {
+      aktualisieren(tiere[i], t, wildMatrix, wildLage, wildDreh, wildMass);
+      mesh.setMatrixAt(i, wildMatrix);
+      if (extra) {
+        // Der Blas steht senkrecht über dem Rücken - und ist meist nicht da.
+        const tier = tiere[i];
+        const hoch = tier.blas || 0;
+        // Am Kopf, nicht in der Mitte: die Blickrichtung steckt in der Drehung
+        // des Tieres, und eine Drehung um die Hochachse schiebt das lokale
+        // Vorn nach (cos, 0, -sin).
+        const weit = 1.3 * (tier.gross || 1);
+        wildLage.set(
+          tier.wo.x + Math.cos(tier.wo.r) * weit,
+          tier.wo.y + 0.55 * (tier.gross || 1),
+          tier.wo.z - Math.sin(tier.wo.r) * weit
+        );
+        wildDreh.setFromAxisAngle(WILDLIFE_ACHSE, 0);
+        const dick = hoch * (tier.gross || 1);
+        wildMass.set(dick * 0.7, dick * 1.6, dick * 0.7);
+        wildMatrix.compose(wildLage, wildDreh, wildMass);
+        extra.setMatrixAt(i, wildMatrix);
+      }
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (extra) extra.instanceMatrix.needsUpdate = true;
+  }
+}
+
 function seededRandomFactory(seed) {
   let s = seed;
   return function seededRandom() {
@@ -698,7 +1123,10 @@ export function buildMap(state) {
   buildWonders(state);
   buildRoadNetwork(state);
   buildRivers(state);
+  // Und zuletzt, was ohne den Feldherrn geschieht: Fische, Wale, Möwen, Wild.
+  buildWildlife(state);
   roadVersionDrawn = state.roadVersion || 0;
+  if (wildlifeAlive()) startAnimationLoop();
 }
 
 // --- Kartentisch und Feldherrnzelt ---------------------------------------
@@ -2733,6 +3161,156 @@ function buildGranary(scale) {
   return speicher;
 }
 
+// --- Fischerei -------------------------------------------------------------
+// Was am Strand steht, wo ein Ort vom Fang lebt: eine Hütte mit Schilfdach,
+// davor die Gestelle, an denen die Netze trocknen, und ein Boot, das halb aus
+// dem Wasser gezogen ist. Kein Hafen - ein Hafen ist ein Kai für Schiffe, das
+// hier ist ein Strand für Boote.
+const NET_MATERIAL = new THREE.MeshStandardMaterial({
+  color: '#9a8f6d', roughness: 1, transparent: true, opacity: 0.75,
+  side: THREE.DoubleSide,
+});
+
+function buildFishery(scale) {
+  const fischerei = new THREE.Group();
+  // Die Hütte: klein, aus Holz, mit Schilfdach.
+  const huette = new THREE.Mesh(
+    new THREE.BoxGeometry(0.85 * scale, 0.46 * scale, 0.62 * scale),
+    CITY_MATERIALS.timber
+  );
+  huette.position.set(-0.48 * scale, 0.23 * scale, 0);
+  fischerei.add(huette);
+  const dach = new THREE.Mesh(
+    makeGableRoof(0.85 * scale, 0.62 * scale, 0.3 * scale), ROOF_THATCH
+  );
+  dach.position.set(-0.48 * scale, 0.46 * scale, 0);
+  fischerei.add(dach);
+
+  // Die Netzgestelle: zwei Böcke mit einem Netz dazwischen. Sie stehen quer
+  // zum Wasser, damit man sie von der Seite sieht.
+  for (const z of [-0.42, 0.42]) {
+    for (const x of [0.15, 0.8]) {
+      const pfosten = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.045 * scale, 0.05 * scale, 0.5 * scale, 5),
+        CITY_MATERIALS.wood
+      );
+      pfosten.position.set(x * scale, 0.25 * scale, z * scale);
+      fischerei.add(pfosten);
+    }
+    const netz = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.65 * scale, 0.32 * scale), NET_MATERIAL
+    );
+    netz.position.set(0.475 * scale, 0.3 * scale, z * scale);
+    fischerei.add(netz);
+    const stange = new THREE.Mesh(
+      new THREE.BoxGeometry(0.72 * scale, 0.04 * scale, 0.04 * scale),
+      CITY_MATERIALS.wood
+    );
+    stange.position.set(0.475 * scale, 0.47 * scale, z * scale);
+    fischerei.add(stange);
+  }
+
+  // Das Boot: ein flacher Kahn, halb an Land gezogen, mit zwei Rudern.
+  const kahn = new THREE.Group();
+  const rumpf = new THREE.Mesh(
+    new THREE.BoxGeometry(1.05 * scale, 0.16 * scale, 0.34 * scale),
+    CITY_MATERIALS.wood
+  );
+  rumpf.position.y = 0.1 * scale;
+  kahn.add(rumpf);
+  for (const x of [-0.6, 0.6]) {
+    const steven = new THREE.Mesh(
+      new THREE.ConeGeometry(0.17 * scale, 0.3 * scale, 4),
+      CITY_MATERIALS.wood
+    );
+    steven.position.set(x * scale, 0.11 * scale, 0);
+    steven.rotation.z = x > 0 ? -Math.PI / 2 : Math.PI / 2;
+    kahn.add(steven);
+  }
+  for (const z of [-0.2, 0.2]) {
+    const riemen = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.025 * scale, 0.025 * scale, 0.7 * scale, 4),
+      CITY_MATERIALS.wood
+    );
+    riemen.position.set(0.1 * scale, 0.2 * scale, z * scale);
+    riemen.rotation.set(0, 0.25, Math.PI / 2);
+    kahn.add(riemen);
+  }
+  kahn.position.set(0.22 * scale, 0.02 * scale, -0.72 * scale);
+  kahn.rotation.y = 0.4;
+  fischerei.add(kahn);
+
+  addFoundation(fischerei, 0.12);
+  fischerei.userData.werk = 'fischerei';
+  return fischerei;
+}
+
+// --- Jagdhütte -------------------------------------------------------------
+// Am Waldrand: ein Blockhaus mit Schindeldach, davor das Gestell, an dem das
+// Wild hängt, und ein Stapel Scheite. Sie steht auf Pfählen wie der Speicher -
+// was an ihr hängt, soll kein Fuchs erreichen.
+function buildHuntLodge(scale) {
+  const jagd = new THREE.Group();
+  // Das Blockhaus: Balkenlagen übereinander, damit es nicht wie ein Kasten
+  // aussieht.
+  const lagen = 4;
+  for (let i = 0; i < lagen; i++) {
+    const balken = new THREE.Mesh(
+      new THREE.BoxGeometry(0.95 * scale, 0.13 * scale, 0.78 * scale),
+      i % 2 ? CITY_MATERIALS.wood : CITY_MATERIALS.timber
+    );
+    balken.position.set(0, (0.09 + i * 0.13) * scale, 0);
+    jagd.add(balken);
+  }
+  const dach = new THREE.Mesh(
+    makeGableRoof(0.95 * scale, 0.78 * scale, 0.34 * scale), ROOF_TIMBER
+  );
+  dach.position.set(0, 0.6 * scale, 0);
+  jagd.add(dach);
+
+  // Das Gestell davor - zwei Gabeln und eine Stange, daran hängt der Fang.
+  for (const z of [-0.42, 0.42]) {
+    const gabel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045 * scale, 0.055 * scale, 0.62 * scale, 5),
+      CITY_MATERIALS.wood
+    );
+    gabel.position.set(0.95 * scale, 0.31 * scale, z * scale);
+    jagd.add(gabel);
+  }
+  const stange = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035 * scale, 0.035 * scale, 0.98 * scale, 5),
+    CITY_MATERIALS.wood
+  );
+  stange.position.set(0.95 * scale, 0.6 * scale, 0);
+  stange.rotation.x = Math.PI / 2;
+  jagd.add(stange);
+  // Was daran hängt: ein Stück Wild, dunkel, ohne Einzelheiten - aus der
+  // Feldherrnperspektive ist es ein Fleck, und mehr braucht es nicht.
+  const beute = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16 * scale, 0.36 * scale, 0.14 * scale),
+    new THREE.MeshStandardMaterial({ color: '#6b4b2c', roughness: 1 })
+  );
+  beute.position.set(0.95 * scale, 0.4 * scale, 0.12 * scale);
+  jagd.add(beute);
+
+  // Der Holzstapel an der Wand.
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 2; j++) {
+      const scheit = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055 * scale, 0.055 * scale, 0.6 * scale, 5),
+        CITY_MATERIALS.wood
+      );
+      scheit.position.set((-0.62 - j * 0.11) * scale, (0.06 + i * 0.11) * scale, 0);
+      scheit.rotation.x = Math.PI / 2;
+      jagd.add(scheit);
+    }
+  }
+
+  addFoundation(jagd, 0.18);
+  jagd.userData.werk = 'jagd';
+  return jagd;
+}
+
 // Das Forum: die Basilika des Orts - ein Säulenbau mit Giebel, kein
 // gepflasterter Platz mit einem Geländer. Vorher stand hier eine niedrige
 // Kolonnade um eine Rednerbühne; aus der Feldherrnperspektive sah das aus wie
@@ -3018,6 +3596,49 @@ function placeHarbour(harbour, city, sea, cityY) {
       - werft.position.x * Math.sin(winkel) + werft.position.z * Math.cos(winkel);
     werft.position.y = Math.max(0, bandY(wx, wz) - SEA_LEVEL_Y);
   }
+}
+
+// Setzt ein Bauwerk ans Ufer, aber an Land: dieselbe Richtung wie der Steg,
+// nur ein Stück zurück und seitlich daneben. `rueck` ist der Abstand vom
+// Wasserfeld in Feldern, `quer` die Verschiebung quer dazu in Welteinheiten.
+function placeShore(group, city, sea, cityY, { rueck = 0.9, quer = 0 } = {}) {
+  const dx = sea.col - city.col;
+  const dz = sea.row - city.row;
+  const distance = Math.max(1, Math.abs(dx) + Math.abs(dz));
+  const nx = dx / distance;
+  const nz = dz / distance;
+  const lx = nx * TILE_SIZE * (distance - rueck) + nz * quer;
+  const lz = nz * TILE_SIZE * (distance - rueck) - nx * quer;
+  const wx = worldX(city.col) + lx;
+  const wz = worldZ(city.row) + lz;
+  // Nie unter die Wasserlinie: am flachen Ufer liegt der Boden dort schon
+  // tiefer als das Meer, und die Hütte stünde bis zum Dach im Wasser.
+  const oben = Math.max(bandY(wx, wz), SEA_LEVEL_Y + 0.05);
+  group.position.set(lx, oben - cityY, lz);
+  group.rotation.y = Math.atan2(-dz, dx);
+  const platte = group.userData && group.userData.fundament;
+  if (platte) {
+    platte.scale.y = 0.6;
+    platte.position.y = -0.3;
+  }
+}
+
+// Das Nachbarfeld mit dem meisten Wald - dort gehört die Jagdhütte hin. Gibt
+// es keines, bleibt es bei null, und der Aufrufer nimmt irgendein freies.
+function waldSpot(city, taken = []) {
+  if (!currentMap) return null;
+  const belegt = new Set(taken.map(([dc, dr]) => `${dc},${dr}`));
+  let best = null;
+  for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+    if (belegt.has(`${dc},${dr}`)) continue;
+    const col = city.col + dc;
+    const row = city.row + dr;
+    if (!baugrund(col, row)) continue;
+    if (currentMap.tiles[row][col].type !== 'forest') continue;
+    best = { dir: [dc, dr], y: surfaceY(col, row) };
+    break;
+  }
+  return best;
 }
 
 // Wie groß ein Heer auf der Karte erscheint. Ein Trupp von 80 Mann und ein
@@ -3708,6 +4329,37 @@ export function syncEntities(state) {
     }
     if (entry.forum) entry.forum.visible = !!city.forum;
 
+    // Die Fischerei liegt am Wasser, nicht auf dem Acker: ein Strand mit
+    // Netzen und einem Kahn. Sie sucht sich dasselbe Ufer wie der Hafen,
+    // steht aber weiter oben und seitlich versetzt - Steg und Netzgestelle
+    // teilen sich sonst denselben Meter Ufer.
+    if (city.fishery && !entry.fishery) {
+      const sea = harbourTile(state, city);
+      entry.fishery = buildFishery(entry.bau * 1.05);
+      if (sea) {
+        placeShore(entry.fishery, city, sea, surfaceY(city.col, city.row),
+          { rueck: 0.95, quer: TILE_SIZE * 0.42 });
+      } else {
+        placeAt(entry.fishery, city, surfaceY(city.col, city.row),
+          freiesFeld('low'), 0.95, { gerade: true });
+      }
+      entry.group.add(entry.fishery);
+    }
+    if (entry.fishery) entry.fishery.visible = !!city.fishery;
+
+    // Die Jagdhütte steht am Waldrand - auf dem Nachbarfeld, auf dem am
+    // meisten Wald steht, sonst auf irgendeinem freien.
+    if (city.hunt && !entry.hunt) {
+      entry.hunt = buildHuntLodge(entry.bau * 1.05);
+      const waldrand = waldSpot(city, entry.belegt);
+      if (waldrand && waldrand.dir) entry.belegt.push(waldrand.dir);
+      const platz = waldrand || freiesFeld('low');
+      placeAt(entry.hunt, city, surfaceY(city.col, city.row), platz, 0.98,
+        { gerade: true });
+      entry.group.add(entry.hunt);
+    }
+    if (entry.hunt) entry.hunt.visible = !!city.hunt;
+
     // Only the stage that actually stands is built, and only when it is built.
     const level = city.wallLevel || 0;
     for (let index = 0; index < entry.walls.length; index++) {
@@ -3957,6 +4609,8 @@ export function setMapMode(mode, state) {
   mapMode = mode === 'tactical' ? 'tactical' : 'terrain';
   const tactical = mapMode === 'tactical';
   if (propsGroup) propsGroup.visible = !tactical;
+  zeigeWildlife();
+  if (wildlifeAlive()) startAnimationLoop();
   // Straßen bleiben auch in der taktischen Sicht stehen: wer Grenzen liest,
   // will wissen, wo die Heere schnell hinkommen.
   if (roadsGroup) roadsGroup.visible = true;
@@ -4337,7 +4991,21 @@ function startAnimationLoop() {
     advanceAnimations(dt);
     advanceEffects(dt);
     const raining = advanceWeatherPoints(dt);
-    render();
+    // Was sich bewegt, muss auch gezeichnet werden. Die Tiere bewegen sich
+    // langsam: fünfzehn Bilder je Sekunde genügen für sie, und dazwischen wird
+    // gar nicht gezeichnet - sonst liefe die Karte für einen Fischschwarm
+    // dauerhaft mit voller Bildrate.
+    const lebt = wildlifeAlive();
+    let zeichnen = armyAnimations.size > 0 || effects.length > 0 || raining;
+    if (lebt) {
+      wildlifeAkku += dt;
+      if (wildlifeAkku >= WILDLIFE_STEP) {
+        advanceWildlife(wildlifeAkku);
+        wildlifeAkku = 0;
+        zeichnen = true;
+      }
+    }
+    if (zeichnen) render();
 
     // Fertige Märsche und Effekte melden sich sofort - noch in dem Bild, in
     // dem sie zu Ende gehen. Früher wurde die Warteschlange erst geleert,
@@ -4351,7 +5019,7 @@ function startAnimationLoop() {
     // ohnehin weiter.
     for (const done of completionQueue.splice(0)) if (done) done();
 
-    if (armyAnimations.size > 0 || effects.length > 0 || raining) {
+    if (armyAnimations.size > 0 || effects.length > 0 || raining || lebt) {
       animationFrameId = requestAnimationFrame(step);
       return;
     }

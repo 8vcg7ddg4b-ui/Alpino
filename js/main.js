@@ -1,4 +1,6 @@
-import { createInitialState, playerFaction, unitTotalCount, factionById, logMsg } from './state.js';
+import {
+  createInitialState, playerFaction, unitTotalCount, factionById, logMsg, isFleet,
+} from './state.js';
 import {
   playableFactions, factionProfile, unitDefs, UNIT_ROLES, ROLE_LABELS,
   CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION, GAME_VERSION, MINE_NAME,
@@ -37,7 +39,7 @@ import {
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
   setBordersVisible, areBordersVisible,
   setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled, captureFrame,
-  northOnScreen,
+  northOnScreen, setWildlifeEnabled,
 } from './scene3d.js';
 import {
   sfx, unlockAudio, toggleMuted, isMuted, stopMarch, startTheme, stopTheme, setMusicEnabled,
@@ -88,6 +90,7 @@ function applySettings() {
   setMarchSpeed(MARCH_SPEED_FACTORS[getSetting('marchSpeed')] ?? 1);
   setAiStance(AI_STANCE_THRESHOLDS[getSetting('aiStance')] ?? 0.5);
   setWeatherVisualsEnabled(getSetting('weatherEffects'));
+  setWildlifeEnabled(getSetting('wildlife'));
   setMusicEnabled(getSetting('music'));
 }
 applySettings();
@@ -541,7 +544,100 @@ function snapshotOwn() {
     gesperrt: new Set(state.cities
       .filter((c) => c.factionId === me && blockadingFleets(state, c).length)
       .map((c) => c.id)),
+    // Und die Zahlen, an denen sich eine Runde messen lässt.
+    zahlen: reichsZahlen(),
   };
+}
+
+// Der Stand des Reichs in Zahlen. Womit die Runde begann und womit sie endet -
+// die Differenz ist die Rundenbilanz.
+function reichsZahlen() {
+  if (!state) return null;
+  const me = playerFaction(state).id;
+  const meine = playerFaction(state);
+  const orte = state.cities.filter((c) => c.factionId === me);
+  const heere = state.armies.filter((a) => a.factionId === me && !isFleet(a));
+  const flotten = state.armies.filter((a) => a.factionId === me && isFleet(a));
+  return {
+    gold: Math.round(meine.gold),
+    einwohner: orte.reduce((sum, c) => sum + c.population, 0),
+    orte: orte.length,
+    mann: heere.reduce((sum, a) => sum + unitTotalCount(a.units), 0),
+    heere: heere.length,
+    wache: orte.reduce((sum, c) => sum + unitTotalCount(c.garrison), 0),
+    schiffe: flotten.reduce((sum, f) => sum + (f.units.ships || 0), 0),
+  };
+}
+
+// Die Rundenbilanz: was diese Runde am Reich verändert hat, in einer Liste.
+// Nur was sich bewegt hat, steht darin - eine Tafel voller Nullen sagt nichts,
+// und wenn sich gar nichts bewegt hat, kommt sie überhaupt nicht.
+const BILANZ_ZEILEN = [
+  { key: 'gold', icon: '💰', name: 'Schatz' },
+  { key: 'einwohner', icon: '👥', name: 'Einwohner' },
+  { key: 'orte', icon: '🏛️', name: 'Orte' },
+  { key: 'mann', icon: '⚔️', name: 'Mann im Feld' },
+  { key: 'heere', icon: '🚩', name: 'Heere' },
+  { key: 'wache', icon: '🛡️', name: 'Stadtwache' },
+  { key: 'schiffe', icon: '⛵', name: 'Schiffe' },
+];
+
+function collectBalanceNews(vorher) {
+  const jetzt = reichsZahlen();
+  if (!jetzt || !vorher || !vorher.zahlen) return;
+  const vor = vorher.zahlen;
+  const zeilen = [];
+  const deltas = {};
+  for (const zeile of BILANZ_ZEILEN) {
+    const diff = jetzt[zeile.key] - vor[zeile.key];
+    deltas[zeile.key] = diff;
+    if (!diff) continue;
+    zeilen.push({
+      icon: zeile.icon,
+      name: zeile.name,
+      diff,
+      text: `${diff > 0 ? '+' : '−'}${Math.abs(diff).toLocaleString('de-DE')}`,
+    });
+  }
+  // Die Zahlen bleiben am Spielstand hängen: die Goldanzeige liest daraus ihr
+  // „+150", und die Bilanz übersteht damit auch ein Rückgängig.
+  state.lastDeltas = deltas;
+  showTurnSummary(zeilen);
+}
+
+// --- Die Rundenbilanz ------------------------------------------------------
+// Was sich mit dem Rundenwechsel verändert hat, steht als Streifen unter der
+// Kopfzeile - und nicht in einem Fenster, das man wegklicken muss. Eine
+// Meldung, die jede Runde kommt, darf den Spieler nicht aufhalten; sie soll
+// im Vorbeigehen zu lesen sein und von selbst wieder gehen.
+const SUMMARY_MS = 9000;
+let summaryTimer = null;
+
+function showTurnSummary(zeilen) {
+  const strip = document.getElementById('turnSummary');
+  if (!strip) return;
+  strip.textContent = '';
+  if (!zeilen.length) {
+    strip.classList.add('hidden');
+    return;
+  }
+  for (const zeile of zeilen) {
+    const chip = document.createElement('span');
+    chip.className = `summary-chip ${zeile.diff > 0 ? 'delta-up' : 'delta-down'}`;
+    const icon = document.createElement('span');
+    icon.className = 'summary-icon';
+    icon.textContent = zeile.icon;
+    const name = document.createElement('span');
+    name.className = 'summary-name';
+    name.textContent = zeile.name;
+    const wert = document.createElement('strong');
+    wert.textContent = zeile.text;
+    chip.append(icon, name, wert);
+    strip.appendChild(chip);
+  }
+  strip.classList.remove('hidden');
+  clearTimeout(summaryTimer);
+  summaryTimer = setTimeout(() => strip.classList.add('hidden'), SUMMARY_MS);
 }
 
 // Wie nah ein Segel sein muss, damit es die eigene Küste angeht.
@@ -1808,6 +1904,9 @@ function endTurn() {
   resetMovement(state);
   // A new season means new weather; the scene has to be asked again.
   setWeatherSource((col, row) => weatherAt(state, col, row));
+  // Die Bilanz wird vor dem Neuzeichnen gezogen: die Goldanzeige liest ihr
+  // „+172" daraus, und die käme sonst eine Runde zu spät.
+  collectBalanceNews(vorher);
   refresh();
 
   // Alles, was die eigene Fraktion in dieser Runde betroffen hat, kommt der

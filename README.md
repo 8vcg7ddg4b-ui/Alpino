@@ -165,7 +165,7 @@ abwechselnd einen lauten Durchgang mit Melodie und einen leisen ohne.
 
 Das Menü führt ins Spiel, zu den **Einstellungen** (Ton, Kampfvorschau,
 Marschgeschwindigkeit, Kartensicht beim Start, Verhalten der Gegner,
-Wettereffekte, Titelmusik, Bildwechsel)
+Wettereffekte, Leben auf der Karte, Titelmusik, Bildwechsel)
 und zu den Spielregeln. Alle Einstellungen wirken sofort und werden im Browser
 gespeichert; die KI-Haltung legt fest, wie sicher sich die KI ihres Sieges sein
 muss, bevor sie einen Kampf überhaupt eingeht.
@@ -178,6 +178,18 @@ den Punkten durchblättern.
 
 ## Bedienung
 
+- **Die Rundenbilanz**: Was sich mit dem Rundenwechsel am eigenen Reich
+  verändert hat, steht als schmaler Streifen unter der Kopfzeile – „💰 Schatz
+  +172 · 👥 Einwohner +73 · 🛡️ Stadtwache +4". Er hält niemanden auf: kein
+  Fenster, kein Knopf, nach neun Sekunden geht er von selbst wieder. **Nur was
+  sich bewegt hat, steht darin** – eine Tafel voller Nullen sagt nichts, und
+  wenn sich gar nichts bewegt hat, kommt sie überhaupt nicht. Gezählt werden
+  Schatz, Einwohner, Orte, Mann im Feld, Heere, Stadtwache und Schiffe.
+  Dieselbe Zahl steht **neben dem Schatz in der Kopfzeile** (grün, wenn er
+  wächst, rot, wenn er schrumpft), und **jeder Ort zeigt seinen eigenen
+  Zuwachs** neben der Einwohnerzahl – in der Feldauskunft wie in der
+  Reichsübersicht: „6.429 +29". Eine Zahl allein sagt nicht, ob sie steigt oder
+  fällt, und genau das ist das, was man von ihr wissen will.
 - **Die Kopfzeile**: links Titel, Runde, Wetter und Schatz, rechts der Knopf
   „Runde beenden". Dazwischen stehen die vier Werkzeuge, die man jede Runde
   braucht – ↩ **Rückgängig**, 🏛 **Reich**, 🕊 **Diplomatie**, 🗺 **Taktische
@@ -663,6 +675,8 @@ den Punkten durchblättern.
   | Verwaltung | eigenes Feld am Ortsrand | gepflasterter Platz, Säulenreihen, Rednerbühne |
   | Viadukt | höchstes Nachbarfeld | Pfeiler, Bögen, Wasserrinne zur Stadt hin |
   | Bergwerk | zweithöchstes Nachbarfeld | Fördergerüst mit Schacht und Halde |
+  | Fischerei | am Ufer, neben dem Steg | Hütte mit Schilfdach, Netzgestelle, Kahn am Strand |
+  | Jagdhütte | Waldrand im Umland | Blockhaus mit Schindeldach, Trockengestell, Holzstapel |
   | Hafen | am Ufer zum offenen Wasser | Steg mit vertäutem Boot |
   | Werft | **am Steg selbst** | Helling neben dem Steg, darauf Kiel und Spanten |
 
@@ -803,6 +817,28 @@ den Punkten durchblättern.
   nennt vor dem Bau, was er tragen wird. Neben der Stadt steht danach ein
   Fördergerüst mit Schacht und Halde, in der Übersicht hat das Bergwerk eine
   eigene Spalte, und die KI schlägt eines an, bevor sie die nächste Mauer baut.
+- **Fischerei und Jagdhütte**: Nicht jeder Ort lebt vom Acker. Wer am Wasser
+  liegt, lebt vom Fang; wer am Wald liegt, vom Wild. Beide sind billiger und
+  kleiner als die Farm und tragen zweierlei – Nahrung, an der der Ort wächst,
+  und ein wenig Geld aus dem, was übrig bleibt.
+  Die **Fischerei** (160 Gold, 2 Runden) steht überall, wo offenes Wasser in
+  Hafenreichweite liegt – ein Hafen ist dafür nicht nötig, ein Strand genügt.
+  Sie bringt **30 % mehr Zuwachs** und **14 Gold je Runde**. Auf der Karte
+  steht sie am Ufer neben dem Steg: eine Hütte mit Schilfdach, davor die
+  Gestelle, an denen die Netze trocknen, und ein Kahn, halb an Land gezogen.
+  Die **Jagdhütte** (140 Gold, 2 Runden) rechnet wie das Bergwerk über ein
+  Quadrat von **zwei Feldern** um den Ort: ein Waldfeld zählt **2**, ein
+  Hügelfeld **1**, alles andere nichts. Ab **3 Wild** lohnt sie, je Punkt
+  bringt sie **2 Gold je Runde**, bei 8 Punkten ist Schluss – also **6 bis 16
+  Gold** –, dazu **20 % mehr Zuwachs**. Wo kein Wald im Umland steht, erscheint
+  der Knopf gar nicht. Auf der Karte steht sie am Waldrand: ein Blockhaus mit
+  Schindeldach, davor das Gestell, an dem der Fang hängt, daneben der
+  Holzstapel.
+  Beide schließen einander und die Farm nicht aus. Ein Ort mit Acker, Fang und
+  Jagd wächst schnell – er hat es dreifach bezahlt, und **seine Obergrenze
+  bleibt dieselbe**: schneller wachsen heißt früher an der Grenze stehen, nicht
+  über sie hinaus. In der Reichsübersicht stehen beide zusammen in der Spalte
+  **„Fang & Jagd"**, und die KI baut sie gleich nach dem Acker.
 - **Wandernde Stämme**: Der Osten ist nicht der Rand der Welt, sondern ihre
   Tür. Ab Runde 18 setzt sich dahinter mit einer Wahrscheinlichkeit von 10 % je
   Runde ein Volk in Bewegung – **520 bis 980 wehrhafte Männer**, dazu Weiber,
@@ -1545,7 +1581,24 @@ den Punkten durchblättern.
   keiner: eine Eiche mitten auf dem Pflaster ist keine Landschaft, sondern ein
   Versehen. Aus rund 350 Bäumen sind so etwa 2.500 geworden – gezeichnet wird
   das weiterhin in zwei Aufrufen, denn alle Stämme und alle Kronen sind je eine
-  Instanzenwolke. **Jede Fraktion beginnt mit denselben fünf Orten**: der
+  Instanzenwolke.
+
+  **Und die Welt lebt.** Eine Karte, auf der sich nichts rührt als die eigenen
+  Heere, ist ein Plan; was aus ihr eine Welt macht, sind die Dinge, die ohne
+  den Feldherrn geschehen. Über den Untiefen ziehen **Fischschwärme** in engen
+  Kreisen, weit draußen tauchen **Wale** auf, blasen und gehen wieder unter,
+  über der Küste kreisen **Möwen** mit schlagenden Flügeln, und an den
+  Waldrändern steht **Rotwild** – rund 330 Fische, ein Dutzend Wale, vierzig
+  Möwen und zweihundert Stück Wild. Nichts davon greift in die Regeln ein: es
+  ist Landschaft. Deshalb ist es billig gebaut – je Gattung **eine
+  Instanzenwolke**, und bewegt wird nur **fünfzehnmal je Sekunde**; dazwischen
+  wird gar nicht gezeichnet, sonst liefe die Karte für einen Fischschwarm
+  dauerhaft mit voller Bildrate. In der taktischen Sicht bleibt alles stehen –
+  dort geht es um Grenzen und Heere, und ein Rudel Rotwild sagt darüber nichts.
+  Wer eine ruhige Karte will, schaltet es in den Einstellungen unter **„Leben
+  auf der Karte"** ab.
+
+  **Jede Fraktion beginnt mit denselben fünf Orten**: der
   Hauptstadt als Große Stadt, zwei Städten und zwei Dörfern. Wo einer sitzt,
   sagt die Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt
   reicher als das andere. **27 Orte gehören niemandem** und sind frei zu

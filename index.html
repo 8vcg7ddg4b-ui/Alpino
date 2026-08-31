@@ -185,6 +185,11 @@
       <button id="endTurnBtn" class="end-turn" title="Runde beenden (Leertaste)">Runde beenden ▶</button>
     </header>
 
+    <!-- Die Rundenbilanz: was sich mit dem Rundenwechsel verändert hat. Sie
+         hält niemanden auf - sie steht ein paar Sekunden da und geht dann von
+         selbst wieder. -->
+    <div id="turnSummary" class="hidden" aria-live="polite"></div>
+
     <main id="layout">
       <div id="mapWrap">
         <canvas id="gameCanvas"></canvas>

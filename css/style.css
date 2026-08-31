@@ -2161,6 +2161,47 @@ kbd {
   gap: 7px;
 }
 .ti-line { margin: 2px 0; font-size: 0.8rem; color: var(--muted); }
+
+/* Was sich mit der Runde verändert hat: das Plus steht in Grün neben der Zahl,
+   das Minus in Rot. Es soll auffallen, ohne die Zahl zu überschreien - deshalb
+   kleiner als sie und nicht fett. */
+.delta-up, .delta-down {
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+.delta-up { color: #7fbf6a; }
+.delta-down { color: #d4776a; }
+
+/* --- Die Rundenbilanz ---------------------------------------------------
+   Ein schmaler Streifen unter der Kopfzeile, der nach ein paar Sekunden von
+   selbst verschwindet. Er nimmt der Karte keinen Platz weg, den sie behält:
+   ist er weg, rückt alles wieder zusammen. */
+#turnSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  padding: 5px 14px;
+  background: linear-gradient(180deg, #2a2119, #221a13);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+  animation: summary-in 0.25s ease-out;
+}
+
+@keyframes summary-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.summary-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+.summary-icon { font-size: 0.95rem; }
+.summary-name { color: var(--muted); }
+.summary-chip strong { font-variant-numeric: tabular-nums; }
 #tileInfo .terrain-panel { margin-top: 0; }
 #tileInfo .unit-list { margin-top: 6px; }
 

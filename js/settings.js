@@ -56,6 +56,15 @@ export const SETTINGS = [
     fallback: true,
   },
   {
+    key: 'wildlife',
+    label: 'Leben auf der Karte',
+    help: 'Fischschwärme und Wale im Meer, Möwen über der Küste, Rotwild an den '
+      + 'Waldrändern. Auf die Regeln hat es keinen Einfluss; wer eine ruhige Karte '
+      + 'will, schaltet es ab.',
+    type: 'toggle',
+    fallback: true,
+  },
+  {
     key: 'music',
     label: 'Titelmusik',
     help: 'Das Stück im Startbildschirm und bei der Fraktionswahl. Auf der Karte bleibt es still.',

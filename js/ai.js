@@ -463,8 +463,11 @@ function civicWish(state, faction, eigene, threats) {
     if (canBuildBuilding(state, sitz, 'forum')) return { city: sitz, key: 'forum' };
   }
 
-  // Dann der Reihe nach: Truppen, Brot, Vorrat, Verwaltung, Wasser.
-  const kette = ['barracks', 'farm', 'granary', 'forum', 'viaduct'];
+  // Dann der Reihe nach: Truppen, Brot, Fang, Wild, Vorrat, Verwaltung, Wasser.
+  // Fischerei und Jagdhütte stehen früh, weil sie billig sind und beides
+  // tragen - Nahrung und ein wenig Geld -, aber hinter dem Acker: der trägt
+  // am meisten.
+  const kette = ['barracks', 'farm', 'fishery', 'hunt', 'granary', 'forum', 'viaduct'];
   for (const key of kette) {
     const ort = groessterOrt(baubar(key));
     if (ort) return { city: ort, key };

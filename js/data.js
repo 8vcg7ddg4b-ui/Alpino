@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.29.0';
+export const GAME_VERSION = '1.30.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1175,6 +1175,42 @@ export const GRANARY_NAME = 'Kornspeicher';
 export const GRANARY_COST = 260;
 export const GRANARY_TURNS = 3;
 
+// --- Fischerei und Jagdhütte -----------------------------------------------
+// Nicht jeder Ort lebt vom Acker. Wer am Wasser liegt, lebt vom Fang, und wer
+// am Wald liegt, vom Wild. Beides ist billiger und kleiner als die Farm: eine
+// Reihe Boote am Strand, eine Hütte am Waldrand. Beides trägt zweierlei -
+// Nahrung, an der der Ort wächst, und ein wenig Geld aus dem, was übrig
+// bleibt: gesalzener Fisch, Felle, Honig, Wachs.
+//
+// Sie schließen einander nicht aus und schließen die Farm nicht aus. Ein Ort,
+// der Acker, Fang und Jagd hat, wächst schnell - er hat es dreifach bezahlt,
+// und seine Obergrenze bleibt dieselbe.
+export const FISHERY_NAME = 'Fischerei';
+export const FISHERY_COST = 160;
+export const FISHERY_TURNS = 2;
+export const FISHERY_GROWTH = 0.3;
+// Was der Fang je Runde einbringt. Er hängt nicht am Ort und nicht an seiner
+// Größe: das Meer gibt, was es gibt.
+export const FISHERY_INCOME = 14;
+
+export const HUNT_NAME = 'Jagdhütte';
+export const HUNT_COST = 140;
+export const HUNT_TURNS = 2;
+export const HUNT_GROWTH = 0.2;
+// Wie weit die Jäger ziehen und was ein Feld hergibt. Im Wald steht das Wild,
+// im Hügelland zieht es durch; in der Ebene und in der Wüste gibt es nichts,
+// wovon eine Hütte leben könnte.
+export const HUNT_RANGE = 2;
+export const HUNT_GAME = { forest: 2, hills: 1 };
+export const HUNT_MIN_GAME = 3;
+export const HUNT_INCOME_PER_GAME = 2;
+export const HUNT_MAX_GAME = 8;
+
+export function huntIncome(wild) {
+  if (!wild || wild < HUNT_MIN_GAME) return 0;
+  return Math.min(HUNT_MAX_GAME, wild) * HUNT_INCOME_PER_GAME;
+}
+
 // --- Viadukt ---------------------------------------------------------------
 // Wasser über das Tal, auf Bögen, über Meilen. Wo es ankommt, wächst der Ort
 // schneller und hält eine größere Besatzung aus - Wasser ist das, woran eine
@@ -1195,7 +1231,8 @@ export const VIADUCT_GARRISON = 0.2;
 // Um wie viel schneller ein Ort wächst, als er es ohne Bauwerke täte.
 export function growthFactor(city) {
   if (!city) return 1;
-  return 1 + (city.farm ? FARM_GROWTH : 0) + (city.viaduct ? VIADUCT_GROWTH : 0);
+  return 1 + (city.farm ? FARM_GROWTH : 0) + (city.viaduct ? VIADUCT_GROWTH : 0)
+    + (city.fishery ? FISHERY_GROWTH : 0) + (city.hunt ? HUNT_GROWTH : 0);
 }
 
 // --- Was eine Eroberung anrichtet ------------------------------------------
@@ -1297,6 +1334,28 @@ export const BUILDINGS = [
     purpose: `die Ernte hält über den Winter: ${Math.round(GRANARY_CEILING * 100)} % `
       + 'mehr Einwohner möglich',
     promise: `${Math.round(GRANARY_CEILING * 100)} % höhere Obergrenze für die Einwohner`,
+  },
+  {
+    key: 'fishery',
+    icon: '🐟',
+    cost: FISHERY_COST,
+    turns: FISHERY_TURNS,
+    site: 'coast',
+    name: () => FISHERY_NAME,
+    purpose: `Fang aus dem Meer: ${Math.round(FISHERY_GROWTH * 100)} % mehr Zuwachs `
+      + `und ${FISHERY_INCOME} Gold je Runde`,
+    promise: `${Math.round(FISHERY_GROWTH * 100)} % mehr Zuwachs und `
+      + `${FISHERY_INCOME} Gold je Runde`,
+  },
+  {
+    key: 'hunt',
+    icon: '🏹',
+    cost: HUNT_COST,
+    turns: HUNT_TURNS,
+    site: 'game',
+    name: () => HUNT_NAME,
+    purpose: `Wild aus dem Umland: ${Math.round(HUNT_GROWTH * 100)} % mehr Zuwachs`,
+    promise: `${Math.round(HUNT_GROWTH * 100)} % mehr Zuwachs, dazu Felle und Wachs`,
   },
   {
     key: 'forum',

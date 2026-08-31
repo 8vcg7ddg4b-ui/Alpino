@@ -102,6 +102,12 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       granaryBuilding: null,
       viaduct: false,
       viaductBuilding: null,
+      // Fang und Jagd: was nicht auf dem Acker wächst. Auch das baut jeder
+      // Ort selbst - an der Küste die Fischerei, am Wald die Jagdhütte.
+      fishery: false,
+      fisheryBuilding: null,
+      hunt: false,
+      huntBuilding: null,
       // Seit wann dieser Ort belagert wird - alles andere an einer Belagerung
       // ergibt sich aus der Lage der Heere, nur die Dauer muss stehen.
       siege: null,

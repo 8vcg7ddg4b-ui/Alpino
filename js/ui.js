@@ -13,6 +13,7 @@ import {
   tacticsFor, tacticByKey, tacticEffect,
   RIVER_CROSSING_COST,
   MINE_NAME, MINE_ORE, MINE_RANGE, MINE_MIN_ORE,
+  FISHERY_NAME, HUNT_NAME, HUNT_GAME, HUNT_RANGE, HUNT_MIN_GAME, HUNT_GROWTH, huntIncome,
   BUILDINGS, buildingDef, buildingName, mineIncome, TAX_PER_INHABITANTS,
   repairCost, repairTurns,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
@@ -37,7 +38,7 @@ import {
   tradeRoutesOf, tradePartners, tradePartnerOf, tradeRouteIncome, tradeIncomeOf,
   siegeStatus,
   tradeRouteRaided, tradeRouteBlockaded, blockadingFleets,
-  mineOre, mineIncomeOf, canBuildBuilding, siegeInfo, citySieged,
+  mineOre, mineIncomeOf, huntGame, huntIncomeOf, canBuildBuilding, siegeInfo, citySieged,
   campStatus, campSiegeTarget, buildingPrice, buildingRuined, wallRuined, stoneTargets,
 } from './actions.js';
 import {
@@ -497,6 +498,15 @@ export function setCityTab(tab) {
   return cityTab;
 }
 
+// Was der Ort in der letzten Runde an Menschen gewonnen hat. Steht als „+7"
+// neben der Einwohnerzahl - und nur, wenn es etwas war: eine Null hinter jeder
+// Zahl wäre Lärm, und eine belagerte Stadt wächst gar nicht.
+export function wachstumHTML(city) {
+  const zuwachs = city && city.lastGrowth;
+  if (!zuwachs) return '';
+  return ` <span class="delta-up">+${zuwachs.toLocaleString('de-DE')}</span>`;
+}
+
 // Was der Ort einbringt. Aufgeschlüsselt, weil sonst niemand nachvollziehen
 // kann, warum eine Große Stadt mehr wert ist als zwei Dörfer.
 function incomeLineHTML(state, city) {
@@ -505,6 +515,8 @@ function incomeLineHTML(state, city) {
   if (income.wonders) parts.push(`Bauwerk ${income.wonders}`);
   if (income.trade) parts.push(`Handel ${income.trade}`);
   if (income.mine) parts.push(`${MINE_NAME} ${income.mine}`);
+  if (income.fishery) parts.push(`${FISHERY_NAME} ${income.fishery}`);
+  if (income.hunt) parts.push(`${HUNT_NAME} ${income.hunt}`);
   return `<p class="income-line">💰 Einnahmen
     <strong>${income.total.toLocaleString('de-DE')} Gold je Runde</strong>
     <span class="muted">· ${parts.join(' · ')}</span></p>`;
@@ -775,15 +787,28 @@ function buildingsHTML(state, city, isMine, player) {
 // Was ein fertiges Bauwerk hier tut. Beim Bergwerk hängt das am Berg, bei
 // allen anderen steht es in der Tabelle.
 function buildingEffect(state, city, def) {
-  if (def.key !== 'mine') return def.purpose;
-  return `${mineIncomeOf(state, city)} Gold je Runde aus ${mineOre(state, city)} Erz im Umland`;
+  if (def.key === 'mine') {
+    return `${mineIncomeOf(state, city)} Gold je Runde aus ${mineOre(state, city)} Erz im Umland`;
+  }
+  if (def.key === 'hunt') {
+    return `${Math.round(HUNT_GROWTH * 100)} % mehr Zuwachs und `
+      + `${huntIncomeOf(state, city)} Gold je Runde aus ${huntGame(state, city)} Wild im Umland`;
+  }
+  return def.purpose;
 }
 
 // Und was es verspricht, solange es noch ein Knopf ist.
 function buildingPromise(state, city, def) {
-  if (def.key !== 'mine') return def.promise;
-  const erz = mineOre(state, city);
-  return `danach ${mineIncome(erz)} Gold je Runde aus ${erz} Erz im Umland`;
+  if (def.key === 'mine') {
+    const erz = mineOre(state, city);
+    return `danach ${mineIncome(erz)} Gold je Runde aus ${erz} Erz im Umland`;
+  }
+  if (def.key === 'hunt') {
+    const wild = huntGame(state, city);
+    return `${Math.round(HUNT_GROWTH * 100)} % mehr Zuwachs und `
+      + `${huntIncome(wild)} Gold je Runde aus ${wild} Wild im Umland`;
+  }
+  return def.promise;
 }
 
 function buildingHTML(state, city, isMine, player, def) {
@@ -1064,7 +1089,7 @@ function cityInfoHTML(state, city) {
       <h4><span class="dot" style="background:${owner.color}"></span>${escapeHTML(city.name)}
         ${city.capital ? '👑' : ''}</h4>
       <p class="ti-line">${settlementLabel(city)} · ${escapeHTML(owner.name)} ·
-        ${city.population.toLocaleString('de-DE')} Einwohner</p>
+        ${city.population.toLocaleString('de-DE')} Einwohner${wachstumHTML(city)}</p>
       <p class="ti-line">Garnison ${unitTotalCount(city.garrison).toLocaleString('de-DE')} ·
         🛡️ Stadtwache ${watch.toLocaleString('de-DE')} /
         ${watchTarget(city, owner).toLocaleString('de-DE')}</p>
@@ -1598,6 +1623,8 @@ export function empireHTML(state) {
       level ? wallLevelInfo(level).icon : '',
       city.harbour ? '⚓' : '',
       city.mine ? '⛏️' : '',
+      city.fishery ? '🐟' : '',
+      city.hunt ? '🏹' : '',
       // Woran es fehlt, ist so wichtig wie das, was steht: ohne Kaserne
       // stellt der Ort keine Truppen, ohne Verwaltung baut er nichts.
       city.barracks ? '🛡️' : '',
@@ -1606,11 +1633,12 @@ export function empireHTML(state) {
     return `<tr class="${belagert ? 'emp-siege' : ''}">
       <td>${escapeHTML(city.name)} <span class="emp-marks">${marks}</span></td>
       <td>${settlementLabel(city)}</td>
-      <td class="emp-num">${city.population.toLocaleString('de-DE')}</td>
+      <td class="emp-num">${city.population.toLocaleString('de-DE')}${wachstumHTML(city)}</td>
       <td class="emp-num">${entry.people}</td>
       <td class="emp-num">${entry.wonders || '–'}</td>
       <td class="emp-num">${entry.trade || '–'}</td>
       <td class="emp-num">${entry.mine || '–'}</td>
+      <td class="emp-num">${(entry.fishery + entry.hunt) || '–'}</td>
       <td class="emp-num emp-total">${entry.total.toLocaleString('de-DE')}</td>
     </tr>`;
   }).join('');
@@ -1637,7 +1665,8 @@ export function empireHTML(state) {
         <th>Ort</th><th>Rang</th><th class="emp-num">Einwohner</th>
         <th class="emp-num">Steuer</th>
         <th class="emp-num">Bauwerk</th><th class="emp-num">Handel</th>
-        <th class="emp-num">Bergwerk</th><th class="emp-num">Summe</th>
+        <th class="emp-num">Bergwerk</th><th class="emp-num">Fang &amp; Jagd</th>
+        <th class="emp-num">Summe</th>
       </tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr>
@@ -1646,6 +1675,7 @@ export function empireHTML(state) {
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.wonders, 0) || '–'}</td>
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.trade, 0) || '–'}</td>
         <td class="emp-num">${cities.reduce((s, e) => s + e.income.mine, 0) || '–'}</td>
+        <td class="emp-num">${cities.reduce((s, e) => s + e.income.fishery + e.income.hunt, 0) || '–'}</td>
         <td class="emp-num emp-total">${income.toLocaleString('de-DE')}</td>
       </tr></tfoot>
     </table>` : '<p class="muted">Kein Ort mehr in eigener Hand.</p>'}
@@ -1823,7 +1853,19 @@ export function renderUI(state, handlers) {
   label.textContent = `${season.icon} ${month} ${year} v. Chr.`;
   label.title = `Runde ${state.turn} · ${season.name}, ${monthOfSeason}. von ${TURNS_PER_SEASON} Monaten`;
   const player = playerFaction(state);
-  document.getElementById('goldLabel').textContent = `💰 ${player.gold} Gold`;
+  // Neben dem Schatz steht, was die letzte Runde daran verändert hat. Eine
+  // Zahl allein sagt nicht, ob sie steigt oder fällt - und genau das ist das,
+  // was man von ihr wissen will.
+  const goldDiff = (state.lastDeltas && state.lastDeltas.gold) || 0;
+  const goldLabel = document.getElementById('goldLabel');
+  goldLabel.textContent = `💰 ${player.gold} Gold`;
+  if (goldDiff) {
+    const wandel = document.createElement('span');
+    wandel.className = goldDiff > 0 ? 'delta-up' : 'delta-down';
+    wandel.textContent = ` ${goldDiff > 0 ? '+' : '−'}${Math.abs(goldDiff).toLocaleString('de-DE')}`;
+    wandel.title = 'Veränderung in der letzten Runde';
+    goldLabel.appendChild(wandel);
+  }
 
   renderFactionList(state);
 
