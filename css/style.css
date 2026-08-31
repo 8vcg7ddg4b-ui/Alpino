@@ -142,7 +142,7 @@ html, body {
   /* Die Reiterleiste bleibt stehen, gescrollt wird im offenen Abschnitt. */
   overflow: hidden;
   touch-action: pan-y;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
@@ -195,7 +195,7 @@ html, body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 #sidebar > section[hidden] { display: none; }
 
@@ -740,7 +740,7 @@ html, body {
 
 .report-box {
   touch-action: pan-y;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   position: relative;
   background: var(--panel);
   border: 2px solid var(--gold);
@@ -2151,7 +2151,7 @@ kbd {
   max-width: min(320px, calc(100vw - 24px));
   max-height: 60vh;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   background: rgba(24, 18, 12, 0.96);
   border: 1px solid var(--gold);
   border-radius: 8px;
