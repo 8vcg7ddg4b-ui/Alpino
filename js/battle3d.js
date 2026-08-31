@@ -164,37 +164,48 @@ function makeGround(terrainType, naval, hoeheBei) {
 const MAUER_LAENGE = 13;
 const TOR_BREITE = 2;
 
-function makeWall(multiplier, color) {
-  const group = new THREE.Group();
-  const hoehe = multiplier >= 2 ? 3.2 : multiplier >= 1.6 ? 2.4 : 1.7;
-  const stein = multiplier >= 2;
-  const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(color) });
-  const halb = MAUER_LAENGE / 2;
+// Wie tief der Ort hinter seiner Frontmauer liegt, und wie breit er ist.
+const ORT_TIEFE = 12;
 
+// Ein Tor: zwei Flügel aus Bohlen und der Sturz darüber. `dicke` ist die Stärke
+// der Mauer, in der es sitzt, `laengs` die Achse, entlang der es sich öffnet.
+function makeGate(hoehe, dicke, breite, material) {
+  const gruppe = new THREE.Group();
+  const holz = new THREE.MeshLambertMaterial({ color: 0x5b4223 });
+  for (const seite of [-1, 1]) {
+    const fluegel = new THREE.Mesh(
+      new THREE.BoxGeometry(dicke, hoehe * 0.72, breite / 2 - 0.04), holz
+    );
+    fluegel.position.set(0, hoehe * 0.36, seite * breite / 4);
+    gruppe.add(fluegel);
+  }
+  const sturz = new THREE.Mesh(
+    new THREE.BoxGeometry(dicke * 1.06, hoehe * 0.28, breite), material
+  );
+  sturz.position.set(0, hoehe * 0.86, 0);
+  gruppe.add(sturz);
+  return gruppe;
+}
+
+// Ein Mauerlauf mit einem Tor in der Mitte, gebaut entlang der z-Achse und
+// danach als Ganzes gedreht. Stein bekommt Zinnen, Holz gespitzte Stämme.
+function makeWallRun(laenge, hoehe, stein, material, torBreite) {
+  const lauf = new THREE.Group();
+  const halb = laenge / 2;
+  const dicke = stein ? 1 : 0.34;
   if (stein) {
-    // Zwei Mauerläufe, dazwischen das Tor.
-    const lauf = (MAUER_LAENGE - TOR_BREITE) / 2;
     for (const seite of [-1, 1]) {
-      const mauer = new THREE.Mesh(new THREE.BoxGeometry(1, hoehe, lauf), material);
-      mauer.position.set(0, hoehe / 2, seite * (TOR_BREITE / 2 + lauf / 2));
-      group.add(mauer);
+      const stueck = (laenge - torBreite) / 2;
+      const mauer = new THREE.Mesh(new THREE.BoxGeometry(dicke, hoehe, stueck), material);
+      mauer.position.set(0, hoehe / 2, seite * (torBreite / 2 + stueck / 2));
+      lauf.add(mauer);
     }
-    // Der Zinnenkranz: jede zweite Lücke bleibt offen.
-    const zinne = new THREE.BoxGeometry(1.14, 0.46, 0.42);
+    const zinne = new THREE.BoxGeometry(dicke * 1.14, 0.46, 0.42);
     for (let z = -halb + 0.3; z <= halb; z += 0.84) {
-      if (Math.abs(z) < TOR_BREITE / 2) continue;
+      if (Math.abs(z) < torBreite / 2) continue;
       const stueck = new THREE.Mesh(zinne, material);
       stueck.position.set(0, hoehe + 0.23, z);
-      group.add(stueck);
-    }
-    // Zwei Türme flankieren das Tor - daran erkennt man von weitem, wo der
-    // Sturm hin muss.
-    for (const seite of [-1, 1]) {
-      const turm = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.75, 0.85, hoehe * 1.35, 8), material
-      );
-      turm.position.set(0, hoehe * 0.675, seite * (TOR_BREITE / 2 + 0.55));
-      group.add(turm);
+      lauf.add(stueck);
     }
   } else {
     // Die Palisade: gespitzte Stämme, dicht an dicht. Sie stehen nicht in
@@ -202,35 +213,94 @@ function makeWall(multiplier, color) {
     const stamm = new THREE.CylinderGeometry(0.17, 0.19, hoehe, 6);
     const spitze = new THREE.ConeGeometry(0.19, 0.34, 6);
     for (let z = -halb; z <= halb; z += 0.34) {
-      if (Math.abs(z) < TOR_BREITE / 2) continue;
+      if (Math.abs(z) < torBreite / 2) continue;
       const wank = (Math.random() - 0.5) * 0.06;
       const pfahl = new THREE.Mesh(stamm, material);
       pfahl.position.set((Math.random() - 0.5) * 0.08, hoehe / 2, z);
       pfahl.rotation.x = wank;
-      group.add(pfahl);
+      lauf.add(pfahl);
       const kopf = new THREE.Mesh(spitze, material);
       kopf.position.set(pfahl.position.x, hoehe + 0.17, z);
       kopf.rotation.x = wank;
-      group.add(kopf);
+      lauf.add(kopf);
     }
   }
+  lauf.add(makeGate(hoehe, dicke, torBreite, material));
+  return lauf;
+}
 
-  // Das Tor: zwei Flügel aus Bohlen, darüber der Sturz.
-  const holz = new THREE.MeshLambertMaterial({ color: 0x5b4223 });
-  for (const seite of [-1, 1]) {
-    const fluegel = new THREE.Mesh(
-      new THREE.BoxGeometry(stein ? 1.05 : 0.34, hoehe * 0.72, TOR_BREITE / 2 - 0.04), holz
-    );
-    fluegel.position.set(0, hoehe * 0.36, seite * TOR_BREITE / 4);
-    group.add(fluegel);
+// Der Ort hinter der Mauer: ein paar Häuser mit Satteldach, damit der Sturm
+// auf etwas geht und nicht auf eine Wand vor leerem Gras.
+function makeTownHouses(tiefe, breite, farbe) {
+  const gruppe = new THREE.Group();
+  const wand = new THREE.MeshLambertMaterial({ color: 0xd8c9a3 });
+  const dach = new THREE.MeshLambertMaterial({ color: new THREE.Color(farbe) });
+  const rng = (n) => ((Math.sin(n * 12.9898) * 43758.5453) % 1 + 1) % 1;
+  let n = 1;
+  for (let reihe = 0; reihe < 3; reihe++) {
+    const x = 4.4 + reihe * 3.1;
+    for (let i = 0; i < 4; i++) {
+      const z = (i - 1.5) * (breite / 4.6) + (rng(n++) - 0.5) * 0.7;
+      const b = 1.5 + rng(n++) * 0.7;
+      const t = 1.2 + rng(n++) * 0.5;
+      const h = 1.1 + rng(n++) * 0.5;
+      const haus = new THREE.Mesh(new THREE.BoxGeometry(b, h, t), wand);
+      haus.position.set(x + (rng(n++) - 0.5) * 0.6, h / 2, z);
+      gruppe.add(haus);
+      const first = new THREE.Mesh(new THREE.ConeGeometry(Math.max(b, t) * 0.72, 0.6, 4), dach);
+      first.position.set(haus.position.x, h + 0.3, z);
+      first.rotation.y = Math.PI / 4;
+      gruppe.add(first);
+    }
   }
-  const sturz = new THREE.Mesh(
-    new THREE.BoxGeometry(stein ? 1.1 : 0.4, hoehe * 0.28, TOR_BREITE), material
-  );
-  sturz.position.set(0, hoehe * 0.72 + hoehe * 0.14, 0);
-  group.add(sturz);
+  return gruppe;
+}
 
-  // Der Wehrgang: der Erdwall hinter der Brüstung, auf dem die Verteidiger
+// Der Ort, wie ihn der Angreifer sieht: eine geschlossene Anlage mit vier
+// Toren, Türmen an den Ecken und Häusern darin - nicht mehr ein Mauerstück,
+// das links und rechts ins Nichts läuft. Der Nullpunkt der Gruppe bleibt die
+// Mitte der Frontmauer; alles andere liegt dahinter, in +x.
+function makeWall(multiplier, color, hausFarbe) {
+  const group = new THREE.Group();
+  const hoehe = multiplier >= 2 ? 3.2 : multiplier >= 1.6 ? 2.4 : 1.7;
+  const stein = multiplier >= 2;
+  const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(color) });
+  const tiefe = ORT_TIEFE;
+
+  // Die Häuser zuerst, damit die Mauern davor stehen.
+  const haeuser = makeTownHouses(tiefe, MAUER_LAENGE, hausFarbe || color);
+  group.add(haeuser);
+
+  // Vier Mauerläufe mit je einem Tor: vorn, hinten, links, rechts.
+  const front = makeWallRun(MAUER_LAENGE, hoehe, stein, material, TOR_BREITE);
+  group.add(front);
+  const hinten = makeWallRun(MAUER_LAENGE, hoehe, stein, material, TOR_BREITE);
+  hinten.position.x = tiefe;
+  group.add(hinten);
+  for (const seite of [-1, 1]) {
+    const flanke = makeWallRun(tiefe, hoehe, stein, material, TOR_BREITE);
+    flanke.rotation.y = Math.PI / 2;
+    flanke.position.set(tiefe / 2, 0, seite * MAUER_LAENGE / 2);
+    group.add(flanke);
+  }
+
+  // Türme an den vier Ecken - und zwei am vorderen Tor, denn dort geht der
+  // Sturm hin.
+  const turmForm = stein
+    ? new THREE.CylinderGeometry(0.75, 0.85, hoehe * 1.35, 8)
+    : new THREE.BoxGeometry(1.3, hoehe * 1.28, 1.3);
+  const stellen = [
+    [0, -MAUER_LAENGE / 2], [0, MAUER_LAENGE / 2],
+    [tiefe, -MAUER_LAENGE / 2], [tiefe, MAUER_LAENGE / 2],
+    [0, -(TOR_BREITE / 2 + 0.55)], [0, TOR_BREITE / 2 + 0.55],
+  ];
+  for (const [x, z] of stellen) {
+    const turm = new THREE.Mesh(turmForm, material);
+    turm.position.set(x, hoehe * (stein ? 0.675 : 0.64), z);
+    group.add(turm);
+  }
+
+  // Der Wehrgang: der Erdwall hinter der Frontmauer, auf dem die Verteidiger
   // stehen. Ohne ihn stünden sie hinter der Mauer und niemand sähe, wie ihre
   // Reihen dünner werden - und gestanden haben sie dort auch wirklich.
   const gang = hoehe * 0.62;
@@ -1440,7 +1510,9 @@ export function playBattle(canvas, report, hooks = {}) {
     // Holz für die Palisade, Quaderstein für die Mauer - dieselbe Unter-
     // scheidung wie auf der Karte.
     wall = makeWall(report.wallMultiplier,
-      report.wallMultiplier >= 2 ? '#9c968a' : '#6f5433');
+      report.wallMultiplier >= 2 ? '#9c968a' : '#6f5433',
+      // Die Dächer im Ort tragen die Farbe dessen, der ihn hält.
+      verteidigerFarbe);
     // Die Mauer steht dicht vor der Verteidigerlinie - der Angreifer
     // rennt gegen sie an, nicht gegen die Männer dahinter.
     wall.position.x = treffen - 0.7;

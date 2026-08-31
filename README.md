@@ -38,8 +38,10 @@ Links davon steht auf einem eigenen Podest die **Rüstung des Reiches** auf
 ihrem **Rüstungsständer**: dreibeiniger Fuß, gedrechselte Säule mit Wulst,
 darüber eine hölzerne Büste – Brustform, zwei Schulterstücke, Halsklotz. Darauf
 sitzt der Panzer, auf dem Halsklotz der Helm, daneben lehnen der Schild mit dem
-Wappen und der Speer. Es ist das eine Stück im Zelt, an dem man sieht, wessen Heer man
-führt – der Thron sagt es nur über den Stil, das Feldzeichen nur über das
+Wappen und der Speer. Sie steht **einen Kopf größer** als vorher und ein Stück
+weiter vorn: aus der Eröffnungsansicht war sie ein Fleck neben dem Feldzeichen,
+jetzt liest man den Panzer, ohne heranzugehen. Es ist das eine Stück im Zelt,
+an dem man sieht, wessen Heer man führt – der Thron sagt es nur über den Stil, das Feldzeichen nur über das
 Wappen. Fünf Rüstungen, nach dem, was die Völker wirklich trugen: die
 **gegliederte Schiene** Roms mit Schulterplatten und dem Querbusch des
 Zenturio, der **Bronzepanzer** der hellenistischen Höfe mit hohem Helmbusch und
@@ -457,6 +459,18 @@ der ins Spiel führt.
     jede Fahne, jede Mauer und jedes Gerät steht auf der Höhe, die an ihrer
     Stelle gilt; wer marschiert, geht mit dem Boden auf und ab. Das Profil ist
     für dieselbe Schlacht immer dasselbe.
+  - **Ein ganzer Ort, nicht eine Wand**: Bisher stand vor dem Angreifer eine
+    einzelne Mauer und dahinter nichts – man stürmte gegen eine Kulisse. Jetzt
+    steht dort der **Ort selbst**: **vier Mauerläufe** im Geviert, jeder mit
+    seinem **Tor** aus zwei Flügeln unter einem Sturz, **sechs Türme** – an
+    jeder Ecke einer und zwei, die das Haupttor flankieren –, und dazwischen
+    **zwölf Häuser** in drei Reihen, jedes mit vierseitigem Dach in der Farbe
+    des Verteidigers. Bei der **Palisade** sind es gespitzte Stämme und ein
+    Torbau aus Bohlen, bei der **Stadtmauer** Quader mit Zinnenkranz und
+    runden Türmen. Der Wehrgang liegt, wo er lag, und alles, was auf die Mauer
+    zielt – Leiter, Widder, Belagerungsturm, die Bresche –, rechnet
+    unverändert gegen die **vordere** Mauer: der Ort ist dahinter gewachsen,
+    nicht davor.
   - **Sturmgerät vor der Mauer**: Zu Leitern und Wehrgang kommt, was eine
     Belagerung wirklich brauchte. Der **Widder** rollt unter seinem Satteldach
     an das Tor und schlägt zu – bei jedem Schlag bebt das Tor. Vor einer
@@ -752,7 +766,14 @@ der ins Spiel führt.
   Luft, die andere im Boden. Jedes bekommt jetzt seine eigene kleine Terrasse.
   Ihre Grundfläche wird nicht abgezählt, sondern gemessen: die Hülle über
   alles, was zu dem Bauwerk gehört, plus ein Rand. Wie tief sie reicht,
-  entscheidet der Boden an genau ihrer Stelle. Ohne Fundament bleiben die zwei,
+  entscheidet der Boden an genau ihrer Stelle. **Und sie trägt höher.** Eine
+  Terrasse, die genau bis zur Grasnarbe reicht, sieht man nicht – aus der
+  Vogelperspektive stand das Werk wieder scheinbar im Boden. Jedes Werk
+  außerhalb der Mauern steht deshalb auf einem **Sockel**, der ein Stück über
+  das Gelände hinausragt; der Unterbau wächst um dasselbe Maß nach unten mit,
+  damit er am Hang nicht die Bodenhaftung verliert. Aus der Ferne ist es eine
+  helle Kante, aus der Nähe ein aufgeschütteter Grund – so, wie ein Gehöft
+  wirklich auf seinem Platz sitzt. Ohne Fundament bleiben die zwei,
   die keines haben dürfen: das **Viadukt** steht auf Bögen – es überbrückt das
   Tal, statt es zuzuschütten –, und **Steg und Helling** stehen auf Pfählen im
   Wasser.
@@ -763,6 +784,19 @@ der ins Spiel führt.
   nicht – zwei Werke standen ineinander. Jetzt gibt es **einen** Merkzettel für
   alle Werke eines Orts, und wer nach einem Feld fragt, bekommt eines, das noch
   frei ist.
+- **Vier Tore in allen Himmelsrichtungen.** Eine Befestigung ohne Tor ist ein
+  Sack: Palisade wie Mauer liefen bisher geschlossen um den Ort, und die
+  Heere, die man hinein- und hinausziehen sah, gingen durch die Wand. Jede
+  Anlage hat jetzt **vier Tore**, je eines nach Norden, Osten, Süden und Westen
+  – so, wie ein römisches Lager gebaut war: *porta praetoria*, *principalis
+  dextra* und *sinistra*, *decumana*. Jedes besteht aus zwei Pfosten, einem
+  **Sturz** darüber und zwei **Torflügeln** aus dunklem Holz dazwischen.
+  Dahinter endet die Befestigung wirklich: beim Dorf läuft der Ring als **vier
+  Bögen** zwischen den Toren, und wo ein Tor steht, steht kein Stamm; bei der
+  Palisade im Geviert und bei der Mauer teilt sich jede Seite in **zwei Läufe**
+  links und rechts der Öffnung. Nur der **Wehrgang** läuft über der gemauerten
+  Anlage durch – über einem Tor stand er auch wirklich, und dort standen die
+  besten Schützen.
 - **Jeder Ort steht auf einem Fundament.** Die Häuser eines Orts stehen alle
   auf der Höhe seiner Feldmitte – das Gelände darunter nicht. Am Hang stand
   deshalb die halbe Siedlung in der Luft oder steckte im Boden. Jetzt trägt sie
@@ -1697,9 +1731,12 @@ der ins Spiel führt.
   Waldrändern steht **Rotwild**; über die Straßen ziehen **Ochsenkarren** hin
   und zurück: zwei Pferde nebeneinander, jedes mit Leib, Hals, Kopf, vier
   Läufen und Schweif, dazu Joch, Deichsel und der Kastenwagen mit Plane über
-  zwei Speichenrädern – rund 330 Fische, ein Dutzend Wale,
+  zwei Speichenrädern – rund 330 Fische, **fünf Wale**,
   vierzig Möwen, zweihundert Stück Wild und ein Fuhrwerk auf jedem Weg von
-  einiger Länge. Eine Straße, auf der nie etwas fährt, ist ein Strich; die
+  einiger Länge. Ein Dutzend Wale waren zu viele: das Meer sah aus wie ein
+  Teich mit Karpfen. Fünf sind ein Fund, und sie ziehen erst dort, wo das
+  Wasser wirklich offen ist – im Umkreis von **vier** Feldern darf kein Land
+  liegen, vorher genügten zwei. Eine Straße, auf der nie etwas fährt, ist ein Strich; die
   Karren fahren die wirklichen Wege ab und wenden an ihrem Ende. Nichts davon greift in die Regeln ein: es
   ist Landschaft. Deshalb ist es billig gebaut – je Gattung **eine
   Instanzenwolke**, und bewegt wird nur **fünfzehnmal je Sekunde**; dazwischen

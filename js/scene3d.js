@@ -850,7 +850,9 @@ function roadPaths(roads) {
 
 // Wie viele es höchstens werden. Auf einer Karte mit fünftausend Feldern wären
 // "alle Küstenfelder" ein Teppich - es geht um Leben, nicht um eine Zählung.
-const WILDLIFE_MAX = { fische: 110, wale: 12, moewen: 70, wild: 120, wagen: 70 };
+// Ein Wal ist ein seltenes Tier, und im Mittelmeer erst recht: ein Dutzend auf
+// einer Karte machte aus ihm einen Fisch. Fünf, und die nur weit draußen.
+const WILDLIFE_MAX = { fische: 110, wale: 5, moewen: 70, wild: 120, wagen: 70 };
 
 function buildWildlife(state) {
   // Eine zweite Karte im selben Fenster erbt sonst die Tiere der ersten.
@@ -876,7 +878,7 @@ function buildWildlife(state) {
       const typ = tiles[row][col].type;
       if (typ === 'water') {
         if (amUfer(col, row)) ufer.push([col, row]);
-        else if (offenesMeer(col, row, 2)) tiefe.push([col, row]);
+        else if (offenesMeer(col, row, 4)) tiefe.push([col, row]);
       } else if (typ === 'forest' || (typ === 'hills' && rng() < 0.25)) {
         waelder.push([col, row]);
       }
@@ -2010,7 +2012,10 @@ function buildTentBackdrop(tent, state, colour, floorY) {
   const ruestung = buildArmourStand(id, colour);
   // Neben dem Thron, aber nicht davor: weiter hinten steht der Ständer höher
   // im Bild, und man sieht ihn ganz statt nur den Helm über der Tischkante.
-  ruestung.position.set(-5.2, 0, -1.4);
+  // Etwas größer als der Thron es vorgäbe - sie ist das Stück, an dem man
+  // sieht, wessen Heer man führt, und war dafür eine Spur zu klein.
+  ruestung.scale.setScalar(1.22);
+  ruestung.position.set(-5.7, 0, -1.6);
   ruestung.rotation.y = 0.5;
   stage.add(ruestung);
 
@@ -2742,6 +2747,55 @@ function buildRoadNetwork(state) {
 // One ring of fortification. `span` is the same for all three so a settlement
 // keeps its footprint as it is upgraded; what changes is the material, the
 // height and whether there are towers.
+// --- Tore ------------------------------------------------------------------
+// Eine Befestigung ohne Tor ist ein Sack. Jede Mauer und jede Palisade bekommt
+// deshalb vier Tore, in allen Himmelsrichtungen - so, wie eine römische Anlage
+// gebaut war: porta praetoria, principalis dextra und sinistra, decumana.
+// Gebaut wird jedes Tor aus zwei Pfosten, einem Sturz darüber und zwei
+// Torflügeln aus dunklem Holz dazwischen.
+const GATE_TIMBER = new THREE.MeshStandardMaterial({ color: '#4a3421', roughness: 1 });
+
+// Ein Punkt auf einer Seite der Anlage: `angle` ist die Seite, `t` die Stelle
+// darauf, `half` der halbe Abstand der Seiten von der Mitte.
+function sidePoint(angle, t, half) {
+  return [
+    Math.cos(angle) * t + Math.sin(angle) * half,
+    -Math.sin(angle) * t + Math.cos(angle) * half,
+  ];
+}
+
+// Setzt ein Tor in die Mitte einer Seite (oder, mit `t`, irgendwo darauf).
+function addGate(ring, { angle, half, width, height, thickness, material, t = 0 }) {
+  const posten = Math.max(0.09, thickness * 0.8);
+  for (const seite of [-1, 1]) {
+    const [x, z] = sidePoint(angle, t + seite * (width / 2 + posten / 2), half);
+    const pfosten = new THREE.Mesh(
+      new THREE.BoxGeometry(posten, height * 1.14, thickness * 1.5), material
+    );
+    pfosten.position.set(x, height * 0.57, z);
+    pfosten.rotation.y = angle;
+    ring.add(pfosten);
+  }
+  // Der Sturz über der Öffnung.
+  const [sx, sz] = sidePoint(angle, t, half);
+  const sturz = new THREE.Mesh(
+    new THREE.BoxGeometry(width + posten * 2, height * 0.2, thickness * 1.5), material
+  );
+  sturz.position.set(sx, height * 0.98, sz);
+  sturz.rotation.y = angle;
+  ring.add(sturz);
+  // Die beiden Torflügel.
+  for (const seite of [-1, 1]) {
+    const [fx, fz] = sidePoint(angle, t + seite * width / 4, half);
+    const fluegel = new THREE.Mesh(
+      new THREE.BoxGeometry(width / 2 - 0.02, height * 0.84, thickness * 0.7), GATE_TIMBER
+    );
+    fluegel.position.set(fx, height * 0.42, fz);
+    fluegel.rotation.y = angle;
+    ring.add(fluegel);
+  }
+}
+
 function buildFortification(kind, scale, options = {}) {
   const ring = new THREE.Group();
   const span = 4.4 * scale;
@@ -2755,16 +2809,33 @@ function buildFortification(kind, scale, options = {}) {
     const radius = 0.12 * scale;
     const ringRadius = half * 0.92;
     // Die geschlossene Wand hinter den Stämmen, als offener Zylinder.
-    const wall = new THREE.Mesh(
-      new THREE.CylinderGeometry(ringRadius - radius * 0.6, ringRadius - radius * 0.6,
-        height * 0.84, 28, 1, true),
-      wood
-    );
-    wall.position.y = height * 0.42;
-    ring.add(wall);
+    // Vier Tore, in allen Himmelsrichtungen. Sie sind Lücken im Ring: die
+    // geschlossene Wand läuft in vier Bögen dazwischen, und wo ein Tor steht,
+    // steht kein Stamm.
+    const torWinkel = 0.9 / ringRadius * scale;   // halbe Öffnung im Bogenmaß
+    const tore = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+    for (const t of tore) {
+      // Die Wand als Bogen von diesem Tor bis zum nächsten. Der Zylinder zählt
+      // seinen Winkel von +z aus, die Stämme von +x - daher die Umrechnung.
+      const a1 = t + torWinkel;
+      const a2 = t + Math.PI / 2 - torWinkel;
+      const bogen = new THREE.Mesh(
+        new THREE.CylinderGeometry(ringRadius - radius * 0.6, ringRadius - radius * 0.6,
+          height * 0.84, 12, 1, true, Math.PI / 2 - a2, a2 - a1),
+        wood
+      );
+      bogen.position.y = height * 0.42;
+      ring.add(bogen);
+    }
+    // Steht dieser Winkel in einer Toröffnung? Dann bleibt der Stamm weg.
+    const imTor = (a) => tore.some((t) => {
+      const d = Math.abs(((a - t + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      return d < torWinkel;
+    });
     const anzahl = Math.max(20, Math.round((2 * Math.PI * ringRadius) / (radius * 1.7)));
     for (let i = 0; i < anzahl; i++) {
       const angle = (i / anzahl) * Math.PI * 2;
+      if (imTor(angle)) continue;
       const x = Math.cos(angle) * ringRadius;
       const z = Math.sin(angle) * ringRadius;
       const stake = new THREE.Mesh(
@@ -2776,6 +2847,13 @@ function buildFortification(kind, scale, options = {}) {
       const tip = new THREE.Mesh(new THREE.ConeGeometry(radius, 0.2 * scale, 5), wood);
       tip.position.set(x, height + 0.1 * scale, z);
       ring.add(tip);
+    }
+    // Und die vier Tore selbst - Pfosten, Sturz, zwei Flügel.
+    for (const t of tore) {
+      addGate(ring, {
+        angle: Math.PI / 2 - t, half: ringRadius, width: 0.86 * scale,
+        height, thickness: radius * 1.6, material: wood,
+      });
     }
     return ring;
   }
@@ -2789,22 +2867,28 @@ function buildFortification(kind, scale, options = {}) {
     const radius = 0.13 * scale;
     // So viele Stämme, dass sie sich berühren.
     const perSide = Math.max(12, Math.round(span / (radius * 1.7)));
+    // In der Mitte jeder Seite steht ein Tor: dort bleibt die Wand offen und
+    // kein Stamm steht im Weg.
+    const torBreite = 0.95 * scale;
     for (let side = 0; side < 4; side++) {
       const angle = (side * Math.PI) / 2;
-      // Der geschlossene Wall hinter den Stämmen.
-      const wall = new THREE.Mesh(
-        new THREE.BoxGeometry(span, height * 0.86, radius * 1.1),
-        wood
-      );
-      wall.rotation.y = angle;
-      wall.position.set(
-        Math.sin(angle) * half, height * 0.43, Math.cos(angle) * half
-      );
-      ring.add(wall);
+      // Der geschlossene Wall hinter den Stämmen - links und rechts des Tors.
+      const lauf = (span - torBreite) / 2;
+      for (const seite of [-1, 1]) {
+        const versatz = seite * (torBreite / 2 + lauf / 2);
+        const [wx, wz] = sidePoint(angle, versatz, half);
+        const wall = new THREE.Mesh(
+          new THREE.BoxGeometry(lauf, height * 0.86, radius * 1.1),
+          wood
+        );
+        wall.rotation.y = angle;
+        wall.position.set(wx, height * 0.43, wz);
+        ring.add(wall);
+      }
       for (let i = 0; i < perSide; i++) {
         const t = (i / (perSide - 1) - 0.5) * span;
-        const x = Math.cos(angle) * t + Math.sin(angle) * half;
-        const z = -Math.sin(angle) * t + Math.cos(angle) * half;
+        if (Math.abs(t) < torBreite / 2 + radius) continue;
+        const [x, z] = sidePoint(angle, t, half);
         const stake = new THREE.Mesh(
           new THREE.CylinderGeometry(radius * 0.82, radius, height, 5),
           wood
@@ -2818,6 +2902,9 @@ function buildFortification(kind, scale, options = {}) {
         tip.position.set(x, height + 0.11 * scale, z);
         ring.add(tip);
       }
+      addGate(ring, {
+        angle, half, width: torBreite, height, thickness: radius * 1.8, material: wood,
+      });
     }
     return ring;
   }
@@ -2830,22 +2917,31 @@ function buildFortification(kind, scale, options = {}) {
   const height = (stone ? 1.28 : 1.02) * scale;
   const thickness = (stone ? 0.28 : 0.22) * scale;
 
+  // Auch die gemauerte Anlage hat vier Tore. Die Mauerläufe enden davor, der
+  // Wehrgang darüber läuft durch - über einem Tor stand er auch wirklich.
+  const torBreite = 1.05 * scale;
   for (let i = 0; i < 4; i++) {
-    const segment = new THREE.Mesh(new THREE.BoxGeometry(span, height, thickness), material);
-    segment.position.y = height / 2;
-    segment.rotation.y = (i * Math.PI) / 2;
-    segment.position.x = Math.sin(segment.rotation.y) * half;
-    segment.position.z = Math.cos(segment.rotation.y) * half;
-    ring.add(segment);
+    const angle = (i * Math.PI) / 2;
+    const lauf = (span - torBreite) / 2;
+    for (const seite of [-1, 1]) {
+      const [sx, sz] = sidePoint(angle, seite * (torBreite / 2 + lauf / 2), half);
+      const segment = new THREE.Mesh(new THREE.BoxGeometry(lauf, height, thickness), material);
+      segment.position.set(sx, height / 2, sz);
+      segment.rotation.y = angle;
+      ring.add(segment);
+    }
     // The parapet a defender actually stands behind.
+    const [wx, wz] = sidePoint(angle, 0, half);
     const walk = new THREE.Mesh(
       new THREE.BoxGeometry(span, 0.12 * scale, thickness * 1.7),
       material
     );
-    walk.position.copy(segment.position);
-    walk.position.y = height + 0.06 * scale;
-    walk.rotation.y = segment.rotation.y;
+    walk.position.set(wx, height + 0.06 * scale, wz);
+    walk.rotation.y = angle;
     ring.add(walk);
+    addGate(ring, {
+      angle, half, width: torBreite, height, thickness, material,
+    });
   }
 
   for (let i = 0; i < 4; i++) {
@@ -3685,6 +3781,10 @@ function buildFarm(scale) {
 // Die Grundfläche wird nicht abgezählt, sondern gemessen: die Hülle über alles,
 // was zu diesem Bauwerk gehört, plus ein Rand. Wie tief die Platte reicht,
 // entscheidet erst `placeAt` - da steht fest, wo im Gelände sie liegt.
+// Wie weit ein Fundament aus dem Boden ragt. Der Ort selbst steht auf seiner
+// eigenen Terrasse; die Werke ringsum bekommen dieselbe Handbreit.
+const FUNDAMENT_SOCKEL = 0.34;
+
 function addFoundation(group, rand = 0.24) {
   const box = new THREE.Box3().setFromObject(group);
   if (!Number.isFinite(box.min.x) || !Number.isFinite(box.min.z)) return null;
@@ -4195,10 +4295,15 @@ function placeAt(group, city, cityY, spot, abstand = 1, optionen = {}) {
   const wx = worldX(city.col) + lx;
   const wz = worldZ(city.row) + lz;
   const oben = bandY(wx, wz);
-  group.position.set(lx, oben - cityY, lz);
-  // Und wie tief das Fundament reicht: bis unter die tiefste Stelle des
-  // Bodens, den es überdeckt. In der Ebene ist das eine Handbreit, am Hang
-  // ein halber Meter - sichtbar ist ohnehin nur, was aus dem Boden ragt.
+  // Jedes Werk außerhalb des Orts steht auf einem Sockel, nicht auf dem
+  // blanken Gras: eine gestampfte Terrasse, die eine Handbreit aus dem Boden
+  // ragt. Vorher füllte das Fundament nur die Mulde darunter aus und war von
+  // oben gar nicht zu sehen - ein Acker, eine Kaserne, ein Forum sahen aus,
+  // als lägen sie auf der Wiese.
+  group.position.set(lx, oben - cityY + FUNDAMENT_SOCKEL, lz);
+  // Und wie tief es reicht: bis unter die tiefste Stelle des Bodens, den es
+  // überdeckt, plus den Sockel darüber. In der Ebene ist das eine Handbreit,
+  // am Hang ein halber Meter.
   const platte = group.userData && group.userData.fundament;
   if (platte) {
     const r = group.userData.grundRadius;
@@ -4207,6 +4312,7 @@ function placeAt(group, city, cityY, spot, abstand = 1, optionen = {}) {
       [0, -r], [0, r]]) {
       tief = Math.max(tief, oben - bandY(wx + dx, wz + dz) + 0.22);
     }
+    tief += FUNDAMENT_SOCKEL;
     platte.scale.y = tief;
     platte.position.y = -tief / 2;
   }
@@ -4260,12 +4366,13 @@ function placeShore(group, city, sea, cityY, { rueck = 0.9, quer = 0 } = {}) {
   // Nie unter die Wasserlinie: am flachen Ufer liegt der Boden dort schon
   // tiefer als das Meer, und die Hütte stünde bis zum Dach im Wasser.
   const oben = Math.max(bandY(wx, wz), SEA_LEVEL_Y + 0.05);
-  group.position.set(lx, oben - cityY, lz);
+  group.position.set(lx, oben - cityY + FUNDAMENT_SOCKEL, lz);
   group.rotation.y = Math.atan2(-dz, dx);
   const platte = group.userData && group.userData.fundament;
   if (platte) {
-    platte.scale.y = 0.6;
-    platte.position.y = -0.3;
+    const tief = 0.6 + FUNDAMENT_SOCKEL;
+    platte.scale.y = tief;
+    platte.position.y = -tief / 2;
   }
 }
 
