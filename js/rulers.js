@@ -57,11 +57,19 @@ export const RULERS = {
     wort: 'Er hat ein reiches Küstenland geerbt und weiß, was es wert ist. '
       + 'Er handelt gern - und nimmt sich, was der Handel ihm nicht bringt.',
   },
-  griechen: {
-    name: 'Areus I.', titel: 'der Spartaner',
-    angriffslust: 68, ehre: 72, habgier: 22,
+  athen: {
+    name: 'Chremonides', titel: 'der Redner',
+    angriffslust: 60, ehre: 70, habgier: 34,
+    wort: 'Er hat die Volksversammlung dazu gebracht, sich gegen Makedonien zu '
+      + 'stellen - mit einem Antrag, nicht mit einem Heer. Er redet, bis er '
+      + 'Bundesgenossen hat, und schlägt erst dann zu.',
+  },
+  sparta: {
+    name: 'Areus I.', titel: 'der König',
+    angriffslust: 68, ehre: 74, habgier: 20,
     wort: 'Gold beeindruckt ihn nicht, ein gebrochenes Wort empört ihn. '
-      + 'Er schlägt zuerst, aber er lügt nicht dabei.',
+      + 'Er schlägt zuerst, aber er lügt nicht dabei - und er weiß, wie wenige '
+      + 'Spartiaten ihm nach jeder Schlacht noch bleiben.',
   },
   makedonien: {
     name: 'Antigonos II.', titel: 'Gonatas',

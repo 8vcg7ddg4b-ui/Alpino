@@ -25,14 +25,22 @@ const EMBLEMS = {
     <path d="M40 34 l4 -10 l6 8 Z"/>
     <path d="M52 32 l5 -9 l5 9 Z"/>
     <circle cx="72" cy="46" r="2.6" fill="#000" opacity="0.5"/>`,
-  // Die Eule der Athene, das Zeichen auf den Tetradrachmen.
-  griechen: `<circle cx="50" cy="50" r="26"/>
-    <path d="M24 46 q-8 -14 2 -22 q8 -6 16 2 Z"/>
-    <path d="M76 46 q8 -14 -2 -22 q-8 -6 -16 2 Z"/>
-    <circle cx="40" cy="46" r="8" fill="#1b1409"/>
-    <circle cx="60" cy="46" r="8" fill="#1b1409"/>
-    <path d="M50 54 l6 8 h-12 Z" fill="#1b1409"/>
-    <path d="M34 76 h32 l-6 8 h-20 Z"/>`,
+  // Die Eule der Athene, das Zeichen auf den Tetradrachmen - es war immer schon
+  // Athens Zeichen und nie das "der Griechen". Von vorn, wie auf der Münze:
+  // Federohren, zwei große Augen, der Schnabel dazwischen, darunter der Leib
+  // und die Fänge auf dem Ast.
+  athen: `<path d="M26 30 l-4 -18 l16 10 Z"/>
+    <path d="M74 30 l4 -18 l-16 10 Z"/>
+    <ellipse cx="50" cy="70" rx="21" ry="19"/>
+    <ellipse cx="50" cy="42" rx="28" ry="25"/>
+    <circle cx="38" cy="40" r="10" fill="#1b1409"/>
+    <circle cx="62" cy="40" r="10" fill="#1b1409"/>
+    <circle cx="38" cy="40" r="4"/>
+    <circle cx="62" cy="40" r="4"/>
+    <path d="M50 46 l5 11 h-10 Z" fill="#1b1409"/>
+    <rect x="22" y="88" width="56" height="6"/>
+    <rect x="38" y="82" width="6" height="8"/>
+    <rect x="56" y="82" width="6" height="8"/>`,
   // Makedonien: der sechzehnstrahlige Stern von Vergina, das Zeichen des
   // Königshauses - er stand auf der goldenen Larnax in Philipps Grab.
   makedonien: `<circle cx="50" cy="50" r="11"/>
@@ -60,6 +68,10 @@ const EMBLEMS = {
       <path d="M86 38 l12 8 l-12 8 Z" transform="rotate(240 50 50)"/>
     </g>
     <circle cx="50" cy="50" r="12"/>`,
+  // Sparta führte kein Bild, sondern einen Buchstaben: das Lambda für
+  // Lakedaimon, quer über den Schild gemalt. Hier steht es auf dem Schild,
+  // über zwei gekreuzten Speeren.
+  sparta: `<path d="M50 8 L82 88 L66 88 L50 45 L34 88 L18 88 Z"/>`,
   // Der Irminsul-Pfahl der germanischen Stämme.
   germanen: `<rect x="45" y="26" width="10" height="54"/>
     <path d="M22 32 q14 -10 28 -4 q14 -6 28 4 q-12 -2 -22 6 q-6 -4 -12 0 q-10 -8 -22 -6 Z"/>

@@ -271,18 +271,41 @@ export const FACTION_ART = {
         ${warship(1420, 858, 1.4, '#060d14', '#182c40')}`;
     },
   },
-  griechen: {
-    motto: 'Die Phalanx der Poleis',
+  athen: {
+    motto: 'Die Stadt und ihre Schiffe',
     render() {
       const rng = seeded(404);
-      return `${sky([[0, '#1d3f74'], [0.45, '#4f86b8'], [0.8, '#a9d0e0'], [1, '#f0e6c4']], 'faGri')}
+      // Die Akropolis über der Stadt, und darunter das, worauf Athen wirklich
+      // stand: der Hafen von Piräus mit den Trieren darin.
+      return `${sky([[0, '#1d3f74'], [0.45, '#4f86b8'], [0.8, '#a9d0e0'], [1, '#f0e6c4']], 'faAth')}
         ${sun(1300, 300, 58, '#fff6d8', 0.26)}
         ${peaks(640, 190, rng, '#5b6f86', 0.55, 7)}
-        ${hills(706, 40, rng, '#7d8a72', 0.75)}
-        ${temple(540, 700, 400, 280, '#2b2f33')}
-        <rect y="742" width="${SCENE_W}" height="${SCENE_H - 742}" fill="#1b2026"/>
-        ${spears(820, 26, 150, rng, '#0e1216')}
-        ${figures(820, 12, rng, '#0e1216', 980, 1520, 1.4)}`;
+        ${hills(712, 44, rng, '#7d8a72', 0.75)}
+        ${temple(540, 706, 400, 280, '#2b2f33')}
+        ${temple(1140, 716, 190, 132, '#232830')}
+        <rect y="712" width="${SCENE_W}" height="48" fill="#5c6553"/>
+        <path d="M -40 ${SCENE_H} L -40 758 Q 460 744 940 764 Q 1300 778 ${SCENE_W + 40} 754
+          L ${SCENE_W + 40} ${SCENE_H} Z" fill="#1c3a52" opacity="0.95"/>
+        ${warship(400, 820, 1.0, '#0d1a24', '#2c4f68')}
+        ${warship(980, 860, 1.25, '#0a151d', '#224054')}
+        ${warship(1430, 900, 1.4, '#080f16', '#1b3446')}`;
+    },
+  },
+  sparta: {
+    motto: 'Mauern aus Männern',
+    render() {
+      const rng = seeded(1515);
+      // Kein Tempel, keine Mauer, keine Schiffe: der Taygetos, und davor die
+      // Linie. Lykurg soll gesagt haben, eine Stadt sei durch ihre Männer
+      // befestigt und nicht durch Ziegel - das Bild sagt dasselbe.
+      return `${sky([[0, '#2a1c24'], [0.42, '#6b4340'], [0.78, '#b48a72'], [1, '#e8d3ae']], 'faSpa')}
+        ${sun(360, 420, 62, '#ffe6c0', 0.24)}
+        ${peaks(586, 300, rng, '#4a3436', 0.7, 5)}
+        ${peaks(672, 150, rng, '#33242a', 0.9, 6)}
+        ${hills(726, 30, rng, '#4a3c33', 0.85)}
+        <rect y="726" width="${SCENE_W}" height="${SCENE_H - 726}" fill="#1d1517"/>
+        ${figures(826, 22, rng, '#0c0809', -20, 1580, 1.7)}
+        ${spears(826, 40, 150, rng, '#0c0809')}`;
     },
   },
   makedonien: {

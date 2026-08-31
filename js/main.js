@@ -176,7 +176,8 @@ function focusOwnCapital() {
 // Wer da spricht, richtet sich nach der Fraktion - ein Legat dient keinem
 // Sarmatenfürsten.
 const HERALD_TITLES = {
-  rom: 'Dein Legat', karthago: 'Dein Suffet', griechen: 'Dein Stratege',
+  rom: 'Dein Legat', karthago: 'Dein Suffet', athen: 'Dein Stratege',
+  sparta: 'Dein Ephor',
   makedonien: 'Dein Somatophylax', syrakus: 'Dein Ratsherr',
   seleukiden: 'Dein Stratege', ptolemaeer: 'Dein Nomarch',
   gallier: 'Dein Gefolgsmann', germanen: 'Dein Gefolgsmann',

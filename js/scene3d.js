@@ -1503,7 +1503,8 @@ function tentBox(group, material, w, h, d, x, y, z, rotation = 0) {
 // Drei Bauarten Thron: Roms Klappstuhl aus Elfenbein, der steinerne Sitz der
 // hellenistischen Höfe, der geschnitzte Hochsitz des Nordens.
 const THRONE_STYLE = {
-  rom: 'curule', griechen: 'stone', seleukiden: 'stone', ptolemaeer: 'stone',
+  rom: 'curule', athen: 'stone', sparta: 'stone',
+  seleukiden: 'stone', ptolemaeer: 'stone',
   makedonien: 'stone', syrakus: 'stone',
   karthago: 'stone', gallier: 'wood', germanen: 'wood', britannier: 'wood',
   iberer: 'wood', daker: 'wood', illyrer: 'wood', sarmaten: 'wood',
@@ -1515,7 +1516,8 @@ const TENT_FURNISHINGS = {
   rom: ['shields', 'spears'],
   karthago: ['tusks', 'amphorae'],
   gallier: ['pelts', 'spears'],
-  griechen: ['shields', 'amphorae'],
+  athen: ['shields', 'amphorae'],
+  sparta: ['spears', 'shields'],
   makedonien: ['spears', 'shields'],
   syrakus: ['amphorae', 'brazier'],
   germanen: ['pelts', 'spears'],
@@ -1767,7 +1769,7 @@ function buildFieldStandard(factionId, colour) {
 // aus der Steppe.
 const ARMOUR_STYLE = {
   rom: 'schiene',
-  griechen: 'bronze', seleukiden: 'bronze', ptolemaeer: 'bronze',
+  athen: 'bronze', sparta: 'bronze', seleukiden: 'bronze', ptolemaeer: 'bronze',
   pontus: 'bronze', armenien: 'bronze', makedonien: 'bronze', syrakus: 'bronze',
   karthago: 'leinen', numidien: 'leinen', iberer: 'leinen',
   gallier: 'kette', germanen: 'kette', britannier: 'kette',

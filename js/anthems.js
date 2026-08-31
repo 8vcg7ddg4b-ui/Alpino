@@ -177,8 +177,8 @@ export const ANTHEMS = {
     muster: [0, 3, 4, 6],
     farbe: 'Anatolisch-griechisch: phrygisch, ein Rohrblatt, dazu die Leier aus den Kolonien.',
   },
-  griechen: {
-    name: 'Der Chor vor der Phalanx',
+  athen: {
+    name: 'Der Chor auf der Agora',
     modus: 'phrygisch', grundton: 'E3', tempo: 78, takt: 4,
     bass: [0, 0, 3, 4], bordun: [],
     melodie: [
@@ -190,6 +190,23 @@ export const ANTHEMS = {
     fuehrung: 'saite', grund: 'saite', schlag: 'rahmentrommel',
     muster: [0, 4],
     farbe: 'Was die Griechen selbst dorisch nannten, klingt für uns phrygisch: Kithara und Aulos.',
+  },
+  sparta: {
+    name: 'Das Embaterion',
+    modus: 'dorisch', grundton: 'E2', tempo: 60, takt: 4,
+    // Der Marsch, zu dem die Spartiaten wirklich anrückten: kein Sturmlauf,
+    // sondern ein Schritt, den der Aulos vorgab, damit die Linie nicht bricht.
+    bass: [0, 0, 0, 4], bordun: [0],
+    melodie: [
+      [0, null, null, null, 2, null, null, null],
+      [3, null, null, null, 2, null, null, null],
+      [4, null, null, 3, 2, null, null, null],
+      [1, null, null, null, 0, null, null, null],
+    ],
+    fuehrung: 'rohr', grund: 'nichts', schlag: 'kriegstrommel',
+    muster: [0, 4],
+    farbe: 'Ein Doppelrohrblatt über einem Bordun und sonst nichts: langsam, '
+      + 'gleichmäßig, ohne eine einzige Verzierung. Sparta rannte nicht.',
   },
   makedonien: {
     name: 'Der Schritt der Sarissen',

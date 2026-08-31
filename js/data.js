@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.35.0';
+export const GAME_VERSION = '1.36.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -153,7 +153,10 @@ export const FACTION_SHIP_TYPES = {
   seleukiden: ['quinquereme', 'triere'],
   ptolemaeer: ['quinquereme', 'triere', 'lembos'],
   pontus: ['quinquereme', 'triere', 'lembos'],
-  griechen: ['triere', 'lembos', 'quinquereme'],
+  // Athen war die Trierenmacht schlechthin; Sparta blieb auch nach Aigospotamoi
+  // ein Landheer mit geliehenen Schiffen.
+  athen: ['triere', 'quinquereme', 'lembos'],
+  sparta: ['triere', 'lembos'],
   makedonien: ['quinquereme', 'triere', 'lembos'],
   // Syrakus baute die schwersten Schiffe des Westens - Hieron ließ sogar die
   // Syrakusia auf Kiel legen, das größte Schiff der Antike.
@@ -259,13 +262,21 @@ export const FACTION_UNITS = {
     cavalry: { name: 'Edle Reiter', icon: '🐎', attack: 10, defense: 4, hp: 90, cost: 150, upkeep: 0.09 },
     ranged: { name: 'Bogenschützen', icon: '🏹', attack: 4, defense: 3, hp: 70, cost: 105, upkeep: 0.05, ranged: true },
   },
-  griechen: {
-    infantry: { name: 'Hopliten', icon: '🛡️', attack: 5, defense: 12, hp: 100, cost: 115, upkeep: 0.06 },
-    // Die thessalische Reiterei ritt 264 v. Chr. für Makedonien, nicht für die
-    // Poleis. Was die Bündner aufbringen, ist die Reiterei ihrer eigenen
-    // Grundbesitzer - weniger, und keine Schlachtentscheiderin.
-    cavalry: { name: 'Bundesreiterei', icon: '🐎', attack: 9, defense: 5, hp: 90, cost: 150, upkeep: 0.09 },
-    ranged: { name: 'Peltasten', icon: '🏹', attack: 5, defense: 4, hp: 75, cost: 120, upkeep: 0.06, ranged: true },
+  // Athen: solides Bürgerfußvolk, eine Reiterei aus den Rittern des Zensus und
+  // die Toxotai. Die Stärke der Stadt lag nie an Land - sie lag auf dem Wasser.
+  athen: {
+    infantry: { name: 'Athenische Hopliten', icon: '🛡️', attack: 6, defense: 10, hp: 100, cost: 112, upkeep: 0.058 },
+    cavalry: { name: 'Athenische Ritter', icon: '🐎', attack: 9, defense: 5, hp: 90, cost: 150, upkeep: 0.09 },
+    ranged: { name: 'Toxotai', icon: '🏹', attack: 6, defense: 4, hp: 74, cost: 115, upkeep: 0.06, ranged: true },
+  },
+  // Sparta: das beste Fußvolk der Karte, und sonst fast nichts. Der Spartiat
+  // ist teuer, weil es wenige von ihnen gab - die Oliganthropie war Spartas
+  // eigentliche Niederlage. Die Reiterei taugte nie, und geschleudert haben
+  // die Periöken.
+  sparta: {
+    infantry: { name: 'Spartiaten', icon: '🛡️', attack: 6, defense: 13, hp: 104, cost: 132, upkeep: 0.07 },
+    cavalry: { name: 'Lakedaimonische Reiter', icon: '🐎', attack: 7, defense: 4, hp: 86, cost: 145, upkeep: 0.085 },
+    ranged: { name: 'Periöken-Schleuderer', icon: '🪨', attack: 4, defense: 3, hp: 68, cost: 95, upkeep: 0.045, ranged: true },
   },
   // Die Sarissenphalanx, das Vorbild, das alle anderen nachbauten: sie deckt
   // sich nicht so gut wie die Hoplitenwand der Griechen, aber sie greift an -
@@ -431,7 +442,18 @@ export const FACTIONS = [
     // einmal, und das schaukelt sich auf.
     engineDiscount: 0.25,
   },
-  { id: 'griechen', name: 'Griechen', color: '#7a4fae' },
+  // Athen und Sparta standen 264 v. Chr. im Chremonideischen Krieg zusammen -
+  // und blieben doch zwei Staaten mit zwei Verfassungen und zwei Heeren. Als
+  // eine Fraktion waren sie ein Sammelbecken; als zwei sind sie das, was sie
+  // waren: zwei kleine Mächte, deren Land in einem Tagesmarsch zu Ende ist.
+  { id: 'athen', name: 'Athen', color: '#7a4fae', armyLabel: 'Bürgerheer' },
+  {
+    id: 'sparta', name: 'Sparta', color: '#8c2b2b',
+    // Wenige Bürger, aber jeder von Kindheit an Soldat: Sparta stellt ein
+    // kleineres Heer als alle anderen - und das beste Fußvolk der Karte.
+    startingArmy: { infantry: 260, cavalry: 70, ranged: 110 },
+    armyLabel: 'Königsheer',
+  },
   // The tribes field a great mass of foot: no siege train, few horse and
   // fewer bows, but more men in the line than anyone else brings.
   {
@@ -555,12 +577,22 @@ export const FACTION_PROFILES = {
     strength: 'Schwertkämpfer mit dem härtesten Angriff unter dem Fußvolk – und zwei Heere, um an zwei Fronten zu stehen.',
     weakness: 'Kein Hafen, wenig freies Land, Feinde an drei Seiten.',
   },
-  griechen: {
-    difficulty: 'mittel',
-    blurb: 'Athen, Sparta, Argos, Theben: das Bündnis der Poleis – und Korinth, '
-      + 'die Burg mitten darin, in makedonischer Hand.',
-    strength: 'Hopliten – die beste Verteidigung im Spiel.',
-    weakness: 'Ein enges Land ohne Tiefe, und der Makedone sitzt auf der Landenge.',
+  athen: {
+    difficulty: 'schwer',
+    blurb: 'Athen und Eleusis – zwei Orte in Attika, mehr nicht. Korinth liegt in '
+      + 'makedonischer Hand, und der Weg aus Griechenland heraus führt über See.',
+    strength: 'Trieren von der ersten Runde an und die Toxotai hinter der Linie.',
+    weakness: 'Das kleinste Land der Karte, zusammen mit Sparta: zwei Orte, '
+      + 'und jeder Verlust ist die Hälfte davon.',
+  },
+  sparta: {
+    difficulty: 'schwer',
+    blurb: 'Sparta und sein Hafen Gytheion in der Lakonike – zwei Orte hinter dem '
+      + 'Taygetos, ohne Mauern und ohne Hinterland.',
+    strength: 'Der Spartiat ist das beste Fußvolk der Karte – 13 Verteidigung, '
+      + 'mehr hat niemand.',
+    weakness: 'Wenige Bürger: das kleinste Startheer im Spiel, eine Reiterei, die '
+      + 'nichts taugt, und zwei Orte, die alles sind.',
   },
   makedonien: {
     difficulty: 'schwer',
@@ -571,12 +603,13 @@ export const FACTION_PROFILES = {
     weakness: 'Korinth liegt allein zwischen Feinden, und die Griechen wollen es zurück.',
   },
   syrakus: {
-    difficulty: 'mittel',
-    blurb: 'Das griechische Sizilien: fünf Orte auf einer Insel, zwischen Rom im '
-      + 'Norden und Karthago im Westen.',
+    difficulty: 'schwer',
+    blurb: 'Syrakus und Tauromenion an der Ostküste Siziliens – zwei Orte zwischen '
+      + 'Rom im Norden und Karthago im Westen, und Messana liegt dazwischen.',
     strength: 'Belagerungsgerät zum Viertel billiger – und Quinqueremen von '
       + 'der ersten Runde an.',
-    weakness: 'Eine Insel ohne Hinterland – und beide Nachbarn sind Großmächte.',
+    weakness: 'Ein Küstenstreifen ohne Hinterland – und beide Nachbarn sind '
+      + 'Großmächte.',
   },
   germanen: {
     difficulty: 'schwer',
@@ -686,11 +719,20 @@ export function settlementTier(size) {
 // Settlements sit at the coordinates of the real towns; mapgen.js turns those
 // into tiles. `size` picks a tier above; capitals are the seat of a faction
 // and are fortified from the first turn.
-// Jede Fraktion beginnt mit fünf Orten: der Hauptstadt als Großer Stadt, zwei
+// Die Reiche beginnen mit fünf Orten: der Hauptstadt als Großer Stadt, zwei
 // Städten und zwei Dörfern. Wo einer sitzt, sagt die Geschichte; wie viel er
 // hat, sagt diese Regel. Kein Reich beginnt reicher als das andere - was sich
-// eines herausnimmt, muss es sich nehmen. Alles Übrige auf der Karte ist
-// unabhängig und wartet darauf, dass jemand danach greift.
+// eines herausnimmt, muss es sich nehmen.
+//
+// Drei Fraktionen halten sich nicht daran, und zwar mit Absicht: die
+// Stadtstaaten. Athen, Sparta und Syrakus waren keine Reiche, sondern eine
+// Stadt mit einem Umland, und wer sie spielt, soll das merken - zwei Orte,
+// Hauptstadt und ein zweiter Sitz. Sie haben dieselben 500 Gold und (bis auf
+// Sparta) dasselbe Startheer wie alle anderen; was ihnen fehlt, ist das Land
+// dahinter. Das ist die härteste Ausgangslage im Spiel.
+//
+// Alles Übrige auf der Karte ist unabhängig und wartet darauf, dass jemand
+// danach greift.
 export const CITY_DEFS = [
   // --- Rom: Italien -------------------------------------------------------
   { name: 'Roma', lon: 12.48, lat: 41.90, factionId: 'rom', capital: true, size: 'large' },
@@ -740,16 +782,19 @@ export const CITY_DEFS = [
   { name: 'Lutetia', lon: 2.35, lat: 48.86, factionId: 'gallier', capital: false, size: 'city' },
   { name: 'Tolosa', lon: 1.44, lat: 43.60, factionId: 'gallier', capital: false, size: 'village' },
   { name: 'Burdigala', lon: -0.58, lat: 44.84, factionId: 'gallier', capital: false, size: 'village' },
-  // --- Griechen: das Bündnis der Poleis ----------------------------------
-  // Athen und Sparta standen 264 v. Chr. wirklich zusammen: der Chremonideische
-  // Krieg war das Bündnis, das sich gegen Makedonien stellte. Pergamon und
-  // Ephesos gehörten nicht dazu - sie lagen in Kleinasien und unter anderen
-  // Herren; sie stehen jetzt unabhängig auf der Karte.
-  { name: 'Athen', lon: 23.73, lat: 37.98, factionId: 'griechen', capital: true, size: 'large' },
-  { name: 'Sparta', lon: 22.43, lat: 37.07, factionId: 'griechen', capital: false, size: 'city' },
-  { name: 'Argos', lon: 22.72, lat: 37.63, factionId: 'griechen', capital: false, size: 'city' },
-  { name: 'Thebai', lon: 23.32, lat: 38.32, factionId: 'griechen', capital: false, size: 'village' },
-  { name: 'Rhodos', lon: 28.22, lat: 36.43, factionId: 'griechen', capital: false, size: 'village' },
+  // --- Athen: Attika ------------------------------------------------------
+  // Zwei Orte, mehr war Attika nicht. Eleusis ist der zweite Sitz: der Ort der
+  // Mysterien, eine Tagesreise von der Stadt und über die ganze Antike hinweg
+  // athenisch.
+  { name: 'Athen', lon: 23.73, lat: 37.98, factionId: 'athen', capital: true, size: 'large' },
+  { name: 'Eleusis', lon: 23.54, lat: 38.04, factionId: 'athen', capital: false, size: 'city' },
+  // --- Sparta: die Lakonike ----------------------------------------------
+  // Sparta hatte keine Mauern - Lykurg soll gesagt haben, eine Stadt sei durch
+  // ihre Männer befestigt und nicht durch Ziegel. Im Spiel steht sie trotzdem
+  // hinter der Palisade jeder Hauptstadt; alles andere wäre eine Regel für
+  // einen einzigen Ort. Gytheion ist ihr Hafen, den sie wirklich brauchte.
+  { name: 'Sparta', lon: 22.43, lat: 37.07, factionId: 'sparta', capital: true, size: 'large' },
+  { name: 'Gytheion', lon: 22.57, lat: 36.76, factionId: 'sparta', capital: false, size: 'city' },
   // --- Makedonien: die Heimat und die Fessel -----------------------------
   // Pella ist der Königssitz, Korinth die Exklave: die Burg über der Landenge,
   // eine der drei "Fesseln Griechenlands", mit der Makedonien die Halbinsel
@@ -763,10 +808,7 @@ export const CITY_DEFS = [
   // Was Hieron II. 264 v. Chr. hält. Messana fehlt mit Absicht: dort saßen die
   // Mamertiner, und dass beide nach ihnen griffen, ist der Anfang des Krieges.
   { name: 'Syrakus', lon: 15.29, lat: 37.07, factionId: 'syrakus', capital: true, size: 'large' },
-  { name: 'Akragas', lon: 13.59, lat: 37.31, factionId: 'syrakus', capital: false, size: 'city' },
   { name: 'Tauromenion', lon: 15.29, lat: 37.85, factionId: 'syrakus', capital: false, size: 'city' },
-  { name: 'Kamarina', lon: 14.44, lat: 36.87, factionId: 'syrakus', capital: false, size: 'village' },
-  { name: 'Gela', lon: 14.25, lat: 37.07, factionId: 'syrakus', capital: false, size: 'village' },
   // --- Germanen: zwischen Rhein, Nordsee und Elbe ------------------------
   { name: 'Mattium', lon: 9.28, lat: 51.13, factionId: 'germanen', capital: true, size: 'large' },
   { name: 'Treva', lon: 9.99, lat: 53.55, factionId: 'germanen', capital: false, size: 'city' },
@@ -842,6 +884,10 @@ export const CITY_DEFS = [
   { name: 'Aleria', lon: 9.52, lat: 42.10, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Palma', lon: 2.65, lat: 39.57, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Knossos', lon: 25.16, lat: 35.30, factionId: 'neutral', capital: false, size: 'village' },
+  // Rhodos war 264 v. Chr. keine griechische Bundesstadt, sondern die
+  // Seerepublik, die sich aus allem heraushielt und mit allen handelte. Sie
+  // steht deshalb unabhängig - und auf ihrer Insel steht der Koloss.
+  { name: 'Rhodos', lon: 28.22, lat: 36.43, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Salamis', lon: 33.90, lat: 35.18, factionId: 'neutral', capital: false, size: 'village' },
   // --- Unabhängig: Donau und Thrakien ------------------------------------
   // Thessalonike stand hier, solange Makedonien nicht spielbar war. Jetzt ist
@@ -1278,7 +1324,8 @@ export const BARRACKS_NAMES = {
   armenien: 'Waffenhof',
   pontus: 'Exerzierplatz',
   gallier: 'Kriegerhalle',
-  griechen: 'Gymnasion',
+  athen: 'Gymnasion',
+  sparta: 'Agoge',
   makedonien: 'Phalangitenlager',
   syrakus: 'Waffenwerkstatt',
   germanen: 'Gefolgschaftshalle',
@@ -1305,7 +1352,8 @@ export const FORUM_NAMES = {
   armenien: 'Königshalle',
   pontus: 'Basilikon',
   gallier: 'Versammlungsplatz',
-  griechen: 'Agora',
+  athen: 'Agora',
+  sparta: 'Gerusia',
   makedonien: 'Königshof',
   syrakus: 'Buleuterion',
   germanen: 'Thingplatz',

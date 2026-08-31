@@ -9,7 +9,7 @@ separaten Schlachtbildschirm.
 Die Kampagne spielt auf einer Karte, die **auf dem Tisch im eigenen Feldherrnzelt
 liegt**: Holzrahmen ringsum, Zeltbahnen darüber, Fahnen in den Farben der
 gewählten Fraktion an den Wänden – mit ihrem **Wappen** darauf: der Legionsadler
-für Rom, das Tanit-Zeichen für Karthago, die Eule Athenes für die Griechen, der
+für Rom, das Tanit-Zeichen für Karthago, die Eule Athenes für Athen, der
 Anker der Seleukiden, die Tamga der Sarmaten. Dieselben Zeichen stehen in der
 Fraktionsliste und im Auswahlbildschirm. Wer die Kamera tief stellt, sieht das Zelt,
 wer von oben schaut, sieht die Karte.
@@ -179,7 +179,7 @@ Takte waren in einen schlafenden Klangapparat geplant worden, und genau dieser
 Griff hielt jeden neuen Versuch ab.
 
 **Mit dem Betreten des Zeltes** übernimmt die Musik der eigenen Fraktion. Jede
-der achtzehn hat ihr eigenes Stück – wieder keine Aufnahme, sondern eine
+der neunzehn hat ihr eigenes Stück – wieder keine Aufnahme, sondern eine
 Partitur (`js/anthems.js`), die der Klangsatz Takt für Takt spielt. Der
 Unterschied steckt in der Leiter und in der Besetzung: der **Hidschas** mit
 seiner übermäßigen Sekunde trägt Karthago, Numidien, die Parther, die
@@ -500,8 +500,9 @@ der ins Spiel führt.
   – schnell und billig, aber dünnwandig; und das **Segelschiff** mit
   hochbordigem Eichenrumpf und Ledersegel (36/54, 195 Gold) – schwer zu rammen,
   schwach im Angriff. Welche eine Fraktion bauen kann, sagt ihre Küste: Rom,
-  Karthago, Pontus und die Ptolemäer haben alle drei Ruderbauarten, die Griechen
-  ebenso (mit der Triere als Hauptbauart), Illyrer, Iberer und Numidien den
+  Karthago, Pontus und die Ptolemäer haben alle drei Ruderbauarten, Athen und
+  Syrakus ebenso (Athen mit der Triere als Hauptbauart, Syrakus mit der
+  Quinquereme), Sparta nur Triere und Lembos, Illyrer, Iberer und Numidien den
   Lembos und die Triere, die Stämme des Nordens das Segelschiff und den Lembos.
   Jede Bauart hat ihr eigenes Modell auf der Karte.
 - **Flotten bauen**: Jede eigene Stadt mit Hafen hat eine Werft, und die
@@ -689,8 +690,8 @@ der ins Spiel führt.
   **Steinmauer** (900 Gold, 6 Runden, +100 %). Gekauft wird immer nur die
   nächste Stufe, und immer nur eine zur Zeit. **Die Dörfer der Reiche stehen
   offen**: Höfe, ein Speicher, kein Wall – wer sie halten will, baut die
-  Palisade selbst, und das ist die erste Entscheidung an jeder Grenze (36 von
-  118 Orten beginnen so). Städte einer Fraktion haben die **Holzpalisade**,
+  Palisade selbst, und das ist die erste Entscheidung an jeder Grenze (32 von
+  115 Orten beginnen so). Städte einer Fraktion haben die **Holzpalisade**,
   Hauptstädte die **Große** – die Steinmauer bleibt auch ihnen zu bauen. Die
   **unabhängigen Städte** haben ebenfalls die Große und ihre **Dörfer die
   einfache**: sie haben keinen Herrn, der ihnen ein Heer schickt, und stehen
@@ -820,16 +821,17 @@ der ins Spiel führt.
   Vermessung, Fronarbeit und Abrechnung ordnet.
   Die **Kaserne** kostet **250 Gold** und **3 Runden** und ist Bedingung für
   **jede Aushebung, jede Verstärkung im Feld und jedes neu aufgestellte Heer**.
-  Zu Spielbeginn steht sie **nur in den achtzehn Hauptstädten**; jeder andere
+  Zu Spielbeginn steht sie **nur in den neunzehn Hauptstädten**; jeder andere
   Ort – auch jeder eroberte – muss eine bauen, ehe er Truppen stellt.
   Die **Verwaltung** kostet **300 Gold** und **3 Runden** und ist Bedingung für
   **Viadukt und Bergwerk**. **Niemand beginnt mit einer.**
   Beide heißen nicht überall gleich. Was in Rom das **Castra** und das **Forum**
-  ist, ist bei den Griechen das **Gymnasion** und die **Agora**, bei Karthago
+  ist, ist in Athen das **Gymnasion** und die **Agora**, in Sparta die **Agoge**
+  und die **Gerusia**, bei Karthago
   das **Söldnerlager** und das **Suffetenhaus**, bei den Germanen die
   **Gefolgschaftshalle** und der **Thingplatz**, bei den Ptolemäern das
   **Kleruchenland** und die **Kanzlei** und bei den Sarmaten, die nicht wohnen,
-  das **Reiterlager** und das **Fürstenzelt** – achtzehn Namenspaare, für jede
+  das **Reiterlager** und das **Fürstenzelt** – neunzehn Namenspaare, für jede
   Fraktion eines.
   **Beide stehen auf der Karte.** Die Kaserne liegt **vor dem Ort**: eine lange
   Halle mit Satteldach, davor der Exerzierplatz mit Pfahlzaun und zwei
@@ -903,7 +905,7 @@ der ins Spiel führt.
   gefördert wird, und das liegt auf Halde. Es sind 143 Felder
   auf der ganzen Karte, nicht mehr. Das Feldfenster nennt dazu die Zahl und den
   Ort, dem das Erz zufällt: „⛏️ Erz – 2 Punkte für ein Bergwerk in Roma (5 Erz
-  im Umland)". Von 118 Orten haben 34 genug Erz; der Knopf
+  im Umland)". Von 115 Orten haben 35 genug Erz; der Knopf
   nennt vor dem Bau, was er tragen wird. Neben der Stadt steht danach ein
   Fördergerüst mit Schacht und Halde, in der Übersicht hat das Bergwerk eine
   eigene Spalte, und die KI schlägt eines an, bevor sie die nächste Mauer baut.
@@ -1448,7 +1450,7 @@ der ins Spiel führt.
   **Rangliste, keine Akte**: je Reich der **Platz**, das Wappen, der Name, die
   Zahl, nach der sortiert wird, ein Balken im Verhältnis zum Ersten – und
   darunter **eine** knappe Zeile: `🏛️ Orte · ⚔️ Mann · 💰 Schatz` und die
-  **Bilanz** (Einnahmen minus Sold je Runde) in Grün oder Rot. Achtzehn Reiche
+  **Bilanz** (Einnahmen minus Sold je Runde) in Grün oder Rot. Neunzehn Reiche
   stehen so auf zwei Bildschirmlängen statt auf vier.
   Wer es genauer wissen will, hält den Zeiger auf eine Zeile: der **Tooltip**
   schlüsselt sie auf – Orte, Heere, Mann im Feld, Mann auf den Mauern,
@@ -1541,7 +1543,7 @@ der ins Spiel führt.
 
 ## Spielprinzip
 
-- **Alle achtzehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
+- **Alle neunzehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
   eigener Auswahlbildschirm: links die Fraktionen mit ihrer Schwierigkeit,
   rechts Hauptstadt, Siedlungen, Startheer, die drei eigenen Einheiten sowie
   Stärke und Schwäche – und im Hintergrund ein Bild, das mit der Auswahl
@@ -1549,8 +1551,8 @@ der ins Spiel führt.
   Karthago, der Herkynische Wald für die Germanen, Pyramiden und Palmen für die
   Ptolemäer. Wer nicht gewählt wird, wird von der KI geführt.
 - Zur Wahl stehen **Rom**, **Karthago**, die **Gallier**, **Numidien**, die
-  **Parther**, **Armenien**, **Pontus**, **Makedonien**, **Syrakus**, die
-  **Griechen**, die **Germanen**,
+  **Parther**, **Armenien**, **Pontus**, **Makedonien**, **Syrakus**,
+  **Athen**, **Sparta**, die **Germanen**,
   die **Britannier**, die **Iberer**, die **Daker**, die **Seleukiden**, die
   **Ptolemäer**, die **Illyrer** und die **Sarmaten** –
   verteilt über Europa, das Mittelmeer, Nordafrika, den Vorderen Orient und die
@@ -1578,8 +1580,8 @@ der ins Spiel führt.
   als jeder Schild. Dazu die **Hetairoi**, die Stoßreiterei, mit der Alexander
   seine Schlachten entschied.
 
-  **Syrakus** unter **Hieron II.** hält das griechische Sizilien: die Stadt
-  selbst, Akragas, Tauromenion, Kamarina und Gela. Es kämpft griechisch und
+  **Syrakus** unter **Hieron II.** hält die Ostküste Siziliens: die Stadt
+  selbst und **Tauromenion**. Es kämpft griechisch und
   schießt sizilisch – und hat als einzige Fraktion einen Vorteil, der keine
   Truppenwerte betrifft: **Belagerungsgerät kostet es ein Viertel weniger**
   (Widder 180 statt 240, Katapult 225 statt 300). In Syrakus bauten die
@@ -1591,16 +1593,41 @@ der ins Spiel führt.
   beide um Hilfe riefen, Karthago und Rom, ist der Anfang des Krieges. Auf der
   Karte liegt Messana als **unabhängige Stadt** genau zwischen Rom und Syrakus,
   und wer sie will, muss über die Meerenge.
-- **Die Griechen sind jetzt ein Bündnis, kein Sammelbecken.** Sie hielten
-  vorher Athen, Sparta, Pergamon, Ephesos und Rhodos – fünf Orte, die 264 v. Chr.
-  fünf verschiedene politische Körper waren, von denen mehrere miteinander im
-  Krieg lagen. Pergamon fiel 263 unter Eumenes I. von den Seleukiden ab und lag
-  ohnehin in Kleinasien; Ephesos wechselte in diesen Jahren zwischen Seleukiden
-  und Ptolemäern hin und her. Beide stehen jetzt **unabhängig** auf der Karte.
-  Was bleibt, ist das Bündnis, das es wirklich gab: **Athen und Sparta** standen
-  im Chremonideischen Krieg zusammen gegen Makedonien, dazu **Argos**, **Theben**
-  und **Rhodos**. Ein enges Land ohne Tiefe – und der Makedone sitzt mitten
-  darin auf der Landenge.
+- **Athen und Sparta statt „der Griechen" – und drei Stadtstaaten mit je zwei
+  Orten.** Es gab nie eine Fraktion „Griechen". Athen, Sparta, Pergamon, Ephesos
+  und Rhodos waren 264 v. Chr. fünf verschiedene politische Körper, von denen
+  mehrere miteinander im Krieg lagen; sie in einen Topf zu werfen war die
+  bequeme Lösung, nicht die richtige. **Athen** und **Sparta** stehen jetzt als
+  **zwei eigene Fraktionen** auf der Karte – Verbündete im Chremonideischen
+  Krieg, aber zwei Staaten mit zwei Verfassungen und zwei Heeren. Pergamon,
+  Ephesos und Rhodos sind **unabhängig**; Argos und Theben stehen nicht mehr auf
+  der Karte, denn Griechenland war eng, und eine Karte mit 55 km je Feld
+  verträgt dort keine Ortsdichte, die jedes Feld belegt.
+
+  **Und sie haben nur zwei Orte.** Athen hält Athen und **Eleusis**, Sparta
+  hält Sparta und seinen Hafen **Gytheion**, Syrakus hält Syrakus und
+  **Tauromenion**. Das ist kein Versehen und keine Sparmaßnahme: ein Stadtstaat
+  war eine Stadt mit einem Umland, kein Reich, und wer einen spielt, soll das
+  vom ersten Zug an merken. Sie bekommen dieselben 500 Gold und (bis auf
+  Sparta) dasselbe Startheer wie alle anderen – was ihnen fehlt, ist das Land
+  dahinter. In den Messungen ist das die härteste Ausgangslage im Spiel:
+  Athen **2,7**, Sparta **3,2**, Syrakus **4,8** Orte im Schnitt nach 60
+  Runden, bei einem Median von **6,1**. Ausgeschaltet wurde in zwölf Läufen
+  aber keiner von ihnen: die Lage ist eng, nicht aussichtslos.
+
+  **Sparta ist die schärfste Fraktion des Spiels.** Der **Spartiat** hat
+  **13 Verteidigung** – mehr hat niemand –, kostet dafür 132 Gold, und Sparta
+  stellt als einzige Fraktion ein **kleineres Startheer** (440 statt 540 Mann).
+  Das ist die Oliganthropie, an der Sparta wirklich zugrunde ging: es gab zu
+  wenige Spartiaten, und jeder gefallene war nicht zu ersetzen. Reiterei und
+  Schleuderer sind entsprechend das Schwächste auf der Karte. **Athen** kämpft
+  ausgeglichen und fährt, worauf die Stadt wirklich stand: die **Triere** ist
+  ihre erste Bauart.
+
+  **Auf Sizilien stehen jetzt vier Orte statt sieben.** Syrakus und
+  Tauromenion an der Ostküste, dazu die unabhängigen **Messana** und
+  **Panormus**. Akragas, Kamarina und Gela sind weg – auf einer Insel, die
+  neun Felder breit ist, war jeder zweite davon eine Stadt.
 - **Jede Fraktion hat ihre eigenen Einheiten.** Drei Waffengattungen gibt es
   überall – Fußvolk, Reiterei, Fernkampf –, aber jede Fraktion füllt sie anders
   aus, mit eigenem Namen, eigenen Werten und eigenem Preis:
@@ -1616,7 +1643,8 @@ der ins Spiel führt.
   | Gallier | Schwertkämpfer (harter Angriff) | Edle Reiter | Bogenschützen |
   | Makedonien | Sarissenphalanx (härteste Phalanx im Angriff) | Hetairoi (Stoßreiterei) | Agrianische Speerwerfer |
   | Syrakus | Syrakusanische Hopliten | Syrakusanische Reiter | Sizilische Schützen |
-  | Griechen | Hopliten (beste Verteidigung) | Bundesreiterei | Peltasten |
+  | Athen | Athenische Hopliten | Athenische Ritter | Toxotai |
+  | Sparta | Spartiaten (beste Verteidigung der Karte) | Lakedaimonische Reiter (die schwächste) | Periöken-Schleuderer |
   | Germanen | Speerträger | Gefolgschaftsreiter | Wurfspeerträger |
   | Britannier | Keltenkrieger | Streitwagen (härtester Angriff) | Schleuderer |
   | Iberer | Scutarii | Iberische Reiter | Caetrati |
@@ -1672,7 +1700,7 @@ der ins Spiel führt.
 - Jede Fraktion stellt ihr Heer auch anders auf: Gallier und Germanen setzen auf
   die Masse des Fußvolks, die Britannier auf den Streitwagen, die Iberer auf
   Schleuderer und Speerwerfer, die Daker auf Falx und Panzerreiter. Rom,
-  Karthago und die Griechen kämpfen ausgewogen.
+  Karthago und Athen kämpfen ausgewogen, Sparta gar nicht – es steht nur.
 - Die **Britannier** sitzen auf ihrer Insel und kommen ohne Schiffe nirgendwo
   hin – ihre erste Landung an der gallischen Küste fällt meist in die ersten
   Spielrunden.
@@ -1681,7 +1709,7 @@ der ins Spiel führt.
   sondern einen fußlastigen Heerhaufen.
 - Die **Seleukiden** halten Syrien, Kilikien und das Zweistromland um
   Antiochia. Als größtes Diadochenreich stellen sie zwei Heere auf – sie
-  brauchen beide, denn sie stehen zwischen Griechen und Ptolemäern.
+  brauchen beide, denn sie stehen zwischen Kleinasien und den Ptolemäern.
 - Die **Ptolemäer** sitzen auf Ägypten, Zypern, Koilesyrien und der Kyrenaika.
   Das Niltal trägt viel Fußvolk, ihre nubischen Bogen sind die besten der
   Karte, an Reiterei fehlt es ihnen.
@@ -1716,7 +1744,7 @@ der ins Spiel führt.
   Wie lange das dauert, entscheidet, was man in den Ort steckt: ein Dorf
   braucht ohne alles rund **135 Runden** bis zur Stadt, mit einer **Farm 89**,
   mit **Farm und Viadukt 77**. In zweihundert Runden ohne Krieg wachsen so von
-  118 Orten etwa **70** in den nächsten Rang.
+  115 Orten etwa **67** in den nächsten Rang.
   **Auf der Karte hat jedes Gebäude überall dasselbe Maß.** Vorher wuchsen mit
   dem Rang eines Orts einfach alle Gebäude mit – dieselben vier Hütten, nur
   größer gezeichnet; eine Große Stadt sah aus wie ein Dorf für Riesen, und zwei
@@ -1798,10 +1826,13 @@ der ins Spiel führt.
   Wer eine ruhige Karte will, schaltet es in den Einstellungen unter **„Leben
   auf der Karte"** ab.
 
-  **Jede Fraktion beginnt mit denselben fünf Orten**: der
+  **Die Reiche beginnen mit denselben fünf Orten**: der
   Hauptstadt als Große Stadt, zwei Städten und zwei Dörfern. Wo einer sitzt,
   sagt die Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt
-  reicher als das andere. **27 Orte gehören niemandem** und sind frei zu
+  reicher als das andere. Ausgenommen sind die drei **Stadtstaaten** – Athen,
+  Sparta und Syrakus –, die mit Absicht nur **zwei** Orte haben: eine Stadt mit
+  einem Umland war kein Reich, und das soll man beim Spielen merken.
+  **29 Orte gehören niemandem** und sind frei zu
   erobern – von Gades bis Exopolis. Neun davon liegen im **Nordosten**, wo die
   Karte bisher leer war: Kremnoi am Maiotischen See, Azagarion und Karrodounon
   im Binnenland, Naubaris und Exopolis im asiatischen Sarmatien, Rha an dem
@@ -1861,7 +1892,7 @@ der ins Spiel führt.
   schon enthält, und würfelt nichts eigenes
 - `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
 - `js/weather.js` – Kalender, Klimazonen, Wettertypen und ihre Regelwirkung
-- `js/anthems.js` – die Partituren der achtzehn Fraktionen: Leitern, Grundtöne,
+- `js/anthems.js` – die Partituren der neunzehn Fraktionen: Leitern, Grundtöne,
   Motive und Besetzung
 - `js/audio.js` – der ganze Ton: Hall- und Kompressorkette, die einzelnen
   Klangereignisse, der Marschtritt, die Titelmusik und der Spieler für die
