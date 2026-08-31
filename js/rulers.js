@@ -63,6 +63,20 @@ export const RULERS = {
     wort: 'Gold beeindruckt ihn nicht, ein gebrochenes Wort empört ihn. '
       + 'Er schlägt zuerst, aber er lügt nicht dabei.',
   },
+  makedonien: {
+    name: 'Antigonos II.', titel: 'Gonatas',
+    angriffslust: 56, ehre: 68, habgier: 44,
+    wort: 'Er nennt das Königtum eine ehrenvolle Knechtschaft und führt es so: '
+      + 'er hält, was er hat, mit Besatzungen statt mit Feldzügen. Wer ihm eine '
+      + 'seiner Burgen nimmt, lernt ihn von der anderen Seite kennen.',
+  },
+  syrakus: {
+    name: 'Hieron II.', titel: 'der Rechner',
+    angriffslust: 30, ehre: 74, habgier: 60,
+    wort: 'Er hat begriffen, dass eine Insel zwischen zwei Großmächten nicht '
+      + 'gewinnt, sondern wählt. Er wählt spät, er wählt einmal, und dann hält '
+      + 'er es fünfzig Jahre lang.',
+  },
   germanen: {
     name: 'Segimer', titel: 'der Gefolgsherr',
     angriffslust: 88, ehre: 38, habgier: 34,

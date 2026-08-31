@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.34.0';
+export const GAME_VERSION = '1.35.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -154,6 +154,10 @@ export const FACTION_SHIP_TYPES = {
   ptolemaeer: ['quinquereme', 'triere', 'lembos'],
   pontus: ['quinquereme', 'triere', 'lembos'],
   griechen: ['triere', 'lembos', 'quinquereme'],
+  makedonien: ['quinquereme', 'triere', 'lembos'],
+  // Syrakus baute die schwersten Schiffe des Westens - Hieron ließ sogar die
+  // Syrakusia auf Kiel legen, das größte Schiff der Antike.
+  syrakus: ['quinquereme', 'triere', 'lembos'],
   illyrer: ['lembos', 'triere'],
   iberer: ['lembos', 'triere'],
   numidien: ['lembos', 'triere'],
@@ -257,8 +261,28 @@ export const FACTION_UNITS = {
   },
   griechen: {
     infantry: { name: 'Hopliten', icon: '🛡️', attack: 5, defense: 12, hp: 100, cost: 115, upkeep: 0.06 },
-    cavalry: { name: 'Thessalische Reiter', icon: '🐎', attack: 9, defense: 5, hp: 90, cost: 150, upkeep: 0.09 },
+    // Die thessalische Reiterei ritt 264 v. Chr. für Makedonien, nicht für die
+    // Poleis. Was die Bündner aufbringen, ist die Reiterei ihrer eigenen
+    // Grundbesitzer - weniger, und keine Schlachtentscheiderin.
+    cavalry: { name: 'Bundesreiterei', icon: '🐎', attack: 9, defense: 5, hp: 90, cost: 150, upkeep: 0.09 },
     ranged: { name: 'Peltasten', icon: '🏹', attack: 5, defense: 4, hp: 75, cost: 120, upkeep: 0.06, ranged: true },
+  },
+  // Die Sarissenphalanx, das Vorbild, das alle anderen nachbauten: sie deckt
+  // sich nicht so gut wie die Hoplitenwand der Griechen, aber sie greift an -
+  // fünf Meter Speer reichen weiter als jeder Schild. Dazu die Hetairoi, mit
+  // denen Alexander seine Schlachten entschied.
+  makedonien: {
+    infantry: { name: 'Sarissenphalanx', icon: '🛡️', attack: 7, defense: 11, hp: 104, cost: 122, upkeep: 0.063 },
+    cavalry: { name: 'Hetairoi', icon: '🐎', attack: 12, defense: 6, hp: 96, cost: 170, upkeep: 0.1 },
+    ranged: { name: 'Agrianische Speerwerfer', icon: '🎯', attack: 6, defense: 4, hp: 74, cost: 112, upkeep: 0.058, ranged: true },
+  },
+  // Syrakus kämpft griechisch und schießt sizilisch: solides Fußvolk, wenig
+  // Reiterei, und die Schützen einer Stadt, in der das Geschütz erfunden
+  // wurde.
+  syrakus: {
+    infantry: { name: 'Syrakusanische Hopliten', icon: '🛡️', attack: 6, defense: 10, hp: 100, cost: 112, upkeep: 0.057 },
+    cavalry: { name: 'Syrakusanische Reiter', icon: '🐎', attack: 9, defense: 5, hp: 88, cost: 148, upkeep: 0.088 },
+    ranged: { name: 'Sizilische Schützen', icon: '🏹', attack: 7, defense: 4, hp: 74, cost: 124, upkeep: 0.065, ranged: true },
   },
   germanen: {
     infantry: { name: 'Speerträger', icon: '⚔️', attack: 7, defense: 8, hp: 105, cost: 95, upkeep: 0.05 },
@@ -378,6 +402,35 @@ export const FACTIONS = [
   // Pontus am Südufer des Schwarzen Meeres: ein hellenistisches Königreich
   // mit den Häfen der Küste im Rücken und den Bergen des Hinterlands davor.
   { id: 'pontus', name: 'Pontus', color: '#6b6fc9' },
+  // Das dritte Diadochenreich neben Seleukiden und Ptolemäern. Antigonos II.
+  // hält Makedonien und dazu die Fesseln Griechenlands - Akrokorinth ist die
+  // wichtigste davon, und sie liegt fünf Tagesmärsche von Pella entfernt.
+  {
+    id: 'makedonien', name: 'Makedonien', color: '#2f5d7c',
+    // Ein Heer in Pella und eine Besatzung auf Akrokorinth: die Exklave wäre
+    // sonst am ersten Frühling verloren, und genau sie ist der Griff, mit dem
+    // Makedonien Griechenland hält.
+    startingArmies: [
+      { units: { infantry: 320, cavalry: 130, ranged: 90 } },
+      { units: { infantry: 150, cavalry: 50, ranged: 40 }, home: 'Korinth' },
+    ],
+    armyLabel: 'Königsheer',
+  },
+  // Syrakus unter Hieron II.: die reichste Stadt des griechischen Westens,
+  // mit einer Flotte und mit den Werkstätten, in denen das Torsionsgeschütz
+  // erfunden wurde. Um sie beginnt 264 v. Chr. der Krieg, an dem dieses Spiel
+  // seinen ersten Monat hat.
+  {
+    id: 'syrakus', name: 'Syrakus', color: '#cfc07a',
+    startingArmy: { infantry: 300, cavalry: 100, ranged: 140 },
+    armyLabel: 'Stadtheer',
+    // Wo Dionysios' Ingenieure das Katapult bauten, ist Gerät billiger. Das
+    // ist der ganze Vorteil: eine stärkere Stadtwache dazu hatte Syrakus in
+    // den Messungen zur ersten Macht der Karte gemacht - der Nachlass wirkt
+    // einmal je Gerät, eine bessere Wache wirkt in jedem eroberten Ort noch
+    // einmal, und das schaukelt sich auf.
+    engineDiscount: 0.25,
+  },
   { id: 'griechen', name: 'Griechen', color: '#7a4fae' },
   // The tribes field a great mass of foot: no siege train, few horse and
   // fewer bows, but more men in the line than anyone else brings.
@@ -504,9 +557,26 @@ export const FACTION_PROFILES = {
   },
   griechen: {
     difficulty: 'mittel',
-    blurb: 'Athen, Sparta, Pergamon: fünf Orte um die Ägäis, alle am Wasser.',
+    blurb: 'Athen, Sparta, Argos, Theben: das Bündnis der Poleis – und Korinth, '
+      + 'die Burg mitten darin, in makedonischer Hand.',
     strength: 'Hopliten – die beste Verteidigung im Spiel.',
-    weakness: 'Über das Meer verstreut: jede Stadt steht für sich.',
+    weakness: 'Ein enges Land ohne Tiefe, und der Makedone sitzt auf der Landenge.',
+  },
+  makedonien: {
+    difficulty: 'schwer',
+    blurb: 'Pella und die Küste des Thermäischen Golfs – dazu Korinth als Exklave '
+      + 'tief in Griechenland, mit eigener Besatzung.',
+    strength: 'Die Sarissenphalanx greift härter an als jede andere Phalanx, '
+      + 'und die Hetairoi sind die beste Stoßreiterei außerhalb der Steppe.',
+    weakness: 'Korinth liegt allein zwischen Feinden, und die Griechen wollen es zurück.',
+  },
+  syrakus: {
+    difficulty: 'mittel',
+    blurb: 'Das griechische Sizilien: fünf Orte auf einer Insel, zwischen Rom im '
+      + 'Norden und Karthago im Westen.',
+    strength: 'Belagerungsgerät zum Viertel billiger – und Quinqueremen von '
+      + 'der ersten Runde an.',
+    weakness: 'Eine Insel ohne Hinterland – und beide Nachbarn sind Großmächte.',
   },
   germanen: {
     difficulty: 'schwer',
@@ -670,12 +740,33 @@ export const CITY_DEFS = [
   { name: 'Lutetia', lon: 2.35, lat: 48.86, factionId: 'gallier', capital: false, size: 'city' },
   { name: 'Tolosa', lon: 1.44, lat: 43.60, factionId: 'gallier', capital: false, size: 'village' },
   { name: 'Burdigala', lon: -0.58, lat: 44.84, factionId: 'gallier', capital: false, size: 'village' },
-  // --- Griechen: Ägäis und Westkleinasien --------------------------------
+  // --- Griechen: das Bündnis der Poleis ----------------------------------
+  // Athen und Sparta standen 264 v. Chr. wirklich zusammen: der Chremonideische
+  // Krieg war das Bündnis, das sich gegen Makedonien stellte. Pergamon und
+  // Ephesos gehörten nicht dazu - sie lagen in Kleinasien und unter anderen
+  // Herren; sie stehen jetzt unabhängig auf der Karte.
   { name: 'Athen', lon: 23.73, lat: 37.98, factionId: 'griechen', capital: true, size: 'large' },
   { name: 'Sparta', lon: 22.43, lat: 37.07, factionId: 'griechen', capital: false, size: 'city' },
-  { name: 'Pergamon', lon: 27.18, lat: 39.13, factionId: 'griechen', capital: false, size: 'city' },
-  { name: 'Ephesos', lon: 27.34, lat: 37.94, factionId: 'griechen', capital: false, size: 'village' },
+  { name: 'Argos', lon: 22.72, lat: 37.63, factionId: 'griechen', capital: false, size: 'city' },
+  { name: 'Thebai', lon: 23.32, lat: 38.32, factionId: 'griechen', capital: false, size: 'village' },
   { name: 'Rhodos', lon: 28.22, lat: 36.43, factionId: 'griechen', capital: false, size: 'village' },
+  // --- Makedonien: die Heimat und die Fessel -----------------------------
+  // Pella ist der Königssitz, Korinth die Exklave: die Burg über der Landenge,
+  // eine der drei "Fesseln Griechenlands", mit der Makedonien die Halbinsel
+  // festhielt, ohne in ihr zu stehen.
+  { name: 'Pella', lon: 22.52, lat: 40.76, factionId: 'makedonien', capital: true, size: 'large' },
+  { name: 'Thessalonike', lon: 22.94, lat: 40.64, factionId: 'makedonien', capital: false, size: 'city' },
+  { name: 'Korinth', lon: 22.93, lat: 37.94, factionId: 'makedonien', capital: false, size: 'city' },
+  { name: 'Amphipolis', lon: 23.83, lat: 40.82, factionId: 'makedonien', capital: false, size: 'village' },
+  { name: 'Dion', lon: 22.49, lat: 40.17, factionId: 'makedonien', capital: false, size: 'village' },
+  // --- Syrakus: das griechische Sizilien ---------------------------------
+  // Was Hieron II. 264 v. Chr. hält. Messana fehlt mit Absicht: dort saßen die
+  // Mamertiner, und dass beide nach ihnen griffen, ist der Anfang des Krieges.
+  { name: 'Syrakus', lon: 15.29, lat: 37.07, factionId: 'syrakus', capital: true, size: 'large' },
+  { name: 'Akragas', lon: 13.59, lat: 37.31, factionId: 'syrakus', capital: false, size: 'city' },
+  { name: 'Tauromenion', lon: 15.29, lat: 37.85, factionId: 'syrakus', capital: false, size: 'city' },
+  { name: 'Kamarina', lon: 14.44, lat: 36.87, factionId: 'syrakus', capital: false, size: 'village' },
+  { name: 'Gela', lon: 14.25, lat: 37.07, factionId: 'syrakus', capital: false, size: 'village' },
   // --- Germanen: zwischen Rhein, Nordsee und Elbe ------------------------
   { name: 'Mattium', lon: 9.28, lat: 51.13, factionId: 'germanen', capital: true, size: 'large' },
   { name: 'Treva', lon: 9.99, lat: 53.55, factionId: 'germanen', capital: false, size: 'city' },
@@ -741,18 +832,29 @@ export const CITY_DEFS = [
   { name: 'Mediolanum', lon: 9.19, lat: 45.46, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Aquileia', lon: 13.37, lat: 45.77, factionId: 'neutral', capital: false, size: 'village' },
   // --- Unabhängig: die Inseln --------------------------------------------
-  { name: 'Syrakus', lon: 15.29, lat: 37.07, factionId: 'neutral', capital: false, size: 'city' },
+  // Messana, die Stadt der Mamertiner: kein Königreich, sondern eine Söldner-
+  // schar, die sich eine Stadt genommen hat. Sie rief 264 v. Chr. beide um
+  // Hilfe - Karthago und Rom -, und der Krieg, der daraus wurde, dauerte
+  // dreiundzwanzig Jahre. Auf der Karte liegt sie zwischen Rom und Syrakus.
+  { name: 'Messana', lon: 15.55, lat: 38.19, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Panormus', lon: 13.36, lat: 38.12, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Caralis', lon: 9.11, lat: 39.22, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Aleria', lon: 9.52, lat: 42.10, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Palma', lon: 2.65, lat: 39.57, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Knossos', lon: 25.16, lat: 35.30, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Salamis', lon: 33.90, lat: 35.18, factionId: 'neutral', capital: false, size: 'village' },
-  // --- Unabhängig: Donau, Makedonien, Thrakien ---------------------------
+  // --- Unabhängig: Donau und Thrakien ------------------------------------
+  // Thessalonike stand hier, solange Makedonien nicht spielbar war. Jetzt ist
+  // es die zweite Stadt des Königreichs und steht oben bei Pella.
   { name: 'Vindobona', lon: 16.37, lat: 48.21, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Thessalonike', lon: 22.94, lat: 40.64, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Byzantion', lon: 28.98, lat: 41.01, factionId: 'neutral', capital: false, size: 'city' },
   // --- Unabhängig: Kleinasien --------------------------------------------
+  // Pergamon fiel 263 v. Chr. unter Eumenes I. von den Seleukiden ab und war
+  // von da an sein eigener Herr; Ephesos wechselte in diesen Jahren zwischen
+  // Seleukiden und Ptolemäern hin und her. Beide gehörten keinem der beiden
+  // ganz - deshalb stehen sie hier unabhängig.
+  { name: 'Pergamon', lon: 27.18, lat: 39.13, factionId: 'neutral', capital: false, size: 'city' },
+  { name: 'Ephesos', lon: 27.34, lat: 37.94, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Tarsos', lon: 34.90, lat: 36.92, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Ankyra', lon: 32.86, lat: 39.93, factionId: 'neutral', capital: false, size: 'village' },
   // --- Unabhängig: der Nordosten -----------------------------------------
@@ -924,6 +1026,16 @@ export function siegeVolley(engines) {
 export function breachedWall(wallMultiplier, engines) {
   if (!(wallMultiplier > 1)) return wallMultiplier;
   return 1 + (wallMultiplier - 1) * (1 - siegeBreach(engines));
+}
+
+// Was ein Stück Gerät diese Fraktion kostet. Wer die Werkstätten hat, in denen
+// das Torsionsgeschütz gebaut wurde, zimmert billiger als einer, der seine
+// Zimmerleute erst anwerben muss. Der Nachlass steht an der Fraktion, damit es
+// nur eine Wahrheit über den Preis gibt - Knopf, KI und Abrechnung fragen hier.
+export function engineCost(def, faction) {
+  if (!def) return 0;
+  const nachlass = (faction && faction.engineDiscount) || 0;
+  return Math.round(def.cost * (1 - nachlass));
 }
 
 // Der Sold für das Gerät eines Heeres.
@@ -1167,6 +1279,8 @@ export const BARRACKS_NAMES = {
   pontus: 'Exerzierplatz',
   gallier: 'Kriegerhalle',
   griechen: 'Gymnasion',
+  makedonien: 'Phalangitenlager',
+  syrakus: 'Waffenwerkstatt',
   germanen: 'Gefolgschaftshalle',
   britannier: 'Wagenhof',
   iberer: 'Kriegerhof',
@@ -1192,6 +1306,8 @@ export const FORUM_NAMES = {
   pontus: 'Basilikon',
   gallier: 'Versammlungsplatz',
   griechen: 'Agora',
+  makedonien: 'Königshof',
+  syrakus: 'Buleuterion',
   germanen: 'Thingplatz',
   britannier: 'Ratsplatz',
   iberer: 'Ältestenrat',

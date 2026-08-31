@@ -14,7 +14,7 @@ import {
   RIVER_CROSSING_COST,
   MINE_NAME, MINE_ORE, MINE_RANGE, MINE_MIN_ORE,
   FISHERY_NAME, HUNT_NAME, HUNT_GAME, HUNT_RANGE, HUNT_MIN_GAME, HUNT_GROWTH, huntIncome,
-  SIEGE_ENGINES, SIEGE_ENGINE_MAX, SIEGE_ENGINE_MOVE, engineCount, siegeBreach,
+  SIEGE_ENGINES, SIEGE_ENGINE_MAX, SIEGE_ENGINE_MOVE, engineCount, engineCost, siegeBreach,
   BUILDINGS, buildingDef, buildingName, mineIncome, TAX_PER_INHABITANTS,
   repairCost, repairTurns,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_ROUTES_PER_CITY,
@@ -422,10 +422,11 @@ function engineBuildHTML(state, army, city) {
       <span class="muted">· höchstens ${SIEGE_ENGINE_MAX} Stück je Heer</span></p>
     <div class="recruit-row">
       ${SIEGE_ENGINES.map((def) => {
-    const tooPoor = player.gold < def.cost;
+    const preis = engineCost(def, player);
+    const tooPoor = player.gold < preis;
     return `<button class="engine-btn" data-engine="${def.key}" data-army="${army.id}"
         title="${escapeHTML(def.note)}" ${tooPoor || voll ? 'disabled' : ''}>
-        ${def.icon} ${escapeHTML(def.name)}<br><small>${def.cost} Gold ·
+        ${def.icon} ${escapeHTML(def.name)}<br><small>${preis} Gold ·
           −${Math.round(def.bruch * 100)} % Mauer${def.salve ? ' · schießt' : ''}</small>
       </button>`;
   }).join('')}

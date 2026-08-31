@@ -1,7 +1,7 @@
 import {
   UNIT_ROLES, SHIP_ROLE, SHIP_COST, HARBOUR_COST, unitDef, roadCost, shipTypesOf,
   wallLevelInfo, TRADE_ROUTE_COST, MINE_COST, SHIPYARD_COST, CAMP_COST,
-  BUILDINGS, buildingDef, FRONTAGE_BASE, siegeEngineDef, engineCount,
+  BUILDINGS, buildingDef, FRONTAGE_BASE, siegeEngineDef, engineCount, engineCost,
 } from './data.js';
 import { computeReachable, tileKey } from './pathfind.js';
 import {
@@ -501,7 +501,7 @@ function aiSiegeEngines(state, faction) {
     // Erst der Widder, dann das Katapult: der Widder nimmt der Mauer mehr.
     const key = (army.engines && army.engines.ram) ? 'catapult' : 'ram';
     const def = siegeEngineDef(key);
-    if (faction.gold < def.cost + AI_ENGINE_TREASURY) return true;
+    if (faction.gold < engineCost(def, faction) + AI_ENGINE_TREASURY) return true;
     buildSiegeEngine(state, army.id, key);
     return false;
   }

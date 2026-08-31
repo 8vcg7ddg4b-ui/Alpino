@@ -179,7 +179,7 @@ Takte waren in einen schlafenden Klangapparat geplant worden, und genau dieser
 Griff hielt jeden neuen Versuch ab.
 
 **Mit dem Betreten des Zeltes** übernimmt die Musik der eigenen Fraktion. Jede
-der sechzehn hat ihr eigenes Stück – wieder keine Aufnahme, sondern eine
+der achtzehn hat ihr eigenes Stück – wieder keine Aufnahme, sondern eine
 Partitur (`js/anthems.js`), die der Klangsatz Takt für Takt spielt. Der
 Unterschied steckt in der Leiter und in der Besetzung: der **Hidschas** mit
 seiner übermäßigen Sekunde trägt Karthago, Numidien, die Parther, die
@@ -689,8 +689,8 @@ der ins Spiel führt.
   **Steinmauer** (900 Gold, 6 Runden, +100 %). Gekauft wird immer nur die
   nächste Stufe, und immer nur eine zur Zeit. **Die Dörfer der Reiche stehen
   offen**: Höfe, ein Speicher, kein Wall – wer sie halten will, baut die
-  Palisade selbst, und das ist die erste Entscheidung an jeder Grenze (32 von
-  107 Orten beginnen so). Städte einer Fraktion haben die **Holzpalisade**,
+  Palisade selbst, und das ist die erste Entscheidung an jeder Grenze (36 von
+  118 Orten beginnen so). Städte einer Fraktion haben die **Holzpalisade**,
   Hauptstädte die **Große** – die Steinmauer bleibt auch ihnen zu bauen. Die
   **unabhängigen Städte** haben ebenfalls die Große und ihre **Dörfer die
   einfache**: sie haben keinen Herrn, der ihnen ein Heer schickt, und stehen
@@ -820,7 +820,7 @@ der ins Spiel führt.
   Vermessung, Fronarbeit und Abrechnung ordnet.
   Die **Kaserne** kostet **250 Gold** und **3 Runden** und ist Bedingung für
   **jede Aushebung, jede Verstärkung im Feld und jedes neu aufgestellte Heer**.
-  Zu Spielbeginn steht sie **nur in den sechzehn Hauptstädten**; jeder andere
+  Zu Spielbeginn steht sie **nur in den achtzehn Hauptstädten**; jeder andere
   Ort – auch jeder eroberte – muss eine bauen, ehe er Truppen stellt.
   Die **Verwaltung** kostet **300 Gold** und **3 Runden** und ist Bedingung für
   **Viadukt und Bergwerk**. **Niemand beginnt mit einer.**
@@ -829,7 +829,7 @@ der ins Spiel führt.
   das **Söldnerlager** und das **Suffetenhaus**, bei den Germanen die
   **Gefolgschaftshalle** und der **Thingplatz**, bei den Ptolemäern das
   **Kleruchenland** und die **Kanzlei** und bei den Sarmaten, die nicht wohnen,
-  das **Reiterlager** und das **Fürstenzelt** – sechzehn Namenspaare, für jede
+  das **Reiterlager** und das **Fürstenzelt** – achtzehn Namenspaare, für jede
   Fraktion eines.
   **Beide stehen auf der Karte.** Die Kaserne liegt **vor dem Ort**: eine lange
   Halle mit Satteldach, davor der Exerzierplatz mit Pfahlzaun und zwei
@@ -903,7 +903,7 @@ der ins Spiel führt.
   gefördert wird, und das liegt auf Halde. Es sind 143 Felder
   auf der ganzen Karte, nicht mehr. Das Feldfenster nennt dazu die Zahl und den
   Ort, dem das Erz zufällt: „⛏️ Erz – 2 Punkte für ein Bergwerk in Roma (5 Erz
-  im Umland)". Von 107 Orten haben 32 genug Erz; der Knopf
+  im Umland)". Von 118 Orten haben 34 genug Erz; der Knopf
   nennt vor dem Bau, was er tragen wird. Neben der Stadt steht danach ein
   Fördergerüst mit Schacht und Halde, in der Übersicht hat das Bergwerk eine
   eigene Spalte, und die KI schlägt eines an, bevor sie die nächste Mauer baut.
@@ -1260,6 +1260,11 @@ der ins Spiel führt.
   geht ein Teil zu Bruch** – gewonnen im Schnitt jedes dritte Stück, verloren
   mehr als zwei von dreien. Vereinigen sich zwei Heere, zieht das Gerät bis
   zur Obergrenze mit.
+  **Syrakus zahlt weniger**: die Stadt, in der das Torsionsgeschütz erfunden
+  wurde, bekommt jedes Stück zum Viertelpreis-Nachlass (Widder 180, Katapult
+  225). Der Preis steht an einer Stelle – Knopf, Abrechnung und KI fragen
+  dieselbe Rechnung, damit es nicht zwei Wahrheiten darüber gibt, was ein
+  Widder kostet.
   **Man sieht es**: die Armee nennt, was sie mitführt, die Kampfvorschau
   rechnet vor, was von der Mauer übrig bleibt, und im Schaubild rollen genau
   so viele Widder an das Tor und stehen so viele Katapulte auf der Flanke, wie
@@ -1443,7 +1448,7 @@ der ins Spiel führt.
   **Rangliste, keine Akte**: je Reich der **Platz**, das Wappen, der Name, die
   Zahl, nach der sortiert wird, ein Balken im Verhältnis zum Ersten – und
   darunter **eine** knappe Zeile: `🏛️ Orte · ⚔️ Mann · 💰 Schatz` und die
-  **Bilanz** (Einnahmen minus Sold je Runde) in Grün oder Rot. Sechzehn Reiche
+  **Bilanz** (Einnahmen minus Sold je Runde) in Grün oder Rot. Achtzehn Reiche
   stehen so auf zwei Bildschirmlängen statt auf vier.
   Wer es genauer wissen will, hält den Zeiger auf eine Zeile: der **Tooltip**
   schlüsselt sie auf – Orte, Heere, Mann im Feld, Mann auf den Mauern,
@@ -1536,7 +1541,7 @@ der ins Spiel führt.
 
 ## Spielprinzip
 
-- **Alle sechzehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
+- **Alle achtzehn Fraktionen sind spielbar.** Nach „Neues Spiel starten" kommt ein
   eigener Auswahlbildschirm: links die Fraktionen mit ihrer Schwierigkeit,
   rechts Hauptstadt, Siedlungen, Startheer, die drei eigenen Einheiten sowie
   Stärke und Schwäche – und im Hintergrund ein Bild, das mit der Auswahl
@@ -1544,13 +1549,58 @@ der ins Spiel führt.
   Karthago, der Herkynische Wald für die Germanen, Pyramiden und Palmen für die
   Ptolemäer. Wer nicht gewählt wird, wird von der KI geführt.
 - Zur Wahl stehen **Rom**, **Karthago**, die **Gallier**, **Numidien**, die
-  **Parther**, **Armenien**, **Pontus**, die **Griechen**, die **Germanen**,
+  **Parther**, **Armenien**, **Pontus**, **Makedonien**, **Syrakus**, die
+  **Griechen**, die **Germanen**,
   die **Britannier**, die **Iberer**, die **Daker**, die **Seleukiden**, die
   **Ptolemäer**, die **Illyrer** und die **Sarmaten** –
   verteilt über Europa, das Mittelmeer, Nordafrika, den Vorderen Orient und die
   Steppe nördlich des Schwarzen Meeres. Alle beginnen mit demselben Startgold und
-  (bis auf die zwei Heere der Seleukiden) demselben Heer: der Unterschied liegt
-  in der Lage, den Nachbarn und den eigenen Einheiten.
+  (bis auf die zwei Heere der Seleukiden, Karthagos und Makedoniens) demselben
+  Heer: der Unterschied liegt in der Lage, den Nachbarn und den eigenen
+  Einheiten.
+- **Makedonien und Syrakus: die zwei Reiche, die dem Jahr 264 fehlten.** Das
+  Spiel beginnt im **Martius 264 v. Chr.**, und in diesem Monat waren drei
+  Diadochenreiche die Großmächte der östlichen Welt: Seleukiden, Ptolemäer –
+  und die **Antigoniden in Makedonien**. Zwei davon standen auf der Karte, das
+  dritte nicht: Thessalonike lag als herrenloses Feld herum, während Antigonos
+  II. Gonatas von Pella aus halb Griechenland hielt. Und im selben Monat begann
+  wegen **Syrakus** der Krieg, nach dem dieses Spiel seinen ersten Zug zählt –
+  auch Syrakus war nur ein unabhängiger Ort.
+
+  **Makedonien** hält Pella, Thessalonike, Amphipolis und Dion am Thermäischen
+  Golf – und dazu **Korinth**, tief in Griechenland: die Burg über der Landenge,
+  eine der drei „Fesseln Griechenlands", mit denen die Antigoniden die
+  Halbinsel festhielten, ohne in ihr zu stehen. Wie Karthago in Iberien beginnt
+  Makedonien deshalb mit **zwei Heeren**: eines in Pella, eines als Besatzung
+  auf Akrokorinth. Es kämpft mit der **Sarissenphalanx** – dem Vorbild, das
+  alle anderen nachbauten: sie deckt sich schlechter als die Hoplitenwand der
+  Griechen, aber sie greift härter an, denn fünf Meter Speer reichen weiter
+  als jeder Schild. Dazu die **Hetairoi**, die Stoßreiterei, mit der Alexander
+  seine Schlachten entschied.
+
+  **Syrakus** unter **Hieron II.** hält das griechische Sizilien: die Stadt
+  selbst, Akragas, Tauromenion, Kamarina und Gela. Es kämpft griechisch und
+  schießt sizilisch – und hat als einzige Fraktion einen Vorteil, der keine
+  Truppenwerte betrifft: **Belagerungsgerät kostet es ein Viertel weniger**
+  (Widder 180 statt 240, Katapult 225 statt 300). In Syrakus bauten die
+  Ingenieure des Dionysios das erste Torsionsgeschütz; dort war das Zimmern von
+  Gerät kein Sonderfall, sondern Handwerk.
+
+  **Messana** bleibt frei. Dort saßen die Mamertiner – keine Macht, sondern
+  eine Söldnerschar, die sich eine Stadt genommen hatte. Dass sie 264 v. Chr.
+  beide um Hilfe riefen, Karthago und Rom, ist der Anfang des Krieges. Auf der
+  Karte liegt Messana als **unabhängige Stadt** genau zwischen Rom und Syrakus,
+  und wer sie will, muss über die Meerenge.
+- **Die Griechen sind jetzt ein Bündnis, kein Sammelbecken.** Sie hielten
+  vorher Athen, Sparta, Pergamon, Ephesos und Rhodos – fünf Orte, die 264 v. Chr.
+  fünf verschiedene politische Körper waren, von denen mehrere miteinander im
+  Krieg lagen. Pergamon fiel 263 unter Eumenes I. von den Seleukiden ab und lag
+  ohnehin in Kleinasien; Ephesos wechselte in diesen Jahren zwischen Seleukiden
+  und Ptolemäern hin und her. Beide stehen jetzt **unabhängig** auf der Karte.
+  Was bleibt, ist das Bündnis, das es wirklich gab: **Athen und Sparta** standen
+  im Chremonideischen Krieg zusammen gegen Makedonien, dazu **Argos**, **Theben**
+  und **Rhodos**. Ein enges Land ohne Tiefe – und der Makedone sitzt mitten
+  darin auf der Landenge.
 - **Jede Fraktion hat ihre eigenen Einheiten.** Drei Waffengattungen gibt es
   überall – Fußvolk, Reiterei, Fernkampf –, aber jede Fraktion füllt sie anders
   aus, mit eigenem Namen, eigenen Werten und eigenem Preis:
@@ -1564,7 +1614,9 @@ der ins Spiel führt.
   | Armenien | Armenische Speerträger (zäh in den Pässen) | Armenische Kataphrakten | Armenische Bogenschützen |
   | Pontus | Pontische Phalangiten (zweitbeste Verteidigung) | Pontische Reiter | Chalybische Bogenschützen |
   | Gallier | Schwertkämpfer (harter Angriff) | Edle Reiter | Bogenschützen |
-  | Griechen | Hopliten (beste Verteidigung) | Thessalische Reiter | Peltasten |
+  | Makedonien | Sarissenphalanx (härteste Phalanx im Angriff) | Hetairoi (Stoßreiterei) | Agrianische Speerwerfer |
+  | Syrakus | Syrakusanische Hopliten | Syrakusanische Reiter | Sizilische Schützen |
+  | Griechen | Hopliten (beste Verteidigung) | Bundesreiterei | Peltasten |
   | Germanen | Speerträger | Gefolgschaftsreiter | Wurfspeerträger |
   | Britannier | Keltenkrieger | Streitwagen (härtester Angriff) | Schleuderer |
   | Iberer | Scutarii | Iberische Reiter | Caetrati |
@@ -1664,7 +1716,7 @@ der ins Spiel führt.
   Wie lange das dauert, entscheidet, was man in den Ort steckt: ein Dorf
   braucht ohne alles rund **135 Runden** bis zur Stadt, mit einer **Farm 89**,
   mit **Farm und Viadukt 77**. In zweihundert Runden ohne Krieg wachsen so von
-  107 Orten etwa **64** in den nächsten Rang.
+  118 Orten etwa **70** in den nächsten Rang.
   **Auf der Karte hat jedes Gebäude überall dasselbe Maß.** Vorher wuchsen mit
   dem Rang eines Orts einfach alle Gebäude mit – dieselben vier Hütten, nur
   größer gezeichnet; eine Große Stadt sah aus wie ein Dorf für Riesen, und zwei
@@ -1809,7 +1861,7 @@ der ins Spiel führt.
   schon enthält, und würfelt nichts eigenes
 - `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
 - `js/weather.js` – Kalender, Klimazonen, Wettertypen und ihre Regelwirkung
-- `js/anthems.js` – die Partituren der sechzehn Fraktionen: Leitern, Grundtöne,
+- `js/anthems.js` – die Partituren der achtzehn Fraktionen: Leitern, Grundtöne,
   Motive und Besetzung
 - `js/audio.js` – der ganze Ton: Hall- und Kompressorkette, die einzelnen
   Klangereignisse, der Marschtritt, die Titelmusik und der Spieler für die

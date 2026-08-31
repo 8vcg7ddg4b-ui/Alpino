@@ -285,6 +285,50 @@ export const FACTION_ART = {
         ${figures(820, 12, rng, '#0e1216', 980, 1520, 1.4)}`;
     },
   },
+  makedonien: {
+    motto: 'Die Fesseln Griechenlands',
+    render() {
+      const rng = seeded(1313);
+      // Der Olymp im Rücken, die Burg über der Landenge im Bild, davor die
+      // Sarissen: fünf Meter Speer, deshalb stehen sie höher als anderswo.
+      return `${sky([[0, '#1b2f4d'], [0.44, '#4a6e86'], [0.8, '#b6bda6'], [1, '#efe0b4']], 'faMak')}
+        ${sun(300, 330, 60, '#fff4d6', 0.24)}
+        ${peaks(600, 240, rng, '#4a5a6b', 0.6, 6)}
+        ${peaks(668, 130, rng, '#33424f', 0.85, 5)}
+        ${walledCity(880, 1320, 700, 150, '#22303c')}
+        ${temple(430, 704, 260, 190, '#1c2833')}
+        <rect y="704" width="${SCENE_W}" height="${SCENE_H - 704}" fill="#151f28"/>
+        ${figures(812, 15, rng, '#0a1119', 120, 1500, 1.5)}
+        ${spears(812, 34, 200, rng, '#0a1119')}`;
+    },
+  },
+  syrakus: {
+    motto: 'Die Insel zwischen zwei Reichen',
+    render() {
+      const rng = seeded(1414);
+      // Der Ätna raucht im Hintergrund, im Hafen liegen die Fünfruderer, und
+      // an der Mole steht das, wofür die Stadt berühmt war: ein Geschütz.
+      const katapult = (x, baseY, sc, colour) => `<g fill="${colour}">
+        <path d="M ${x - 60 * sc} ${baseY} l ${16 * sc} ${-52 * sc} l ${88 * sc} 0
+          l ${16 * sc} ${52 * sc} Z"/>
+        <path d="M ${x - 46 * sc} ${baseY - 52 * sc} L ${x + 34 * sc} ${baseY - 120 * sc}
+          l ${14 * sc} ${10 * sc} L ${x - 32 * sc} ${baseY - 46 * sc} Z"/>
+        <rect x="${x - 66 * sc}" y="${baseY - 62 * sc}" width="${132 * sc}" height="${10 * sc}"/>
+        <circle cx="${x + 42 * sc}" cy="${baseY - 126 * sc}" r="${11 * sc}"/>
+      </g>`;
+      return `${sky([[0, '#243a63'], [0.42, '#7b6e88'], [0.76, '#d8a377'], [1, '#f6e0b2']], 'faSyr')}
+        ${sun(1180, 520, 68, '#ffeec6', 0.3)}
+        ${peaks(628, 210, rng, '#5c5560', 0.55, 3)}
+        ${hills(690, 34, rng, '#8a7d5e', 0.75)}
+        ${temple(360, 702, 300, 216, '#2a2620')}
+        ${walledCity(760, 1260, 702, 118, '#241f19')}
+        <path d="M -40 ${SCENE_H} L -40 720 Q 480 706 980 728 Q 1320 742 ${SCENE_W + 40} 716
+          L ${SCENE_W + 40} ${SCENE_H} Z" fill="#1a3346" opacity="0.94"/>
+        ${katapult(250, 830, 1.15, '#0d1a24')}
+        ${warship(760, 812, 1.15, '#0c1a25', '#2b4a60')}
+        ${warship(1330, 866, 1.4, '#08131b', '#20394a')}`;
+    },
+  },
   germanen: {
     motto: 'Der Wald hält uns',
     render() {

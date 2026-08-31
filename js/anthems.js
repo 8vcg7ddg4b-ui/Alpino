@@ -191,6 +191,36 @@ export const ANTHEMS = {
     muster: [0, 4],
     farbe: 'Was die Griechen selbst dorisch nannten, klingt für uns phrygisch: Kithara und Aulos.',
   },
+  makedonien: {
+    name: 'Der Schritt der Sarissen',
+    modus: 'dorisch', grundton: 'A2', tempo: 72, takt: 4,
+    bass: [0, 0, 4, 3], bordun: [0],
+    melodie: [
+      [0, null, 2, null, 4, null, null, null],
+      [5, null, 4, null, 2, null, null, null],
+      [7, null, null, 5, 4, null, 2, null],
+      [3, null, 2, null, 0, null, null, null],
+    ],
+    fuehrung: 'blech', grund: 'saite', schlag: 'kriegstrommel',
+    muster: [0, 4],
+    farbe: 'Griechisch im Ton, königlich im Schritt: die Kithara des Hofes über '
+      + 'einer Trommel, die eine Phalanx im Gleichschritt hält.',
+  },
+  syrakus: {
+    name: 'Die Häfen unter dem Ätna',
+    modus: 'phrygisch', grundton: 'D3', tempo: 86, takt: 4,
+    bass: [0, 3, 2, 0], bordun: [],
+    melodie: [
+      [0, 1, 2, null, 3, null, 2, null],
+      [4, null, 3, 2, 1, null, null, null],
+      [5, null, 4, null, 3, 4, 5, null],
+      [2, null, 1, null, 0, null, null, null],
+    ],
+    fuehrung: 'rohr', grund: 'saite', schlag: 'rahmentrommel',
+    muster: [0, 3, 6],
+    farbe: 'Dorisch-westgriechisch, aber weicher als in Athen: der Aulos einer '
+      + 'Hafenstadt, die lieber handelt als kämpft.',
+  },
   germanen: {
     name: 'Nebel über dem Hain',
     modus: 'aeolisch', grundton: 'C2', tempo: 64, takt: 4,

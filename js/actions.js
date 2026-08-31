@@ -19,7 +19,7 @@ import {
   MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
   HUNT_RANGE, HUNT_GAME, HUNT_MIN_GAME, huntIncome, FISHERY_INCOME,
   SIEGE_ENGINES, siegeEngineDef, SIEGE_ENGINE_MAX, SIEGE_ENGINE_MOVE,
-  engineCount, engineUpkeep, breachedWall, siegeVolley, siegeBreach,
+  engineCount, engineUpkeep, engineCost, breachedWall, siegeVolley, siegeBreach,
   BUILDINGS, buildingDef, buildingName, growthFactor,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
@@ -1160,22 +1160,22 @@ export function canBuildEngine(state, armyId, key) {
   if (engineCount(army.engines) >= SIEGE_ENGINE_MAX) return { ok: false, reason: 'full' };
   const faction = factionById(state, army.factionId);
   if (!faction || faction.isNeutral) return { ok: false, reason: 'neutral' };
-  if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
-  return { ok: true, city, def, faction };
+  if (faction.gold < engineCost(def, faction)) return { ok: false, reason: 'gold' };
+  return { ok: true, city, def, faction, preis: engineCost(def, faction) };
 }
 
 export function buildSiegeEngine(state, armyId, key) {
   const pruef = canBuildEngine(state, armyId, key);
   if (!pruef.ok) return pruef;
   const army = state.armies.find((a) => a.id === armyId);
-  const { city, def, faction } = pruef;
-  faction.gold -= def.cost;
+  const { city, def, faction, preis } = pruef;
+  faction.gold -= preis;
   army.engines = army.engines || {};
   army.engines[key] = (army.engines[key] || 0) + 1;
   // Zimmern kostet den Tag: das Heer zieht in dieser Runde nicht mehr.
   army.movement = 0;
   logOwn(state, faction.id, `In ${city.name} wird ein ${def.name} für ${army.name} `
-    + `gezimmert – ${def.cost} Gold.`);
+    + `gezimmert – ${preis} Gold.`);
   return { ok: true, def };
 }
 

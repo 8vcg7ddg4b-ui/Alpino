@@ -177,6 +177,7 @@ function focusOwnCapital() {
 // Sarmatenfürsten.
 const HERALD_TITLES = {
   rom: 'Dein Legat', karthago: 'Dein Suffet', griechen: 'Dein Stratege',
+  makedonien: 'Dein Somatophylax', syrakus: 'Dein Ratsherr',
   seleukiden: 'Dein Stratege', ptolemaeer: 'Dein Nomarch',
   gallier: 'Dein Gefolgsmann', germanen: 'Dein Gefolgsmann',
   britannier: 'Dein Gefolgsmann', iberer: 'Dein Gefolgsmann',

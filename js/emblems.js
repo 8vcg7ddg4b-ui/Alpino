@@ -33,6 +33,33 @@ const EMBLEMS = {
     <circle cx="60" cy="46" r="8" fill="#1b1409"/>
     <path d="M50 54 l6 8 h-12 Z" fill="#1b1409"/>
     <path d="M34 76 h32 l-6 8 h-20 Z"/>`,
+  // Makedonien: der sechzehnstrahlige Stern von Vergina, das Zeichen des
+  // Königshauses - er stand auf der goldenen Larnax in Philipps Grab.
+  makedonien: `<circle cx="50" cy="50" r="11"/>
+    <path d="M50 4 L55 26 L45 26 Z"/><path d="M50 96 L55 74 L45 74 Z"/>
+    <path d="M4 50 L26 45 L26 55 Z"/><path d="M96 50 L74 45 L74 55 Z"/>
+    <path d="M17 17 L36 30 L30 36 Z"/><path d="M83 83 L64 70 L70 64 Z"/>
+    <path d="M83 17 L70 36 L64 30 Z"/><path d="M17 83 L30 64 L36 70 Z"/>
+    <path d="M32 7 L42 27 L34 30 Z"/><path d="M68 93 L58 73 L66 70 Z"/>
+    <path d="M68 7 L58 27 L66 30 Z"/><path d="M32 93 L42 73 L34 70 Z"/>
+    <path d="M7 32 L27 42 L30 34 Z"/><path d="M93 68 L73 58 L70 66 Z"/>
+    <path d="M93 32 L73 42 L70 34 Z"/><path d="M7 68 L27 58 L30 66 Z"/>`,
+  // Syrakus: die Triskeles, das Zeichen Siziliens - drei Beine um einen Kopf,
+  // die drei Kaps der Insel. Sie stand auf den Münzen der Stadt.
+  // Die drei Beine laufen alle gleich - gezeichnet wird eines, die anderen
+  // beiden sind dasselbe, um 120 und 240 Grad um die Mitte gedreht.
+  syrakus: `<g stroke="currentColor" stroke-width="10" stroke-linecap="round"
+       stroke-linejoin="round" fill="none">
+      <path d="M50 46 L72 26 L86 44"/>
+      <path d="M50 46 L72 26 L86 44" transform="rotate(120 50 50)"/>
+      <path d="M50 46 L72 26 L86 44" transform="rotate(240 50 50)"/>
+    </g>
+    <g>
+      <path d="M86 38 l12 8 l-12 8 Z"/>
+      <path d="M86 38 l12 8 l-12 8 Z" transform="rotate(120 50 50)"/>
+      <path d="M86 38 l12 8 l-12 8 Z" transform="rotate(240 50 50)"/>
+    </g>
+    <circle cx="50" cy="50" r="12"/>`,
   // Der Irminsul-Pfahl der germanischen Stämme.
   germanen: `<rect x="45" y="26" width="10" height="54"/>
     <path d="M22 32 q14 -10 28 -4 q14 -6 28 4 q-12 -2 -22 6 q-6 -4 -12 0 q-10 -8 -22 -6 Z"/>
