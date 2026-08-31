@@ -32,9 +32,36 @@ Podest, links und rechts die Feldzeichen mit dem Wappen, daneben zwei Stücke
 Ausstattung, die zur Fraktion passen. Rom hat den kurulischen Stuhl aus
 Elfenbein zwischen Schildbock und Speerbock, Karthago Elefantenzähne und
 Amphoren, die Ptolemäer einen steinernen Sitz mit Palme, die Germanen einen
-geschnitzten Hochsitz mit Fellen. Und bevor der erste Zug fällt, meldet sich
-der Erste Offizier: **„Ich grüße dich, Herr. Lass uns die Schlachtkarte
-betrachten."**
+geschnitzten Hochsitz mit Fellen.
+
+Links davon steht auf einem eigenen Podest die **Rüstung des Reiches** auf
+ihrem Bock: der Panzer, darüber der Helm, daneben der Schild mit dem Wappen und
+der Speer. Es ist das eine Stück im Zelt, an dem man sieht, wessen Heer man
+führt – der Thron sagt es nur über den Stil, das Feldzeichen nur über das
+Wappen. Fünf Rüstungen, nach dem, was die Völker wirklich trugen: die
+**gegliederte Schiene** Roms mit Schulterplatten und dem Querbusch des
+Zenturio, der **Bronzepanzer** der hellenistischen Höfe mit hohem Helmbusch und
+Nasenschutz, der **Leinenpanzer** des Westens mit Schulterlaschen, Zaddelsaum
+und Kegelhelm, das **Kettenhemd** des Nordens mit Eisenkappe und Nackenschutz,
+der **Schuppenpanzer** der Reiter aus der Steppe mit der Spitzhaube. Und auch
+der Schild richtet sich danach: Rom trägt den langen Scutum, der Norden den
+ovalen, Süden und Osten den runden.
+
+**Draußen vor dem Zelt liegt die Landschaft, in der das Heer steht.** Der
+Ausgang zeigte bisher überall dieselbe helle Fläche mit vier Zeltspitzen davor.
+Jetzt richtet sich das Bild nach dem Umland der eigenen Hauptstadt: Rom sieht
+auf das **Meer** mit einem Segel und einen Strand, die Germanen auf einen
+dichten **Nadelwald** über einem grünen Rücken, die Parther auf die
+**schneebedeckten Berge** Mediens, andere auf **Hügel**, **Dünen** oder eine
+Baumreihe in der **Ebene**. Gezählt werden die Felder im Umkreis von vier, und
+nicht jedes zählt gleich viel: Ebene ist der Regelfall und sagt am wenigsten,
+ein Gebirge oder das Meer vor dem Zelt sagt alles. Vor der Landschaft stehen
+die Zelte des eigenen Lagers und zwei **Wachen** in der Farbe des Reichs. Alles
+ist auf den Türausschnitt beschnitten – ein Berg ist breiter als eine Tür – und
+wird ohne den Dunst des Zeltinneren gezeichnet: draußen ist Tag.
+
+Und bevor der erste Zug fällt, meldet sich der Erste Offizier: **„Ich grüße
+dich, Herr. Lass uns die Schlachtkarte betrachten."**
 
 Die Karte ist **echte Geografie**: Küstenlinien, Gebirgszüge und Siedlungen sind in
 Längen- und Breitengraden hinterlegt (`js/geodata.js`) und werden auf ein Raster von
@@ -810,7 +837,11 @@ den Punkten durchblättern.
   Gold** und **4 Runden** Bauzeit, und es setzt eine **Verwaltung** im Ort
   voraus. Wo im Umland kein Erz liegt, steht der Knopf gar nicht erst da.
   **Und man sieht es**: auf jedem Gebirgs- und Hügelfeld, das für ein mögliches
-  Bergwerk zählt, liegt ein aufgebrochener Fels mit heller Ader – 143 Felder
+  Bergwerk zählt, liegt ein **Erzhaufen** – eine Halde aus gebrochenem Gestein,
+  ein paar größere Brocken am Fuß, und obenauf glänzt, worauf es ankommt.
+  Vorher lag dort ein aufgebrochener Fels mit einer hellen Ader darin; aus der
+  Feldherrnperspektive war das ein Stein wie jeder andere. Gemeint ist das, was
+  gefördert wird, und das liegt auf Halde. Es sind 143 Felder
   auf der ganzen Karte, nicht mehr. Das Feldfenster nennt dazu die Zahl und den
   Ort, dem das Erz zufällt: „⛏️ Erz – 2 Punkte für ein Bergwerk in Roma (5 Erz
   im Umland)". Von 107 Orten haben 32 genug Erz; der Knopf
@@ -1133,10 +1164,31 @@ den Punkten durchblättern.
   steht, ist ein Lager aus Zelten. Setzt es sich in Bewegung, **treten die
   Zelte ab und eine Kolonne tritt an**: eine Reihe von Gestalten hintereinander,
   zu zweit nebeneinander wie eine Marschordnung, das Feldzeichen vorneweg. Sie
-  ist so lang, wie das Heer stark ist (vier bis vierzehn Glieder), jeder Mann
+  ist so lang, wie das Heer stark ist (vier bis zwölf Glieder), jeder Mann
   federt für sich im Tritt – im Gleichschritt sähe die Reihe aus wie ein Brett
   – und die Kolonne dreht sich in die Richtung, in die es geht. Am Ziel schlägt
   sie wieder ihr Lager auf.
+  **Und die Waffengattungen sind zu unterscheiden.** Vorher marschierte eine
+  Reihe gleicher Kegel: ein Heer aus dreihundert Reitern sah aus wie eines aus
+  dreihundert Bogenschützen. Jetzt hat jede Gattung ihre Gestalt – das
+  **Fußvolk** breit, mit Schild an der Seite und aufgesetztem Speer, die
+  **Reiterei** hoch zu Pferd mit der Lanze, die **Schützen** schmal, ohne
+  Schild, den Bogen quer über dem Rücken und den Köcher an der Hüfte. Wie viele
+  Plätze jede Gattung bekommt, sagt die wirkliche Zusammensetzung des Heeres;
+  jede vorhandene bekommt mindestens einen, sonst verschwänden dreißig Reiter
+  neben achthundert Mann Fußvolk. Und sie marschieren in der Ordnung, die in
+  jedem Handbuch steht: **die Reiterei voraus, dahinter das Fußvolk, die
+  Schützen zuletzt.** Damit man das sieht, steht die Kolonne anderthalbmal so
+  groß da wie das Lager – an einem Zelt ist nichts zu erkennen, an einer
+  Gestalt schon.
+- **Feindliche Heere sind auf einen Blick zu erkennen**: Die Fraktionsfarbe
+  sagt, wer da steht, aber nicht, ob er auf dich schießt – zwischen einem
+  Verbündeten und einem Feind lag bisher nur die Erinnerung an das
+  Diplomatiefenster. Jedes Heer und jede Flotte einer Fraktion, mit der du im
+  **Krieg** stehst, bekommt deshalb einen **roten Ring um die Füße** und zwei
+  gekreuzte Klingen vor der Stärke auf dem Schild: **⚔ 540**. Die Zahl selbst
+  steht in Rot statt in Weiß. Der Ring wächst mit dem Heer und liegt unter dem
+  goldenen Auswahlring, sodass beide nebeneinander zu sehen sind.
 - **Orte wachsen**: In jedem Monat werden mehr Kinder geboren als Menschen
   sterben. Der Satz ist klein (0,35 % je Runde), aber er summiert sich: über ein
   Jahr gut vier Prozent, über zehn Jahre die Hälfte. Im Frühjahr und Sommer
@@ -1588,8 +1640,11 @@ den Punkten durchblättern.
   den Feldherrn geschehen. Über den Untiefen ziehen **Fischschwärme** in engen
   Kreisen, weit draußen tauchen **Wale** auf, blasen und gehen wieder unter,
   über der Küste kreisen **Möwen** mit schlagenden Flügeln, und an den
-  Waldrändern steht **Rotwild** – rund 330 Fische, ein Dutzend Wale, vierzig
-  Möwen und zweihundert Stück Wild. Nichts davon greift in die Regeln ein: es
+  Waldrändern steht **Rotwild**; über die Straßen ziehen **Ochsenkarren** hin
+  und zurück, Gespann, Deichsel und Plane – rund 330 Fische, ein Dutzend Wale,
+  vierzig Möwen, zweihundert Stück Wild und ein Fuhrwerk auf jedem Weg von
+  einiger Länge. Eine Straße, auf der nie etwas fährt, ist ein Strich; die
+  Karren fahren die wirklichen Wege ab und wenden an ihrem Ende. Nichts davon greift in die Regeln ein: es
   ist Landschaft. Deshalb ist es billig gebaut – je Gattung **eine
   Instanzenwolke**, und bewegt wird nur **fünfzehnmal je Sekunde**; dazwischen
   wird gar nicht gezeichnet, sonst liefe die Karte für einen Fischschwarm

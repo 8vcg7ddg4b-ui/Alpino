@@ -3,6 +3,7 @@ import {
   MINE_RANGE, MINE_ORE, MINE_MIN_ORE, roadLevelOf,
 } from './data.js';
 import { unitTotalCount, factionById, harbourTile, isFleet, playerFaction } from './state.js';
+import { atWar } from './diplomacy.js';
 import { seaLane } from './actions.js';
 import { territoryMap, claimableTile } from './territory.js';
 import { emblemSVG } from './emblems.js';
@@ -437,31 +438,68 @@ function collectOre(state, props) {
   }
   const rng = seededRandomFactory(23);
   for (const { c, r, wert } of felder.values()) {
-    // Etwas neben der Feldmitte, damit der Fels nicht im Gipfel steckt.
+    // Etwas neben der Feldmitte, damit der Haufen nicht im Gipfel steckt.
     const jx = (rng() - 0.5) * 0.5;
     const jz = (rng() - 0.5) * 0.5;
-    const size = wert >= 2 ? 0.85 : 0.6;
+    const size = wert >= 2 ? 1.3 : 0.95;
     const y = groundY(c + jx, r + jz);
+    // Der Haufen liegt auf dem Boden, nicht halb darin: sein Fuß ist die
+    // Nullhöhe der Geometrie.
     props.oreRock.push({
-      x: worldX(c) + jx * TILE_SIZE, y: y + size * 0.3, z: worldZ(r) + jz * TILE_SIZE,
+      x: worldX(c) + jx * TILE_SIZE, y, z: worldZ(r) + jz * TILE_SIZE,
       s: size, r: rng() * Math.PI * 2,
     });
     props.oreVein.push({
-      x: worldX(c) + jx * TILE_SIZE, y: y + size * 0.55, z: worldZ(r) + jz * TILE_SIZE,
-      s: size * 0.45, r: rng() * Math.PI * 2,
+      x: worldX(c) + jx * TILE_SIZE, y, z: worldZ(r) + jz * TILE_SIZE,
+      s: size, r: rng() * Math.PI * 2,
     });
   }
 }
 
+// --- Der Erzhaufen ---------------------------------------------------------
+// Vorher lag dort ein aufgebrochener Fels mit einer hellen Ader darin - aus
+// der Feldherrnperspektive ein Stein wie jeder andere. Gemeint ist das, was
+// gefördert wird, und das liegt auf Halde: ein Kegel aus gebrochenem Gestein,
+// ein paar größere Brocken daneben, und obenauf glänzt, worauf es ankommt.
+function oreHeapGeometry() {
+  const kegel = new THREE.ConeGeometry(0.5, 0.42, 7);
+  const brocken = new THREE.DodecahedronGeometry(0.16, 0);
+  const teile = [shapePart(kegel, 0, 0.21, 0)];
+  // Die Brocken liegen am Fuß der Halde, wie herabgerollt.
+  const rundum = [
+    [0.52, 0.08, 0.1, 1.0], [-0.44, 0.07, 0.34, 0.85], [0.1, 0.07, -0.55, 0.9],
+    [-0.2, 0.26, -0.18, 0.7], [0.24, 0.3, 0.14, 0.6],
+  ];
+  for (const [x, y, z, gross] of rundum) {
+    teile.push(shapePart(brocken, x, y, z, 0.4, 0.7, 0.2, gross, gross, gross));
+  }
+  const g = mergeShapes(teile);
+  kegel.dispose();
+  brocken.dispose();
+  return g;
+}
+
+// Was in der Halde glänzt: zwei kantige Stücke obenauf.
+function oreNuggetGeometry() {
+  const stueck = new THREE.OctahedronGeometry(0.17, 0);
+  const g = mergeShapes([
+    shapePart(stueck, 0.05, 0.46, -0.04, 0.3, 0.5, 0.2),
+    shapePart(stueck, -0.16, 0.32, 0.18, 0.1, 1.1, 0.4, 0.8, 0.8, 0.8),
+    shapePart(stueck, 0.3, 0.14, 0.22, 0.6, 0.3, 0.9, 0.7, 0.7, 0.7),
+  ]);
+  stueck.dispose();
+  return g;
+}
+
 function buildProps(props) {
-  // Der aufgebrochene Fels und die Ader darin.
+  // Die Halde und das, was darauf glänzt.
   addInstanced(
-    new THREE.DodecahedronGeometry(ORE_SIZE, 0),
-    new THREE.MeshStandardMaterial({ color: '#5c5a55', flatShading: true, roughness: 1 }),
+    oreHeapGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#6a6157', flatShading: true, roughness: 1 }),
     props.oreRock
   );
   addInstanced(
-    new THREE.OctahedronGeometry(ORE_SIZE, 0),
+    oreNuggetGeometry(),
     new THREE.MeshStandardMaterial({
       color: '#d8a441', flatShading: true, roughness: 0.35, metalness: 0.6,
       emissive: '#4a3208', emissiveIntensity: 0.4,
@@ -695,9 +733,68 @@ function amUfer(col, row) {
   return false;
 }
 
+// Ein Ochsenkarren, wie er von oben aussieht: zwei Zugtiere, die Deichsel,
+// der Kastenwagen mit Plane darüber, zwei Räder. Er ist klein - auf dieser
+// Karte misst ein Feld gut fünfzig Kilometer -, aber die Silhouette aus
+// Gespann und Plane liest sich auch aus der Feldherrnhöhe.
+function cartGeometry() {
+  const tier = new THREE.SphereGeometry(0.16, 6, 5);
+  const bein = new THREE.CylinderGeometry(0.03, 0.025, 0.2, 4);
+  const deichsel = new THREE.BoxGeometry(0.5, 0.04, 0.04);
+  const kasten = new THREE.BoxGeometry(0.46, 0.16, 0.3);
+  const plane = new THREE.CylinderGeometry(0.17, 0.17, 0.44, 7, 1, false, 0, Math.PI);
+  const rad = new THREE.CylinderGeometry(0.12, 0.12, 0.04, 8);
+  const teile = [];
+  // Das Gespann zieht nach +X, wie alles hier.
+  for (const z of [-0.1, 0.1]) {
+    teile.push(shapePart(tier, 0.52, 0.22, z, 0, 0, 0, 1.7, 0.9, 1));
+    for (const x of [0.4, 0.64]) teile.push(shapePart(bein, x, 0.1, z));
+  }
+  teile.push(shapePart(deichsel, 0.2, 0.19, 0));
+  teile.push(shapePart(kasten, -0.12, 0.22, 0));
+  teile.push(shapePart(plane, -0.12, 0.3, 0, 0, 0, Math.PI / 2));
+  for (const z of [-0.17, 0.17]) teile.push(shapePart(rad, -0.12, 0.13, z, Math.PI / 2, 0, 0));
+  const g = mergeShapes(teile);
+  for (const teil of [tier, bein, deichsel, kasten, plane, rad]) teil.dispose();
+  return g;
+}
+
+// Die Straßen als zusammenhängende Wege: aus der Menge der Straßenfelder
+// werden Ketten gesucht, an denen ein Karren entlangfahren kann. Ein Karren,
+// der von Feld zu Feld springt, wäre kein Verkehr.
+const CART_PATH_MAX = 40;
+
+function roadPaths(roads) {
+  const frei = new Set(Object.keys(roads || {}));
+  const wege = [];
+  const nachbarn = (key) => {
+    const [col, row] = key.split(',').map(Number);
+    return [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .map(([dc, dr]) => `${col + dc},${row + dr}`)
+      .filter((k) => frei.has(k));
+  };
+  // Von den Enden her anfangen: ein Weg, der an einer Kreuzung beginnt, wird
+  // kurz; einer, der an einem Ortsanschluss beginnt, läuft durch.
+  const enden = [...frei].filter((k) => nachbarn(k).length === 1);
+  for (const start of [...enden, ...frei]) {
+    if (!frei.has(start)) continue;
+    const weg = [];
+    let hier = start;
+    while (hier && frei.has(hier) && weg.length < CART_PATH_MAX) {
+      frei.delete(hier);
+      const [col, row] = hier.split(',').map(Number);
+      weg.push({ col, row });
+      const weiter = nachbarn(hier);
+      hier = weiter.length ? weiter[0] : null;
+    }
+    if (weg.length >= 3) wege.push(weg);
+  }
+  return wege;
+}
+
 // Wie viele es höchstens werden. Auf einer Karte mit fünftausend Feldern wären
 // "alle Küstenfelder" ein Teppich - es geht um Leben, nicht um eine Zählung.
-const WILDLIFE_MAX = { fische: 110, wale: 12, moewen: 70, wild: 120 };
+const WILDLIFE_MAX = { fische: 110, wale: 12, moewen: 70, wild: 120, wagen: 70 };
 
 function buildWildlife(state) {
   // Eine zweite Karte im selben Fenster erbt sonst die Tiere der ersten.
@@ -854,6 +951,54 @@ function buildWildlife(state) {
       });
     }
   }
+  // --- Karren auf den Straßen ----------------------------------------------
+  // Eine Straße, auf der nie etwas fährt, ist ein Strich. Auf jedem Weg von
+  // einiger Länge zieht ein Ochsengespann hin und zurück - langsam, wie ein
+  // Fuhrwerk zieht, und mit dem Boden auf und ab.
+  const wagen = [];
+  const wege = roadPaths(state.roads);
+  for (const weg of wege) {
+    if (wagen.length >= WILDLIFE_MAX.wagen) break;
+    // Auf einen langen Weg gehören zwei Karren, auf einen kurzen einer.
+    const zahl = 1 + Math.floor(weg.length / 16);
+    for (let i = 0; i < zahl; i++) {
+      wagen.push({
+        weg,
+        // Zwanzig Sekunden für ein Feld: ein Fuhrwerk, kein Bote.
+        takt: 0.045 + rng() * 0.02,
+        start: (i + rng()) / zahl,
+        gross: 1.35 + rng() * 0.35,
+      });
+    }
+  }
+  addWildlife(
+    cartGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#7a5a34', roughness: 0.95 }),
+    wagen,
+    (tier, t, matrix, lage, dreh, mass) => {
+      const felder = tier.weg.length - 1;
+      // Hin und zurück statt im Kreis: ein Karren, der am Ende des Wegs
+      // verschwindet und am Anfang wieder auftaucht, springt.
+      const roh = (tier.start + t * tier.takt) % 2;
+      const anteil = (roh < 1 ? roh : 2 - roh) * felder;
+      const i = Math.min(felder - 1, Math.floor(anteil));
+      const rest = anteil - i;
+      const a = tier.weg[i];
+      const b = tier.weg[i + 1];
+      const col = a.col + (b.col - a.col) * rest;
+      const row = a.row + (b.row - a.row) * rest;
+      const x = worldX(col);
+      const z = worldZ(row);
+      lage.set(x, bandY(x, z) + ROAD_LIFT, z);
+      // Blickrichtung: die des Wegstücks, und auf dem Rückweg umgekehrt.
+      const vor = roh < 1 ? 1 : -1;
+      const winkel = Math.atan2(-(b.row - a.row) * vor, (b.col - a.col) * vor);
+      dreh.setFromAxisAngle(WILDLIFE_ACHSE, winkel);
+      mass.setScalar(tier.gross);
+      matrix.compose(lage, dreh, mass);
+    }
+  );
+
   addWildlife(
     deerGeometry(),
     new THREE.MeshStandardMaterial({ color: '#8d6039', roughness: 0.95 }),
@@ -1547,6 +1692,208 @@ function buildFieldStandard(factionId, colour) {
   return group;
 }
 
+// --- Die Rüstung auf dem Bock ---------------------------------------------
+// Im Zelt eines Feldherrn steht, was er trägt, wenn er hinausreitet: ein
+// hölzerner Bock, darauf der Panzer, darüber der Helm, daneben Schild und
+// Speer. Es ist das eine Stück im Zelt, an dem man sieht, wessen Heer man
+// führt - der Thron sagt es nur über den Stil, das Feldzeichen nur über das
+// Wappen.
+//
+// Fünf Rüstungen, nach dem, was die Völker wirklich trugen: die gegliederte
+// Schiene Roms, der Bronzepanzer der hellenistischen Höfe, der Leinenpanzer
+// des Westens, das Kettenhemd des Nordens und der Schuppenpanzer der Reiter
+// aus der Steppe.
+const ARMOUR_STYLE = {
+  rom: 'schiene',
+  griechen: 'bronze', seleukiden: 'bronze', ptolemaeer: 'bronze',
+  pontus: 'bronze', armenien: 'bronze',
+  karthago: 'leinen', numidien: 'leinen', iberer: 'leinen',
+  gallier: 'kette', germanen: 'kette', britannier: 'kette',
+  daker: 'kette', illyrer: 'kette',
+  sarmaten: 'schuppe', parther: 'schuppe',
+};
+
+const ARMOUR_METAL = {
+  schiene: new THREE.MeshStandardMaterial({ color: '#b9bcc0', roughness: 0.45, metalness: 0.55 }),
+  bronze: new THREE.MeshStandardMaterial({ color: '#c08b3e', roughness: 0.4, metalness: 0.55 }),
+  leinen: new THREE.MeshStandardMaterial({ color: '#ded0a8', roughness: 0.95 }),
+  kette: new THREE.MeshStandardMaterial({ color: '#8b8f94', roughness: 0.6, metalness: 0.4 }),
+  schuppe: new THREE.MeshStandardMaterial({ color: '#7d6a4a', roughness: 0.55, metalness: 0.3 }),
+};
+
+function buildArmourStand(factionId, colour) {
+  const art = ARMOUR_STYLE[factionId] || 'kette';
+  const metall = ARMOUR_METAL[art];
+  const group = new THREE.Group();
+  const tuch = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.9 });
+
+  // Ein Podest wie unter dem Thron: ohne es steckt die Rüstung bis zur Brust
+  // hinter dem Kartentisch, und zu sehen ist nur ein Helm.
+  tentBox(group, TENT_MATERIALS.darkWood, 2.0, 0.24, 1.6, 0, 0, 0);
+  tentBox(group, TENT_MATERIALS.darkWood, 1.6, 0.24, 1.3, 0, 0.24, 0);
+
+  // Der Bock: Fuß, Ständer, Querholz für die Schultern.
+  tentBox(group, TENT_MATERIALS.darkWood, 1.3, 0.16, 0.95, 0, 0.48, 0);
+  const pfosten = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.12, 2.5, 7), TENT_MATERIALS.wood
+  );
+  pfosten.position.y = 1.89;
+  group.add(pfosten);
+  tentBox(group, TENT_MATERIALS.wood, 1.3, 0.12, 0.15, 0, 2.5, 0);
+
+  // Der Untergewand-Rock unter dem Panzer, in der Farbe des Reichs.
+  const rock = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.44, 0.62, 10), tuch);
+  rock.position.y = 2.02;
+  group.add(rock);
+
+  // Der Panzer selbst - dieselbe Grundform, verschieden ausgeführt.
+  const panzer = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 1.05, 10), metall);
+  panzer.position.y = 2.72;
+  group.add(panzer);
+  if (art === 'schiene') {
+    // Drei Schienen um den Leib und die Schulterplatten darüber.
+    for (const y of [2.4, 2.68, 2.96]) {
+      const band = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.05, 5, 14), metall);
+      band.rotation.x = Math.PI / 2;
+      band.position.y = y;
+      group.add(band);
+    }
+    for (const side of [-1, 1]) {
+      const schulter = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 5, 10, Math.PI), metall);
+      schulter.position.set(side * 0.36, 3.22, 0);
+      schulter.rotation.set(0, 0, side * 0.5);
+      group.add(schulter);
+    }
+  } else if (art === 'bronze') {
+    // Der Muskelpanzer: eine angedeutete Brust, dazu der Schulterschutz.
+    for (const side of [-1, 1]) {
+      const brust = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), metall);
+      brust.position.set(side * 0.16, 2.98, 0.28);
+      brust.scale.set(1, 0.8, 0.5);
+      group.add(brust);
+    }
+    tentBox(group, metall, 0.92, 0.15, 0.44, 0, 3.14, 0);
+  } else if (art === 'schuppe') {
+    // Schuppen: drei Reihen kleiner Plättchen über dem Panzer.
+    for (let reihe = 0; reihe < 3; reihe++) {
+      for (let i = 0; i < 10; i++) {
+        const winkel = (i / 10) * Math.PI * 2;
+        const platte = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.04), metall);
+        platte.position.set(
+          Math.sin(winkel) * 0.4, 2.4 + reihe * 0.28, Math.cos(winkel) * 0.4
+        );
+        platte.rotation.y = winkel;
+        group.add(platte);
+      }
+    }
+  } else if (art === 'kette') {
+    // Das Kettenhemd hängt über die Hüfte und trägt eine Schulterlage.
+    const saum = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 0.32, 10), metall);
+    saum.position.y = 2.26;
+    group.add(saum);
+    const lage = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.38, 0.3, 10), metall);
+    lage.position.y = 3.12;
+    group.add(lage);
+  } else {
+    // Leinen: die Schulterlaschen, die über die Brust gebunden werden.
+    for (const side of [-1, 1]) {
+      const lasche = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.5, 0.14), metall);
+      lasche.position.set(side * 0.22, 3.12, 0.26);
+      lasche.rotation.x = 0.3;
+      group.add(lasche);
+    }
+    // Und der Zaddelsaum unten.
+    for (let i = 0; i < 10; i++) {
+      const winkel = (i / 10) * Math.PI * 2;
+      const zaddel = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.26, 0.06), metall);
+      zaddel.position.set(Math.sin(winkel) * 0.42, 2.12, Math.cos(winkel) * 0.42);
+      zaddel.rotation.y = winkel;
+      group.add(zaddel);
+    }
+  }
+
+  // Der Helm auf dem Ständer.
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.27, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    metall);
+  helm.position.y = 3.42;
+  group.add(helm);
+  const rand = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.045, 5, 12), metall);
+  rand.rotation.x = Math.PI / 2;
+  rand.position.y = 3.42;
+  group.add(rand);
+  if (art === 'schiene') {
+    // Der Querbusch des Zenturio - quer, nicht längs.
+    const busch = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.2, 0.1), tuch);
+    busch.position.y = 3.74;
+    group.add(busch);
+    // Wangenklappen.
+    for (const side of [-1, 1]) {
+      const klappe = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.24, 0.2), metall);
+      klappe.position.set(side * 0.25, 3.34, 0.06);
+      group.add(klappe);
+    }
+  } else if (art === 'bronze') {
+    // Der hohe Helmbusch, längs über den Scheitel.
+    const busch = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.66), tuch);
+    busch.position.y = 3.76;
+    group.add(busch);
+    const nase = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.24, 0.06), metall);
+    nase.position.set(0, 3.34, 0.26);
+    group.add(nase);
+  } else if (art === 'schuppe') {
+    // Die Spitzhaube der Steppe.
+    const spitze = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.42, 8), metall);
+    spitze.position.y = 3.62;
+    group.add(spitze);
+  } else if (art === 'kette') {
+    // Eine schlichte Eisenkappe mit Nackenschutz.
+    const nacken = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.16), metall);
+    nacken.position.set(0, 3.36, -0.2);
+    group.add(nacken);
+  } else {
+    // Der Kegelhelm des Westens mit einem Federbusch.
+    const kegel = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.3, 8), metall);
+    kegel.position.y = 3.56;
+    group.add(kegel);
+    const feder = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.34, 0.07), tuch);
+    feder.position.y = 3.86;
+    group.add(feder);
+  }
+
+  // Der Schild lehnt am Bock, mit dem Wappen darauf. Rom trägt den langen
+  // Scutum, der Norden den ovalen, der Süden und Osten den runden.
+  const schildForm = art === 'schiene' ? 'lang' : art === 'kette' ? 'oval' : 'rund';
+  const wappen = new THREE.MeshStandardMaterial({
+    map: emblemTexture(factionId, colour), side: THREE.DoubleSide, roughness: 1,
+  });
+  let schild;
+  if (schildForm === 'lang') {
+    schild = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 1.5), wappen);
+  } else if (schildForm === 'oval') {
+    schild = new THREE.Mesh(new THREE.CircleGeometry(0.62, 20), wappen);
+    schild.scale.set(0.72, 1.25, 1);
+  } else {
+    schild = new THREE.Mesh(new THREE.CircleGeometry(0.68, 20), wappen);
+  }
+  schild.position.set(-1.05, 2.3, 0.5);
+  schild.rotation.set(-0.14, 0.42, 0.12);
+  group.add(schild);
+
+  // Und der Speer daneben, an das Querholz gelehnt.
+  const schaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.045, 0.045, 3.4, 6), TENT_MATERIALS.wood
+  );
+  schaft.position.set(1.0, 2.35, -0.1);
+  schaft.rotation.z = -0.16;
+  group.add(schaft);
+  const spitze = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 6), metall);
+  spitze.position.set(1.28, 4.1, -0.1);
+  spitze.rotation.z = -0.16;
+  group.add(spitze);
+
+  return group;
+}
+
 // Setzt den ganzen Hintergrund zusammen und stellt ihn dem Betrachter
 // gegenüber - dorthin, wohin die Grundansicht der Kamera blickt.
 function buildTentBackdrop(tent, state, colour, floorY) {
@@ -1562,6 +1909,12 @@ function buildTentBackdrop(tent, state, colour, floorY) {
     standard.position.set(side * 3.4, 0, -0.3);
     stage.add(standard);
   }
+  // Die Rüstung des Reichs auf ihrem Bock, links neben dem Thron.
+  const ruestung = buildArmourStand(id, colour);
+  ruestung.position.set(-5.0, 0, 2.4);
+  ruestung.rotation.y = 0.55;
+  stage.add(ruestung);
+
   const furnishings = TENT_FURNISHINGS[id] || ['shields', 'spears'];
   furnishings.forEach((kind, index) => {
     const build = FURNISHING_BUILDERS[kind];
@@ -1591,7 +1944,151 @@ function buildTentBackdrop(tent, state, colour, floorY) {
 // zurückgeschlagen und mit Stricken an zwei Pfosten gebunden; dahinter steht
 // das Tageslicht des Lagers. Hinausgehen kann man nicht - der Feldzug wird an
 // diesem Tisch geführt -, aber man sieht, dass es ein Draußen gibt.
-function buildTentExit(tent, colour, floorY) {
+// Was draußen zu sehen ist, richtet sich danach, wo das Heer steht: das
+// Umland der eigenen Hauptstadt. Gezählt werden die Felder in einem Umkreis
+// von vier; was überwiegt, bestimmt das Bild vor dem Zelt.
+const OUTSIDE_LOOKS = {
+  plains: { boden: '#c3ad72', ferne: '#7d9455', art: 'baeume', himmel: '#a9cdec' },
+  forest: { boden: '#94975e', ferne: '#3f6a37', art: 'wald', himmel: '#9dc4e4' },
+  hills: { boden: '#bda872', ferne: '#7b8352', art: 'huegel', himmel: '#a9cdec' },
+  mountain: { boden: '#a89f92', ferne: '#5d6472', art: 'berge', himmel: '#9cbfe4' },
+  desert: { boden: '#e0c88a', ferne: '#c9a866', art: 'duenen', himmel: '#e6d9a8' },
+  water: { boden: '#cbb98a', ferne: '#2f6f9c', art: 'kueste', himmel: '#a6cdea' },
+};
+
+// Nicht jedes Feld zählt gleich viel. Ebene ist der Regelfall und sagt am
+// wenigsten; ein Gebirge, eine Wüste, ein Wald oder das Meer vor dem Zelt sagt
+// alles. Ohne diese Gewichte sähen zwölf von sechzehn Fraktionen auf dieselbe
+// Wiese hinaus, weil das Hinterland überall Ebene ist.
+const OUTSIDE_WEIGHT = {
+  water: 1.6, mountain: 2.4, desert: 2.0, forest: 1.6, hills: 1.5, plains: 1,
+};
+
+function outsideLook(state) {
+  const spieler = state.factions.find((f) => f.isPlayer);
+  const sitz = state.cities.find((c) => spieler && c.factionId === spieler.id && c.capital)
+    || state.cities.find((c) => spieler && c.factionId === spieler.id);
+  if (!sitz || !state.map) return { ...OUTSIDE_LOOKS.plains, sitz: null };
+  const zaehler = {};
+  const weite = 4;
+  for (let dr = -weite; dr <= weite; dr++) {
+    const row = state.map.tiles[sitz.row + dr];
+    if (!row) continue;
+    for (let dc = -weite; dc <= weite; dc++) {
+      const tile = row[sitz.col + dc];
+      if (!tile) continue;
+      zaehler[tile.type] = (zaehler[tile.type] || 0) + (OUTSIDE_WEIGHT[tile.type] || 1);
+    }
+  }
+  let art = 'plains';
+  for (const typ of Object.keys(zaehler)) {
+    if (zaehler[typ] > (zaehler[art] || 0)) art = typ;
+  }
+  const look = { ...(OUTSIDE_LOOKS[art] || OUTSIDE_LOOKS.plains), sitz };
+  // Vor einer Küste liegt der Strand, und ein Strand hat die Farbe des Landes
+  // dahinter: bei Alexandria Wüstensand, bei Camulodunum Gras.
+  if (art === 'water') {
+    let land = 'plains';
+    for (const typ of Object.keys(zaehler)) {
+      if (typ === 'water') continue;
+      if (zaehler[typ] > (zaehler[land] || 0)) land = typ;
+    }
+    look.boden = (OUTSIDE_LOOKS[land] || OUTSIDE_LOOKS.plains).boden;
+  }
+  return look;
+}
+
+// Für die Prüfläufe: welche Landschaft draußen gewählt wurde.
+let outsideChosen = null;
+export function outsideProbe() {
+  return outsideChosen;
+}
+
+// Die Landschaft vor dem Zeltausgang: drei Ebenen als Schattenriss - der
+// Fernblick, ein mittlerer Streifen und das Lager davor. Alles flach und
+// gestaffelt; von innen sieht man ohnehin nur den Ausschnitt der Tür.
+function buildOutsideScenery(doorway, look, width, horizon, stoffe) {
+  const fern = new THREE.MeshBasicMaterial({
+    color: look.ferne, fog: false, side: THREE.DoubleSide,
+  });
+  const mittel = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(look.ferne).lerp(new THREE.Color('#1e3a1c'), 0.35), fog: false,
+    side: THREE.DoubleSide,
+  });
+
+  // Vor der hellen Fläche heißt: in Richtung des Betrachters, und das ist im
+  // Türrahmen die negative z-Achse - dieselbe, an der auch der Bodenstreifen
+  // davor liegt. Flache Stücke, die dahinter lägen, wären schlicht unsichtbar.
+  const setze = (mesh, x, y, tiefe) => {
+    mesh.position.set(x, y, -tiefe);
+    doorway.add(mesh);
+    if (stoffe && !stoffe.includes(mesh.material)) stoffe.push(mesh.material);
+  };
+
+  if (look.art === 'berge') {
+    // Zacken, dahinter Schnee auf den höchsten.
+    const schnee = new THREE.MeshBasicMaterial({
+      color: '#e8eef5', fog: false, side: THREE.DoubleSide,
+    });
+    for (const [x, breite, hoehe] of [[-104, 92, 72], [-34, 112, 96], [42, 96, 80],
+      [108, 76, 62]]) {
+      const berg = new THREE.Mesh(new THREE.ConeGeometry(breite * 0.6, hoehe, 3), fern);
+      setze(berg, x, horizon * 0.86 + hoehe / 2, 0.6);
+      berg.rotation.y = Math.PI / 6;
+      const kappe = new THREE.Mesh(new THREE.ConeGeometry(breite * 0.24, hoehe * 0.34, 3), schnee);
+      setze(kappe, x, horizon * 0.86 + hoehe - hoehe * 0.17, 0.7);
+      kappe.rotation.y = Math.PI / 6;
+    }
+  } else if (look.art === 'huegel') {
+    for (const [x, breite, hoehe] of [[-108, 150, 44], [-6, 190, 58], [104, 158, 48]]) {
+      const kuppe = new THREE.Mesh(new THREE.CircleGeometry(breite / 2, 16, 0, Math.PI), fern);
+      setze(kuppe, x, horizon * 0.84, 0.6);
+      kuppe.scale.set(1, (hoehe / (breite / 2)), 1);
+    }
+  } else if (look.art === 'duenen') {
+    for (const [x, breite, hoehe] of [[-112, 180, 30], [4, 220, 40], [116, 168, 34]]) {
+      const duene = new THREE.Mesh(new THREE.CircleGeometry(breite / 2, 18, 0, Math.PI), fern);
+      setze(duene, x, horizon * 0.82, 0.6);
+      duene.scale.set(1, (hoehe / (breite / 2)), 1);
+    }
+  } else if (look.art === 'kueste') {
+    // Ein Streifen Wasser bis zum Horizont, darauf ein Segel.
+    const tiefe = horizon * 0.62;
+    const see = new THREE.Mesh(new THREE.PlaneGeometry(width, tiefe), fern);
+    setze(see, 0, horizon - tiefe / 2, 0.55);
+    const segel = new THREE.Mesh(new THREE.ConeGeometry(13, 30, 3), new THREE.MeshBasicMaterial({
+      color: '#f0e7cf', fog: false, side: THREE.DoubleSide,
+    }));
+    setze(segel, 74, horizon - tiefe * 0.4, 0.65);
+    const rumpf = new THREE.Mesh(new THREE.BoxGeometry(38, 7, 2), new THREE.MeshBasicMaterial({
+      color: '#5a3d24', fog: false, side: THREE.DoubleSide,
+    }));
+    setze(rumpf, 74, horizon - tiefe * 0.4 - 16, 0.66);
+    // Und ein zweites, kleiner und weiter draußen.
+    const segel2 = segel.clone();
+    setze(segel2, -96, horizon - tiefe * 0.72, 0.6);
+    segel2.scale.setScalar(0.6);
+  } else {
+    // Wald und Ebene: eine Reihe Bäume, im Wald dicht, in der Ebene vereinzelt.
+    const wald = look.art === 'wald';
+    const kuppe = new THREE.Mesh(new THREE.CircleGeometry(132, 18, 0, Math.PI), fern);
+    setze(kuppe, -12, horizon * 0.84, 0.55);
+    kuppe.scale.set(1, 0.28, 1);
+    const stellen = wald
+      ? [-152, -122, -92, -62, -32, -2, 28, 58, 88, 118, 148]
+      : [-140, -78, -18, 44, 104, 158];
+    stellen.forEach((x, i) => {
+      const hoehe = wald ? 42 + (i % 3) * 11 : 38 + (i % 2) * 12;
+      const baum = new THREE.Mesh(new THREE.ConeGeometry(hoehe * 0.26, hoehe, 5), mittel);
+      setze(baum, x, horizon * 0.55 + hoehe / 2, 0.75);
+      const stamm = new THREE.Mesh(new THREE.BoxGeometry(6, hoehe * 0.3, 3),
+        new THREE.MeshBasicMaterial({ color: '#3f2d18', fog: false }));
+      setze(stamm, x, horizon * 0.55, 0.76);
+    });
+  }
+}
+
+function buildTentExit(tent, state, colour, floorY) {
   const doorway = new THREE.Group();
   const width = 250;
   const height = TENT_WALL * 0.94;
@@ -1600,38 +2097,68 @@ function buildTentExit(tent, colour, floorY) {
   // Fläche reichte nicht - die Zeltbahn ist selbst hell, und ohne den kühlen
   // Himmel darüber liest sich das Loch nicht als Ausgang, sondern als Fleck.
   const horizon = height * 0.42;
+  // Welche Landschaft draußen liegt, sagt das Umland der eigenen Hauptstadt:
+  // wer von Ägypten aus Krieg führt, soll aus dem Zelt in die Wüste sehen und
+  // nicht auf dieselbe Wiese wie der Germane.
+  const look = outsideLook(state);
+  outsideChosen = { art: look.art, ort: look.sitz ? look.sitz.name : null };
+  // Alles, was „draußen" ist, wird am Ende auf den Türausschnitt beschnitten -
+  // ein Baum, der neben dem Rahmen im Zelt steht, ist kein Ausblick.
+  const draussen = [];
   const sky = new THREE.Mesh(
     new THREE.PlaneGeometry(width, height - horizon),
-    new THREE.MeshBasicMaterial({ color: '#dbe9f7', side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: look.himmel, side: THREE.DoubleSide, fog: false })
   );
   sky.position.y = horizon + (height - horizon) / 2;
   doorway.add(sky);
+  draussen.push(sky.material);
   const outside = new THREE.Mesh(
     new THREE.PlaneGeometry(width, horizon),
-    new THREE.MeshBasicMaterial({ color: '#b8a276', side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: look.boden, side: THREE.DoubleSide, fog: false })
   );
   outside.position.y = horizon / 2;
   doorway.add(outside);
+  draussen.push(outside.material);
+
+  // Und darauf die Landschaft: Berge, Hügel, Dünen, Wald oder eine Küste.
+  buildOutsideScenery(doorway, look, width, horizon, draussen);
 
   // Ein Streifen Boden davor, damit der Ausgang nicht in der Luft hängt.
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(width, 46),
-    new THREE.MeshBasicMaterial({ color: '#c9b98d', side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: look.boden, side: THREE.DoubleSide, fog: false })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, 0.5, -22);
   doorway.add(ground);
+  draussen.push(ground.material);
 
   // Das Lager draußen: ein paar Zeltspitzen als Schattenriss vor dem Licht.
   // Sie liegen dicht vor der hellen Fläche, nicht dahinter - was hinter der
   // Zeltwand steht, wäre von innen ohnehin verdeckt.
-  const silhouette = new THREE.MeshBasicMaterial({ color: '#8f7f5c' });
-  for (const [x, size] of [[-88, 40], [-26, 54], [44, 34], [98, 46]]) {
+  const silhouette = new THREE.MeshBasicMaterial({ color: '#6f6144', fog: false });
+  for (const [x, size] of [[-92, 30], [-30, 40], [40, 26], [96, 34]]) {
     const hut = new THREE.Mesh(new THREE.ConeGeometry(size * 0.62, size, 4), silhouette);
-    hut.position.set(x, horizon * 0.55 + size / 2 - 6, 1.5);
+    hut.position.set(x, horizon * 0.3 + size / 2, -1.6);
     hut.rotation.y = Math.PI / 4;
     doorway.add(hut);
   }
+  draussen.push(silhouette);
+  // Zwei Wachen vor dem Zelt, in der Farbe des Reichs: Speer und Schild.
+  const wacheTuch = new THREE.MeshBasicMaterial({ color: colour, fog: false });
+  const wacheDunkel = new THREE.MeshBasicMaterial({ color: '#3a2c1c', fog: false });
+  for (const [x, hoehe] of [[-118, 46], [122, 44]]) {
+    const leib = new THREE.Mesh(new THREE.CylinderGeometry(6, 8, hoehe * 0.62, 5), wacheTuch);
+    leib.position.set(x, horizon * 0.16 + hoehe * 0.31, -2.2);
+    doorway.add(leib);
+    const kopf = new THREE.Mesh(new THREE.SphereGeometry(5.5, 7, 6), wacheTuch);
+    kopf.position.set(x, horizon * 0.16 + hoehe * 0.7, -2.2);
+    doorway.add(kopf);
+    const speer = new THREE.Mesh(new THREE.BoxGeometry(1.8, hoehe * 1.25, 1.8), wacheDunkel);
+    speer.position.set(x + 9, horizon * 0.16 + hoehe * 0.55, -2.2);
+    doorway.add(speer);
+  }
+  draussen.push(wacheTuch, wacheDunkel);
 
   // Pfosten und Sturz.
   for (const side of [-1, 1]) {
@@ -1680,6 +2207,27 @@ function buildTentExit(tent, colour, floorY) {
   doorway.position.set(Math.cos(angle) * seat, floorY, Math.sin(angle) * seat);
   doorway.rotation.y = -angle + Math.PI / 2;
   tent.add(doorway);
+
+  // Der Ausschnitt: vier Ebenen um die Türöffnung. Was draußen liegt, wird
+  // daran beschnitten - ein Berg ist breiter als eine Tür, und eine Baumreihe
+  // reicht weiter als der Rahmen. Vorher standen die Ausläufer neben dem
+  // Rahmen mitten im Zelt.
+  doorway.updateMatrixWorld(true);
+  const punkt = (x, y) => doorway.localToWorld(new THREE.Vector3(x, y, 0));
+  const achse = (x, y) => punkt(x, y).sub(punkt(0, 0)).normalize();
+  const xAchse = achse(1, 0);
+  const yAchse = achse(0, 1);
+  const rand = width / 2;
+  const schnitt = [
+    new THREE.Plane().setFromNormalAndCoplanarPoint(xAchse.clone().negate(), punkt(rand, 0)),
+    new THREE.Plane().setFromNormalAndCoplanarPoint(xAchse.clone(), punkt(-rand, 0)),
+    new THREE.Plane().setFromNormalAndCoplanarPoint(yAchse.clone().negate(), punkt(0, height)),
+    new THREE.Plane().setFromNormalAndCoplanarPoint(yAchse.clone(), punkt(0, 0)),
+  ];
+  for (const stoff of draussen) {
+    stoff.clippingPlanes = schnitt;
+    stoff.needsUpdate = true;
+  }
 }
 
 function buildTent(state) {
@@ -1759,7 +2307,7 @@ function buildTent(state) {
   }
 
   buildTentBackdrop(tentGroup, state, colour, floor.position.y);
-  buildTentExit(tentGroup, colour, floor.position.y);
+  buildTentExit(tentGroup, state, colour, floor.position.y);
 
   scene.add(tentGroup);
 }
@@ -2446,7 +2994,6 @@ const BUILD_SCALE = 0.68;
 const TREE_HEIGHT = 2.2;
 const CAMP_TENT_HEIGHT = 0.8;
 const MARCHER_HEIGHT = 0.5;
-const ORE_SIZE = 0.45;
 
 // Wie weit sich ein Ort ausbreitet, steht bei den Siedlungsstufen in data.js
 // (`spread`): davon hängen der Mauerring, die Höhe des Namensschilds und die
@@ -3891,6 +4438,21 @@ function buildArmyGroup() {
   group.add(ring);
   group.userData.ring = ring;
 
+  // Wer im Krieg mit dir steht, bekommt einen Ring aus Rot um die Füße.
+  // Die Fraktionsfarbe allein sagt, wer da steht, aber nicht, ob er auf dich
+  // schießt: zwischen einem Verbündeten und einem Feind lag bisher nur die
+  // Erinnerung an das Diplomatiefenster.
+  const feindRing = new THREE.Mesh(
+    new THREE.RingGeometry(1.55, 2.2, 28),
+    new THREE.MeshBasicMaterial({
+      color: '#c0392b', transparent: true, opacity: 0, side: THREE.DoubleSide,
+    })
+  );
+  feindRing.rotation.x = -Math.PI / 2;
+  feindRing.position.y = 0.1;
+  group.add(feindRing);
+  group.userData.feindRing = feindRing;
+
   return group;
 }
 
@@ -3925,32 +4487,131 @@ function buildCampRing() {
 // treten die Zelte ab und eine Kolonne tritt an: eine Reihe von Gestalten
 // hintereinander, versetzt wie eine Marschordnung, dazu vorneweg das
 // Feldzeichen. Sie zeigt auch, wohin es geht - das Lager kann das nicht.
-const COLUMN_MAX = 14;
+const COLUMN_MAX = 12;
+
+// Die drei Waffengattungen, wie sie in der Kolonne aussehen. Vorher marschierte
+// eine Reihe gleicher Kegel - ein Heer aus dreihundert Reitern sah aus wie ein
+// Heer aus dreihundert Bogenschützen. Jetzt hat jede Gattung ihre Gestalt:
+// das Fußvolk breit mit Schild und aufgesetztem Speer, die Reiterei hoch zu
+// Pferd mit der Lanze, die Schützen schmal mit dem Bogen über der Schulter.
+//
+// Gebaut wird jede Gattung einmal als verschmolzene Geometrie; jeder Platz in
+// der Kolonne bekommt alle drei und zeigt die, die dort marschiert.
+function marcherGeometry(rolle) {
+  const h = MARCHER_HEIGHT;
+  const teile = [];
+  if (rolle === 'cavalry') {
+    // Das Pferd: Leib, Hals, Kopf, vier Läufe. Darüber der Reiter.
+    const leib = new THREE.SphereGeometry(0.2, 7, 5);
+    const lauf = new THREE.CylinderGeometry(0.04, 0.035, h * 0.5, 4);
+    const hals = new THREE.CylinderGeometry(0.055, 0.075, h * 0.34, 5);
+    const kopf = new THREE.SphereGeometry(0.075, 6, 5);
+    const rumpf = new THREE.CylinderGeometry(0.1, 0.13, h * 0.5, 5);
+    const haupt = new THREE.SphereGeometry(0.095, 6, 5);
+    const lanze = new THREE.CylinderGeometry(0.018, 0.018, h * 1.5, 4);
+    teile.push(shapePart(leib, 0, h * 0.62, 0, 0, 0, 0, 1.7, 0.85, 0.95));
+    for (const x of [-0.2, 0.19]) {
+      for (const z of [-0.1, 0.1]) teile.push(shapePart(lauf, x, h * 0.25, z));
+    }
+    teile.push(shapePart(hals, 0.28, h * 0.78, 0, 0, 0, -0.5));
+    teile.push(shapePart(kopf, 0.42, h * 0.92, 0, 0, 0, 0, 1.5, 1, 1));
+    teile.push(shapePart(rumpf, -0.02, h * 0.98, 0));
+    teile.push(shapePart(haupt, -0.02, h * 1.3, 0));
+    teile.push(shapePart(lanze, 0.12, h * 1.15, 0.13, 0, 0, 0.22));
+    for (const g of [leib, lauf, hals, kopf, rumpf, haupt, lanze]) g.dispose();
+  } else if (rolle === 'ranged') {
+    // Schmal, ohne Schild, den Bogen quer über dem Rücken.
+    const rumpf = new THREE.CylinderGeometry(0.11, 0.14, h * 0.74, 5);
+    const haupt = new THREE.SphereGeometry(0.1, 6, 5);
+    const bogen = new THREE.TorusGeometry(0.16, 0.022, 4, 10, Math.PI * 1.15);
+    const koecher = new THREE.CylinderGeometry(0.05, 0.05, 0.24, 5);
+    teile.push(shapePart(rumpf, 0, h * 0.37, 0));
+    teile.push(shapePart(haupt, 0, h * 0.86, 0));
+    teile.push(shapePart(bogen, -0.1, h * 0.52, 0.02, 0, Math.PI / 2, 0.5));
+    teile.push(shapePart(koecher, -0.12, h * 0.62, -0.1, 0.4, 0, 0.35));
+    for (const g of [rumpf, haupt, bogen, koecher]) g.dispose();
+  } else {
+    // Fußvolk: breiter Rumpf, Schild an der linken Seite, Speer aufgesetzt.
+    const rumpf = new THREE.CylinderGeometry(0.17, 0.21, h * 0.74, 5);
+    const haupt = new THREE.SphereGeometry(0.12, 6, 5);
+    const schild = new THREE.BoxGeometry(0.05, h * 0.5, 0.22);
+    const speer = new THREE.CylinderGeometry(0.02, 0.02, h * 1.6, 4);
+    teile.push(shapePart(rumpf, 0, h * 0.37, 0));
+    teile.push(shapePart(haupt, 0, h * 0.86, 0));
+    teile.push(shapePart(schild, 0.16, h * 0.44, 0.1, 0, 0, 0.08));
+    teile.push(shapePart(speer, -0.1, h * 0.78, -0.1, 0, 0, -0.12));
+    for (const g of [rumpf, haupt, schild, speer]) g.dispose();
+  }
+  return mergeShapes(teile);
+}
+
+const COLUMN_ROLES = ['cavalry', 'infantry', 'ranged'];
+let marcherGeometries = null;
+
+function marcherShapes() {
+  if (!marcherGeometries) {
+    marcherGeometries = {};
+    for (const rolle of COLUMN_ROLES) marcherGeometries[rolle] = marcherGeometry(rolle);
+  }
+  return marcherGeometries;
+}
 
 function buildColumn(color) {
   const group = new THREE.Group();
   const material = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
-  const koerper = new THREE.CylinderGeometry(0.17, 0.21, MARCHER_HEIGHT * 0.74, 5);
-  const kopf = new THREE.SphereGeometry(0.12, 6, 5);
+  const formen = marcherShapes();
   const marschierer = [];
   for (let i = 0; i < COLUMN_MAX; i++) {
     const mann = new THREE.Group();
-    const rumpf = new THREE.Mesh(koerper, material);
-    rumpf.position.y = MARCHER_HEIGHT * 0.37;
-    mann.add(rumpf);
-    const haupt = new THREE.Mesh(kopf, material);
-    haupt.position.y = MARCHER_HEIGHT * 0.86;
-    mann.add(haupt);
+    const teile = {};
+    for (const rolle of COLUMN_ROLES) {
+      const stueck = new THREE.Mesh(formen[rolle], material);
+      stueck.visible = false;
+      mann.add(stueck);
+      teile[rolle] = stueck;
+    }
     // Zwei Reihen nebeneinander, Glied für Glied nach hinten versetzt.
     const glied = Math.floor(i / 2);
-    const reihe = i % 2 ? 0.3 : -0.3;
-    mann.position.set(reihe, 0, -0.55 - glied * 0.6);
-    mann.userData = { phase: i * 0.7 };
+    const reihe = i % 2 ? 0.36 : -0.36;
+    mann.position.set(reihe, 0, -0.6 - glied * 0.66);
+    mann.userData = { phase: i * 0.7, teile, rolle: null };
     group.add(mann);
     marschierer.push(mann);
   }
   group.userData = { marschierer, material };
   return group;
+}
+
+// Wer in welcher Reihenfolge marschiert. Eine Marschordnung ist keine
+// Zufallsmischung: die Reiterei zieht voraus und deckt die Spitze, dahinter
+// geht das Fußvolk, und die Schützen gehen als Letzte - so stand es in jedem
+// Handbuch, und so liest man auf der Karte auch ab, woraus ein Heer besteht.
+function columnRoles(units, zahl) {
+  const gesamt = COLUMN_ROLES.reduce((sum, r) => sum + (units[r] || 0), 0);
+  if (!gesamt) return new Array(zahl).fill('infantry');
+  // Jede Gattung, die es überhaupt gibt, bekommt mindestens einen Platz -
+  // sonst verschwänden dreißig Reiter neben achthundert Mann Fußvolk, und
+  // gerade das will man sehen.
+  const plaetze = {};
+  let vergeben = 0;
+  for (const rolle of COLUMN_ROLES) {
+    if (!units[rolle]) { plaetze[rolle] = 0; continue; }
+    plaetze[rolle] = Math.max(1, Math.round((units[rolle] / gesamt) * zahl));
+    vergeben += plaetze[rolle];
+  }
+  // Aufgerundet wird immer zu viel; abgezogen wird bei der größten Gattung.
+  while (vergeben > zahl) {
+    const groesste = COLUMN_ROLES.reduce((a, b) => (plaetze[b] > plaetze[a] ? b : a));
+    if (plaetze[groesste] <= 1) break;
+    plaetze[groesste] -= 1;
+    vergeben -= 1;
+  }
+  const raus = [];
+  for (const rolle of COLUMN_ROLES) {
+    for (let i = 0; i < plaetze[rolle]; i++) raus.push(rolle);
+  }
+  while (raus.length < zahl) raus.push('infantry');
+  return raus.slice(0, zahl);
 }
 
 // Wie viele Gestalten die Kolonne zeigt - sie wächst mit der Stärke, wie das
@@ -4035,7 +4696,17 @@ function syncArmyGroup(state, army, entry) {
     column.visible = marschiert;
     column.userData.material.color.set(faction.color);
     const zahl = columnLength(unitTotalCount(army.units));
-    column.userData.marschierer.forEach((mann, i) => { mann.visible = i < zahl; });
+    // Welche Gattung an welchem Platz marschiert - Reiterei voran, dann das
+    // Fußvolk, die Schützen zuletzt.
+    const rollen = columnRoles(army.units || {}, zahl);
+    column.userData.marschierer.forEach((mann, i) => {
+      mann.visible = i < zahl;
+      if (i >= zahl) return;
+      const rolle = rollen[i] || 'infantry';
+      if (mann.userData.rolle === rolle) return;
+      mann.userData.rolle = rolle;
+      for (const key of COLUMN_ROLES) mann.userData.teile[key].visible = key === rolle;
+    });
   }
 
   group.userData.tents.visible = !afloat && !marschiert;
@@ -4074,7 +4745,9 @@ function syncArmyGroup(state, army, entry) {
 
   // Das ganze Lager - Zelte, Stange, Banner, Schiff - wächst mit der Stärke.
   tents.scale.setScalar(scale);
-  if (group.userData.column) group.userData.column.scale.setScalar(scale);
+  // Die Kolonne steht größer da als das Lager: an einem Zelt ist nichts zu
+  // erkennen, an einer Gestalt schon - Schild, Bogen oder Pferd.
+  if (group.userData.column) group.userData.column.scale.setScalar(scale * 1.45);
   if (group.userData.camp) group.userData.camp.scale.setScalar(scale);
   if (ship) ship.scale.setScalar(0.8 + (scale - 0.68) * 0.55);
   if (group.userData.pole) {
@@ -4088,17 +4761,24 @@ function syncArmyGroup(state, army, entry) {
   if (group.userData.label) group.remove(group.userData.label);
   // Strength, and the stars it has earned - both belong on the counter itself.
   const stars = experienceStars(army.experience);
-  const caption = stars
-    ? `${unitTotalCount(army.units)} ${'★'.repeat(stars)}`
-    : String(unitTotalCount(army.units));
+  // Steht dieses Heer im Krieg mit dir, sagt es das Schild auch: zwei gekreuzte
+  // Klingen vor der Zahl, und dazu der rote Ring am Boden.
+  const feind = army.factionId !== playerFaction(state).id
+    && atWar(state, playerFaction(state).id, army.factionId);
+  const caption = `${feind ? '⚔ ' : ''}${unitTotalCount(army.units)}`
+    + (stars ? ` ${'★'.repeat(stars)}` : '');
   const label = makeLabelSprite(caption, {
-    fontSize: 40, scale: 0.85, color: stars ? '#ffe9a8' : '#ffffff',
+    fontSize: 40, scale: 0.85, color: feind ? '#ffb4a8' : stars ? '#ffe9a8' : '#ffffff',
   });
   label.position.y = (afloat ? 4.0 : 3.4) * scale + 0.5;
   group.add(label);
   group.userData.label = label;
 
   group.userData.ring.material.opacity = army.id === state.selectedArmyId ? 0.9 : 0;
+  if (group.userData.feindRing) {
+    group.userData.feindRing.material.opacity = feind ? 0.55 : 0;
+    group.userData.feindRing.scale.setScalar(Math.max(1, scale));
+  }
 }
 
 function clearHighlights() {
@@ -4404,6 +5084,9 @@ export function syncEntities(state) {
     // Eine neue Straße kann eine neue Brücke bedeuten - die Flüsse werden
     // deshalb im selben Zug neu gezeichnet.
     buildRivers(state);
+    // Und die Karren fahren auf den Straßen, die es jetzt gibt - eine neue
+    // Straße ohne Verkehr wäre die einzige tote Straße der Karte.
+    buildWildlife(state);
     roadVersionDrawn = state.roadVersion || 0;
   }
 
