@@ -11,6 +11,7 @@ import {
   buyCityWalls, nextWallLevel, cityWallLevel, tradePartners, openTradeRoute,
   canBuildMine, buyMine, mineOre, buyShipyard,
   buyBuilding, canBuildBuilding, buildCamp, campStatus,
+  layAmbush, ambushStatus, armyVisibleTo,
   besiegeCity, siegeStatus,
   stoneTargets, upgradeRoad, buildSiegeEngine,
 } from './actions.js';
@@ -73,6 +74,9 @@ function nearestTarget(state, army, walkable) {
     }
   }
   for (const other of state.armies) {
+    // Ein Heer im Hinterhalt ist für sie kein Ziel: sie sieht es nicht. Genau
+    // deshalb marschiert sie daran vorbei - und läuft hinein.
+    if (!armyVisibleTo(other, army.factionId)) continue;
     if (other.factionId !== army.factionId && atWar(state, army.factionId, other.factionId)) {
       candidates.push({ col: other.col, row: other.row, ownerId: other.factionId,
         weight: unitTotalCount(other.units), beute: 0 });
@@ -192,6 +196,27 @@ function lagerWennBelagerung(state, army) {
     etwas = buildCamp(state, army.id).ok || etwas;
   }
   return etwas;
+}
+
+// Wer schwächer ist als das, was auf ihn zukommt, und in Deckung steht, legt
+// sich hin und wartet. Das ist die Rechnung eines Unterlegenen: im offenen
+// Feld verliert er, aus dem Hinterhalt kann er gewinnen.
+const AMBUSH_UEBERMACHT = 1.25;
+const AMBUSH_REICHWEITE = 3;
+
+function tryAmbush(state, army) {
+  if (army.ambush || !ambushStatus(state, army).can) return false;
+  const eigene = unitTotalCount(army.units);
+  if (eigene <= 0) return false;
+  let feind = 0;
+  for (const other of state.armies) {
+    if (other.factionId === army.factionId || other.embarked || isFleet(other)) continue;
+    if (!atWar(state, army.factionId, other.factionId)) continue;
+    if (tileDistance(other, army) > AMBUSH_REICHWEITE) continue;
+    feind += unitTotalCount(other.units);
+  }
+  if (feind < eigene * AMBUSH_UEBERMACHT) return false;
+  return layAmbush(state, army.id).ok;
 }
 
 // Kein Feldherr stolpert in einen Krieg, den sein Herrscher nicht erklärt
@@ -618,6 +643,7 @@ function threatsAgainst(state, faction) {
     let distance = Infinity;
     for (const enemy of state.armies) {
       if (enemy.factionId === faction.id || isFleet(enemy)) continue;
+      if (!armyVisibleTo(enemy, faction.id)) continue;
       if (!atWar(state, faction.id, enemy.factionId)) continue;
       const away = tileDistance(enemy, city);
       if (away > HOME_GUARD_RANGE) continue;
@@ -668,11 +694,16 @@ function aiMilitary(state, faction, threats) {
       if (prey) stepArmyTowards(state, army, prey);
       continue;
     }
+    // Ein Heer, das schon auf der Lauer liegt, bleibt liegen: der ganze Sinn
+    // eines Hinterhalts ist, dass er sich nicht bewegt.
+    if (army.ambush) continue;
     if (army === guard) {
-      // Standing on the town it is guarding is the whole job.
-      if (army.col !== guardHome.col || army.row !== guardHome.row) {
-        stepArmyTowards(state, army, guardHome);
-      }
+      // Standing on the town it is guarding is the whole job. Steht der Feind
+      // in Übermacht davor und gibt das Gelände Deckung her, legt sie sich
+      // stattdessen hin - im offenen Feld verliert sie ohnehin.
+      if (army.col === guardHome.col && army.row === guardHome.row) continue;
+      if (tryAmbush(state, army)) continue;
+      stepArmyTowards(state, army, guardHome);
       continue;
     }
     // A fleet already at sea navigates by the same rule; the pathfinder is
@@ -681,7 +712,12 @@ function aiMilitary(state, faction, threats) {
       ? null
       : (col, row) => sameLandmass(state, army.col, army.row, col, row);
     const target = nearestTarget(state, army, walkable);
-    if (!target) continue;
+    // Kein Ziel in Sicht, aber Feinde in der Nähe und Deckung unter den Füßen:
+    // dann warten statt wandern.
+    if (!target) {
+      tryAmbush(state, army);
+      continue;
+    }
 
     if (target.needsSea && !army.embarked) {
       const status = embarkStatus(state, army);
@@ -896,14 +932,25 @@ function aiChooseTactics(state, faction) {
   // Die Übermacht misst sich daran, ob überhaupt alle ins Gefecht kämen: erst
   // ab der Frontbreite lohnt es, sich breiter zu stellen.
   const grosseHeere = heere.some((a) => unitTotalCount(a.units) > FRONTAGE_BASE * 0.9);
-  faction.tacticAttack = anteil(reiter) >= 0.2 && grosseHeere ? 'umfassung'
-    : anteil(schuetzen) >= 0.3 ? 'beschuss'
-      : 'keil';
   const ruler = faction.ruler || {};
   const lust = ruler.angriffslust ?? 50;
+  // Ein Reiterheer unter einem Draufgänger reitet die Scheinflucht - das ist
+  // die Ordnung, für die es genug Reiterei hat und der Nerv dazu.
+  faction.tacticAttack = anteil(reiter) >= 0.33 && lust >= 65 ? 'scheinflucht'
+    : anteil(reiter) >= 0.2 && grosseHeere ? 'umfassung'
+      : anteil(schuetzen) >= 0.3 ? 'beschuss'
+        // Wer stürmt, ohne Reiterei und ohne Schützen, und dessen Herrscher
+        // keine Geduld hat, rennt an.
+        : lust >= 80 ? 'sturmlauf'
+          // Und wer ein kleines, hartes Heer führt, schlägt auf einem Flügel.
+          : !grosseHeere && lust >= 55 ? 'schiefeSchlacht'
+            : 'keil';
   faction.tacticDefence = lust >= 70 ? 'gegenstoss'
-    : lust <= 40 ? 'schildwall'
-      : 'breiteFront';
+    : lust <= 30 ? 'igel'
+      : lust <= 40 ? 'schildwall'
+        // Wer Schützen hat, sucht die Höhe.
+        : anteil(schuetzen) >= 0.3 ? 'hoehenstellung'
+          : 'breiteFront';
 }
 
 export function aiTakeTurn(state, faction) {

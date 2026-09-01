@@ -280,39 +280,64 @@ der ins Spiel führt.
   stehen. Die Schätzung entsteht aus 60 durchgerechneten Schlachten und
   verändert den späteren echten Kampf nicht.
 - **Schlachtordnung**: Vor jeder Schlacht steht eine Entscheidung, die nichts
-  mit der Zahl der Männer zu tun hat: **wie sie stehen**. Drei Ordnungen für
-  den Angriff, drei für die Verteidigung, und jede hat ihren Preis.
+  mit der Zahl der Männer zu tun hat: **wie sie stehen**. **Sechs Ordnungen für
+  den Angriff, sechs für die Verteidigung**, und jede hat ihren Preis.
 
   | Angriff | was sie tut | wofür sie taugt |
   | --- | --- | --- |
   | 🔻 **Keil** | schlägt +9 % härter zu, fängt +6 % härter ein | wenn das ganze Heer ohnehin ins Gefecht kommt |
   | 🪝 **Umfassung** | +7 % Frontbreite, +4 % Kraft **mit** einem Fünftel Reiterei (−3 % ohne), dafür +5 % Treffer | bei Übermacht, die sonst hinten steht |
   | 🏹 **Beschuss** | Eröffnung wiegt +30 %, Handgemenge −3 %, Gegner −2 % | mit vielen Schützen; kostet die wenigsten Männer |
+  | 📐 **Schiefe Schlachtordnung** | +13 % Schlagkraft, aber −10 % Frontbreite und +10 % Treffer | für ein kleines, hartes Heer, das an *einer* Stelle gewinnen will |
+  | 💨 **Sturmlauf** | +11 % Schlagkraft, +12 % Treffer, Eröffnungssalve −40 %, **+6 Erschöpfung** | gegen eine wankende Linie, wenn es heute entschieden sein muss |
+  | 🎭 **Scheinflucht** | +2 % Schlagkraft, Gegner −10 %, Front −5 %; **+9 % mit einem Drittel Reiterei, −12 % ohne** | mit einem Reiterheer; kostet von allen Angriffsordnungen die wenigsten Männer |
 
   | Verteidigung | was sie tut | wofür sie taugt |
   | --- | --- | --- |
   | 🛡️ **Schildwall** | Angreifer −5 %, eigener Schlag −3 %, Front −2 % | wenn es nur ums Aushalten geht |
   | 📏 **Breite Front** | +8 % Frontbreite, eigener Schlag −2 %, Angreifer +1,5 % | bei großer Garnison oder Übermacht |
   | ⚡ **Gegenstoß** | +6 % Schlagkraft, Angreifer +3 % | wenn die Entscheidung schnell fallen soll |
+  | 🦔 **Igel** | Angreifer −14 %, eigener Schlag −10 %, Front −8 % | umzingelt, gegen Reiterei; schont die eigenen Reihen |
+  | ⛰️ **Höhenstellung** | Salve ×1,35, Angreifer −7 %; **im Wald, Hügel- und Bergland zusätzlich −10 %, in der Ebene +4 %** | mit Schützen auf dem Berg – in der Ebene die falsche Wahl |
+  | 🏳️ **Rückzugsgefecht** | Angreifer −12 %, eigener Schlag −18 %; **halbe eigene Verluste, aber das Feld ist verloren** | wenn das Heer wichtiger ist als der Ort |
 
-  Keine ist immer richtig, und das ist der Sinn: gemessen über je 600
-  durchgerechnete Schlachten gewinnt der **Keil** dort, wo das ganze Heer in
-  die Linie passt (700 gegen 700: 95 % gegen 84 % für die Umfassung), die
-  **Umfassung** dort, wo ein Teil sonst hinten stünde (1600 gegen 700 vor der
-  Mauer: 100 % gegen 93 % für den Beschuss), und der **Beschuss** kostet in
-  jeder Lage die wenigsten eigenen Männer.
+  Keine ist immer richtig, und das ist der Sinn. Gemessen über je 6 000
+  durchgerechnete Schlachten – zehn Kräfteverhältnisse von Gleichstand bis zur
+  zweieinhalbfachen Übermacht, je 600 Würfe:
+
+  | Lage | beste Ordnung | gegen |
+  | --- | --- | --- |
+  | Angriff im offenen Feld | Keil / Beschuss / Sturmlauf 70 % | Umfassung 68 % |
+  | Angriff mit 45 % Reiterei | **Scheinflucht 90 %** | alle anderen 80 % |
+  | Verteidigung im Gebirge | **Höhenstellung 51 %** | Schildwall 48 %, Breite Front 44 % |
+  | Verteidigung in der Ebene | Schildwall / Gegenstoß / Igel 30 % | Höhenstellung 27 % |
+
+  Und die Kosten trennen sie noch deutlicher als die Erfolge: im offenen Feld
+  kostet der Sturmlauf 361 Mann, der Keil 349, die Scheinflucht 326 – und wer
+  sich verteidigt, zahlt mit dem Gegenstoß 380, mit dem Igel 339 und mit dem
+  **Rückzugsgefecht 191**. Das Rückzugsgefecht **gewinnt in keiner einzigen
+  Lage** (0 %): nach der sechsten Runde setzt sich ab, wer so ficht, und das
+  Feld – auch die eigene Stadt – gehört dem Gegner. Dafür kommt gut die Hälfte
+  der Männer heim, die jede andere Ordnung dort gelassen hätte. Es ist die
+  einzige Ordnung, die man wählt, um zu verlieren.
 
   **Gewählt wird an zwei Stellen.** Die **Angriffsordnung** steht in der
-  Kampfvorschau, als drei Knöpfe über der Prognose – und die Prognose darunter
+  Kampfvorschau, als sechs Knöpfe über der Prognose – und die Prognose darunter
   rechnet sofort mit der gewählten neu. Die gewählte bleibt als Vorgabe für den
   nächsten Angriff stehen. Die **Verteidigungsordnung** ist ein **stehender
   Befehl** und steht im Reichsfenster (🏛): wer angegriffen wird, wird nicht
   gefragt – ein fremdes Heer steht vor dem Tor, und der Befehl muss vorher
   gegeben sein.
-  Die **KI wählt nach dem, was sie mitbringt**: wer Reiterei hat und große
-  Heere führt, umfasst; wer viele Schützen hat, lässt sie zuerst arbeiten;
-  sonst geht sie im Keil vor. Verteidigt wird nach dem Wesen ihres Herrschers –
-  der Draufgänger stößt entgegen, der Vorsichtige stellt den Schildwall.
+  Die **KI wählt nach dem, was sie mitbringt**: ein Drittel Reiterei unter
+  einem Draufgänger reitet die **Scheinflucht**, ein Fünftel Reiterei in großen
+  Heeren **umfasst**, wer viele Schützen hat, lässt sie zuerst arbeiten, wer
+  weder das eine noch das andere hat und keine Geduld, geht im **Sturmlauf**
+  vor, ein kleines hartes Heer schlägt **schief**, und sonst steht der Keil.
+  Verteidigt wird nach dem Wesen ihres Herrschers – der Draufgänger stößt
+  entgegen, der ganz Vorsichtige stellt den **Igel**, der Schützenreiche sucht
+  die **Höhe**. Das **Rückzugsgefecht wählt die KI nie**: sie gibt keine Stadt
+  freiwillig auf. Es bleibt die Ordnung des Spielers, der weiß, wann ein Heer
+  mehr wert ist als ein Ort.
   Der **Schlachtbericht nennt beide Ordnungen**.
 - **Der Schlacht zusehen** (erste, bewusst einfache Fassung): Vor jedem
   Angriff steht die Frage. In der Kampfvorschau stehen dafür **zwei Knöpfe**
@@ -1198,6 +1223,34 @@ der ins Spiel führt.
   Der Wall ist kein Freibrief: gegen ein anderthalbfach überlegenes Heer fällt
   auch ein Lager. Er entscheidet den Kampf unter Gleichen.
   Auf der Karte steht dann ein Erdwall mit angespitzten Stämmen um die Zelte.
+- **Der Hinterhalt**: Das Gegenstück zum Lager. Wo das Lager ein Heer sichtbar
+  festsetzt, macht der Hinterhalt es **unsichtbar**. Ein Heer legt sich
+  **kostenlos, aber für den Rest des Tages** (alle verbliebenen Bewegungspunkte)
+  in **Wald, Hügelland oder Gebirge** auf die Lauer – in der Ebene, im Sumpf,
+  in der Wüste und am Strand gibt es nichts, hinter dem man liegen könnte, und
+  auf See und in einer eigenen Stadt erst recht nicht.
+
+  Was das bewirkt, ist dreierlei:
+  **Der Feind sieht es nicht.** Ein lauerndes Heer verschwindet für alle anderen
+  Fraktionen von der Karte – auch für die KI, deren Zielsuche und
+  Bedrohungsrechnung es schlicht nicht mehr enthalten. Die eigene Seite sieht
+  es weiter, und sie sieht auch, *dass* es lauert: um die Zelte legt sich ein
+  Kranz niedriger Sträucher, so wie sich um ein Lager ein Wall legt.
+  **Wer daran vorbeigeht, wird überfallen.** Zieht ein feindliches Heer, mit dem
+  man im Krieg steht, auf ein Feld **neben** dem Versteck, bricht der
+  Hinterhalt sofort los: das Opfer verliert **22 Moral**, und der Lauernde
+  greift mit **+35 % Schlagkraft** an – mehr, als eine Landung vom Meer je
+  kostet. Der Bericht nennt den Hinterhalt als eigenen Modifikator.
+  **Danach ist er verbraucht.** Wer zugeschlagen hat, steht wieder offen im
+  Gelände und hat für diese Runde keine Bewegung mehr. Und wer sich selbst in
+  Bewegung setzt, gibt den Hinterhalt auf, ehe er ihn nutzen konnte.
+
+  Auch die **KI legt Hinterhalte** – aber nicht wahllos: nur, wenn sie auf
+  taugliches Gelände kommt, in drei Feldern Umkreis ein feindliches Heer weiß
+  und dieses Heer **nicht mehr als ein Viertel stärker** ist als sie selbst.
+  Ein Wachheer, das nichts zu bewachen hat, und ein Heer, das kein Ziel in
+  Sicht hat, legen sich hin statt herumzustehen. Wer durch germanische Wälder
+  marschiert, sollte das wissen.
 - **Das Belagerungslager**: Ein Lager **auf einem Feld neben einer feindlichen
   Stadt, die man eingeschlossen hat**, verschärft die Belagerung: der Hunger
   beginnt schon **nach einer Runde** statt
@@ -1407,24 +1460,6 @@ der ins Spiel führt.
   gehört niemandem** – weder der Fels noch der Pass darunter: ein Pass ist ein
   Weg hindurch, kein Land, das eine Stadt verwaltet. Die Grenze endet deshalb
   am Fuß des Kamms, statt quer über ihn zu laufen.
-- **Seen**: Sechzehn Binnengewässer liegen auf der Karte, in echten Koordinaten
-  wie alles Geografische – **Lacus Brigantinus** (Bodensee), **Lemannus**
-  (Genfersee), **Larius** (Comer See), **Benacus** (Gardasee),
-  **Volsiniensis** (Bolsena), **Pelso** (Balaton), **Lychnidus** (Ohrid),
-  **Palus Prasias**, **Copais** in Böotien, **Tritonis** in der Tunesischen
-  Schotte, **Ascanius** (Iznik), **Gennesaret**, **Asphaltites** (das Tote
-  Meer), **Thospitis** (Van), **Matianus** (Urmia) und der **Sevan**.
-
-  Ein See ist Landschaft und Hindernis, **kein Fahrwasser**: an ihm liegt kein
-  Hafen, und weil zusammenhängende Wasserflächen getrennt gezählt werden, käme
-  ohnehin kein Schiff vom Bodensee ins Mittelmeer. Bei 55 km je Feld ist selbst
-  der Bodensee ein Feld und der Van-See zwei; größer werden sie nicht.
-
-  Der **Lacus Fucinus** fehlt mit Absicht. Er lag im engsten Teil der
-  Apenninen, und ein Feld Wasser trennte dort Süditalien von Rom: Capua und
-  Tarent waren über Land nicht mehr zu erreichen. Ein See, der eine Landbrücke
-  zerschneidet, ist keine Landschaft mehr, sondern eine Regeländerung – und die
-  Römer haben ihn ohnehin trockengelegt.
 - **Flüsse und Brücken**: Fünfzehn große Ströme liegen auf der Karte, in echten
   Koordinaten wie alles Geografische – Rhein und Donau, Rhône, Po und Tiber,
   Seine und Loire, Ebro, Tejo und Guadalquivir, Elbe und Weichsel, Mariza, Nil
@@ -1854,18 +1889,15 @@ der ins Spiel führt.
   über der höchsten Stelle ihrer Kante: gerade, aber im Hang wie ein Aquädukt
   aufgeständert. Ein Fluss läuft bergab, nicht waagerecht.
 
-  Was sich ändert, ist die **Breite und das Ufer**, und beides entscheidet das
-  Land zu beiden Seiten. **In der Ebene** mäandert ein Strom breit dahin und
-  lässt einen **Uferstreifen** aus Sand und Kies liegen – die Aue, die er bei
-  jedem Hochwasser umgräbt. **Im Hügelland und im Gebirge** gibt es das nicht:
-  dort steht der Fels bis ans Wasser, und der Lauf ist eingeengt und **um ein
-  Drittel schmaler**. Man sieht es einem Fluss auf der Karte an, wo er das
-  Gebirge verlässt: die Sandbänder setzen genau dort ein.
+  Was sich ändert, ist die **Breite**, und die entscheidet das Land zu beiden
+  Seiten. **In der Ebene** zieht ein Strom breit dahin; **im Hügelland und im
+  Gebirge** steht der Fels bis ans Wasser, und der Lauf ist eingeengt und **um
+  ein Drittel schmaler**. Man sieht es einem Fluss an, wo er das Gebirge
+  verlässt.
 
-  Genau das hat einer früheren Fassung gefehlt, in der jeder Bach überall
-  dieselbe Kiesbank bekam: die Karte sah aus wie ein Gleisnetz, und die Bänke
-  flogen wieder heraus. Der Unterschied ist nicht die Bank, sondern dass sie
-  nur dort liegt, wo sie hingehört.
+  Uferstreifen aus Sand und Kies standen hier zweimal daneben – sie machten aus
+  jedem Bach eine zweifarbige Trasse und aus der Karte ein Gleisnetz. Sie sind
+  wieder fort: **ein Fluss ist Wasser und sonst nichts.**
 
   **Und er läuft rund, nicht eckig.** Ein Fluss wurde bisher Uferstück für
   Uferstück gezeichnet: für jede Feldkante ein eigenes Band, das ein Stück über
@@ -1875,13 +1907,22 @@ der ins Spiel führt.
   die Ecken des Rasters gewonnen, aus den Ecken ein Linienzug, dessen Knicke
   mit einer **Bézierkurve ausgerundet** werden – und darauf liegt ein
   **durchgehendes Band**, ohne Überlappungen und ohne Ecken. Weil das Band
-  durchläuft, kann sich seine Breite von Punkt zu Punkt ändern: der
-  Uferstreifen **läuft aus**, wo der Fluss ins Bergland eintritt, statt
-  abzubrechen.
+  durchläuft, kann sich seine Breite von Punkt zu Punkt ändern: er **verengt
+  sich allmählich**, wo der Fluss ins Bergland eintritt, statt abzusetzen.
 
   An einer Gabelung geht der Linienzug **geradeaus** weiter statt in den
   erstbesten Ast: wo zwei Züge stumpf aneinanderstoßen, klafft im Band sonst
   ein Keil.
+
+  **Und die Läufe sind nachgeprüft.** Vier waren grob daneben: der **Nil**
+  begann 170 km östlich im Golf von Suez, der **Euphrat** lief in Syrien
+  durchweg hundert Kilometer zu weit östlich an Raqqa, Deir ez-Zor und Abu
+  Kamal vorbei, der **Tigris** umgekehrt zu weit westlich an Diyarbakır, Cizre
+  und Mosul vorbei, und der **Ebro** hundert Kilometer zu weit nördlich an
+  Tudela und Zaragoza vorbei. Dazu fünf kleinere Berichtigungen: die Donau
+  schnitt den Bogen über Vukovar und Belgrad ab, die Rhône lief an Lyon vorbei,
+  die Loire erreichte Orléans nicht, der Rhein sparte Karlsruhe und Mannheim
+  aus, und die Weichsel bog unterhalb von Warschau zu spät nach Westen.
 
   **Und der Lauf erreicht das Meer.** An der Mündung reicht das Band jetzt
   eine halbe Feldbreite weiter in das Wasserfeld hinein, statt an der

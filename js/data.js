@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.40.0';
+export const GAME_VERSION = '1.41.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1182,6 +1182,34 @@ export const TACTICS = {
         + 'ist es nur Zögern.',
       eigen: 0.97, gegen: 0.98, front: 1, salve: 1.3,
     },
+    {
+      key: 'schiefeSchlacht', name: 'Schiefe Schlachtordnung', icon: '📐',
+      kurz: 'Ein Flügel schlägt, der andere hält zurück.',
+      note: 'Epaminondas bei Leuktra: den einen Flügel bis zur Übermacht '
+        + 'verstärken, den anderen zurückhalten. Wo geschlagen wird, wird hart '
+        + 'geschlagen; überall sonst steht zu wenig. Eine Ordnung für ein Heer, '
+        + 'das an einer Stelle gewinnen will, nicht auf ganzer Linie.',
+      eigen: 1.13, gegen: 1.1, front: 0.9, salve: 1,
+    },
+    {
+      key: 'sturmlauf', name: 'Sturmlauf', icon: '💨',
+      kurz: 'Ohne Halt hinein.',
+      note: 'Der ganze Haufen im Lauf, ehe der Gegner steht: das bricht eine '
+        + 'wankende Linie und zerschellt an einer festen. Wer so anrennt, '
+        + 'kommt außer Atem an - das kostet den Rest des Tages doppelt.',
+      eigen: 1.11, gegen: 1.12, front: 1, salve: 0.6,
+      erschoepfung: 6,
+    },
+    {
+      key: 'scheinflucht', name: 'Scheinflucht', icon: '🎭',
+      kurz: 'Weichen, bis er sich streckt.',
+      note: 'Vorreiten, kehrtmachen, den Gegner aus seiner Ordnung locken und '
+        + 'dann herumfahren. Die Reiterei muss es tragen - unter einem Drittel '
+        + 'ist es keine Finte, sondern eine Flucht. Sie schont die eigene '
+        + 'Truppe und entscheidet langsam.',
+      eigen: 1.02, gegen: 0.9, front: 0.95, salve: 1,
+      reiterei: { anteil: 0.33, mit: 1.09, ohne: 0.88 },
+    },
   ],
   verteidigung: [
     {
@@ -1206,6 +1234,33 @@ export const TACTICS = {
         + 'eine oder die andere Richtung.',
       eigen: 1.06, gegen: 1.03, front: 1, salve: 1,
     },
+    {
+      key: 'igel', name: 'Igel', icon: '🦔',
+      kurz: 'Nach allen Seiten Spitzen.',
+      note: 'Das Karree, die Speere nach außen: von keiner Seite ein Rücken. '
+        + 'Reiterei bricht daran, und nichts kommt vorwärts - auch das eigene '
+        + 'Heer nicht. Die letzte Ordnung eines Umzingelten.',
+      eigen: 0.9, gegen: 0.86, front: 0.92, salve: 1,
+    },
+    {
+      key: 'hoehenstellung', name: 'Höhenstellung', icon: '⛰️',
+      kurz: 'Die Höhe halten und schießen lassen.',
+      note: 'Den Hang im Rücken, die Schützen oben: wer heraufkommt, kommt '
+        + 'langsam und einzeln. Am Hang trägt sie doppelt - in der Ebene ist '
+        + 'sie nur eine schmale Linie.',
+      eigen: 0.94, gegen: 0.93, front: 0.95, salve: 1.35,
+      gelaende: { arten: ['hills', 'mountain', 'forest'], mit: 0.9, ohne: 1.04 },
+    },
+    {
+      key: 'rueckzugsgefecht', name: 'Rückzugsgefecht', icon: '🏳️',
+      kurz: 'Nicht siegen, sondern davonkommen.',
+      note: 'Fechten, weichen, wieder fechten: nach der halben Schlacht setzt '
+        + 'man sich ab. Das Feld bleibt dem Gegner - immer, auch die Stadt, '
+        + 'vor der man steht. Dafür kostet die Niederlage nur halb so viele '
+        + 'Männer wie jede andere Ordnung.',
+      eigen: 0.82, gegen: 0.88, front: 0.9, salve: 1,
+      schonung: 0.7, weichen: true,
+    },
   ],
 };
 
@@ -1223,17 +1278,32 @@ export function tacticByKey(seite, key) {
   return liste.find((t) => t.key === key) || liste[0];
 }
 
-// Was diese Ordnung für diese Truppe wirklich wiegt. Die Umfassung hängt an
-// der Reiterei; alles andere gilt, wie es dasteht.
-export function tacticEffect(seite, key, units = null) {
+// Was diese Ordnung für diese Truppe wirklich wiegt. Drei Ordnungen hängen an
+// etwas, das nicht in der Zahl steht: die Umfassung und die Scheinflucht an
+// der Reiterei, die Höhenstellung am Gelände. Alles andere gilt, wie es
+// dasteht.
+export function tacticEffect(seite, key, units = null, gelaende = null) {
   const t = tacticByKey(seite, key);
-  const wirkung = { eigen: t.eigen, gegen: t.gegen, front: t.front, salve: t.salve };
+  const wirkung = {
+    eigen: t.eigen, gegen: t.gegen, front: t.front, salve: t.salve,
+    // Wie viel von den eigenen Verlusten am Ende wirklich anfällt. Nur das
+    // Rückzugsgefecht setzt sie herab; alles andere lässt sie, wie sie ist.
+    schonung: t.schonung || 1,
+    weichen: !!t.weichen,
+    // Was die Ordnung an Erschöpfung zusätzlich kostet.
+    erschoepfung: t.erschoepfung || 0,
+  };
   if (t.reiterei && units) {
     const mann = COMBAT_ROLES.reduce((sum, k) => sum + (units[k] || 0), 0);
     const reiter = units.cavalry || 0;
     const genug = mann > 0 && reiter / mann >= t.reiterei.anteil;
     wirkung.eigen *= genug ? t.reiterei.mit : t.reiterei.ohne;
     wirkung.reiterei = genug;
+  }
+  if (t.gelaende) {
+    const passt = !!gelaende && t.gelaende.arten.includes(gelaende);
+    wirkung.gegen *= passt ? t.gelaende.mit : t.gelaende.ohne;
+    wirkung.gelaende = passt;
   }
   return wirkung;
 }
@@ -1542,6 +1612,23 @@ export function repairTurns(turns) {
 // Das Lager ist deshalb der Weg, eine Stadt zu nehmen, ohne sie zu stürmen:
 // wer davor liegt, schneidet sie ab und wartet, bis der Hunger die Mauer
 // öffnet, die kein Sturm geöffnet hätte.
+// --- Der Hinterhalt --------------------------------------------------------
+// Ein Heer im Wald, im Hügelland oder im Gebirge kann sich legen und warten.
+// Solange es liegt, sieht der Feind es nicht - und wer daran vorbeimarschiert,
+// bekommt es in die Flanke. Das ist die Schlacht, die Rom im Teutoburger Wald
+// und am Trasimenischen See verloren hat, und die einzige Art, mit der ein
+// kleines Heer ein großes schlägt, ohne eine Mauer im Rücken zu haben.
+export const AMBUSH_NAME = 'Hinterhalt';
+// Wo man sich legen kann. In der Ebene ist niemand zu verbergen.
+export const AMBUSH_TERRAIN = new Set(['forest', 'hills', 'mountain']);
+// Was der Überfall dem Angreifer bringt - ein Drittel mehr Schlagkraft.
+export const AMBUSH_ATTACK = 1.35;
+// Und was er dem Überfallenen nimmt: Ordnung und Mut. Der Abzug wird vor der
+// Schlacht auf die Moral gerechnet, nicht erst danach.
+export const AMBUSH_MORALE = 22;
+// Der Bogen, in dem gelauert wird: ein Feld. Weiter reicht kein Überfall.
+export const AMBUSH_RANGE = 1;
+
 export const CAMP_NAME = 'Lager';
 export const CAMP_COST = 90;
 // Was der Wall im Gefecht trägt - weniger als eine Mauer, aber genug, dass ein

@@ -11,6 +11,7 @@ import {
   CAMP_NAME, CAMP_COST, CAMP_DEFENCE,
   TRANSPORT_NAME, transportCount,
   tacticsFor, tacticByKey, tacticEffect,
+  AMBUSH_NAME, AMBUSH_ATTACK, AMBUSH_MORALE,
   RIVER_CROSSING_COST,
   MINE_NAME, MINE_ORE, MINE_RANGE, MINE_MIN_ORE,
   FISHERY_NAME, HUNT_NAME, HUNT_GAME, HUNT_RANGE, HUNT_MIN_GAME, HUNT_GROWTH, huntIncome,
@@ -41,7 +42,8 @@ import {
   tradeRouteRaided, tradeRouteBlockaded, blockadingFleets,
   mineOre, mineIncomeOf, huntGame, huntIncomeOf, canBuildBuilding, siegeInfo, citySieged,
   engineSummary, movementAllowance,
-  campStatus, campSiegeTarget, buildingPrice, buildingRuined, wallRuined, stoneTargets,
+  campStatus, campSiegeTarget, ambushStatus,
+  buildingPrice, buildingRuined, wallRuined, stoneTargets,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -159,6 +161,13 @@ function aftermathHTML(report) {
 // for the report - so what the player was promised is what they get told.
 function modifierNotesHTML(info) {
   const notes = [];
+  // Der Überfall zuerst: er erklärt eine Übermacht, die sonst niemand
+  // nachrechnen kann.
+  if (info.ambush) {
+    notes.push(`<span class="mod-note mod-ambush">🌿 ${AMBUSH_NAME}: der Angreifer `
+      + `bricht aus der Deckung hervor (+${Math.round((AMBUSH_ATTACK - 1) * 100)} % `
+      + `Schlagkraft), der Überfallene verliert ${AMBUSH_MORALE} Moral</span>`);
+  }
   // Ein freier Ort stellt seine eigenen Leute auf die Mauer. Wer das nicht
   // liest, wundert sich, warum vor ihm mehr steht, als die Aufklärung meldete.
   if (info.levy > 0) {
@@ -469,6 +478,41 @@ function siegeButtonHTML(state, army) {
     </button>`;
 }
 
+// --- Der Hinterhalt --------------------------------------------------------
+const AMBUSH_REASONS = {
+  atSea: 'Auf See legt sich niemand in den Hinterhalt.',
+  fleet: 'Eine Flotte legt keinen Hinterhalt.',
+  inCity: 'Aus einer Stadt heraus überfällt man niemanden.',
+  terrain: 'Hier ist keine Deckung – dafür braucht es Wald, Hügel oder Gebirge.',
+  movement: 'Dafür ist der Tag zu weit fortgeschritten – Lauern kostet, was an Bewegung übrig ist.',
+};
+
+function ambushHTML(state, army) {
+  if (isFleet(army) || army.embarked) return '';
+  if (army.ambush) {
+    return `<p class="camp-line">🌿 ${AMBUSH_NAME}
+      <span class="muted">· der Feind sieht dieses Heer nicht. Zieht eines an
+      ihm vorbei, bricht es hervor: +${Math.round((AMBUSH_ATTACK - 1) * 100)} %
+      Schlagkraft, und der Überfallene verliert ${AMBUSH_MORALE} Moral, ehe der
+      erste Schlag fällt.</span></p>
+      <button class="ambush-btn" data-army="${army.id}" data-ambush="leave">
+        🚶 ${AMBUSH_NAME} aufgeben
+        <small>Das Heer steht wieder offen – und ist wieder zu sehen.</small>
+      </button>`;
+  }
+  const status = ambushStatus(state, army);
+  if (!status.can) {
+    const grund = AMBUSH_REASONS[status.reason];
+    return grund ? `<p class="wall-line muted">🌿 Kein ${AMBUSH_NAME} – ${grund}</p>` : '';
+  }
+  return `<button class="ambush-btn" data-army="${army.id}" data-ambush="lay">
+      🌿 In den ${AMBUSH_NAME} legen
+      <small>Unsichtbar für den Feind. Wer vorbeizieht, wird überfallen:
+        +${Math.round((AMBUSH_ATTACK - 1) * 100)} % Schlagkraft und
+        −${AMBUSH_MORALE} Moral für ihn · kostet den Rest des Tages</small>
+    </button>`;
+}
+
 function campHTML(state, army) {
   if (isFleet(army) || army.embarked) return '';
   const belagert = campSiegeTarget(state, army);
@@ -518,6 +562,7 @@ function renderSelectedArmy(state, army) {
     ${engineLineHTML(army)}
     ${siegeButtonHTML(state, army)}
     ${campHTML(state, army)}
+    ${ambushHTML(state, army)}
     ${reinforceHTML(state, army, city)}
     ${engineBuildHTML(state, army, city)}
     ${canDisband
@@ -1938,6 +1983,11 @@ export function renderUI(state, handlers) {
       campBtn.addEventListener('click', () => handlers.onCamp(campBtn.dataset.army,
         campBtn.dataset.camp === 'break'));
     }
+    const ambushBtn = panel.querySelector('.ambush-btn');
+    if (ambushBtn && handlers.onAmbush) {
+      ambushBtn.addEventListener('click', () => handlers.onAmbush(ambushBtn.dataset.army,
+        ambushBtn.dataset.ambush === 'leave'));
+    }
     const embarkBtn = panel.querySelector('.embark-btn:not([disabled])');
     if (embarkBtn) {
       embarkBtn.addEventListener('click', () => handlers.onEmbark(embarkBtn.dataset.army));
@@ -2136,19 +2186,22 @@ export function noticeFromNews(meldung) {
 }
 
 // --- Die Schlachtordnung --------------------------------------------------
-// Drei Ordnungen je Seite, und jede hat ihren Preis. Der Spieler wählt die
+// Sechs Ordnungen je Seite, und jede hat ihren Preis. Der Spieler wählt die
 // Angriffsordnung vor jedem Angriff neu; die Verteidigungsordnung ist ein
 // stehender Befehl, denn wenn ein fremdes Heer vor dem Tor steht, ist niemand
 // mehr da, den man fragen könnte.
-export function tacticPickerHTML(seite, gewaehlt, units = null, name = 'tactic') {
+export function tacticPickerHTML(seite, gewaehlt, units = null, name = 'tactic',
+  gelaende = null) {
   const liste = tacticsFor(seite);
   const knoepfe = liste.map((t) => {
-    const wirkung = tacticEffect(seite, t.key, units);
+    const wirkung = tacticEffect(seite, t.key, units, gelaende);
     // Wo eine Ordnung an einer Bedingung hängt, steht hier, ob sie erfüllt ist.
-    const hinweis = wirkung.reiterei === false
-      ? ' <span class="tactic-warn">· zu wenig Reiterei</span>'
-      : wirkung.reiterei === true
-        ? ' <span class="tactic-ok">· Reiterei genügt</span>' : '';
+    const teile = [];
+    if (wirkung.reiterei === false) teile.push('<span class="tactic-warn">zu wenig Reiterei</span>');
+    if (wirkung.reiterei === true) teile.push('<span class="tactic-ok">Reiterei genügt</span>');
+    if (wirkung.gelaende === false) teile.push('<span class="tactic-warn">keine Höhe</span>');
+    if (wirkung.gelaende === true) teile.push('<span class="tactic-ok">Höhe im Rücken</span>');
+    const hinweis = teile.length ? ` · ${teile.join(' · ')}` : '';
     return `<button type="button" class="tactic-btn${t.key === gewaehlt ? ' active' : ''}"
       data-tactic-group="${escapeHTML(name)}" data-tactic-side="${escapeHTML(seite)}"
       data-tactic="${escapeHTML(t.key)}">
@@ -2220,7 +2273,8 @@ export function battlePreviewHTML(state, preview) {
         <span class="muted">· der Verteidiger steht in
         ${escapeHTML(tacticLabel('verteidigung', preview.defenderTactic))}</span></p>
       ${tacticPickerHTML('angriff', preview.attackerTactic, preview.attackerEngaged
-    || (preview.forecast && preview.forecast.attackerEngaged), 'angriff')}
+    || (preview.forecast && preview.forecast.attackerEngaged), 'angriff',
+  preview.terrainType || null)}
     </div>`;
 
   return `

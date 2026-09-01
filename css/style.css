@@ -2840,3 +2840,9 @@ kbd {
   vertical-align: middle;
   white-space: nowrap;
 }
+
+/* Der Hinterhalt im Schlachtbericht: grün wie das Dickicht, aus dem er kommt. */
+.mod-note.mod-ambush {
+  background: rgba(58, 96, 44, 0.28);
+  border-color: #4d7a3a;
+}

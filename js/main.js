@@ -24,6 +24,7 @@ import {
   buyRoad, upgradeRoad, advanceRoadConstruction, buildFleet,
   buyBuilding, advanceConstruction, mineIncomeOf,
   updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp, besiegeCity,
+  layAmbush, leaveAmbush,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations, growSettlements,
   escortStrandedArmies, blockadingFleets, setTactic, previewTileCombat,
 } from './actions.js';
@@ -1854,6 +1855,13 @@ function refresh() {
     onCamp: (armyId, abbrechen) => {
       pushUndo();
       const result = abbrechen ? breakCamp(state, armyId) : buildCamp(state, armyId);
+      (result.ok ? sfx.wallBuy : sfx.denied)();
+      refresh();
+    },
+    // Sich legen und warten. Kostet kein Gold, nur den Rest des Tages.
+    onAmbush: (armyId, aufgeben) => {
+      pushUndo();
+      const result = aufgeben ? leaveAmbush(state, armyId) : layAmbush(state, armyId);
       (result.ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },

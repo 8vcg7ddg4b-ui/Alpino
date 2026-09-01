@@ -283,21 +283,32 @@ export const FORESTS = [
 // Aufgenommen sind die Ströme, die in der Antike Grenzen und Wege zugleich
 // waren - Rhein und Donau als Reichsgrenze, Rhône, Po und Tiber als
 // Verkehrsadern, der Nil als Lebensader Ägyptens.
+// Die Läufe sind gegen die tatsächliche Geografie nachgeprüft. Vier waren
+// grob daneben und stehen jetzt richtig: der **Nil** begann 170 km östlich
+// im Golf von Suez; der **Euphrat** lief in Syrien durchweg hundert Kilometer
+// zu weit östlich (Raqqa, Deir ez-Zor und Abu Kamal liegen alle westlicher);
+// der **Tigris** umgekehrt zu weit westlich an Diyarbakır, Cizre und Mosul
+// vorbei; der **Ebro** hundert Kilometer zu weit nördlich, an Tudela und
+// Zaragoza vorbei. Dazu fünf kleinere Berichtigungen: die Donau schnitt den
+// Bogen über Vukovar und Belgrad ab, die Rhône lief an Lyon vorbei, die Loire
+// erreichte Orléans nicht, der Rhein sparte Karlsruhe und Mannheim aus, und
+// die Weichsel bog unterhalb von Warschau zu spät nach Westen.
 export const RIVERS = [
   {
     name: 'Rhenus (Rhein)',
-    course: [[9.5, 46.9], [8.6, 47.6], [7.6, 48.6], [8.3, 49.9], [7.6, 50.4],
-      [6.9, 51.0], [6.1, 51.6], [4.9, 51.9], [4.2, 51.95]],
+    course: [[9.5, 46.9], [8.6, 47.6], [7.6, 48.6], [8.4, 49.1], [8.3, 49.9],
+      [7.6, 50.4], [6.9, 51.0], [6.2, 51.7], [4.9, 51.9], [4.2, 51.95]],
   },
   {
     name: 'Danuvius (Donau)',
-    course: [[8.3, 48.0], [10.9, 48.5], [12.1, 48.8], [13.4, 48.6], [15.6, 48.2],
-      [17.1, 47.9], [18.9, 47.5], [19.1, 46.2], [20.3, 45.2], [22.4, 44.6],
-      [24.0, 43.9], [26.0, 44.0], [27.9, 44.1], [28.7, 45.2]],
+    course: [[8.5, 47.95], [10.8, 48.7], [12.1, 49.0], [13.43, 48.57], [15.6, 48.4],
+      [17.11, 48.14], [19.05, 47.5], [18.95, 46.18], [19.1, 45.35], [20.45, 44.85],
+      [22.4, 44.6], [24.0, 43.85], [26.0, 43.85], [28.03, 44.34], [28.8, 45.18]],
   },
   {
     name: 'Rhodanus (Rhône)',
-    course: [[6.9, 46.4], [5.9, 45.8], [4.8, 45.3], [4.8, 44.3], [4.7, 43.7], [4.8, 43.35]],
+    course: [[7.07, 46.1], [6.15, 46.2], [5.83, 45.95], [4.85, 45.75], [4.87, 45.0],
+      [4.75, 44.55], [4.81, 44.14], [4.63, 43.68], [4.85, 43.33]],
   },
   {
     name: 'Padus (Po)',
@@ -313,12 +324,13 @@ export const RIVERS = [
   },
   {
     name: 'Liger (Loire)',
-    course: [[4.1, 44.9], [3.5, 46.0], [2.9, 46.9], [1.9, 47.5], [0.7, 47.4],
-      [-0.6, 47.35], [-1.6, 47.25], [-2.1, 47.28]],
+    course: [[4.22, 44.84], [3.9, 46.03], [3.16, 46.99], [2.4, 47.7], [1.9, 47.87],
+      [0.68, 47.39], [-0.55, 47.47], [-1.55, 47.22], [-2.2, 47.28]],
   },
   {
     name: 'Iberus (Ebro)',
-    course: [[-4.0, 42.9], [-2.5, 42.6], [-1.0, 42.6], [0.0, 41.6], [0.6, 41.2], [0.87, 40.72]],
+    course: [[-4.13, 43.0], [-2.94, 42.69], [-1.6, 42.06], [-0.88, 41.66],
+      [0.04, 41.24], [0.52, 40.81], [0.87, 40.72]],
   },
   {
     name: 'Tagus (Tejo)',
@@ -335,8 +347,8 @@ export const RIVERS = [
   },
   {
     name: 'Visula (Weichsel)',
-    course: [[19.0, 49.7], [19.9, 50.1], [21.3, 51.0], [21.0, 52.2], [19.5, 53.2],
-      [18.9, 54.2]],
+    course: [[18.99, 49.6], [19.94, 50.06], [21.75, 50.68], [21.0, 52.23],
+      [19.7, 52.55], [18.6, 53.01], [18.65, 54.35]],
   },
   {
     name: 'Hebrus (Mariza)',
@@ -344,53 +356,21 @@ export const RIVERS = [
   },
   {
     name: 'Nilus (Nil)',
-    course: [[32.9, 29.6], [32.0, 30.2], [31.4, 30.6], [31.2, 31.0], [30.9, 31.4]],
+    course: [[31.1, 29.52], [31.22, 30.05], [31.0, 30.5], [30.7, 31.0], [30.42, 31.4]],
   },
   {
     name: 'Euphrates (Euphrat)',
-    course: [[38.9, 39.3], [38.4, 38.6], [38.2, 37.7], [39.0, 36.9], [40.2, 36.1],
-      [41.2, 35.2], [42.4, 34.4], [43.4, 33.5], [44.4, 32.5], [45.4, 31.4],
-      [46.6, 30.9], [47.8, 30.6]],
+    course: [[38.9, 39.3], [38.4, 38.6], [38.48, 37.58], [38.0, 36.85],
+      [39.01, 35.95], [40.15, 35.33], [40.9, 34.45], [42.37, 34.19],
+      [43.3, 33.42], [44.42, 32.54], [45.29, 31.32], [46.26, 31.05],
+      [47.44, 30.99]],
   },
   {
     name: 'Tigris',
-    course: [[39.6, 37.8], [41.0, 37.2], [42.4, 36.2], [43.2, 35.2], [43.9, 34.2],
-      [44.6, 33.2], [45.7, 32.2], [46.8, 31.2], [47.8, 30.7]],
+    course: [[40.23, 37.91], [42.19, 37.33], [43.13, 36.34], [43.6, 35.45],
+      [43.88, 34.2], [44.36, 33.31], [45.82, 32.51], [47.15, 31.84],
+      [47.44, 30.99]],
   },
-];
-
-// --- Seen ------------------------------------------------------------------
-// Binnengewässer, in echten Koordinaten wie alles Geografische. Sie sind
-// Landschaft und Hindernis, kein Fahrwasser: ein See begründet keinen Hafen
-// (siehe `coastalOnMap`), und weil `labelSeas` zusammenhängende Wasserflächen
-// getrennt zählt, käme ohnehin kein Schiff vom Bodensee ins Mittelmeer.
-//
-// `felder` sagt, welche Nachbarfelder ein See außer seiner Mitte noch bedeckt -
-// bei 55 km je Feld ist selbst der Bodensee ein Feld, der Van-See zwei.
-// Größer werden sie nicht: ein See, der eine Landbrücke zerschneidet, ist kein
-// Schmuck mehr, sondern eine Regeländerung.
-export const LAKES = [
-  { name: 'Lacus Brigantinus', lon: 9.50, lat: 47.60 },
-  { name: 'Lacus Lemannus', lon: 6.50, lat: 46.45 },
-  { name: 'Lacus Larius', lon: 9.25, lat: 46.00 },
-  { name: 'Lacus Benacus', lon: 10.70, lat: 45.60 },
-  { name: 'Lacus Volsiniensis', lon: 11.93, lat: 42.60 },
-  // Der Lacus Fucinus fehlt mit Absicht. Er lag im engsten Teil der
-  // Apenninen, und ein Feld Wasser trennte dort Süditalien von Rom: Capua und
-  // Tarent waren über Land nicht mehr zu erreichen. Ein See, der eine
-  // Landbrücke zerschneidet, ist keine Landschaft mehr, sondern eine
-  // Regeländerung - und die Römer haben ihn ohnehin trockengelegt.
-  { name: 'Lacus Pelso', lon: 17.70, lat: 46.85, felder: [[1, 0]] },
-  { name: 'Lacus Lychnidus', lon: 20.72, lat: 41.03 },
-  { name: 'Palus Prasias', lon: 23.15, lat: 41.20 },
-  { name: 'Lacus Copais', lon: 23.10, lat: 38.45 },
-  { name: 'Lacus Tritonis', lon: 8.40, lat: 33.70, felder: [[1, 0]] },
-  { name: 'Lacus Ascanius', lon: 29.55, lat: 40.43 },
-  { name: 'Lacus Gennesaret', lon: 35.60, lat: 32.80 },
-  { name: 'Lacus Asphaltites', lon: 35.50, lat: 31.50 },
-  { name: 'Lacus Thospitis', lon: 43.00, lat: 38.60, felder: [[1, 0]] },
-  { name: 'Lacus Matianus', lon: 45.40, lat: 37.70, felder: [[0, 1]] },
-  { name: 'Lacus Sevan', lon: 45.35, lat: 40.35 },
 ];
 
 export const STRAITS = [

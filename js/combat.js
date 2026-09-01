@@ -48,6 +48,12 @@ export function conditionFactor(morale, exhaustion) {
 const ATTACK_DAMAGE_SHARE = 0.53;
 const DEFENCE_DAMAGE_SHARE = 0.46;
 
+// Nach wie vielen Runden sich absetzt, wer fechtend weicht. Wer sich absetzt,
+// überlässt dem Gegner das Feld - deshalb ist das Rückzugsgefecht keine
+// billige Siegordnung, sondern die Wahl, eine Schlacht zu verlieren und ein
+// Heer zu behalten.
+const ABSETZEN_RUNDE = 6;
+
 // Simplified multi-round battle resolver. Runs entirely on the campaign map:
 // no separate battle screen. Returns enough detail for a full battle report.
 export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, modifiers = {}) {
@@ -78,8 +84,8 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
 
   // Erst ausrechnen, was die beiden Ordnungen für diese beiden Truppen wiegen -
   // die Umfassung hängt an der Reiterei, die sie mitbringt.
-  const atkOrdnung = tacticEffect('angriff', attackerTactic, attackerUnitsIn);
-  const defOrdnung = tacticEffect('verteidigung', defenderTactic, defenderUnitsIn);
+  const atkOrdnung = tacticEffect('angriff', attackerTactic, attackerUnitsIn, terrainType);
+  const defOrdnung = tacticEffect('verteidigung', defenderTactic, defenderUnitsIn, terrainType);
 
   const attackerDefs = withShipKind(unitDefs(attackerFactionId), attackerShipKind);
   const defenderDefs = withShipKind(unitDefs(defenderFactionId), defenderShipKind);
@@ -148,8 +154,12 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
     defPower *= engagedShare(totalCount(defender), defenderFrontage);
 
     const variance = () => 0.8 + rng() * 0.4;
-    const dmgToDefender = atkPower * ATTACK_DAMAGE_SHARE * variance();
-    const dmgToAttacker = defPower * DEFENCE_DAMAGE_SHARE * variance();
+    // Die Schonung des Rückzugsgefechts wirkt nicht auf die eigene Kraft,
+    // sondern auf das, was der Gegner an einem anrichtet: wer fechtend weicht,
+    // gewinnt nichts und verliert wenig. Darum steht sie auf der Seite des
+    // Schadens, den man *empfängt*, nicht dessen, den man austeilt.
+    const dmgToDefender = atkPower * ATTACK_DAMAGE_SHARE * variance() * defOrdnung.schonung;
+    const dmgToAttacker = defPower * DEFENCE_DAMAGE_SHARE * variance() * atkOrdnung.schonung;
 
     const attackerBefore = totalCount(attacker);
     const defenderBefore = totalCount(defender);
@@ -176,6 +186,22 @@ export function resolveBattle(attackerUnitsIn, defenderUnitsIn, terrainType, mod
       outcome = 'attacker';
       endedBy = 'Moral gebrochen';
       break;
+    }
+
+    // Wer fechtend weicht, hält das Feld nicht: nach der halben Schlacht bricht
+    // er ab. Der Gegner bleibt stehen und hat gewonnen - nur eben gegen ein
+    // Heer, das noch da ist.
+    if (round >= ABSETZEN_RUNDE) {
+      if (defOrdnung.weichen && totalCount(attacker) > 0) {
+        outcome = 'attacker';
+        endedBy = 'abgesetzt';
+        break;
+      }
+      if (atkOrdnung.weichen && totalCount(defender) > 0) {
+        outcome = 'defender';
+        endedBy = 'abgesetzt';
+        break;
+      }
     }
   }
 

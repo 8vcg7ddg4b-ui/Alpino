@@ -23,6 +23,7 @@ import {
   BUILDINGS, buildingDef, buildingName, growthFactor,
   MILITIA_FIRST_TURN, MILITIA_MIN_POPULATION, MILITIA_CHANCE, MILITIA_MAX, MILITIA_WATCH_RESERVE,
   MILITIA_MAX_SIZE, MILITIA_MIN_SIZE, MILITIA_PER_POPULATION, MILITIA_WATCH_SHARE,
+  AMBUSH_NAME, AMBUSH_TERRAIN, AMBUSH_ATTACK, AMBUSH_MORALE, AMBUSH_RANGE,
   FREE_STATE_MAX, FREE_STATE_NAMES, FACTION_UNITS,
   TRADE_GOODS, TRADE_ROUTE_COST, TRADE_BASE_INCOME, TRADE_VARIETY_BONUS,
   TRADE_ROUTES_PER_CITY, TRADE_MAX_DISTANCE, TRADE_SEA_DISTANCE, TRADE_SEA_BONUS,
@@ -221,7 +222,7 @@ function recordBattle(state, opts) {
   const {
     attackerFaction, defenderFaction, result, kind, city, col, row, combined,
     aftermath, naval, amphibious, weather, attackerExperience, defenderExperience,
-    engineSummary: gerät, engineBreach, wallBase, engines,
+    engineSummary: gerät, engineBreach, wallBase, engines, ambush,
   } = opts;
   const report = {
     id: makeId('battle'),
@@ -238,6 +239,9 @@ function recordBattle(state, opts) {
     // In welcher Schlachtordnung jede Seite gefochten hat.
     attackerTactic: result.attackerTactic,
     defenderTactic: result.defenderTactic,
+    // Ob der Angreifer aus dem Hinterhalt kam - der Bericht nennt es, sonst
+    // steht dort eine Übermacht, die niemand erklären kann.
+    ambush: !!ambush,
     attackerTacticEffect: result.attackerTacticEffect,
     defenderTacticEffect: result.defenderTacticEffect,
     defenderVeterancy: result.defenderVeterancy,
@@ -387,8 +391,10 @@ export function gatherDefence(state, army, destCol, destRow, attackerOverrides =
       // Wer ein Lager stürmt, stürmt über Graben und Palisade - weniger als
       // eine Mauer, aber genug, dass es teuer wird.
       defenderMultiplier: !atSea && defendingArmies.some((a) => a.camp) ? CAMP_DEFENCE : 1,
-      // Storming a shore straight off the ships is the hardest attack there is.
-      attackerMultiplier: amphibious ? AMPHIBIOUS_ATTACK_MULTIPLIER : 1,
+      // Storming a shore straight off the ships is the hardest attack there is -
+      // ein Überfall aus dem Hinterhalt das Gegenteil davon.
+      attackerMultiplier: army.ambush ? AMBUSH_ATTACK
+        : amphibious ? AMPHIBIOUS_ATTACK_MULTIPLIER : 1,
       attackerVeterancy: experienceBonus(army.experience),
       defenderVeterancy: experienceBonus(defenceExperience),
       attackerFactionId: army.factionId,
@@ -607,7 +613,10 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       garrisonJoins ? city.factionId : defendingArmies[0].factionId
     );
 
-    adjustExhaustion(army, EXHAUSTION_PER_BATTLE);
+    // Was die Schlacht kostet - und was die Ordnung darüber hinaus verlangt:
+    // ein Sturmlauf kommt außer Atem an.
+    adjustExhaustion(army, EXHAUSTION_PER_BATTLE
+      + ((result.attackerTacticEffect && result.attackerTacticEffect.erschoepfung) || 0));
     adjustMorale(army, result.outcome === 'attacker' ? MORALE_AFTER_WIN : MORALE_AFTER_LOSS);
     if (awardExperience(army, result.outcome === 'attacker')) {
       promotions.push(army);
@@ -671,6 +680,9 @@ export function resolveTileCombat(state, army, destCol, destRow) {
       defenderFaction,
       result,
       kind: defence.kind,
+      // Der Angreifer legt seine Deckung erst nach der Schlacht ab, damit der
+      // Bericht noch weiß, dass er aus ihr gekommen ist.
+      ambush: !!army.ambush,
       city,
       col: destCol,
       row: destRow,
@@ -922,8 +934,9 @@ export function moveArmy(state, armyId, destCol, destRow) {
   army.movement = Math.max(0, army.movement - entry.cost);
   adjustExhaustion(army, moveExhaustion(army, entry.cost));
   // Wer abmarschiert, lässt Graben und Palisade stehen - für ihn zählen sie
-  // nicht mehr.
+  // nicht mehr. Und wer marschiert, liegt nicht mehr auf der Lauer.
   army.camp = false;
+  army.ambush = false;
 
   // Zwei eigene Heere auf einem Feld werden eines.
   if (entry.merge) {
@@ -939,8 +952,12 @@ export function moveArmy(state, armyId, destCol, destRow) {
     if (landed) {
       logOwn(state, army.factionId, `${army.name} geht an Land.`);
     }
-    return { ok: true, combat: false, landed, grenzkrieg: verletzt || null,
-      kriegserklaerung: angegriffen, reports: [] };
+    // Angekommen - und vielleicht mitten hinein. Der Überfall wird hier
+    // ausgelöst, nach dem Marsch: gelauert wird auf den, der vorbeizieht.
+    const ueberfall = springAmbush(state, army);
+    return { ok: true, combat: !!ueberfall, landed, grenzkrieg: verletzt || null,
+      kriegserklaerung: angegriffen, ambush: ueberfall || null,
+      reports: ueberfall ? ueberfall.reports || [] : [] };
   }
   const outcome = resolveTileCombat(state, army, destCol, destRow);
   // An assault that carried the shore puts the troops ashore for good; one
@@ -2224,6 +2241,80 @@ export function damageOnCapture(state, city, rng = Math.random) {
     zerstoert.push(def.key);
   }
   return { wallLost: stufeVorher - cityWallLevel(city), ruined: zerstoert };
+}
+
+// --- Der Hinterhalt --------------------------------------------------------
+// Sich legen und warten. Es kostet kein Gold, nur den Rest des Tages - und die
+// Bedingung ist das Gelände: im offenen Feld verbirgt sich niemand.
+export function ambushStatus(state, army) {
+  if (!army) return { can: false, reason: 'none' };
+  if (army.ambush) return { can: false, reason: 'done' };
+  if (army.embarked) return { can: false, reason: 'atSea' };
+  if (isFleet(army)) return { can: false, reason: 'fleet' };
+  if (cityAt(state, army.col, army.row)) return { can: false, reason: 'inCity' };
+  const tile = state.map.tiles[army.row] && state.map.tiles[army.row][army.col];
+  if (!tile || !AMBUSH_TERRAIN.has(tile.type)) return { can: false, reason: 'terrain' };
+  if (army.movement <= 0) return { can: false, reason: 'movement' };
+  const faction = factionById(state, army.factionId);
+  if (!faction || faction.isNeutral) return { can: false, reason: 'none' };
+  return { can: true };
+}
+
+export function layAmbush(state, armyId) {
+  const army = state.armies.find((a) => a.id === armyId);
+  if (!army) return { ok: false };
+  const status = ambushStatus(state, army);
+  if (!status.can) return { ok: false, reason: status.reason };
+  army.ambush = true;
+  // Ein Lager und ein Hinterhalt schließen einander aus: Wall und Feuer sind
+  // von weitem zu sehen.
+  army.camp = false;
+  army.movement = 0;
+  logOwn(state, army.factionId, `🌿 ${army.name} legt sich in ${AMBUSH_NAME}.`);
+  return { ok: true };
+}
+
+export function leaveAmbush(state, armyId) {
+  const army = state.armies.find((a) => a.id === armyId);
+  if (!army || !army.ambush) return { ok: false };
+  army.ambush = false;
+  logOwn(state, army.factionId, `${army.name} gibt den ${AMBUSH_NAME} auf.`);
+  return { ok: true };
+}
+
+// Sieht diese Fraktion dieses Heer? Wer im Hinterhalt liegt, ist für alle
+// unsichtbar außer für sich selbst und seine Verbündeten - und für die
+// Karte, wenn sie dem gehört, der lauert.
+export function armyVisibleTo(army, factionId) {
+  if (!army || !army.ambush) return true;
+  return army.factionId === factionId;
+}
+
+// Der Überfall. Er springt, wenn ein fremdes Heer in Reichweite eines
+// lauernden gerät - und der Lauernde ist dabei der Angreifer, obwohl er sich
+// nicht bewegt hat. Genau das ist ein Hinterhalt.
+export function springAmbush(state, opfer) {
+  if (!opfer || opfer.embarked || isFleet(opfer)) return null;
+  const lauernd = state.armies.filter((a) => a.ambush
+    && a.factionId !== opfer.factionId
+    && !a.embarked
+    && atWar(state, a.factionId, opfer.factionId)
+    && Math.max(Math.abs(a.col - opfer.col), Math.abs(a.row - opfer.row)) <= AMBUSH_RANGE);
+  if (!lauernd.length) return null;
+  // Der stärkste schlägt zu; die anderen bleiben liegen.
+  lauernd.sort((a, b) => unitTotalCount(b.units) - unitTotalCount(a.units));
+  const jaeger = lauernd[0];
+  // Wer überrascht wird, verliert vor dem ersten Schlag die Ordnung.
+  adjustMorale(opfer, -AMBUSH_MORALE);
+  logOwn(state, jaeger.factionId,
+    `🌿 ${jaeger.name} bricht aus dem ${AMBUSH_NAME} über ${opfer.name} herein.`);
+  logOwn(state, opfer.factionId,
+    `🌿 ${opfer.name} läuft in einen ${AMBUSH_NAME} und wird überfallen.`);
+  const ausgang = resolveTileCombat(state, jaeger, opfer.col, opfer.row);
+  // Der Hinterhalt ist mit dem ersten Schlag vorbei, gleich wie er ausging.
+  jaeger.ambush = false;
+  jaeger.movement = 0;
+  return { jaeger, opfer, ...ausgang };
 }
 
 // --- Das Lager -------------------------------------------------------------

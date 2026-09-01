@@ -2764,20 +2764,16 @@ const RIVER_PIECES = 5;
 // gerade, aber im Hang wie ein Aquädukt aufgeständert. Ein Fluss läuft
 // bergab, nicht waagerecht.
 //
-// **Wie breit und mit welchem Ufer, entscheidet das Land.** In der Ebene
-// mäandert ein Strom breit dahin und lässt zu beiden Seiten einen
-// **Uferstreifen** aus Sand und Kies liegen - die Aue, die er bei jedem
-// Hochwasser umgräbt. Im Hügelland und im Gebirge gibt es das nicht: dort
-// steht der Fels bis ans Wasser, der Lauf ist eingeengt und schmal. Genau das
-// hat einer früheren Fassung gefehlt, in der jeder Bach überall dieselbe
-// Kiesbank bekam und die Karte aussah wie ein Gleisnetz.
+// **Wie breit, entscheidet das Land.** In der Ebene zieht ein Strom breit
+// dahin; im Hügelland und im Gebirge steht der Fels bis ans Wasser, und der
+// Lauf ist eingeengt und schmal. Uferstreifen aus Sand und Kies standen hier
+// zweimal daneben - sie machten aus jedem Bach eine zweifarbige Trasse. Der
+// Fluss ist Wasser und sonst nichts.
 const RIVER_WIDTH_FLAT = 0.085;
 const RIVER_WIDTH_STEEP = 0.052;
-// Wie weit der Uferstreifen neben dem Wasser liegt - nur in der Ebene.
-const RIVER_BANK = 0.075;
 const RIVER_LIFT = 0.13;
 const RIVER_SKIRT = 0.22;
-// Steilland: dort gibt es keinen Uferstreifen.
+// Steilland: dort ist der Lauf schmal.
 const STEILES_LAND = new Set(['hills', 'mountain']);
 
 // Die beiden Feldmitten einer Kante und der Punkt dazwischen.
@@ -2874,7 +2870,19 @@ function riverPolylines(rivers, cols) {
     .some((n) => !benutzt.has(strichKey(ecke, n)));
   for (const [ecke, nachbarn] of graph) if (nachbarn.length === 1) laufe(ecke);
   for (const [ecke, nachbarn] of graph) if (nachbarn.length > 2 && offen(ecke)) laufe(ecke);
-  for (const ecke of graph.keys()) if (offen(ecke)) laufe(ecke);
+  // Und dann so lange nachfassen, bis keine Kante mehr übrig ist. Ein einzelner
+  // Durchlauf genügt nicht: eine Ecke, die beim Vorbeigehen noch geschlossen
+  // war, kann später wieder offen sein, weil ein Zug an ihr abgebogen ist -
+  // und genau diese eine Kante fehlte dann als Loch mitten im Fluss.
+  for (;;) {
+    let nachgefasst = false;
+    for (const ecke of graph.keys()) {
+      if (!offen(ecke)) continue;
+      laufe(ecke);
+      nachgefasst = true;
+    }
+    if (!nachgefasst) break;
+  }
   return zuege.map((zug) => zug.map((k) => {
     const [i, j] = k.split(',').map(Number);
     return { x: worldX(i - 0.5), z: worldZ(j - 0.5) };
@@ -2942,9 +2950,19 @@ function pushRibbon(positions, punkte, breiten, lift, schuerze) {
     const nx = (-dz / len) * breiten[i];
     const nz = (dx / len) * breiten[i];
     const p = punkte[i];
+    // Ein Wasserspiegel steht quer zum Lauf waagerecht - er kippt nicht mit
+    // dem Ufer. Beide Ränder bekommen deshalb dieselbe Höhe, und zwar die
+    // höchste des Querschnitts: sonst tauchte das Band dort, wo eine
+    // Geländekante quer darunter durchläuft, in den Boden ein und riss ein
+    // Loch mitten in den Fluss.
+    const y = Math.max(
+      bandY(p.x + nx, p.z + nz),
+      bandY(p.x - nx, p.z - nz),
+      bandY(p.x, p.z)
+    ) + lift;
     quer.push([
-      [p.x + nx, bandY(p.x + nx, p.z + nz) + lift, p.z + nz],
-      [p.x - nx, bandY(p.x - nx, p.z - nz) + lift, p.z - nz],
+      [p.x + nx, y, p.z + nz],
+      [p.x - nx, y, p.z - nz],
     ]);
   }
   const dreieck = (a, b, c) => {
@@ -2973,7 +2991,6 @@ function buildRivers(state) {
   if (!rivers || !rivers.size) return;
 
   const positions = [];
-  const banks = [];
   const bridges = [];
   const half = TILE_SIZE / 2;
   const { cols, rows, tiles } = state.map;
@@ -3011,11 +3028,10 @@ function buildRivers(state) {
       if (ende) zug.push(weiter); else zug.unshift(weiter);
     }
     // Ecken ausrunden, dann fein genug unterteilen fürs Gelände.
-    const pfad = resamplePath(roundPath(zug, half * 0.8, 5), half * 0.5);
-    // Für jeden Punkt die Breite - und danach geglättet, damit der
-    // Uferstreifen ausläuft statt abzubrechen.
+    const pfad = resamplePath(roundPath(zug, half * 0.8, 5), half * 0.3);
+    // Für jeden Punkt die Breite - und danach geglättet, damit der Lauf sich
+    // verengt statt abzusetzen, wo er ins Bergland eintritt.
     const rohBreiten = [];
-    const rohUfer = [];
     for (let i = 0; i < pfad.length; i++) {
       const vor = pfad[Math.max(0, i - 1)];
       const nach = pfad[Math.min(pfad.length - 1, i + 1)];
@@ -3024,7 +3040,6 @@ function buildRivers(state) {
       const len = Math.hypot(dx, dz) || 1;
       const steil = istSteil(pfad[i], -dz / len, dx / len);
       rohBreiten.push(TILE_SIZE * (steil ? RIVER_WIDTH_STEEP : RIVER_WIDTH_FLAT));
-      rohUfer.push(steil ? 0 : TILE_SIZE * RIVER_BANK);
     }
     const glatt = (werte) => werte.map((_, i) => {
       let summe = 0;
@@ -3037,14 +3052,7 @@ function buildRivers(state) {
       }
       return summe / zahl;
     });
-    const breiten = glatt(rohBreiten);
-    const ufer = glatt(rohUfer);
-    // Der Uferstreifen zuerst und etwas tiefer: das Wasser liegt darin.
-    if (ufer.some((u) => u > 0.01)) {
-      pushRibbon(banks, pfad, breiten.map((b, i) => b + ufer[i]),
-        RIVER_LIFT * 0.55, RIVER_SKIRT);
-    }
-    pushRibbon(positions, pfad, breiten, RIVER_LIFT, RIVER_SKIRT * 0.5);
+    pushRibbon(positions, pfad, glatt(rohBreiten), RIVER_LIFT, RIVER_SKIRT);
   }
 
   const roads = state.roads || {};
@@ -3074,11 +3082,6 @@ function buildRivers(state) {
     mesh.frustumCulled = false;
     riversGroup.add(mesh);
   };
-  // Der Uferstreifen zuerst, damit das Wasser darin liegt: heller Sand und
-  // Kies, wie ihn ein Strom bei jedem Hochwasser umlagert.
-  bandMesh(banks, new THREE.MeshStandardMaterial({
-    color: '#b6a882', roughness: 1, side: THREE.DoubleSide,
-  }));
   bandMesh(positions, new THREE.MeshStandardMaterial({
     color: '#3f7fb8', roughness: 0.35, side: THREE.DoubleSide,
   }));
@@ -5226,6 +5229,28 @@ function buildCampRing() {
   return ring;
 }
 
+// --- Der Hinterhalt -------------------------------------------------------
+// Ein lauerndes Heer sieht nur die eigene Seite - und die soll es auf einen
+// Blick erkennen, ohne die Anzeige zu öffnen. Also duckt es sich hinter ein
+// Gebüsch: ein Kranz niedriger, breitgedrückter Sträucher um die Zelte. Das
+// Lager stellt einen Wall auf, der Hinterhalt zieht ein Dickicht zu.
+const AMBUSH_BUSHES = 9;
+
+function buildAmbushCover() {
+  const busch = new THREE.Group();
+  const laub = new THREE.MeshStandardMaterial({ color: '#3f6b34', roughness: 1 });
+  const geometrie = new THREE.SphereGeometry(0.42, 6, 4);
+  for (let i = 0; i < AMBUSH_BUSHES; i++) {
+    const winkel = (i / AMBUSH_BUSHES) * Math.PI * 2;
+    const strauch = new THREE.Mesh(geometrie, laub);
+    const weite = 2.3 + (i % 3) * 0.22;
+    strauch.position.set(Math.cos(winkel) * weite, 0.24, Math.sin(winkel) * weite);
+    strauch.scale.set(1 + (i % 2) * 0.3, 0.62, 1 + (i % 3) * 0.2);
+    busch.add(strauch);
+  }
+  return busch;
+}
+
 // --- Die Kolonne ----------------------------------------------------------
 // Ein Heer, das marschiert, ist kein Zeltlager. Für die Dauer des Marsches
 // treten die Zelte ab und eine Kolonne tritt an: eine Reihe von Gestalten
@@ -5428,6 +5453,15 @@ function syncArmyGroup(state, army, entry) {
     group.add(group.userData.camp);
   }
   if (group.userData.camp) group.userData.camp.visible = camped;
+
+  // Und der Hinterhalt: das Gebüsch, hinter dem das Heer liegt. Es steht nur
+  // bei den eigenen Heeren - fremde Lauernde sind gar nicht erst auf der Karte.
+  const lauert = !!army.ambush && !afloat;
+  if (lauert && !group.userData.ambush) {
+    group.userData.ambush = buildAmbushCover();
+    group.add(group.userData.ambush);
+  }
+  if (group.userData.ambush) group.userData.ambush.visible = lauert;
 
   // Marschiert das Heer gerade, tritt die Kolonne an die Stelle der Zelte.
   const marschiert = armyAnimations.has(army.id) && !afloat;
@@ -5797,7 +5831,12 @@ export function syncEntities(state) {
   }
 
   const seenArmies = new Set();
+  // Wer im Hinterhalt liegt, steht nicht auf der Karte - es sei denn, er
+  // gehört einem selbst. Das ist die halbe Regel: der Überfall trifft nur,
+  // weil man ihn nicht kommen sieht.
+  const ich = playerFaction(state);
   for (const army of state.armies) {
+    if (army.ambush && (!ich || army.factionId !== ich.id)) continue;
     seenArmies.add(army.id);
     let entry = armyGroups.get(army.id);
     if (!entry) {
