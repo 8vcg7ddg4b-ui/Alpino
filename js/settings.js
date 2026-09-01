@@ -73,8 +73,8 @@ export const SETTINGS = [
   },
   {
     key: 'chronicle',
-    label: 'Bilder im Startbildschirm wechseln',
-    help: 'Die Chronik der Republik läuft von selbst weiter; sonst blättert man mit ‹ ›.',
+    label: 'Bilder der Chronik wechseln',
+    help: 'Die Chronik der Republik im Hauptmenü läuft von selbst weiter; sonst blättert man mit ‹ ›.',
     type: 'toggle',
     fallback: true,
   },

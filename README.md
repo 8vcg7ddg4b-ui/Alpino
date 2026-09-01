@@ -158,8 +158,8 @@ Einstellungen abschalten; die Regeln gelten weiter.
 
 ## Startbildschirm
 
-Unter dem Menü steht die **Spielversion**; sie kommt aus `GAME_VERSION` in
-`js/data.js` und wird mit `package.json` gleichgehalten, damit Anzeige und
+In der Leiste unten steht die **Spielversion**; sie kommt aus `GAME_VERSION`
+in `js/data.js` und wird mit `package.json` gleichgehalten, damit Anzeige und
 Auslieferung nicht auseinanderlaufen.
 
 Sobald der Spieler die erste Taste drückt, setzt die **Titelmusik** ein – ein
@@ -194,41 +194,60 @@ Duduk über einem liegenden Ton, ohne jedes Schlagwerk) bis 112 (Numidien im
 Reitertempo), und Daker und Illyrer zählen im Siebentakt. Jedes Stück läuft
 abwechselnd einen lauten Durchgang mit Melodie und einen leisen ohne.
 
-### Der Startbildschirm: ein Triptychon
+### Der Startbildschirm: der Feldherrnblick
 
-Das Startbild ist kein Titel über einer Knopfleiste mehr, sondern **drei Felder
-nebeneinander wie ein Altarbild**, durch eine goldene Fuge getrennt:
+Das Startbild ist **ein Bild**, das den ganzen Schirm füllt, und darüber liegt
+alles Übrige. Man sieht einen Mann in rotem Mantel auf einer Terrasse über
+einer Hafenstadt am Meer: dahinter die Berge, unter ihm der Kai mit den
+Schiffen, neben ihm das Feldzeichen, vor ihm der Tisch mit Karte und Helm. Es
+ist der Augenblick vor dem Feldzug.
 
-- **Linker Flügel – die Chronik.** Eine **Chronik der römischen Republik** in
-  acht Bildern, von der Vertreibung der Könige 509 v. Chr. über die Via Appia
-  und Hannibals Alpenübergang bis Actium 31 v. Chr. Sie hängt jetzt als
-  **gerahmte Tafel** im Flügel, mit der Bildunterschrift darunter auf dem Grund
-  – vorher füllte sie den ganzen Bildschirm als Hintergrund, und in einem hohen
-  Feld hätte eine Breitbildszene nur ihren mittleren Streifen gezeigt. Die
-  Bilder sind vollständig als SVG gezeichnet (keine Bilddateien, funktioniert
-  offline) und lassen sich mit ‹ › oder den Punkten durchblättern.
-- **Mitteltafel – Titel und Menü.** Adler, Titel, Untertitel und die vier
-  Knöpfe auf einer Steintafel mit doppelter Randlinie: **Neues Spiel**,
-  **Einstellungen** (Ton, Kampfvorschau, Marschgeschwindigkeit, Kartensicht
-  beim Start, Verhalten der Gegner, Wettereffekte, Leben auf der Karte,
-  Titelmusik, Bildwechsel), **Spielregeln**, **Vollbildmodus**, darunter die
-  Version. Alle Einstellungen wirken sofort und werden im Browser gespeichert;
-  die KI-Haltung legt fest, wie sicher sich die KI ihres Sieges sein muss,
-  bevor sie einen Kampf überhaupt eingeht.
-- **Rechter Flügel – die Merktafel.** Hier steht, woran man anknüpft: **dein
-  letzter Feldzug** – Reich, Ausgang, Jahr, Runden, Orte, Mann im Feld, Schatz
-  und die letzte Schlacht. Aufgeschrieben wird er, wenn ein Feldzug endet, ob
-  gewonnen, verloren oder abgebrochen; er liegt im Browser, nicht im Spielstand.
-  **Es gibt keinen Spielstand** – ein neuer Feldzug beginnt von vorn, und die
-  Tafel sagt das auch. Wer noch nie gespielt hat, liest dort stattdessen in drei
-  Sätzen, worum es geht. Und über **📜 Spielregeln** tritt an ihre Stelle die
-  Bedienung: der lange Text steht im Flügel statt unter dem Menü, wo er die
-  Tafel auseinandergeschoben hätte.
+Vorher standen hier **drei Tafeln nebeneinander** wie ein Altarbild – Chronik
+links, Titel und Menü in der Mitte, Merktafel rechts. Das war ordentlich, aber
+es war ein Inhaltsverzeichnis, kein Titelbild: man sah zuerst drei Kästen und
+erst danach, worum es geht. Jetzt sieht man zuerst das Land, um das gespielt
+wird.
 
-**Wird es schmal**, geben zuerst die Flügel nach; unter 900 Punkten fällt der
-rechte weg (die Regeln legen sich dann darüber), und unter 700 Punkten stehen
-alle drei untereinander – **die Mitteltafel zuerst**, denn dort steht der Knopf,
-der ins Spiel führt.
+- **Der Titel** steht oben links: Lorbeer und Adler, **PAX AETERNA** in zwei
+  Zeilen aus Gold, darunter das Jahr **264 v. Chr.** zwischen zwei Strichen und
+  die Zeile *Rundenbasiert. Strategisch. Zeitlos.*
+- **Das Menü** darunter, in derselben Spalte: eine **Tafel je Eintrag**, mit dem
+  Zeichen in einem eigenen Feld, dem Namen in Kapitälchen und einem Beisatz
+  darunter. Der erste trägt Rot – er ist der, um den es geht. Sechs Einträge:
+  **Neues Spiel**, **Chronik**, **Letzter Feldzug**, **Spielregeln**,
+  **Einstellungen**, **Vollbild**.
+- **Die Tafel rechts** tritt hervor, wenn Chronik, Andenken oder Regeln
+  aufgeschlagen werden, und verschwindet wieder. Sie ist so hoch wie ihr
+  Inhalt, nicht so hoch wie der Schirm.
+- **Die Leiste unten** trägt links die **Spielversion** und daneben drei
+  Merkmale: das Jahr, das Zeitalter, die Gattung. Was nicht anklickbar ist,
+  sieht dort auch nicht so aus.
+
+**Was in der Tafel steht:**
+
+- **Die Chronik** – acht Bilder der römischen Republik, von der Vertreibung der
+  Könige 509 v. Chr. über die Via Appia und Hannibals Alpenübergang bis Actium
+  31 v. Chr., mit ‹ › und Punkten zum Blättern. Sie läuft **nur, solange die
+  Tafel offen ist**: ein Bild, das niemand sieht, muss auch niemand zeichnen.
+- **Der letzte Feldzug** – Reich, Ausgang, Jahr, Runden, Orte, Mann im Feld,
+  Schatz und die letzte Schlacht. Aufgeschrieben wird er, wenn ein Feldzug
+  endet, ob gewonnen, verloren oder abgebrochen; er liegt im Browser, nicht in
+  einem Spielstand. **Es gibt keinen Spielstand** – ein neuer Feldzug beginnt
+  von vorn, und die Tafel sagt das auch. Wer noch nie gespielt hat, liest dort
+  stattdessen in drei Sätzen, worum es geht.
+- **Die Spielregeln** – die Bedienung in einem Dutzend Sätzen.
+
+**Das Bild ist gezeichnet, nicht fotografiert.** Wie alles Bildliche hier ist
+es **reines SVG** (`js/titlescene.js`), zur Laufzeit zusammengesetzt aus
+geschichteten Silhouetten – dieselbe Bildsprache wie die Chronik, nur dichter
+gestaffelt, weil dieses eine Bild stehen bleibt statt weiterzuziehen. Keine
+Bilddatei: das Spiel läuft als einzelne HTML-Datei und ohne Netz. Es wandert
+sehr langsam, damit es nicht ganz stillsteht, und ein Schleier dunkelt die
+linke Seite ab, damit die Schrift darauf steht statt darin zu schwimmen.
+
+**Wird es schmal**, rückt zuerst die Tafel über das ganze Bild; unter 700
+Punkten stehen Titel, Menü und Leiste untereinander, das Bild bleibt dahinter,
+und die Leiste wird nach unten gedrückt.
 
 ## Bedienung
 
@@ -2157,5 +2176,6 @@ der ins Spiel führt.
 - `js/settings.js` – Einstellungen: Schema, Speicherung, Einstellungsfenster
 - `js/events.js` – die Zufallsereignisse: Bedingung, Wirkung und der Satz,
   der sie erzählt
+- `js/titlescene.js` – das Titelbild des Hauptmenüs als SVG-Silhouetten
 - `js/chronicle.js` – die acht Chronikbilder als SVG-Silhouetten
 - `js/ui.js`, `js/input.js`, `js/main.js` – Seitenleiste, Eingabe, Startbildschirm, Bootstrap

@@ -50,6 +50,7 @@ import {
   startAnthem, stopAnthem,
 } from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
+import { titleSceneSVG } from './titlescene.js';
 import { factionArt, factionArtSVG } from './factionart.js';
 import { emblemSVG } from './emblems.js';
 import {
@@ -1028,7 +1029,7 @@ function quitToMenu() {
   undoStack.length = 0;
   appEl.classList.add('hidden');
   document.getElementById('startScreen').classList.remove('hidden');
-  startChronicle();
+  schliesseTafel();
   zeigeMerktafel();
   syncMenuMusic();
 }
@@ -1245,9 +1246,20 @@ function stepChronicle(delta) {
   scheduleChronicle();
 }
 
+// Verdrahtet wird einmal, gestartet jedes Mal, wenn die Tafel aufgeschlagen
+// wird - sonst hinge nach dem dritten Aufschlagen ein dritter Zuhörer an den
+// Pfeilen.
+let chronicleWired = false;
+
 function startChronicle() {
   const dots = document.getElementById('chronDots');
   if (!dots) return;
+  if (chronicleWired) {
+    paintChronicle(chronicleIndex, { animate: false });
+    scheduleChronicle();
+    return;
+  }
+  chronicleWired = true;
   dots.innerHTML = CHRONICLE.map((scene, i) =>
     `<button data-index="${i}" title="${scene.year} – ${scene.title}"
       aria-label="${scene.year} – ${scene.title}"></button>`).join('');
@@ -2450,7 +2462,7 @@ function showFactionScreen() {
   // verlangt - also hier schon danach fragen, nicht erst auf der Karte.
   wantsFullscreen = true;
   requestAppFullscreen({ explain: true });
-  stopChronicle();
+  schliesseTafel();
   document.getElementById('startScreen').classList.add('hidden');
   document.getElementById('factionScreen').classList.remove('hidden');
   buildFactionChoices();
@@ -2464,7 +2476,6 @@ function hideFactionScreen() {
 function backToMenu() {
   hideFactionScreen();
   document.getElementById('startScreen').classList.remove('hidden');
-  startChronicle();
 }
 
 function startNewGame(factionId = chosenFaction) {
@@ -2644,22 +2655,50 @@ for (const id of ['settingsBtn', 'menuSettingsBtn']) {
   if (button) button.addEventListener('click', showSettings);
 }
 
-// Die Spielregeln treten im rechten Flügel an die Stelle der Merktafel - und
-// wieder zurück. Auf schmalen Schirmen legt sich der Flügel dafür über alles;
-// das entscheidet das Stilblatt an `help-open`.
-const helpButton = document.getElementById('menuHelpBtn');
-if (helpButton) {
-  helpButton.addEventListener('click', () => {
-    const help = document.getElementById('startHelp');
-    const memo = document.getElementById('startMemo');
-    const versteckt = help.classList.toggle('hidden');
-    if (memo) memo.classList.toggle('hidden', !versteckt);
-    helpButton.classList.toggle('active', !versteckt);
-    const screen = document.getElementById('startScreen');
-    if (screen) screen.classList.toggle('help-open', !versteckt);
-    sfx.select();
-  });
+// --- Das Titelbild und die Tafel rechts -----------------------------------
+// Der Startbildschirm ist ein Bild: der Feldherrnblick über eine Hafenstadt.
+// Chronik, Andenken und Regeln stehen nicht mehr fest daneben, sondern treten
+// von rechts hervor, wenn man sie aufschlägt - und verschwinden wieder.
+
+const titleStage = document.getElementById('titleStage');
+if (titleStage) titleStage.innerHTML = titleSceneSVG();
+
+let offeneTafel = null;
+
+function schliesseTafel() {
+  const sheet = document.getElementById('titleSheet');
+  if (sheet) sheet.classList.add('hidden');
+  document.querySelectorAll('.menu-plaque[data-sheet]')
+    .forEach((btn) => btn.classList.remove('active'));
+  document.querySelectorAll('#titleSheet .sheet-part')
+    .forEach((part) => { part.hidden = true; });
+  // Die Chronik zeichnet nur, solange sie zu sehen ist.
+  if (offeneTafel === 'chronik') stopChronicle();
+  offeneTafel = null;
 }
+
+function oeffneTafel(name) {
+  if (offeneTafel === name) { schliesseTafel(); sfx.select(); return; }
+  schliesseTafel();
+  const sheet = document.getElementById('titleSheet');
+  const teil = document.querySelector(`#titleSheet .sheet-part[data-part="${name}"]`);
+  if (!sheet || !teil) return;
+  sheet.classList.remove('hidden');
+  teil.hidden = false;
+  const knopf = document.querySelector(`.menu-plaque[data-sheet="${name}"]`);
+  if (knopf) knopf.classList.add('active');
+  offeneTafel = name;
+  // Die Chronik läuft erst, wenn sie aufgeschlagen ist - und dann von vorn.
+  if (name === 'chronik') startChronicle();
+  if (name === 'memo') zeigeMerktafel();
+  sfx.select();
+}
+
+document.querySelectorAll('.menu-plaque[data-sheet]').forEach((btn) => {
+  btn.addEventListener('click', () => oeffneTafel(btn.dataset.sheet));
+});
+const sheetClose = document.getElementById('sheetClose');
+if (sheetClose) sheetClose.addEventListener('click', () => { schliesseTafel(); sfx.select(); });
 
 // Die Merktafel steht beim ersten Bild schon da.
 zeigeMerktafel();
@@ -2699,7 +2738,6 @@ window.__mapFrame = captureFrame;
 window.__spqrState = () => state;
 window.__spqrRefresh = () => refresh();
 
-startChronicle();
 // Der Weg ins Spiel führt über die Fraktionswahl.
 document.getElementById('startGameBtn').addEventListener('click', showFactionScreen);
 document.getElementById('factionBackBtn').addEventListener('click', backToMenu);

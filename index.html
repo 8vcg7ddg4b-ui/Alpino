@@ -73,10 +73,79 @@
        oder den Spielregeln. Drei Felder nebeneinander wie ein Altarbild; wird
        es schmal, stehen sie untereinander - die Tafel zuerst. -->
   <div id="startScreen">
-    <div class="triptych">
 
-      <!-- Linker Flügel: die Chronik der Republik. -->
-      <section class="tri-panel tri-wing tri-left">
+    <!-- Das Titelbild füllt den Schirm; alles Weitere liegt darüber. -->
+    <div id="titleStage" aria-hidden="true"></div>
+    <div class="title-vignette" aria-hidden="true"></div>
+
+    <!-- Titel und Menü stehen in einer Spalte: so können sie einander nicht
+         überlappen, wenn der Schirm flach wird. -->
+    <div class="title-left">
+      <header class="title-brand">
+        <div class="tb-wreath" aria-hidden="true">
+          <span class="tb-leaf tb-leaf-left">🌿</span>
+          <span class="tb-eagle">🦅</span>
+          <span class="tb-leaf tb-leaf-right">🌿</span>
+        </div>
+        <h1 class="title-name">Pax<br>Aeterna</h1>
+        <p class="title-year"><span>264 v. Chr.</span></p>
+        <p class="title-tagline">Rundenbasiert. Strategisch. Zeitlos.</p>
+      </header>
+
+      <!-- Das Menü: eine Tafel je Eintrag, mit Zeichen, Namen und Beisatz. -->
+      <nav class="title-menu" aria-label="Hauptmenü">
+        <button id="startGameBtn" class="menu-plaque menu-primary">
+          <span class="mp-icon">🏛️</span>
+          <span class="mp-text">
+            <strong>Neues Spiel</strong>
+            <small>Beginne deinen Feldzug</small>
+          </span>
+        </button>
+        <button id="menuChronicleBtn" class="menu-plaque" data-sheet="chronik">
+          <span class="mp-icon">📜</span>
+          <span class="mp-text">
+            <strong>Chronik</strong>
+            <small>Die Bilder der Republik</small>
+          </span>
+        </button>
+        <button id="menuMemoBtn" class="menu-plaque" data-sheet="memo">
+          <span class="mp-icon">⚱️</span>
+          <span class="mp-text">
+            <strong>Letzter Feldzug</strong>
+            <small>Das Andenken deiner Kampagne</small>
+          </span>
+        </button>
+        <button id="menuHelpBtn" class="menu-plaque" data-sheet="regeln">
+          <span class="mp-icon">📖</span>
+          <span class="mp-text">
+            <strong>Spielregeln</strong>
+            <small>Wie ein Feldzug geführt wird</small>
+          </span>
+        </button>
+        <button id="menuSettingsBtn" class="menu-plaque">
+          <span class="mp-icon">⚙️</span>
+          <span class="mp-text">
+            <strong>Einstellungen</strong>
+            <small>Bild, Klang und Ansprache</small>
+          </span>
+        </button>
+        <button id="menuFullscreenBtn" class="menu-plaque">
+          <span class="mp-icon">⛶</span>
+          <span class="mp-text">
+            <strong>Vollbild</strong>
+            <small>Den Feldherrnblick weiten</small>
+          </span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Die Tafel rechts: sie tritt hervor, wenn Chronik, Andenken oder
+         Regeln aufgeschlagen werden, und ist sonst nicht da. -->
+    <aside id="titleSheet" class="hidden" aria-live="polite">
+      <button id="sheetClose" class="sheet-close" title="Schließen"
+        aria-label="Tafel schließen">✕</button>
+
+      <section class="sheet-part" data-part="chronik" hidden>
         <div id="chronicleStage" aria-hidden="true">
           <div class="chron-layer" data-slot="0"></div>
           <div class="chron-layer" data-slot="1"></div>
@@ -96,53 +165,48 @@
         </figure>
       </section>
 
-      <!-- Mitteltafel: Titel und Menü. -->
-      <section class="tri-panel tri-mid">
-        <div class="start-box">
-          <div class="start-eagle">🦅</div>
-          <h1 class="start-title">Pax Aeterna</h1>
-          <p class="start-tagline">Ein rundenbasiertes 3D-Feldzugsspiel über Europa
-            und das Mittelmeer</p>
-          <nav class="start-menu">
-            <button id="startGameBtn" class="start-btn">Neues Spiel starten ▶</button>
-            <button id="menuSettingsBtn" class="start-secondary-btn">⚙ Einstellungen</button>
-            <button id="menuHelpBtn" class="start-secondary-btn">📜 Spielregeln</button>
-            <button id="menuFullscreenBtn" class="start-secondary-btn">⛶ Vollbildmodus</button>
-          </nav>
-          <p class="start-version">Version <span id="versionLabel">–</span></p>
-        </div>
+      <section class="sheet-part" data-part="memo" hidden>
+        <div id="startMemo" class="memo-sheet"></div>
       </section>
 
-      <!-- Rechter Flügel: die Merktafel. Sie zeigt entweder den letzten Feldzug
-           oder - über „Spielregeln" - die Bedienung. -->
-      <section class="tri-panel tri-wing tri-right">
-        <div class="memo-box">
-          <div id="startMemo" class="memo-sheet"></div>
-          <div class="start-help hidden" id="startHelp">
-            <h2 class="memo-head">📜 Spielregeln</h2>
-            <p><strong>Armee</strong> anklicken, dann ein grünes Feld (Zug) oder rotes Feld (Angriff) wählen.
-              Orange markierte Felder hält eine feindliche Armee: hineinzuziehen kostet mehr, und daraus
-              heraus geht es nur ins Freie oder in den Angriff.</p>
-            <p>Karte per Ziehen, Pfeiltasten/WASD oder den Richtungstasten unten links verschieben.
-              Zwei Finger drehen und zoomen.</p>
-            <p>Ein Klick auf ein beliebiges Feld zeigt Gelände, Höhe und Lage in der Seitenleiste.</p>
-            <p>🗺 schaltet auf die <strong>taktische Sicht</strong> um – die Karte in den Farben der Fraktionen.</p>
-            <p>Städte anklicken, um Truppen zu rekrutieren und die <strong>Befestigung</strong> auszubauen:
-              Holzpalisade, Große Holzpalisade, Steinmauer.</p>
-            <p>Vor jedem Angriff zeigt die <strong>Kampfvorschau</strong> Siegchance und erwartete Verluste.</p>
-            <p>Vor einer Mauer hilft <strong>Belagerungsgerät</strong>: Widder und Katapulte werden in
-              einer Stadt mit Kaserne gezimmert und ziehen mit dem Heer.</p>
-            <p>In einer Hafenstadt kann eine Armee <strong>in See stechen</strong> und über das Meer angreifen.</p>
-            <p><strong>Tasten:</strong> <kbd>Leertaste</kbd> beendet die Runde ·
-              <kbd>1</kbd> Reich · <kbd>2</kbd> Diplomatie · <kbd>3</kbd> taktische Sicht ·
-              <kbd>4</kbd> Grenzen · <kbd>5</kbd> Einstellungen · <kbd>U</kbd> rückgängig ·
-              <kbd>M</kbd> Ton · <kbd>W A S D</kbd> und Pfeile schieben die Karte ·
-              <kbd>Q</kbd> <kbd>E</kbd> drehen sie · <kbd>Esc</kbd> schließt ein Fenster.</p>
-          </div>
+      <section class="sheet-part" data-part="regeln" hidden>
+        <div class="start-help" id="startHelp">
+          <h2 class="memo-head">📜 Spielregeln</h2>
+          <p><strong>Armee</strong> anklicken, dann ein grünes Feld (Zug) oder rotes Feld (Angriff) wählen.
+            Orange markierte Felder hält eine feindliche Armee: hineinzuziehen kostet mehr, und daraus
+            heraus geht es nur ins Freie oder in den Angriff.</p>
+          <p>Karte per Ziehen, Pfeiltasten/WASD oder den Richtungstasten unten links verschieben.
+            Zwei Finger drehen und zoomen.</p>
+          <p>Ein Klick auf ein beliebiges Feld zeigt Gelände, Höhe und Lage in der Seitenleiste.</p>
+          <p>🗺 schaltet auf die <strong>taktische Sicht</strong> um – die Karte in den Farben der Fraktionen.</p>
+          <p>Städte anklicken, um Truppen auszuheben und die <strong>Befestigung</strong> auszubauen:
+            Holzpalisade, Große Holzpalisade, Steinmauer.</p>
+          <p>Eine Aushebung braucht <strong>Zeit</strong>: zwei Runden für Fußvolk, drei für Schützen,
+            vier für Reiterei – und einen freien Platz auf dem Exerzierplatz.</p>
+          <p>Vor jedem Angriff zeigt die <strong>Kampfvorschau</strong> Siegchance und erwartete Verluste.</p>
+          <p>Vor einer Mauer hilft <strong>Belagerungsgerät</strong>: Widder und Katapulte werden in
+            einer Stadt mit Kaserne gezimmert und ziehen mit dem Heer.</p>
+          <p>In einer Hafenstadt kann eine Armee <strong>in See stechen</strong> und über das Meer angreifen.</p>
+          <p>In Wald, Hügeln und Gebirge legt sich ein Heer in den <strong>Hinterhalt</strong>: unsichtbar
+            für den Feind, und wer vorbeizieht, wird überfallen.</p>
+          <p><strong>Tasten:</strong> <kbd>Leertaste</kbd> beendet die Runde ·
+            <kbd>1</kbd> Reich · <kbd>2</kbd> Diplomatie · <kbd>3</kbd> taktische Sicht ·
+            <kbd>4</kbd> Grenzen · <kbd>5</kbd> Einstellungen · <kbd>U</kbd> rückgängig ·
+            <kbd>M</kbd> Ton · <kbd>W A S D</kbd> und Pfeile schieben die Karte ·
+            <kbd>Q</kbd> <kbd>E</kbd> drehen sie · <kbd>Esc</kbd> schließt ein Fenster.</p>
         </div>
       </section>
+    </aside>
 
-    </div>
+    <!-- Die Leiste unten: Version links, drei Merkmale in der Mitte. -->
+    <footer class="title-foot">
+      <span class="tf-version">Version <span id="versionLabel">–</span></span>
+      <span class="tf-chips">
+        <span class="tf-chip">🗓️ 264 v. Chr.</span>
+        <span class="tf-chip">🏛️ Zeitalter der Reiche</span>
+        <span class="tf-chip">⚔️ Rundenbasiertes Strategiespiel</span>
+      </span>
+    </footer>
   </div>
 
   <!-- Fraktionswahl: eigener Bildschirm zwischen Menü und Karte. Das Bild im
