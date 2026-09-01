@@ -698,22 +698,102 @@ function gullGeometry() {
 
 // Rotwild: Leib, vier Läufe, Hals und Kopf. Das Geweih bleibt weg - aus der
 // Feldherrnperspektive wäre es ein Pixel, und es kostet Dreiecke.
-function deerGeometry() {
+// Drei Gattungen Wild, und man soll sie auseinanderhalten können: der Hirsch
+// zieht allein und trägt ein Geweih, Rehe stehen zu dritt und sind kleiner und
+// zierlicher, Wildschweine ebenfalls zu dritt - gedrungen, mit Rüssel,
+// Hauern und dem Kamm auf dem Rücken.
+
+// Der gemeinsame Bau: Leib, vier Läufe, Hals, Kopf. Die Maße machen den
+// Unterschied.
+function huftierTeile({ leibLang, leibHoch, laufLang, halsLang, halsWinkel, kopfGross }) {
   const leib = new THREE.SphereGeometry(0.3, 6, 5);
-  const lauf = new THREE.CylinderGeometry(0.05, 0.04, 0.42, 4);
-  const hals = new THREE.CylinderGeometry(0.07, 0.09, 0.34, 4);
+  const lauf = new THREE.CylinderGeometry(0.05, 0.04, laufLang, 4);
+  const hals = new THREE.CylinderGeometry(0.07, 0.09, halsLang, 4);
   const kopf = new THREE.SphereGeometry(0.11, 5, 4);
-  const teile = [shapePart(leib, 0, 0.52, 0, 0, 0, 0, 1.6, 0.85, 0.9)];
-  for (const x of [-0.28, 0.26]) {
-    for (const z of [-0.14, 0.14]) teile.push(shapePart(lauf, x, 0.21, z));
+  const rumpfY = laufLang * 0.5 + 0.31 * leibHoch;
+  const teile = [shapePart(leib, 0, rumpfY, 0, 0, 0, 0, leibLang, leibHoch, 0.9)];
+  for (const x of [-0.28 * leibLang / 1.6, 0.26 * leibLang / 1.6]) {
+    for (const z of [-0.14, 0.14]) teile.push(shapePart(lauf, x, laufLang / 2, z));
   }
-  teile.push(shapePart(hals, 0.42, 0.66, 0, 0, 0, -0.45));
-  teile.push(shapePart(kopf, 0.58, 0.82, 0, 0, 0, 0, 1.5, 1, 1));
+  const halsX = 0.26 * leibLang / 1.6 + 0.16;
+  const halsY = rumpfY + halsLang * 0.34;
+  teile.push(shapePart(hals, halsX, halsY, 0, 0, 0, halsWinkel));
+  const kopfX = halsX + Math.sin(-halsWinkel) * halsLang * 0.5;
+  const kopfY = halsY + Math.cos(halsWinkel) * halsLang * 0.5;
+  teile.push(shapePart(kopf, kopfX, kopfY, 0, 0, 0, 0, 1.5 * kopfGross, kopfGross, kopfGross));
+  return {
+    teile, kopfX, kopfY, rumpfY, leibLang,
+    aufraeumen: () => { leib.dispose(); lauf.dispose(); hals.dispose(); kopf.dispose(); },
+  };
+}
+
+// Der Hirsch: der größte von den dreien, aufrecht getragener Hals, und über
+// dem Kopf das Geweih - zwei Stangen mit je drei Enden.
+function stagGeometry() {
+  const bau = huftierTeile({
+    leibLang: 1.7, leibHoch: 0.92, laufLang: 0.48, halsLang: 0.4,
+    halsWinkel: -0.35, kopfGross: 1.05,
+  });
+  const stange = new THREE.CylinderGeometry(0.022, 0.03, 0.34, 4);
+  const ende = new THREE.CylinderGeometry(0.015, 0.02, 0.16, 4);
+  for (const z of [-0.07, 0.07]) {
+    bau.teile.push(shapePart(stange, bau.kopfX - 0.04, bau.kopfY + 0.19, z, 0, 0, z * 2.4));
+    for (const [dx, dy, neig] of [[-0.1, 0.3, 1.0], [0.02, 0.34, 0.2], [0.1, 0.26, -0.8]]) {
+      bau.teile.push(shapePart(ende, bau.kopfX - 0.04 + dx, bau.kopfY + dy, z * 1.5, 0, 0, neig));
+    }
+  }
+  const g = mergeShapes(bau.teile);
+  bau.aufraeumen();
+  stange.dispose();
+  ende.dispose();
+  return g;
+}
+
+// Das Reh: kleiner, feiner, kein Geweih, der Hals beim Äsen nach vorn geneigt.
+function roeGeometry() {
+  const bau = huftierTeile({
+    leibLang: 1.45, leibHoch: 0.78, laufLang: 0.36, halsLang: 0.26,
+    halsWinkel: -0.72, kopfGross: 0.85,
+  });
+  const spiegel = new THREE.SphereGeometry(0.09, 5, 4);
+  // Der weiße Spiegel am Hinterteil ist das, woran man ein Reh im Wald erkennt.
+  bau.teile.push(shapePart(spiegel, -0.3, bau.rumpfY + 0.04, 0, 0, 0, 0, 0.6, 1, 0.9));
+  const g = mergeShapes(bau.teile);
+  bau.aufraeumen();
+  spiegel.dispose();
+  return g;
+}
+
+// Das Wildschwein: tief, breit, vorn schwerer als hinten, mit Rüssel, zwei
+// Hauern und dem borstigen Kamm über dem Widerrist.
+function boarGeometry() {
+  const leib = new THREE.SphereGeometry(0.3, 6, 5);
+  const lauf = new THREE.CylinderGeometry(0.05, 0.045, 0.26, 4);
+  const kopf = new THREE.ConeGeometry(0.19, 0.44, 5);
+  const ruessel = new THREE.CylinderGeometry(0.055, 0.07, 0.12, 5);
+  const hauer = new THREE.ConeGeometry(0.022, 0.11, 4);
+  const kamm = new THREE.ConeGeometry(0.035, 0.13, 4);
+  const rumpfY = 0.13 + 0.25;
+  const teile = [shapePart(leib, -0.04, rumpfY, 0, 0, 0, 0, 1.5, 0.95, 1.05)];
+  for (const x of [-0.26, 0.2]) {
+    for (const z of [-0.13, 0.13]) teile.push(shapePart(lauf, x, 0.13, z));
+  }
+  // Der Kopf sitzt ohne Hals am Rumpf und zeigt nach vorn unten.
+  teile.push(shapePart(kopf, 0.36, rumpfY - 0.03, 0, 0, 0, -Math.PI / 2 - 0.25, 1, 1, 0.85));
+  teile.push(shapePart(ruessel, 0.56, rumpfY - 0.12, 0, 0, 0, -Math.PI / 2));
+  for (const z of [-0.06, 0.06]) {
+    teile.push(shapePart(hauer, 0.52, rumpfY - 0.09, z, 0, 0, -0.9));
+  }
+  for (const [x, h] of [[0.14, 1], [0.02, 1.2], [-0.1, 0.9]]) {
+    teile.push(shapePart(kamm, x, rumpfY + 0.24, 0, 0, 0, 0, 1, h, 1));
+  }
   const g = mergeShapes(teile);
   leib.dispose();
   lauf.dispose();
-  hals.dispose();
   kopf.dispose();
+  ruessel.dispose();
+  hauer.dispose();
+  kamm.dispose();
   return g;
 }
 
@@ -852,7 +932,11 @@ function roadPaths(roads) {
 // "alle Küstenfelder" ein Teppich - es geht um Leben, nicht um eine Zählung.
 // Ein Wal ist ein seltenes Tier, und im Mittelmeer erst recht: ein Dutzend auf
 // einer Karte machte aus ihm einen Fisch. Fünf, und die nur weit draußen.
-const WILDLIFE_MAX = { fische: 110, wale: 5, moewen: 70, wild: 120, wagen: 70 };
+const WILDLIFE_MAX = { fische: 44, wale: 5, moewen: 70, wild: 90, wagen: 70 };
+// So viele Rücken hat ein Schwarm. Vorher waren es drei, die alle auf
+// derselben Kreisbahn liefen - das sah aus wie eine Reihe, nicht wie ein
+// Schwarm. Jetzt schwimmen sie nebeneinander.
+const SCHWARM_GROESSE = 5;
 
 function buildWildlife(state) {
   // Eine zweite Karte im selben Fenster erbt sonst die Tiere der ersten.
@@ -893,18 +977,28 @@ function buildWildlife(state) {
   };
 
   // --- Fischschwärme: dicht unter der Oberfläche, in engen Kreisen ----------
+  // Ein Schwarm ist kein Gänsemarsch. Vorher saßen die Fische mit festem
+  // Zeitversatz auf ein und derselben Kreisbahn und schwammen deshalb
+  // hintereinander her. Jetzt hat der Schwarm eine Mitte, die den Kreis
+  // zieht, und jeder Fisch einen festen Platz darin: `laengs` nach vorn,
+  // `quer` zur Seite. Der Platz wird mit der Schwimmrichtung mitgedreht,
+  // damit der Schwarm in der Kurve seine Form behält und nicht auseinanderfällt.
   const fische = [];
   for (const [col, row] of auswahl(ufer, WILDLIFE_MAX.fische)) {
-    // Ein Schwarm sind mehrere Rücken, die zusammen ziehen.
     const mx = worldX(col) + (rng() - 0.5) * TILE_SIZE * 0.5;
     const mz = worldZ(row) + (rng() - 0.5) * TILE_SIZE * 0.5;
     const takt = 0.25 + rng() * 0.3;
     const start = rng() * Math.PI * 2;
     const weite = TILE_SIZE * (0.2 + rng() * 0.2);
-    for (let i = 0; i < 3; i++) {
+    const streu = TILE_SIZE * 0.11;
+    for (let i = 0; i < SCHWARM_GROESSE; i++) {
       fische.push({
-        mx, mz, takt, weite, start: start + i * 0.5,
-        seit: (rng() - 0.5) * 0.5, gross: 0.5 + rng() * 0.35,
+        mx, mz, takt, weite, start,
+        laengs: (rng() - 0.5) * streu * 1.6,
+        quer: (rng() - 0.5) * streu * 2.2,
+        // Ein bisschen Eigenleben, sonst steht der Schwarm wie angenagelt.
+        zappel: rng() * Math.PI * 2,
+        gross: 0.5 + rng() * 0.35,
       });
     }
   }
@@ -914,10 +1008,23 @@ function buildWildlife(state) {
     fische,
     (tier, t, matrix, lage, dreh, mass) => {
       const winkel = tier.start + t * tier.takt;
+      // Die Mitte des Schwarms auf ihrer Kreisbahn.
+      const cx = tier.mx + Math.cos(winkel) * tier.weite;
+      const cz = tier.mz + Math.sin(winkel) * tier.weite;
+      // Die Schwimmrichtung ist die Tangente an den Kreis.
+      const kurs = winkel + Math.PI / 2;
+      const vx = Math.cos(kurs);
+      const vz = Math.sin(kurs);
+      // Der Platz des einzelnen Fisches, mitgedreht: längs nach vorn,
+      // quer nach der Seite. Dazu ein leichtes Wandern, damit der Schwarm
+      // atmet.
+      const wandern = Math.sin(t * 0.8 + tier.zappel) * 0.12;
+      const laengs = tier.laengs + wandern;
+      const quer = tier.quer + Math.cos(t * 0.7 + tier.zappel) * 0.12;
       lage.set(
-        tier.mx + Math.cos(winkel) * tier.weite,
-        SEA_LEVEL_Y + 0.02 + Math.sin(t * 1.4 + tier.start) * 0.05,
-        tier.mz + Math.sin(winkel) * tier.weite + tier.seit
+        cx + vx * laengs - vz * quer,
+        SEA_LEVEL_Y + 0.02 + Math.sin(t * 1.4 + tier.zappel) * 0.05,
+        cz + vz * laengs + vx * quer
       );
       dreh.setFromAxisAngle(WILDLIFE_ACHSE, -winkel - Math.PI / 2);
       mass.setScalar(tier.gross);
@@ -994,18 +1101,28 @@ function buildWildlife(state) {
     }
   );
 
-  // --- Rotwild: an den Waldrändern, äsend ------------------------------------
-  const wild = [];
+  // --- Wild an den Waldrändern ----------------------------------------------
+  // Was an einem Waldrand steht, steht nicht als anonymes "Rotwild" da. Drei
+  // Arten, und die Zahl gehört zur Art: ein **Hirsch** zieht allein, **Rehe**
+  // stehen zu dritt, **Wildschweine** ebenfalls - eine Bache mit ihren
+  // Frischlingen. Welche Art an einem Waldrand steht, entscheidet der Wurf;
+  // Rehe sind am häufigsten, der einzelne Hirsch am seltensten.
+  const hirsche = [];
+  const rehe = [];
+  const schweine = [];
   for (const [col, row] of auswahl(waelder, WILDLIFE_MAX.wild)) {
-    const rudel = 1 + Math.floor(rng() * 3);
-    for (let i = 0; i < rudel; i++) {
-      wild.push({
+    const wurf = rng();
+    const [liste, zahl, mass] = wurf < 0.2 ? [hirsche, 1, 0.62]
+      : wurf < 0.68 ? [rehe, 3, 0.48]
+        : [schweine, 3, 0.5];
+    const boden = groundY(col, row);
+    for (let i = 0; i < zahl; i++) {
+      liste.push({
         mx: worldX(col) + (rng() - 0.5) * TILE_SIZE * 0.6,
         mz: worldZ(row) + (rng() - 0.5) * TILE_SIZE * 0.6,
-        boden: groundY(col, row),
-        richtung: rng() * Math.PI * 2,
+        boden,
         takt: 0.05 + rng() * 0.06, weite: TILE_SIZE * (0.05 + rng() * 0.1),
-        start: rng() * Math.PI * 2, gross: 0.5 + rng() * 0.18,
+        start: rng() * Math.PI * 2, gross: mass * (1 + (rng() - 0.5) * 0.24),
       });
     }
   }
@@ -1057,22 +1174,24 @@ function buildWildlife(state) {
     }
   );
 
-  addWildlife(
-    deerGeometry(),
-    new THREE.MeshStandardMaterial({ color: '#8d6039', roughness: 0.95 }),
-    wild,
-    (tier, t, matrix, lage, dreh, mass) => {
-      const winkel = tier.start + t * tier.takt;
-      lage.set(
-        tier.mx + Math.cos(winkel) * tier.weite,
-        tier.boden,
-        tier.mz + Math.sin(winkel) * tier.weite
-      );
-      dreh.setFromAxisAngle(WILDLIFE_ACHSE, -winkel - Math.PI / 2);
-      mass.setScalar(tier.gross);
-      matrix.compose(lage, dreh, mass);
-    }
-  );
+  // Alle drei ziehen gleich: langsam im engen Kreis, mit dem Kopf voran.
+  const aesen = (tier, t, matrix, lage, dreh, mass) => {
+    const winkel = tier.start + t * tier.takt;
+    lage.set(
+      tier.mx + Math.cos(winkel) * tier.weite,
+      tier.boden,
+      tier.mz + Math.sin(winkel) * tier.weite
+    );
+    dreh.setFromAxisAngle(WILDLIFE_ACHSE, -winkel - Math.PI / 2);
+    mass.setScalar(tier.gross);
+    matrix.compose(lage, dreh, mass);
+  };
+  addWildlife(stagGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#8a5a30', roughness: 0.95 }), hirsche, aesen);
+  addWildlife(roeGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#a97a4a', roughness: 0.95 }), rehe, aesen);
+  addWildlife(boarGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#4c4038', roughness: 1 }), schweine, aesen);
 }
 
 const WILDLIFE_ACHSE = new THREE.Vector3(0, 1, 0);
@@ -2474,6 +2593,65 @@ function pushBand(positions, ax, az, bx, bz, halfWidth, lift = 0.18, schuerze = 
   }
 }
 
+// Eine ebene Fläche auf fester Höhe - anders als pushBand, das der
+// Geländehöhe folgt. Das Wasser eines Flusses steht waagerecht.
+function pushFlat(positions, ax, az, bx, bz, halfWidth, y) {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const length = Math.hypot(dx, dz) || 1;
+  const nx = (-dz / length) * halfWidth;
+  const nz = (dx / length) * halfWidth;
+  const p = [
+    [ax + nx, y, az + nz], [bx + nx, y, bz + nz],
+    [bx - nx, y, bz - nz], [ax - nx, y, az - nz],
+  ];
+  const dreieck = (i, j, k) => {
+    positions.push(...p[i], ...p[j], ...p[k]);
+  };
+  dreieck(0, 1, 2);
+  dreieck(0, 2, 3);
+}
+
+// Die beiden Felsschultern des Bettes. Jede besteht aus zwei Flächen: der
+// **Wand**, die von der Wasserkante unter den Spiegel hinabreicht und die
+// Fuge zum Gelände deckt, und der **Schulter**, die von der Wasserkante über
+// den Spiegel hinaufsteigt und nach außen zur Geländekante abfällt. Zusammen
+// ergeben sie den Eindruck einer Rinne, die in den Boden geschnitten ist.
+function pushBankWalls(positions, ax, az, bx, bz, halfWidth, lippe, wasserY) {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const length = Math.hypot(dx, dz) || 1;
+  const ux = -dz / length;
+  const uz = dx / length;
+  const dreieck = (p, q, r) => {
+    positions.push(p[0], p[1], p[2], q[0], q[1], q[2], r[0], r[1], r[2]);
+  };
+  for (const seite of [1, -1]) {
+    const ix = ux * halfWidth * seite;
+    const iz = uz * halfWidth * seite;
+    const ox = ux * lippe * seite;
+    const oz = uz * lippe * seite;
+    // Die Kante am Wasser, oben auf der Schulter.
+    const kA = [ax + ix, wasserY + RIVER_RIM, az + iz];
+    const kB = [bx + ix, wasserY + RIVER_RIM, bz + iz];
+    // Dieselbe Kante, unter dem Wasser: das deckt die Fuge zum Gelände.
+    const uA = [ax + ix, wasserY - RIVER_SKIRT, az + iz];
+    const uB = [bx + ix, wasserY - RIVER_SKIRT, bz + iz];
+    dreieck(kA, uA, kB);
+    dreieck(kB, uA, uB);
+    // Und die Oberseite der Schulter, außen auf Geländehöhe - aber nicht
+    // tiefer als die Wand reicht. Ohne diese Grenze wurde aus der Schulter am
+    // Berghang eine Felswand von mehreren Metern: der Boden fällt dort weit
+    // unter den Wasserspiegel, und die Fläche zog sich mit ihm hinab.
+    const tiefstens = wasserY - RIVER_SKIRT;
+    const aussen = (x, z) => Math.max(bandY(x, z) + 0.03, tiefstens);
+    const aA = [ax + ox, aussen(ax + ox, az + oz), az + oz];
+    const aB = [bx + ox, aussen(bx + ox, bz + oz), bz + oz];
+    dreieck(kA, kB, aA);
+    dreieck(kB, aB, aA);
+  }
+}
+
 function pushQuad(positions, ax, az, bx, bz, halfWidth, lift = 0.18) {
   pushBand(positions, ax, az, bx, bz, halfWidth, lift, 0);
 }
@@ -2489,13 +2667,27 @@ let riversGroup = null;
 // dem Boden - hoch genug, dass ein Knick im Gelände es nicht verschluckt,
 // flach genug, dass es nicht über der Landschaft schwebt.
 const RIVER_PIECES = 5;
-// Der Fluss ist Wasser und sonst nichts: eine Fahrrinne aus einem Stück, mit
-// einer flachen Schürze an den Seiten, damit er im Schrägblick eine Kante hat
-// und nicht als Strich auf dem Land liegt. Kiesbänke standen hier eine
-// Fassung lang daneben; sie machten aus jedem Bach eine dreifarbige Trasse
-// und aus einem Flusslauf ein Gleisbett.
-const RIVER_LIFT = 0.14;
-const RIVER_SKIRT = 0.24;
+// Ein Fluss liegt nicht auf dem Land, er hat sich hineingeschnitten. Vorher
+// lag das Band flach über dem Boden und folgte jeder Bodenwelle - im Gebirge
+// kletterte der Lauf die Hänge hinauf und hinunter wie ein aufgemalter Strich.
+//
+// Wirklich in den Boden schneiden lässt sich der Lauf nicht: das Gelände ist
+// ein Netz aus Feldhöhen, und ein Fluss läuft auf einer Feldgrenze - wer dort
+// eine Kerbe zöge, müsste die Höhe ganzer Felder senken, und mit ihr alles,
+// was darauf steht. Stattdessen bekommt der Lauf **Felsschultern**: zu beiden
+// Seiten steht eine Wand, die über den Wasserspiegel hinausragt und unter ihn
+// hinabreicht. Von oben sieht man Wasser zwischen zwei Felskanten, von der
+// Seite eine Rinne im Land - und das Wasser bleibt überall sichtbar, weil es
+// eine Spur über dem höchsten Punkt seiner Kante liegt.
+//
+//   RIVER_WIDTH  die halbe Breite der Wasserfläche (schmaler als vorher)
+//   RIVER_LIP    bis wohin die Felskante nach außen reicht
+//   RIVER_RIM    wie hoch die Schulter über dem Wasser steht
+//   RIVER_SKIRT  wie weit die Wand unter das Wasser reicht
+const RIVER_WIDTH = 0.068;
+const RIVER_LIP = 0.112;
+const RIVER_RIM = 0.16;
+const RIVER_SKIRT = 0.34;
 
 // Die beiden Feldmitten einer Kante und der Punkt dazwischen.
 function riverEdgeTiles(key, cols) {
@@ -2516,6 +2708,7 @@ function buildRivers(state) {
   if (!rivers || !rivers.size) return;
 
   const positions = [];
+  const banks = [];
   const bridges = [];
   const half = TILE_SIZE / 2;
 
@@ -2525,19 +2718,32 @@ function buildRivers(state) {
     const mx = (worldX(a.col) + worldX(b.col)) / 2;
     const mz = (worldZ(a.row) + worldZ(b.row)) / 2;
     const alongX = a.row === b.row;
-    // Jedes Band reicht um seine halbe Breite über die Feldgrenze hinaus.
-    // Zwei Stücke, die im rechten Winkel aufeinandertreffen, überlappen sich
+    // Jedes Bett reicht um seine Lippe über die Feldgrenze hinaus. Zwei
+    // Stücke, die im rechten Winkel aufeinandertreffen, überlappen sich
     // dadurch in der Ecke; ohne diesen Überstand blieb dort außen ein Zwickel
     // frei, und ein Lauf über viele Ecken sah aus wie eine gestrichelte Linie.
-    // So breit wie ein Karren und ein halber - ein Fluss ist keine Straße.
-    const width = TILE_SIZE * 0.1;
-    const reach = half + width;
+    const width = TILE_SIZE * RIVER_WIDTH;
+    const lippe = TILE_SIZE * RIVER_LIP;
+    const reach = half + lippe;
     const from = alongX ? [mx, mz - reach] : [mx - reach, mz];
     const to = alongX ? [mx, mz + reach] : [mx + reach, mz];
-    // In Stücke zerlegt, damit das Band dem Gelände folgt. Ein Uferstück ist
-    // ein ganzes Feld lang und läuft dabei über ein Dreiecksfeld des Geländes
-    // hinweg; als eine einzige Fläche zwischen zwei Endpunkten schnitt es in
-    // hügeligem Land in den Boden, und der Fluss wirkte unterbrochen.
+    // **Die Wasserfläche ist eben.** Ihre Höhe steht für das ganze Uferstück
+    // fest - genommen am höchsten Punkt entlang der Kante, damit das Wasser
+    // nirgends im Hang verschwindet. Damit läuft der Fluss gerade, statt jeder
+    // Bodenwelle nachzugeben; auf einem Gefälle setzt er von Stück zu Stück
+    // ab, so wie ein Gebirgsbach es tut.
+    let hoechster = -Infinity;
+    for (let piece = 0; piece <= RIVER_PIECES; piece++) {
+      const t = piece / RIVER_PIECES;
+      const x = from[0] + (to[0] - from[0]) * t;
+      const z = from[1] + (to[1] - from[1]) * t;
+      hoechster = Math.max(hoechster, bandY(x, z));
+    }
+    const wasserY = hoechster + 0.05;
+    pushFlat(positions, from[0], from[1], to[0], to[1], width, wasserY);
+    // Und die beiden Felswände: unten an der Wasserkante, oben an der
+    // Geländekante. Sie werden in Stücke zerlegt, weil ihre Oberkante dem
+    // Boden folgt - nur die Unterkante ist eben.
     for (let piece = 0; piece < RIVER_PIECES; piece++) {
       const t0 = piece / RIVER_PIECES;
       const t1 = (piece + 1) / RIVER_PIECES;
@@ -2545,7 +2751,7 @@ function buildRivers(state) {
       const az = from[1] + (to[1] - from[1]) * t0;
       const bx = from[0] + (to[0] - from[0]) * t1;
       const bz = from[1] + (to[1] - from[1]) * t1;
-      pushBand(positions, ax, az, bx, bz, width, RIVER_LIFT, RIVER_SKIRT);
+      pushBankWalls(banks, ax, az, bx, bz, width, lippe, wasserY);
     }
 
     const roads = state.roads || {};
@@ -2569,6 +2775,10 @@ function buildRivers(state) {
     mesh.frustumCulled = false;
     riversGroup.add(mesh);
   };
+  // Der Fels zuerst, damit das Wasser davor liegt.
+  bandMesh(banks, new THREE.MeshStandardMaterial({
+    color: '#6f6455', roughness: 1, side: THREE.DoubleSide,
+  }));
   bandMesh(positions, new THREE.MeshStandardMaterial({
     color: '#3f7fb8', roughness: 0.35, side: THREE.DoubleSide,
   }));

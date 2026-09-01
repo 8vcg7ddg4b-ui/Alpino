@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.37.0';
+export const GAME_VERSION = '1.38.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -381,14 +381,15 @@ export const DEFAULT_PLAYER_FACTION = 'rom';
 // einen, was zählt: wie viel Land sie haben.
 //
 //   Staat       Hauptstadt, eine Stadt, ein Dorf - drei Orte
-//   Stadtstaat  Hauptstadt und ein Dorf - zwei Orte
+//   Stadtstaat  die Hauptstadt, und sonst nichts
 //
 // Ein Stadtstaat ist keine schwächere Fraktion, sondern eine engere: dieselben
-// 500 Gold, dasselbe Startheer (bis auf Sparta), aber kein Land dahinter. Wer
-// als Athen, Sparta oder Syrakus beginnt, muss sich das Reich erst nehmen.
+// 500 Gold, dasselbe Startheer (bis auf Sparta), aber kein Land dahinter -
+// nicht einmal ein Dorf. Wer als Athen, Sparta oder Syrakus beginnt, hat eine
+// Stadt und ein Heer und muss sich alles Weitere nehmen.
 export const FACTION_KINDS = {
   staat: { key: 'staat', label: 'Staat', orte: 3 },
-  stadtstaat: { key: 'stadtstaat', label: 'Stadtstaat', orte: 2 },
+  stadtstaat: { key: 'stadtstaat', label: 'Stadtstaat', orte: 1 },
 };
 
 // Wer ein Stadtstaat ist, steht an der Fraktion; alles ohne Angabe ist Staat.
@@ -777,9 +778,10 @@ export function settlementTier(size) {
 // einer Stadt und einem Dorf. Wo einer sitzt, sagt die Geschichte; wie viel er
 // hat, sagt diese Regel - kein Reich beginnt reicher als das andere.
 //
-// Ein **Stadtstaat** beginnt mit **zwei**: der Hauptstadt und einem Dorf. Athen,
-// Sparta und Syrakus waren eine Stadt mit einem Umland, kein Reich, und wer sie
-// spielt, soll das vom ersten Zug an merken.
+// Ein **Stadtstaat** beginnt mit **einem**: seiner Hauptstadt. Athen, Sparta und
+// Syrakus waren eine Stadt, kein Reich - und bei 55 km je Feld ist eine Stadt
+// genau ein Feld. Wer sie spielt, beginnt mit einer Mauer, einem Heer und
+// nichts dahinter.
 //
 // **Kein Ort steht neben einem anderen.** Zwischen zwei Siedlungen liegt
 // mindestens ein freies Feld - bei 55 km je Feld heißt das rund hundert
@@ -857,15 +859,12 @@ export const CITY_DEFS = [
   { name: 'Tanais', lon: 39.28, lat: 47.21, factionId: 'sarmaten', capital: true, size: 'large' },
   { name: 'Olbia', lon: 31.90, lat: 46.63, factionId: 'sarmaten', capital: false, size: 'city' },
   { name: 'Chersonesos', lon: 33.49, lat: 44.61, factionId: 'sarmaten', capital: false, size: 'village' },
-  // --- Athen (Stadtstaat): Attika und die Kleruchie auf Euboia -----------
+  // --- Athen (Stadtstaat): die Stadt und sonst nichts -----------
   { name: 'Athen', lon: 23.73, lat: 37.98, factionId: 'athen', capital: true, size: 'large' },
-  { name: 'Oreos', lon: 23.05, lat: 38.95, factionId: 'athen', capital: false, size: 'village' },
-  // --- Sparta (Stadtstaat): die Lakonike und der Stützpunkt in Elis ------
+  // --- Sparta (Stadtstaat): die Stadt und sonst nichts ------
   { name: 'Sparta', lon: 22.43, lat: 37.07, factionId: 'sparta', capital: true, size: 'large' },
-  { name: 'Kyllene', lon: 21.14, lat: 37.94, factionId: 'sparta', capital: false, size: 'village' },
-  // --- Syrakus (Stadtstaat): die Ostküste Siziliens ----------------------
+  // --- Syrakus (Stadtstaat): die Stadt und sonst nichts ----------------------
   { name: 'Syrakus', lon: 15.29, lat: 37.07, factionId: 'syrakus', capital: true, size: 'large' },
-  { name: 'Akragas', lon: 13.59, lat: 37.31, factionId: 'syrakus', capital: false, size: 'village' },
   // --- Unabhängig --------------------------------------------------------
   // Die Mehrheit der Karte. Darunter alles, was den Reichen mit der neuen
   // Dreierregel aus der Hand fiel: Arretium und Tarent, Hadrumetum und

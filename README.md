@@ -690,8 +690,8 @@ der ins Spiel führt.
   **Steinmauer** (900 Gold, 6 Runden, +100 %). Gekauft wird immer nur die
   nächste Stufe, und immer nur eine zur Zeit. **Die Dörfer der Reiche stehen
   offen**: Höfe, ein Speicher, kein Wall – wer sie halten will, baut die
-  Palisade selbst, und das ist die erste Entscheidung an jeder Grenze (19 von
-  110 Orten beginnen so). Städte einer Fraktion haben die **Holzpalisade**,
+  Palisade selbst, und das ist die erste Entscheidung an jeder Grenze (16 von
+  107 Orten beginnen so). Städte einer Fraktion haben die **Holzpalisade**,
   Hauptstädte die **Große** – die Steinmauer bleibt auch ihnen zu bauen. Die
   **unabhängigen Städte** haben ebenfalls die Große und ihre **Dörfer die
   einfache**: sie haben keinen Herrn, der ihnen ein Heer schickt, und stehen
@@ -913,7 +913,7 @@ der ins Spiel führt.
   gefördert wird, und das liegt auf Halde. Es sind 143 Felder
   auf der ganzen Karte, nicht mehr. Das Feldfenster nennt dazu die Zahl und den
   Ort, dem das Erz zufällt: „⛏️ Erz – 2 Punkte für ein Bergwerk in Roma (5 Erz
-  im Umland)". Von 110 Orten haben 33 genug Erz; der Knopf
+  im Umland)". Von 107 Orten haben 33 genug Erz; der Knopf
   nennt vor dem Bau, was er tragen wird. Neben der Stadt steht danach ein
   Fördergerüst mit Schacht und Halde, in der Übersicht hat das Bergwerk eine
   eigene Spalte, und die KI schlägt eines an, bevor sie die nächste Mauer baut.
@@ -1606,18 +1606,18 @@ der ins Spiel führt.
   zählt – wie viel Land man hat.
 
   Ein **Staat** beginnt mit **drei** Orten: der Hauptstadt als Große Stadt,
-  einer Stadt und einem Dorf. Ein **Stadtstaat** beginnt mit **zwei**: der
-  Hauptstadt und einem Dorf. Sonst ist alles gleich – dieselben 500 Gold,
+  einer Stadt und einem Dorf. Ein **Stadtstaat** beginnt mit **einem**: seiner
+  Hauptstadt, und sonst nichts. Sonst ist alles gleich – dieselben 500 Gold,
   dasselbe Startheer (bis auf Sparta, das weniger Bürger hat).
 
   Vorher hielt jedes Reich fünf Orte. Das war viel: ein Spieler begann mit
   einem fertigen Land und hatte wenig Grund, danach noch etwas zu wollen.
-  Jetzt hält jeder einen **Kern**, und **56 der 110 Orte auf der Karte gehören
+  Jetzt hält jeder einen **Kern**, und **56 der 107 Orte auf der Karte gehören
   niemandem** – die Mehrheit. Arretium und Tarent vor Roms Tür, Hadrumetum
   neben Karthago, Londinium neben Camulodunum, Damaskus südlich von Antiochia:
   lauter Städte mit Mauern und Wachen, die auf den ersten warten, der danach
   greift. Über zwölf Läufe zu 60 Runden liegt das Feld dadurch enger
-  beieinander als vorher – zwischen **1,8** (Rom) und **8,0** (Sarmaten) Orten
+  beieinander als vorher – zwischen **1,4** (Rom) und **7,4** (Gallier) Orten
   statt zwischen 1,9 und 9,2.
 - **Kein Ort steht neben einem anderen.** Zwischen zwei Siedlungen liegt
   jetzt mindestens ein freies Feld – bei 55 km je Feld rund hundert Kilometer.
@@ -1646,20 +1646,21 @@ der ins Spiel führt.
   der Karte, denn Griechenland war eng, und eine Karte mit 55 km je Feld
   verträgt dort keine Ortsdichte, die jedes Feld belegt.
 
-  **Und sie haben nur zwei Orte: die Stadt und ein Dorf.** Athen hält Athen und
-  **Oreos**, die Kleruchie auf Nord-Euboia; Sparta hält Sparta und **Kyllene**
-  an der Westküste; Syrakus hält Syrakus und **Akragas**. Dass die zweiten
-  Orte so weit ab liegen, ist kein Zufall, sondern die Zwei-Felder-Regel:
-  **Attika und die Lakonike sind bei 55 km je Feld jeweils ein einziges Feld
-  groß.** Was ein Stadtstaat sonst noch hielt – Eleusis, Piräus, Gytheion –
-  liegt im Nachbarfeld seiner Hauptstadt und kann deshalb kein eigener Ort
-  sein. Der zweite Ort muss an den Rand der Einflusszone, und dort steht dann
-  eine Kleruchie oder ein Stützpunkt statt einer Vorstadt.
+  **Und sie haben genau einen Ort: die Stadt.** Athen ist Athen, Sparta ist
+  Sparta, Syrakus ist Syrakus – eine Mauer, ein Heer, und dahinter nichts. Das
+  ist keine Sparmaßnahme, sondern der Maßstab: **Attika und die Lakonike sind
+  bei 55 km je Feld jeweils ein einziges Feld groß.** Was ein Stadtstaat sonst
+  noch hielt – Eleusis, Piräus, Gytheion – liegt im Nachbarfeld seiner
+  Hauptstadt und kann unter der Zwei-Felder-Regel kein eigener Ort sein. Statt
+  einen zweiten Ort an den Rand der Einflusszone zu setzen, wo er nicht
+  hingehört, hat der Stadtstaat gar keinen: die erste Aufgabe ist, sich einen
+  zu nehmen.
 
-  In den Messungen ist das die härteste Ausgangslage im Spiel: Athen **3,0**,
-  Sparta **2,8**, Syrakus **4,7** Orte im Schnitt nach 60 Runden, bei einem
-  Median von **5,5**. Ausgeschaltet wurde in zwölf Läufen aber keiner von
-  ihnen: die Lage ist eng, nicht aussichtslos.
+  In den Messungen ist das mit Abstand die härteste Ausgangslage im Spiel:
+  Athen **2,1**, Sparta **2,0**, Syrakus **4,0** Orte im Schnitt nach 60
+  Runden, bei einem Median von **5,7**. Wer als Athen spielt, hat nach
+  sechzig Runden im Schnitt **einen** Ort dazugewonnen. Ausgeschaltet wurde in
+  zwölf Läufen aber keiner von ihnen: die Lage ist eng, nicht aussichtslos.
 
   **Sparta ist die schärfste Fraktion des Spiels.** Der **Spartiat** hat
   **13 Verteidigung** – mehr hat niemand –, kostet dafür 132 Gold, und Sparta
@@ -1670,9 +1671,9 @@ der ins Spiel führt.
   ausgeglichen und fährt, worauf die Stadt wirklich stand: die **Triere** ist
   ihre erste Bauart.
 
-  **Auf Sizilien stehen jetzt vier Orte statt sieben.** Syrakus und Akragas,
-  dazu die unabhängigen **Messana** und **Panormus** – jeder zwei Felder vom
-  nächsten. Kamarina, Gela und Tauromenion sind weg: auf einer Insel, die neun
+  **Auf Sizilien stehen jetzt drei Orte statt sieben.** Syrakus, dazu die
+  unabhängigen **Messana** und **Panormus** – jeder zwei Felder vom nächsten.
+  Akragas, Kamarina, Gela und Tauromenion sind weg: auf einer Insel, die neun
   Felder breit ist, war jeder zweite davon eine Stadt.
 - **Jede Fraktion hat ihre eigenen Einheiten.** Drei Waffengattungen gibt es
   überall – Fußvolk, Reiterei, Fernkampf –, aber jede Fraktion füllt sie anders
@@ -1790,7 +1791,7 @@ der ins Spiel führt.
   Wie lange das dauert, entscheidet, was man in den Ort steckt: ein Dorf
   braucht ohne alles rund **135 Runden** bis zur Stadt, mit einer **Farm 89**,
   mit **Farm und Viadukt 77**. In zweihundert Runden ohne Krieg wachsen so von
-  110 Orten etwa **64** in den nächsten Rang.
+  107 Orten etwa **62** in den nächsten Rang.
   **Auf der Karte hat jedes Gebäude überall dasselbe Maß.** Vorher wuchsen mit
   dem Rang eines Orts einfach alle Gebäude mit – dieselben vier Hütten, nur
   größer gezeichnet; eine Große Stadt sah aus wie ein Dorf für Riesen, und zwei
@@ -1827,11 +1828,26 @@ der ins Spiel führt.
   diese Karte wird schräg angesehen, und einem Aufkleber fehlt aus jeder
   anderen Richtung genau das, was ihn zu einem Weg macht – eine Kante. Jetzt
   liegt die Straße auf einem **Damm**, dessen Böschung im Schrägblick einen
-  Schatten wirft, und der Fluss als **Fahrrinne mit einer flachen Schürze an
-  den Seiten**. Uferbänke aus Kies standen hier eine Fassung lang neben dem
-  Wasser; sie machten aus jedem Bach eine dreifarbige Trasse und aus einem
-  Flusslauf ein Gleisbett, und sie sind wieder fort: **ein Fluss ist Wasser und
-  sonst nichts.** Dazu sind beide auf ihr Maß gebracht –
+  Schatten wirft.
+
+  **Und der Fluss hat sich eingeschnitten.** Er lag als Band flach über dem
+  Boden und folgte dabei jeder Bodenwelle – im Gebirge kletterte der Lauf die
+  Hänge hinauf und hinunter wie ein aufgemalter Strich. Jetzt ist die
+  **Wasserfläche je Uferstück eben**: eine Höhe für das ganze Stück, und der
+  Fluss läuft gerade, statt jeder Welle nachzugeben; auf einem Gefälle setzt er
+  von Stück zu Stück ab, so wie ein Gebirgsbach es tut. Zu beiden Seiten steht
+  eine **Felsschulter**, die über den Spiegel hinausragt und unter ihn
+  hinabreicht: von oben sieht man Wasser zwischen zwei Felskanten, von der
+  Seite eine Rinne im Land. Dazu ist der Lauf **um ein Drittel schmaler** als
+  vorher.
+
+  Wirklich in den Boden schneiden lässt sich ein Fluss auf dieser Karte nicht:
+  das Gelände ist ein Netz aus Feldhöhen, und ein Fluss läuft auf einer
+  Feldgrenze – wer dort eine Kerbe zöge, müsste die Höhe ganzer Felder senken,
+  und mit ihr alles, was darauf steht, vom Bauernhof bis zum Berg. Die
+  Schulter macht dasselbe von außen.
+
+  Dazu sind beide auf ihr Maß gebracht –
   eine Straße ist so breit, dass zwei Karren aneinander vorbeikommen, also
   ungefähr ein Haus lang und nicht drei nebeneinander; sie war vorher um zwei
   Drittel zu breit und um einen Ton zu hell. Die Brücke darüber ist etwas
@@ -1853,16 +1869,32 @@ der ins Spiel führt.
   Kreisen, weit draußen tauchen **Wale** auf, blasen und gehen wieder unter – der Blas
   ist kein Strahl, sondern ein Strauß feiner Strahlen in zwei Bögen, die oben
   auseinandergehen und in Tropfen zerfallen –,
-  über der Küste kreisen **Möwen** mit schlagenden Flügeln, und an den
-  Waldrändern steht **Rotwild**; über die Straßen ziehen **Ochsenkarren** hin
+  über der Küste kreisen **Möwen** mit schlagenden Flügeln, an den Waldrändern
+  steht **Wild**; über die Straßen ziehen **Ochsenkarren** hin
   und zurück: zwei Pferde nebeneinander, jedes mit Leib, Hals, Kopf, vier
   Läufen und Schweif, dazu Joch, Deichsel und der Kastenwagen mit Plane über
-  zwei Speichenrädern – rund 330 Fische, **fünf Wale**,
-  vierzig Möwen, zweihundert Stück Wild und ein Fuhrwerk auf jedem Weg von
-  einiger Länge. Ein Dutzend Wale waren zu viele: das Meer sah aus wie ein
+  zwei Speichenrädern – rund 220 Fische, **fünf Wale**,
+  vierzig Möwen, zweihundertdreißig Stück Wild und ein Fuhrwerk auf jedem Weg
+  von einiger Länge. Ein Dutzend Wale waren zu viele: das Meer sah aus wie ein
   Teich mit Karpfen. Fünf sind ein Fund, und sie ziehen erst dort, wo das
   Wasser wirklich offen ist – im Umkreis von **vier** Feldern darf kein Land
-  liegen, vorher genügten zwei. Eine Straße, auf der nie etwas fährt, ist ein Strich; die
+  liegen, vorher genügten zwei.
+
+  **Ein Schwarm ist kein Gänsemarsch.** Die Fische saßen mit festem
+  Zeitversatz auf ein und derselben Kreisbahn und schwammen deshalb brav
+  hintereinander her – fünf Enten auf dem Teich. Jetzt hat der Schwarm eine
+  Mitte, die den Kreis zieht, und jeder Fisch einen festen Platz darin, längs
+  und quer. Der Platz dreht mit der Schwimmrichtung mit, damit der Schwarm in
+  der Kurve seine Form behält; ein leichtes Wandern lässt ihn dabei atmen.
+  Fünf Rücken je Schwarm statt drei, dafür weniger Schwärme.
+
+  **Und Wild ist nicht gleich Wild.** Wo vorher ein bis drei gleiche Tiere
+  standen, steht jetzt eines von dreien, und die Zahl gehört zur Art: ein
+  **Hirsch** zieht **allein** und trägt ein Geweih aus zwei Stangen mit je drei
+  Enden; **Rehe** stehen zu **dritt**, kleiner und zierlicher, mit dem hellen
+  Spiegel am Hinterteil; **Wildschweine** ebenfalls zu dritt – eine Bache mit
+  ihren Frischlingen, gedrungen, mit Rüssel, zwei Hauern und dem Kamm über dem
+  Widerrist. Rehe sind am häufigsten, der einzelne Hirsch am seltensten. Eine Straße, auf der nie etwas fährt, ist ein Strich; die
   Karren fahren die wirklichen Wege ab und wenden an ihrem Ende. Nichts davon greift in die Regeln ein: es
   ist Landschaft. Deshalb ist es billig gebaut – je Gattung **eine
   Instanzenwolke**, und bewegt wird nur **fünfzehnmal je Sekunde**; dazwischen
@@ -1874,9 +1906,9 @@ der ins Spiel führt.
 
   **Ein Staat beginnt mit drei Orten**: der Hauptstadt als Große Stadt, einer
   Stadt und einem Dorf. Ein **Stadtstaat** – Athen, Sparta, Syrakus – beginnt
-  mit zweien: der Hauptstadt und einem Dorf. Wo einer sitzt, sagt die
+  mit einem: seiner Hauptstadt. Wo einer sitzt, sagt die
   Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt reicher
-  als das andere. **56 der 110 Orte gehören niemandem** und sind frei zu
+  als das andere. **56 der 107 Orte gehören niemandem** und sind frei zu
   erobern – von Gades bis Exopolis, und das ist die Mehrheit der Karte.
   Zwischen je zwei Orten liegt mindestens **ein freies Feld**. Neun davon liegen im **Nordosten**, wo die
   Karte bisher leer war: Kremnoi am Maiotischen See, Azagarion und Karrodounon
