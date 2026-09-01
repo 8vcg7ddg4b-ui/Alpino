@@ -2791,6 +2791,180 @@ function riverEdgeTiles(key, cols) {
   };
 }
 
+// --- Der Lauf als Linienzug ------------------------------------------------
+// Ein Fluss wurde bisher Uferstück für Uferstück gezeichnet: für jede Feldkante
+// ein eigenes Band, das ein Stück über die Ecke hinausragte, damit an den
+// Knicken kein Zwickel offen blieb. Das ergab rechte Winkel - ein Fluss, der
+// wie ein Straßenzug im Schachbrett abbiegt.
+//
+// Jetzt wird zuerst der **ganze Lauf** zusammengesetzt: aus den Kanten werden
+// die Ecken des Rasters gewonnen, aus den Ecken ein Linienzug, und dessen
+// Knicke werden **ausgerundet**. Gezeichnet wird danach ein durchgehendes Band
+// entlang dieses Linienzugs - ohne Überlappungen, ohne Ecken.
+
+// Die beiden Rasterecken, die ein Uferstück verbindet. Ecke (i, j) sitzt bei
+// den Feldkoordinaten (i - 0,5 | j - 0,5).
+function riverEdgeCorners(a, b) {
+  if (a.row === b.row) {
+    const i = Math.max(a.col, b.col);
+    return [[i, a.row], [i, a.row + 1]];
+  }
+  const j = Math.max(a.row, b.row);
+  return [[a.col, j], [a.col + 1, j]];
+}
+
+// Aus der Menge der Uferstücke die Linienzüge: erst ein Graph über die Ecken,
+// dann von jedem freien Ende aus durchlaufen, und was danach übrig bleibt,
+// sind Ringe.
+function riverPolylines(rivers, cols) {
+  const graph = new Map();
+  const kante = (p, q) => {
+    const pk = `${p[0]},${p[1]}`;
+    const qk = `${q[0]},${q[1]}`;
+    if (!graph.has(pk)) graph.set(pk, []);
+    if (!graph.has(qk)) graph.set(qk, []);
+    graph.get(pk).push(qk);
+    graph.get(qk).push(pk);
+  };
+  for (const key of rivers) {
+    const { a, b } = riverEdgeTiles(key, cols);
+    const [p, q] = riverEdgeCorners(a, b);
+    kante(p, q);
+  }
+  const benutzt = new Set();
+  const strichKey = (x, y) => (x < y ? `${x}>${y}` : `${y}>${x}`);
+  const zuege = [];
+  const punkt = (k) => k.split(',').map(Number);
+  // An einer Gabelung geht es geradeaus weiter, nicht in den ersten besten
+  // Ast: sonst bricht der Zug mitten im Lauf ab, und dort, wo zwei Züge
+  // stumpf aneinanderstoßen, klafft im Band ein Keil.
+  const geradeaus = (vorher, hier) => {
+    const offen = (graph.get(hier) || []).filter((n) => !benutzt.has(strichKey(hier, n)));
+    if (offen.length <= 1) return offen[0];
+    const [hx, hy] = punkt(hier);
+    const [vx, vy] = vorher ? punkt(vorher) : [hx, hy];
+    const dx = hx - vx;
+    const dy = hy - vy;
+    let bester = offen[0];
+    let bestes = -Infinity;
+    for (const n of offen) {
+      const [nx, ny] = punkt(n);
+      const wert = (nx - hx) * dx + (ny - hy) * dy;
+      if (wert > bestes) { bestes = wert; bester = n; }
+    }
+    return bester;
+  };
+  const laufe = (start) => {
+    const zug = [start];
+    let vorher = null;
+    let hier = start;
+    for (;;) {
+      const weiter = geradeaus(vorher, hier);
+      if (!weiter) break;
+      benutzt.add(strichKey(hier, weiter));
+      zug.push(weiter);
+      vorher = hier;
+      hier = weiter;
+    }
+    if (zug.length >= 2) zuege.push(zug);
+  };
+  // Erst von den freien Enden, dann von den Gabelungen, zuletzt aus Ringen:
+  // ein Zug, der an einer Gabelung beginnt, wird sonst unnötig kurz.
+  const offen = (ecke) => (graph.get(ecke) || [])
+    .some((n) => !benutzt.has(strichKey(ecke, n)));
+  for (const [ecke, nachbarn] of graph) if (nachbarn.length === 1) laufe(ecke);
+  for (const [ecke, nachbarn] of graph) if (nachbarn.length > 2 && offen(ecke)) laufe(ecke);
+  for (const ecke of graph.keys()) if (offen(ecke)) laufe(ecke);
+  return zuege.map((zug) => zug.map((k) => {
+    const [i, j] = k.split(',').map(Number);
+    return { x: worldX(i - 0.5), z: worldZ(j - 0.5) };
+  }));
+}
+
+// Die Knicke ausrunden: an jedem Eckpunkt ein Stück zurück, ein Stück voraus,
+// und dazwischen eine quadratische Bézierkurve durch die alte Ecke.
+function roundPath(punkte, radius, stufen) {
+  if (punkte.length < 3) return punkte.slice();
+  const raus = [punkte[0]];
+  const zwischen = (von, nach, weite) => {
+    const dx = nach.x - von.x;
+    const dz = nach.z - von.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const t = Math.min(weite, len / 2) / len;
+    return { x: von.x + dx * t, z: von.z + dz * t };
+  };
+  for (let i = 1; i < punkte.length - 1; i++) {
+    const q = punkte[i];
+    const ein = zwischen(q, punkte[i - 1], radius);
+    const aus = zwischen(q, punkte[i + 1], radius);
+    raus.push(ein);
+    for (let k = 1; k < stufen; k++) {
+      const t = k / stufen;
+      const u = 1 - t;
+      raus.push({
+        x: u * u * ein.x + 2 * u * t * q.x + t * t * aus.x,
+        z: u * u * ein.z + 2 * u * t * q.z + t * t * aus.z,
+      });
+    }
+    raus.push(aus);
+  }
+  raus.push(punkte[punkte.length - 1]);
+  return raus;
+}
+
+// Lange gerade Stücke unterteilen, damit das Band dem Gelände folgt.
+function resamplePath(punkte, schritt) {
+  const raus = [punkte[0]];
+  for (let i = 1; i < punkte.length; i++) {
+    const a = punkte[i - 1];
+    const b = punkte[i];
+    const len = Math.hypot(b.x - a.x, b.z - a.z);
+    const teile = Math.max(1, Math.ceil(len / schritt));
+    for (let k = 1; k <= teile; k++) {
+      const t = k / teile;
+      raus.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+    }
+  }
+  return raus;
+}
+
+// Ein durchgehendes Band entlang eines Linienzugs. Die Breite darf sich von
+// Punkt zu Punkt ändern - so läuft der Uferstreifen aus, wo der Fluss ins
+// Bergland eintritt, statt abzubrechen.
+function pushRibbon(positions, punkte, breiten, lift, schuerze) {
+  const quer = [];
+  for (let i = 0; i < punkte.length; i++) {
+    const vor = punkte[Math.max(0, i - 1)];
+    const nach = punkte[Math.min(punkte.length - 1, i + 1)];
+    const dx = nach.x - vor.x;
+    const dz = nach.z - vor.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const nx = (-dz / len) * breiten[i];
+    const nz = (dx / len) * breiten[i];
+    const p = punkte[i];
+    quer.push([
+      [p.x + nx, bandY(p.x + nx, p.z + nz) + lift, p.z + nz],
+      [p.x - nx, bandY(p.x - nx, p.z - nz) + lift, p.z - nz],
+    ]);
+  }
+  const dreieck = (a, b, c) => {
+    positions.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+  };
+  for (let i = 1; i < quer.length; i++) {
+    const [al, ar] = quer[i - 1];
+    const [bl, br] = quer[i];
+    dreieck(al, bl, br);
+    dreieck(al, br, ar);
+    if (!schuerze) continue;
+    // Die Längsseiten, damit das Band im Schrägblick eine Kante hat.
+    const senk = (p) => [p[0], p[1] - schuerze, p[2]];
+    dreieck(al, senk(al), bl);
+    dreieck(bl, senk(al), senk(bl));
+    dreieck(ar, br, senk(ar));
+    dreieck(br, senk(br), senk(ar));
+  }
+}
+
 function buildRivers(state) {
   if (riversGroup) scene.remove(riversGroup);
   riversGroup = new THREE.Group();
@@ -2802,63 +2976,93 @@ function buildRivers(state) {
   const banks = [];
   const bridges = [];
   const half = TILE_SIZE / 2;
+  const { cols, rows, tiles } = state.map;
 
-  for (const key of rivers) {
-    const { a, b } = riverEdgeTiles(key, state.map.cols);
-    // Die gemeinsame Kante liegt quer zur Verbindung der beiden Feldmitten.
-    const mx = (worldX(a.col) + worldX(b.col)) / 2;
-    const mz = (worldZ(a.row) + worldZ(b.row)) / 2;
-    const alongX = a.row === b.row;
-    // **Was für ein Land liegt links und rechts?** Steht auch nur auf einer
-    // Seite Fels, ist der Lauf eingeengt: schmal und ohne Ufer. Erst wo zu
-    // beiden Seiten Flachland liegt, breitet er sich aus und legt eine Aue an.
-    const boden = (t) => (state.map.tiles[t.row] && state.map.tiles[t.row][t.col]);
-    const steil = [a, b].some((t) => {
-      const feld = boden(t);
-      return feld && STEILES_LAND.has(feld.type);
-    });
-    const width = TILE_SIZE * (steil ? RIVER_WIDTH_STEEP : RIVER_WIDTH_FLAT);
-    const ufer = steil ? 0 : TILE_SIZE * RIVER_BANK;
-    // **Erreicht der Lauf hier das Meer?** Dann reicht das Band tiefer in das
-    // Wasserfeld hinein, damit die Mündung wirklich am Meer ankommt und nicht
-    // eine halbe Feldbreite davor aufhört.
-    const insMeer = [a, b].some((t) => {
-      const feld = boden(t);
-      return feld && feld.type === 'water';
-    });
-    // Jedes Band reicht um seine halbe Breite über die Feldgrenze hinaus. Zwei
-    // Stücke, die im rechten Winkel aufeinandertreffen, überlappen sich
-    // dadurch in der Ecke; ohne diesen Überstand blieb dort außen ein Zwickel
-    // frei, und ein Lauf über viele Ecken sah aus wie eine gestrichelte Linie.
-    const reach = half + width + ufer + (insMeer ? half * 0.7 : 0);
-    const from = alongX ? [mx, mz - reach] : [mx - reach, mz];
-    const to = alongX ? [mx, mz + reach] : [mx + reach, mz];
-    // In Stücke zerlegt, damit das Band dem Gelände folgt. Ein Uferstück ist
-    // ein ganzes Feld lang und läuft dabei über ein Dreiecksfeld des Geländes
-    // hinweg; als eine einzige Fläche zwischen zwei Endpunkten schnitt es in
-    // hügeligem Land in den Boden, und der Fluss wirkte unterbrochen.
-    for (let piece = 0; piece < RIVER_PIECES; piece++) {
-      const t0 = piece / RIVER_PIECES;
-      const t1 = (piece + 1) / RIVER_PIECES;
-      const ax = from[0] + (to[0] - from[0]) * t0;
-      const az = from[1] + (to[1] - from[1]) * t0;
-      const bx = from[0] + (to[0] - from[0]) * t1;
-      const bz = from[1] + (to[1] - from[1]) * t1;
-      // Der Uferstreifen zuerst und etwas tiefer: das Wasser liegt darin.
-      if (ufer) pushBand(banks, ax, az, bx, bz, width + ufer, RIVER_LIFT * 0.55, RIVER_SKIRT);
-      pushBand(positions, ax, az, bx, bz, width, RIVER_LIFT, ufer ? 0 : RIVER_SKIRT);
+  // Was für Land links und rechts des Laufs steht. Steht auch nur auf einer
+  // Seite Fels, ist der Fluss eingeengt: schmal und ohne Uferstreifen.
+  const feldBei = (x, z) => {
+    const col = Math.round(x / TILE_SIZE + cols / 2);
+    const row = Math.round(z / TILE_SIZE + rows / 2);
+    return tiles[row] && tiles[row][col];
+  };
+  const istSteil = (p, nx, nz) => [1, -1].some((seite) => {
+    const feld = feldBei(p.x + nx * seite * half, p.z + nz * seite * half);
+    return feld && STEILES_LAND.has(feld.type);
+  });
+  const istWasser = (p) => {
+    const feld = feldBei(p.x, p.z);
+    return feld && feld.type === 'water';
+  };
+
+  for (const roh of riverPolylines(rivers, cols)) {
+    // **Die Mündung ins Meer.** Endet der Zug an der Küste, läuft er ein
+    // halbes Feld weiter - sonst hört der Strom sichtbar vor dem Wasser auf.
+    const zug = roh.slice();
+    for (const ende of [0, 1]) {
+      const i = ende ? zug.length - 1 : 0;
+      const j = ende ? zug.length - 2 : 1;
+      const p = zug[i];
+      const q = zug[j];
+      const dx = p.x - q.x;
+      const dz = p.z - q.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const weiter = { x: p.x + (dx / len) * half, z: p.z + (dz / len) * half };
+      if (!istWasser(weiter)) continue;
+      if (ende) zug.push(weiter); else zug.unshift(weiter);
     }
+    // Ecken ausrunden, dann fein genug unterteilen fürs Gelände.
+    const pfad = resamplePath(roundPath(zug, half * 0.8, 5), half * 0.5);
+    // Für jeden Punkt die Breite - und danach geglättet, damit der
+    // Uferstreifen ausläuft statt abzubrechen.
+    const rohBreiten = [];
+    const rohUfer = [];
+    for (let i = 0; i < pfad.length; i++) {
+      const vor = pfad[Math.max(0, i - 1)];
+      const nach = pfad[Math.min(pfad.length - 1, i + 1)];
+      const dx = nach.x - vor.x;
+      const dz = nach.z - vor.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const steil = istSteil(pfad[i], -dz / len, dx / len);
+      rohBreiten.push(TILE_SIZE * (steil ? RIVER_WIDTH_STEEP : RIVER_WIDTH_FLAT));
+      rohUfer.push(steil ? 0 : TILE_SIZE * RIVER_BANK);
+    }
+    const glatt = (werte) => werte.map((_, i) => {
+      let summe = 0;
+      let zahl = 0;
+      for (let k = -2; k <= 2; k++) {
+        const w = werte[i + k];
+        if (w === undefined) continue;
+        summe += w;
+        zahl++;
+      }
+      return summe / zahl;
+    });
+    const breiten = glatt(rohBreiten);
+    const ufer = glatt(rohUfer);
+    // Der Uferstreifen zuerst und etwas tiefer: das Wasser liegt darin.
+    if (ufer.some((u) => u > 0.01)) {
+      pushRibbon(banks, pfad, breiten.map((b, i) => b + ufer[i]),
+        RIVER_LIFT * 0.55, RIVER_SKIRT);
+    }
+    pushRibbon(positions, pfad, breiten, RIVER_LIFT, RIVER_SKIRT * 0.5);
+  }
 
-    const roads = state.roads || {};
+  const roads = state.roads || {};
+  for (const key of rivers) {
+    const { a, b } = riverEdgeTiles(key, cols);
     // Eine Brücke steht dort, wo eine Straße den Fluss quert - aber nicht am
     // Rand einer Stadt: dort führt der Weg durch den Ort, und ein Brückenbogen
     // stünde mitten in den Häusern. Für die Bewegung zählt der Übergang
     // trotzdem, die Stadt ist die Brücke.
     const amOrt = state.cities.some((city) => (city.col === a.col && city.row === a.row)
       || (city.col === b.col && city.row === b.row));
-    if (!amOrt && roads[`${a.col},${a.row}`] && roads[`${b.col},${b.row}`]) {
-      bridges.push({ mx, mz, alongX });
-    }
+    if (amOrt) continue;
+    if (!roads[`${a.col},${a.row}`] || !roads[`${b.col},${b.row}`]) continue;
+    bridges.push({
+      mx: (worldX(a.col) + worldX(b.col)) / 2,
+      mz: (worldZ(a.row) + worldZ(b.row)) / 2,
+      alongX: a.row === b.row,
+    });
   }
 
   const bandMesh = (daten, material) => {

@@ -359,6 +359,40 @@ export const RIVERS = [
   },
 ];
 
+// --- Seen ------------------------------------------------------------------
+// Binnengewässer, in echten Koordinaten wie alles Geografische. Sie sind
+// Landschaft und Hindernis, kein Fahrwasser: ein See begründet keinen Hafen
+// (siehe `coastalOnMap`), und weil `labelSeas` zusammenhängende Wasserflächen
+// getrennt zählt, käme ohnehin kein Schiff vom Bodensee ins Mittelmeer.
+//
+// `felder` sagt, welche Nachbarfelder ein See außer seiner Mitte noch bedeckt -
+// bei 55 km je Feld ist selbst der Bodensee ein Feld, der Van-See zwei.
+// Größer werden sie nicht: ein See, der eine Landbrücke zerschneidet, ist kein
+// Schmuck mehr, sondern eine Regeländerung.
+export const LAKES = [
+  { name: 'Lacus Brigantinus', lon: 9.50, lat: 47.60 },
+  { name: 'Lacus Lemannus', lon: 6.50, lat: 46.45 },
+  { name: 'Lacus Larius', lon: 9.25, lat: 46.00 },
+  { name: 'Lacus Benacus', lon: 10.70, lat: 45.60 },
+  { name: 'Lacus Volsiniensis', lon: 11.93, lat: 42.60 },
+  // Der Lacus Fucinus fehlt mit Absicht. Er lag im engsten Teil der
+  // Apenninen, und ein Feld Wasser trennte dort Süditalien von Rom: Capua und
+  // Tarent waren über Land nicht mehr zu erreichen. Ein See, der eine
+  // Landbrücke zerschneidet, ist keine Landschaft mehr, sondern eine
+  // Regeländerung - und die Römer haben ihn ohnehin trockengelegt.
+  { name: 'Lacus Pelso', lon: 17.70, lat: 46.85, felder: [[1, 0]] },
+  { name: 'Lacus Lychnidus', lon: 20.72, lat: 41.03 },
+  { name: 'Palus Prasias', lon: 23.15, lat: 41.20 },
+  { name: 'Lacus Copais', lon: 23.10, lat: 38.45 },
+  { name: 'Lacus Tritonis', lon: 8.40, lat: 33.70, felder: [[1, 0]] },
+  { name: 'Lacus Ascanius', lon: 29.55, lat: 40.43 },
+  { name: 'Lacus Gennesaret', lon: 35.60, lat: 32.80 },
+  { name: 'Lacus Asphaltites', lon: 35.50, lat: 31.50 },
+  { name: 'Lacus Thospitis', lon: 43.00, lat: 38.60, felder: [[1, 0]] },
+  { name: 'Lacus Matianus', lon: 45.40, lat: 37.70, felder: [[0, 1]] },
+  { name: 'Lacus Sevan', lon: 45.35, lat: 40.35 },
+];
+
 export const STRAITS = [
   { name: 'Straße von Gibraltar', lon: -5.30, lat: 36.10 },
   { name: 'Straße von Messina', lon: 15.60, lat: 38.20 },

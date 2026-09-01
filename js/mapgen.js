@@ -2,7 +2,7 @@ import {
   TILE_TYPES, CITY_DEFS, tileImpassable, tileMoveCost,
 } from './data.js';
 import {
-  MAP_COLS, MAP_ROWS, MAP_BOUNDS, RIDGES, FORESTS, STRAITS, RIVERS,
+  MAP_COLS, MAP_ROWS, MAP_BOUNDS, RIDGES, FORESTS, STRAITS, RIVERS, LAKES,
   isLandAt, lonOfCol, latOfRow, colOfLon, rowOfLat, kmPerDegreeLon,
   colOfLonExact, rowOfLatExact,
 } from './geodata.js';
@@ -493,6 +493,25 @@ export function generateMap(seed = 1337) {
     const col = colOfLon(strait.lon);
     const row = rowOfLat(strait.lat);
     if (inBounds(col, row)) tiles[row][col].type = 'water';
+  }
+
+  // Und zuletzt die Seen. Sie kommen nach allem anderen, damit weder die
+  // Wüstenrechnung noch das Freiräumen um die Orte sie wieder zuschüttet -
+  // und sie weichen jedem Ort aus, der genau auf ihrem Feld steht.
+  const orte = new Set(CITY_DEFS.map((c) => `${colOfLon(c.lon)},${rowOfLat(c.lat)}`));
+  for (const see of LAKES) {
+    const col = colOfLon(see.lon);
+    const row = rowOfLat(see.lat);
+    for (const [dc, dr] of [[0, 0], ...(see.felder || [])]) {
+      const c = col + dc;
+      const r = row + dr;
+      if (!inBounds(c, r)) continue;
+      if (orte.has(`${c},${r}`)) continue;
+      tiles[r][c].type = 'water';
+      // Der Merker unterscheidet den See vom Meer: an ihm liegt kein Hafen.
+      tiles[r][c].lake = true;
+      tiles[r][c].lakeName = see.name;
+    }
   }
 
   assignElevation(tiles, rng);

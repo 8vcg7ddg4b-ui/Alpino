@@ -1407,6 +1407,24 @@ der ins Spiel führt.
   gehört niemandem** – weder der Fels noch der Pass darunter: ein Pass ist ein
   Weg hindurch, kein Land, das eine Stadt verwaltet. Die Grenze endet deshalb
   am Fuß des Kamms, statt quer über ihn zu laufen.
+- **Seen**: Sechzehn Binnengewässer liegen auf der Karte, in echten Koordinaten
+  wie alles Geografische – **Lacus Brigantinus** (Bodensee), **Lemannus**
+  (Genfersee), **Larius** (Comer See), **Benacus** (Gardasee),
+  **Volsiniensis** (Bolsena), **Pelso** (Balaton), **Lychnidus** (Ohrid),
+  **Palus Prasias**, **Copais** in Böotien, **Tritonis** in der Tunesischen
+  Schotte, **Ascanius** (Iznik), **Gennesaret**, **Asphaltites** (das Tote
+  Meer), **Thospitis** (Van), **Matianus** (Urmia) und der **Sevan**.
+
+  Ein See ist Landschaft und Hindernis, **kein Fahrwasser**: an ihm liegt kein
+  Hafen, und weil zusammenhängende Wasserflächen getrennt gezählt werden, käme
+  ohnehin kein Schiff vom Bodensee ins Mittelmeer. Bei 55 km je Feld ist selbst
+  der Bodensee ein Feld und der Van-See zwei; größer werden sie nicht.
+
+  Der **Lacus Fucinus** fehlt mit Absicht. Er lag im engsten Teil der
+  Apenninen, und ein Feld Wasser trennte dort Süditalien von Rom: Capua und
+  Tarent waren über Land nicht mehr zu erreichen. Ein See, der eine Landbrücke
+  zerschneidet, ist keine Landschaft mehr, sondern eine Regeländerung – und die
+  Römer haben ihn ohnehin trockengelegt.
 - **Flüsse und Brücken**: Fünfzehn große Ströme liegen auf der Karte, in echten
   Koordinaten wie alles Geografische – Rhein und Donau, Rhône, Po und Tiber,
   Seine und Loire, Ebro, Tejo und Guadalquivir, Elbe und Weichsel, Mariza, Nil
@@ -1849,6 +1867,22 @@ der ins Spiel führt.
   flogen wieder heraus. Der Unterschied ist nicht die Bank, sondern dass sie
   nur dort liegt, wo sie hingehört.
 
+  **Und er läuft rund, nicht eckig.** Ein Fluss wurde bisher Uferstück für
+  Uferstück gezeichnet: für jede Feldkante ein eigenes Band, das ein Stück über
+  die Ecke hinausragte, damit an den Knicken kein Zwickel offen blieb. Das
+  ergab rechte Winkel – ein Strom, der abbiegt wie eine Straße im Schachbrett.
+  Jetzt wird zuerst der **ganze Lauf** zusammengesetzt: aus den Kanten werden
+  die Ecken des Rasters gewonnen, aus den Ecken ein Linienzug, dessen Knicke
+  mit einer **Bézierkurve ausgerundet** werden – und darauf liegt ein
+  **durchgehendes Band**, ohne Überlappungen und ohne Ecken. Weil das Band
+  durchläuft, kann sich seine Breite von Punkt zu Punkt ändern: der
+  Uferstreifen **läuft aus**, wo der Fluss ins Bergland eintritt, statt
+  abzubrechen.
+
+  An einer Gabelung geht der Linienzug **geradeaus** weiter statt in den
+  erstbesten Ast: wo zwei Züge stumpf aneinanderstoßen, klafft im Band sonst
+  ein Keil.
+
   **Und der Lauf erreicht das Meer.** An der Mündung reicht das Band jetzt
   eine halbe Feldbreite weiter in das Wasserfeld hinein, statt an der
   Feldgrenze aufzuhören – vorher endete mancher Strom sichtbar vor der Küste.
@@ -1921,6 +1955,20 @@ der ins Spiel führt.
   Wer eine ruhige Karte will, schaltet es in den Einstellungen unter **„Leben
   auf der Karte"** ab.
 
+  **Die Koordinaten sind nachgeprüft.** Jeder Ort steht dort, wo er wirklich
+  stand; sechs standen daneben und wurden berichtigt: **Trapezus** (Trabzon lag
+  42 km weiter südlich), **Kabeira** (Niksar, 30 km), **Sarmizegetusa** (die
+  dakische Burg liegt bei Grădiștea Muncelului, nicht bei der römischen
+  Nachfolgestadt – 40 km), **Bibracte** (Mont Beuvray, 19 km), **Siga** (an der
+  Mündung der Tafna, 17 km) und **Mattium** (Altenburg bei Niedenstein, 11 km).
+
+  Zwei Abweichungen bleiben mit Absicht. **Amisos** steht 26 km zu weit
+  nördlich: auf dem echten Platz (Samsun) läge es Feld an Feld mit Amaseia, und
+  die Zwei-Felder-Regel geht vor. Und wo die Lage in der Forschung strittig
+  ist, steht ein plausibler Punkt aus der Spanne – **Tigranokerta** und **Zama
+  Regia** sind bis heute nicht sicher lokalisiert, und **Gelonos**,
+  **Amadoka**, **Karrodounon**, **Naubaris**, **Exopolis** und **Rha** sind
+  Namen aus Herodot und Ptolemaios, zu denen es keine Ausgrabung gibt.
   **Ein Staat beginnt mit drei Orten**: der Hauptstadt als Große Stadt, einer
   Stadt und einem Dorf. Ein **Stadtstaat** – Athen, Sparta, Syrakus – beginnt
   mit einem: seiner Hauptstadt. Wo einer sitzt, sagt die

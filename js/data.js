@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.39.0';
+export const GAME_VERSION = '1.40.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -794,6 +794,22 @@ export function settlementTier(size) {
 //
 // Alles Übrige auf der Karte ist unabhängig und wartet darauf, dass jemand
 // danach greift - und das ist jetzt die Mehrheit der Orte.
+//
+// **Die Koordinaten sind die echten.** Sie wurden gegen die tatsächliche Lage
+// nachgeprüft; sechs waren daneben und stehen jetzt richtig: Trapezus (Trabzon
+// lag 42 km weiter südlich), Kabeira (Niksar, 30 km), Sarmizegetusa (die
+// dakische Burg liegt bei Grădiștea Muncelului, nicht bei der römischen
+// Nachfolgestadt, 40 km), Bibracte (Mont Beuvray, 19 km), Siga (an der Mündung
+// der Tafna, 17 km) und Mattium (Altenburg bei Niedenstein, 11 km).
+//
+// Zwei Abweichungen bleiben mit Absicht:
+//   - **Amisos** steht 26 km zu weit nördlich. Auf dem echten Platz (Samsun)
+//     läge es Feld an Feld mit Amaseia, und die Zwei-Felder-Regel geht vor.
+//   - Wo die Lage in der Forschung strittig ist, steht ein plausibler Punkt
+//     aus der Spanne: **Tigranokerta** und **Zama Regia** sind bis heute nicht
+//     sicher lokalisiert, und **Gelonos**, **Amadoka**, **Karrodounon**,
+//     **Naubaris**, **Exopolis** und **Rha** sind Namen aus Herodot und
+//     Ptolemaios, zu denen es keine Ausgrabung gibt.
 export const CITY_DEFS = [
   // --- Rom: Italien ------------------------------------------------------
   { name: 'Roma', lon: 12.48, lat: 41.90, factionId: 'rom', capital: true, size: 'large' },
@@ -810,7 +826,7 @@ export const CITY_DEFS = [
   // --- Numidien: der Maghreb ---------------------------------------------
   { name: 'Cirta', lon: 6.61, lat: 36.37, factionId: 'numidien', capital: true, size: 'large' },
   { name: 'Hippo Regius', lon: 7.75, lat: 36.90, factionId: 'numidien', capital: false, size: 'city' },
-  { name: 'Siga', lon: -1.32, lat: 35.19, factionId: 'numidien', capital: false, size: 'village' },
+  { name: 'Siga', lon: -1.45, lat: 35.30, factionId: 'numidien', capital: false, size: 'village' },
   // --- Parther: die iranische Hochebene ----------------------------------
   { name: 'Ekbatana', lon: 48.52, lat: 34.80, factionId: 'parther', capital: true, size: 'large' },
   { name: 'Susa', lon: 48.25, lat: 32.19, factionId: 'parther', capital: false, size: 'city' },
@@ -822,13 +838,13 @@ export const CITY_DEFS = [
   // --- Pontus: die Südküste des Schwarzen Meeres -------------------------
   { name: 'Amaseia', lon: 35.83, lat: 40.65, factionId: 'pontus', capital: true, size: 'large' },
   { name: 'Sinope', lon: 35.15, lat: 42.03, factionId: 'pontus', capital: false, size: 'city' },
-  { name: 'Trapezus', lon: 39.72, lat: 41.38, factionId: 'pontus', capital: false, size: 'village' },
+  { name: 'Trapezus', lon: 39.72, lat: 41.00, factionId: 'pontus', capital: false, size: 'village' },
   // --- Makedonien: Pella, die Küste und Thessalien -----------------------
   { name: 'Pella', lon: 22.52, lat: 40.76, factionId: 'makedonien', capital: true, size: 'large' },
   { name: 'Amphipolis', lon: 23.83, lat: 40.82, factionId: 'makedonien', capital: false, size: 'city' },
   { name: 'Larissa', lon: 22.42, lat: 39.64, factionId: 'makedonien', capital: false, size: 'village' },
   // --- Germanen: zwischen Rhein, Nordsee und Elbe ------------------------
-  { name: 'Mattium', lon: 9.28, lat: 51.13, factionId: 'germanen', capital: true, size: 'large' },
+  { name: 'Mattium', lon: 9.28, lat: 51.23, factionId: 'germanen', capital: true, size: 'large' },
   { name: 'Treva', lon: 9.99, lat: 53.55, factionId: 'germanen', capital: false, size: 'city' },
   { name: 'Calisia', lon: 18.08, lat: 51.76, factionId: 'germanen', capital: false, size: 'village' },
   // --- Britannier: die Insel ---------------------------------------------
@@ -840,7 +856,7 @@ export const CITY_DEFS = [
   { name: 'Tarraco', lon: 1.25, lat: 41.12, factionId: 'iberer', capital: false, size: 'city' },
   { name: 'Olisipo', lon: -9.14, lat: 38.72, factionId: 'iberer', capital: false, size: 'village' },
   // --- Daker: die Karpaten -----------------------------------------------
-  { name: 'Sarmizegetusa', lon: 22.79, lat: 45.62, factionId: 'daker', capital: true, size: 'large' },
+  { name: 'Sarmizegetusa', lon: 23.31, lat: 45.62, factionId: 'daker', capital: true, size: 'large' },
   { name: 'Napoca', lon: 23.60, lat: 46.77, factionId: 'daker', capital: false, size: 'city' },
   { name: 'Serdica', lon: 23.32, lat: 42.70, factionId: 'daker', capital: false, size: 'village' },
   // --- Seleukiden: Syrien und das Zweistromland --------------------------
@@ -884,7 +900,7 @@ export const CITY_DEFS = [
   { name: 'Amadoka', lon: 34.50, lat: 48.00, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Naubaris', lon: 44.00, lat: 47.50, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Kremnoi', lon: 37.50, lat: 47.40, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Bibracte', lon: 4.03, lat: 46.75, factionId: 'neutral', capital: false, size: 'city' },
+  { name: 'Bibracte', lon: 4.03, lat: 46.92, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Piroboridava', lon: 27.40, lat: 46.00, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Rha', lon: 47.00, lat: 46.00, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Aquileia', lon: 13.37, lat: 45.77, factionId: 'neutral', capital: false, size: 'village' },
@@ -902,7 +918,7 @@ export const CITY_DEFS = [
   { name: 'Epidamnos', lon: 19.45, lat: 41.32, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Byzantion', lon: 28.98, lat: 41.01, factionId: 'neutral', capital: false, size: 'city' },
   { name: 'Tarentum', lon: 17.24, lat: 40.47, factionId: 'neutral', capital: false, size: 'village' },
-  { name: 'Kabeira', lon: 36.96, lat: 40.32, factionId: 'neutral', capital: false, size: 'village' },
+  { name: 'Kabeira', lon: 36.95, lat: 40.59, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Ankyra', lon: 32.86, lat: 39.93, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Palma', lon: 2.65, lat: 39.57, factionId: 'neutral', capital: false, size: 'village' },
   { name: 'Caralis', lon: 9.11, lat: 39.22, factionId: 'neutral', capital: false, size: 'village' },

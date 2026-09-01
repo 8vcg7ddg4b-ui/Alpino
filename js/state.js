@@ -396,7 +396,9 @@ export function coastalOnMap(map, col, row) {
       const distance = Math.abs(dc) + Math.abs(dr);
       if (distance === 0 || distance > PORT_RANGE) continue;
       const tile = map.tiles[row + dr] && map.tiles[row + dr][col + dc];
-      if (tile && tile.type === 'water') return true;
+      // Ein Binnensee ist kein Hafen: von ihm führt kein Weg ans Meer, und
+      // eine Flotte, die dort gebaut würde, käme nie wieder heraus.
+      if (tile && tile.type === 'water' && !tile.lake) return true;
     }
   }
   return false;
