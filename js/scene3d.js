@@ -2801,6 +2801,12 @@ function addGate(ring, { angle, half, width, height, thickness, material, t = 0 
   }
 }
 
+// Steht nur ein Tor, dann auf dieser Seite. Seite 0 zeigt nach +z, also dem
+// Betrachter entgegen - dieselbe Seite, auf der der Ring eines Dorfes seine
+// Lücke hat (dort ist `tore` auf Math.PI/2 gesetzt, was über die Umrechnung
+// angle = Math.PI/2 - t genau auf 0 führt).
+const TOR_SEITE = 0;
+
 function buildFortification(kind, scale, options = {}) {
   const ring = new THREE.Group();
   const span = 4.4 * scale;
@@ -2817,16 +2823,24 @@ function buildFortification(kind, scale, options = {}) {
     // Vier Tore, in allen Himmelsrichtungen. Sie sind Lücken im Ring: die
     // geschlossene Wand läuft in vier Bögen dazwischen, und wo ein Tor steht,
     // steht kein Stamm.
+    // Ein Dorf hat ein Tor, keine vier. Vier Tore sind eine Anlage, die
+    // gebaut wurde, damit Truppen nach jeder Seite hinaus können - ein Dorf
+    // hat einen Weg hinein, und mehr Stämme, als der Wald hergibt, hat es
+    // ohnehin nicht. Die Wand läuft deshalb als ein einziger Bogen um den
+    // Ring, mit einer Lücke nach Süden, wo der Weg ankommt.
     const torWinkel = 0.9 / ringRadius * scale;   // halbe Öffnung im Bogenmaß
-    const tore = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+    const tore = [Math.PI / 2];
+    // Die geschlossene Wand hinter den Stämmen: von einem Tor bis zum nächsten,
+    // bei nur einem Tor also einmal ganz herum. Der Zylinder zählt seinen
+    // Winkel von +z aus, die Stämme von +x - daher die Umrechnung.
+    const schritt = (Math.PI * 2) / tore.length;
     for (const t of tore) {
-      // Die Wand als Bogen von diesem Tor bis zum nächsten. Der Zylinder zählt
-      // seinen Winkel von +z aus, die Stämme von +x - daher die Umrechnung.
       const a1 = t + torWinkel;
-      const a2 = t + Math.PI / 2 - torWinkel;
+      const a2 = t + schritt - torWinkel;
       const bogen = new THREE.Mesh(
         new THREE.CylinderGeometry(ringRadius - radius * 0.6, ringRadius - radius * 0.6,
-          height * 0.84, 12, 1, true, Math.PI / 2 - a2, a2 - a1),
+          height * 0.84, Math.max(12, Math.round(24 / tore.length)), 1, true,
+          Math.PI / 2 - a2, a2 - a1),
         wood
       );
       bogen.position.y = height * 0.42;
@@ -2873,13 +2887,15 @@ function buildFortification(kind, scale, options = {}) {
     // So viele Stämme, dass sie sich berühren.
     const perSide = Math.max(12, Math.round(span / (radius * 1.7)));
     // In der Mitte jeder Seite steht ein Tor: dort bleibt die Wand offen und
-    // kein Stamm steht im Weg.
+    // kein Stamm steht im Weg. Ein Dorf bekommt nur eines, nach Süden.
     const torBreite = 0.95 * scale;
     for (let side = 0; side < 4; side++) {
       const angle = (side * Math.PI) / 2;
+      const mitTor = !options.dorf || side === TOR_SEITE;
       // Der geschlossene Wall hinter den Stämmen - links und rechts des Tors.
-      const lauf = (span - torBreite) / 2;
-      for (const seite of [-1, 1]) {
+      // Wo kein Tor steht, läuft er in einem Stück durch.
+      const lauf = mitTor ? (span - torBreite) / 2 : span;
+      for (const seite of (mitTor ? [-1, 1] : [0])) {
         const versatz = seite * (torBreite / 2 + lauf / 2);
         const [wx, wz] = sidePoint(angle, versatz, half);
         const wall = new THREE.Mesh(
@@ -2892,7 +2908,7 @@ function buildFortification(kind, scale, options = {}) {
       }
       for (let i = 0; i < perSide; i++) {
         const t = (i / (perSide - 1) - 0.5) * span;
-        if (Math.abs(t) < torBreite / 2 + radius) continue;
+        if (mitTor && Math.abs(t) < torBreite / 2 + radius) continue;
         const [x, z] = sidePoint(angle, t, half);
         const stake = new THREE.Mesh(
           new THREE.CylinderGeometry(radius * 0.82, radius, height, 5),
@@ -2907,9 +2923,11 @@ function buildFortification(kind, scale, options = {}) {
         tip.position.set(x, height + 0.11 * scale, z);
         ring.add(tip);
       }
-      addGate(ring, {
-        angle, half, width: torBreite, height, thickness: radius * 1.8, material: wood,
-      });
+      if (mitTor) {
+        addGate(ring, {
+          angle, half, width: torBreite, height, thickness: radius * 1.8, material: wood,
+        });
+      }
     }
     return ring;
   }
@@ -2927,8 +2945,11 @@ function buildFortification(kind, scale, options = {}) {
   const torBreite = 1.05 * scale;
   for (let i = 0; i < 4; i++) {
     const angle = (i * Math.PI) / 2;
-    const lauf = (span - torBreite) / 2;
-    for (const seite of [-1, 1]) {
+    // Auch hier: ein Dorf, das sich eine Mauer leisten kann, bekommt trotzdem
+    // nur ein Tor. Die übrigen drei Seiten stehen geschlossen.
+    const mitTor = !options.dorf || i === TOR_SEITE;
+    const lauf = mitTor ? (span - torBreite) / 2 : span;
+    for (const seite of (mitTor ? [-1, 1] : [0])) {
       const [sx, sz] = sidePoint(angle, seite * (torBreite / 2 + lauf / 2), half);
       const segment = new THREE.Mesh(new THREE.BoxGeometry(lauf, height, thickness), material);
       segment.position.set(sx, height / 2, sz);
@@ -2944,9 +2965,11 @@ function buildFortification(kind, scale, options = {}) {
     walk.position.set(wx, height + 0.06 * scale, wz);
     walk.rotation.y = angle;
     ring.add(walk);
-    addGate(ring, {
-      angle, half, width: torBreite, height, thickness, material,
-    });
+    if (mitTor) {
+      addGate(ring, {
+        angle, half, width: torBreite, height, thickness, material,
+      });
+    }
   }
 
   for (let i = 0; i < 4; i++) {
@@ -5256,7 +5279,7 @@ export function syncEntities(state) {
     for (let index = 0; index < entry.walls.length; index++) {
       if (index + 1 === level && !entry.walls[index]) {
         entry.walls[index] = buildFortification(WALL_LEVELS[index].key, entry.scale,
-          { round: city.size === 'village' });
+          { round: city.size === 'village', dorf: city.size === 'village' });
         entry.group.add(entry.walls[index]);
       }
       if (entry.walls[index]) entry.walls[index].visible = index + 1 === level;

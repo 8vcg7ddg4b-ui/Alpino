@@ -2,7 +2,7 @@ import {
   createInitialState, playerFaction, unitTotalCount, factionById, logMsg, isFleet,
 } from './state.js';
 import {
-  playableFactions, factionProfile, unitDefs, UNIT_ROLES, ROLE_LABELS,
+  playableFactions, factionProfile, factionKind, unitDefs, UNIT_ROLES, ROLE_LABELS,
   CITY_DEFS, STARTING_GOLD, DEFAULT_PLAYER_FACTION, GAME_VERSION, MINE_NAME,
   wallLevelInfo, buildingDef, buildingName, ROAD_STONE,
 } from './data.js';
@@ -2323,7 +2323,7 @@ function factionDetailHTML(faction) {
 
   return `
     <h3><span class="fd-emblem">${emblemSVG(faction.id, { size: 44, color: faction.color })}</span>
-      ${faction.name}</h3>
+      ${faction.name}<span class="fd-kind">${factionKind(faction).label}</span></h3>
     <p class="fd-motto">„${art.motto}"</p>
     <p class="fd-blurb">${profile.blurb || ''}</p>
     <div class="fd-ruler">
@@ -2335,6 +2335,7 @@ function factionDetailHTML(faction) {
     <div class="fd-facts">
       <div class="fd-fact"><span>Hauptstadt</span><strong>${facts.capital}</strong></div>
       <div class="fd-fact"><span>Siedlungen</span><strong>${facts.settlements}</strong></div>
+      <div class="fd-fact"><span>Art</span><strong>${factionKind(faction).label}</strong></div>
       <div class="fd-fact"><span>Startheer</span><strong>${facts.men} Mann${
   facts.armies > 1 ? ` in ${facts.armies} Heeren` : ''}</strong></div>
       <div class="fd-fact"><span>Startgold</span><strong>${STARTING_GOLD}</strong></div>

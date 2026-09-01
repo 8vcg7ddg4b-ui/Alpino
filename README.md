@@ -690,8 +690,8 @@ der ins Spiel führt.
   **Steinmauer** (900 Gold, 6 Runden, +100 %). Gekauft wird immer nur die
   nächste Stufe, und immer nur eine zur Zeit. **Die Dörfer der Reiche stehen
   offen**: Höfe, ein Speicher, kein Wall – wer sie halten will, baut die
-  Palisade selbst, und das ist die erste Entscheidung an jeder Grenze (32 von
-  115 Orten beginnen so). Städte einer Fraktion haben die **Holzpalisade**,
+  Palisade selbst, und das ist die erste Entscheidung an jeder Grenze (19 von
+  110 Orten beginnen so). Städte einer Fraktion haben die **Holzpalisade**,
   Hauptstädte die **Große** – die Steinmauer bleibt auch ihnen zu bauen. Die
   **unabhängigen Städte** haben ebenfalls die Große und ihre **Dörfer die
   einfache**: sie haben keinen Herrn, der ihnen ein Heer schickt, und stehen
@@ -798,6 +798,14 @@ der ins Spiel führt.
   links und rechts der Öffnung. Nur der **Wehrgang** läuft über der gemauerten
   Anlage durch – über einem Tor stand er auch wirklich, und dort standen die
   besten Schützen.
+
+  **Ein Dorf hat ein Tor, keine vier.** Vier Tore sind eine Anlage, die gebaut
+  wurde, damit Truppen nach jeder Seite hinauskönnen; ein Dorf hat einen Weg
+  hinein, und mehr Stämme, als der Wald hergibt, hat es ohnehin nicht. Sein
+  Ring läuft deshalb als **ein einziger Bogen** herum, mit einer Lücke nach
+  vorn, und dort steht das Tor. Baut es sich später eine Palisade im Geviert
+  oder eine Mauer, bleibt es dabei: drei Seiten stehen geschlossen, die vierte
+  hat das Tor. Erst eine Stadt bekommt vier.
 - **Jeder Ort steht auf einem Fundament.** Die Häuser eines Orts stehen alle
   auf der Höhe seiner Feldmitte – das Gelände darunter nicht. Am Hang stand
   deshalb die halbe Siedlung in der Luft oder steckte im Boden. Jetzt trägt sie
@@ -905,7 +913,7 @@ der ins Spiel führt.
   gefördert wird, und das liegt auf Halde. Es sind 143 Felder
   auf der ganzen Karte, nicht mehr. Das Feldfenster nennt dazu die Zahl und den
   Ort, dem das Erz zufällt: „⛏️ Erz – 2 Punkte für ein Bergwerk in Roma (5 Erz
-  im Umland)". Von 115 Orten haben 35 genug Erz; der Knopf
+  im Umland)". Von 110 Orten haben 33 genug Erz; der Knopf
   nennt vor dem Bau, was er tragen wird. Neben der Stadt steht danach ein
   Fördergerüst mit Schacht und Halde, in der Übersicht hat das Bergwerk eine
   eigene Spalte, und die KI schlägt eines an, bevor sie die nächste Mauer baut.
@@ -1569,12 +1577,12 @@ der ins Spiel führt.
   wegen **Syrakus** der Krieg, nach dem dieses Spiel seinen ersten Zug zählt –
   auch Syrakus war nur ein unabhängiger Ort.
 
-  **Makedonien** hält Pella, Thessalonike, Amphipolis und Dion am Thermäischen
-  Golf – und dazu **Korinth**, tief in Griechenland: die Burg über der Landenge,
-  eine der drei „Fesseln Griechenlands", mit denen die Antigoniden die
-  Halbinsel festhielten, ohne in ihr zu stehen. Wie Karthago in Iberien beginnt
-  Makedonien deshalb mit **zwei Heeren**: eines in Pella, eines als Besatzung
-  auf Akrokorinth. Es kämpft mit der **Sarissenphalanx** – dem Vorbild, das
+  **Makedonien** hält Pella als Königssitz, **Amphipolis** an der Küste und
+  **Larissa** in Thessalien – die Küste des Thermäischen Golfs und den Weg
+  nach Süden. Korinth, die Burg über der Landenge, gehörte in einer früheren
+  Fassung dazu; sie ist der Zwei-Felder-Regel zum Opfer gefallen, weil sie
+  Athen und Sparta die Mauern berührte. Makedonien kämpft mit der
+  **Sarissenphalanx** – dem Vorbild, das
   alle anderen nachbauten: sie deckt sich schlechter als die Hoplitenwand der
   Griechen, aber sie greift härter an, denn fünf Meter Speer reichen weiter
   als jeder Schild. Dazu die **Hetairoi**, die Stoßreiterei, mit der Alexander
@@ -1593,8 +1601,42 @@ der ins Spiel führt.
   beide um Hilfe riefen, Karthago und Rom, ist der Anfang des Krieges. Auf der
   Karte liegt Messana als **unabhängige Stadt** genau zwischen Rom und Syrakus,
   und wer sie will, muss über die Meerenge.
-- **Athen und Sparta statt „der Griechen" – und drei Stadtstaaten mit je zwei
-  Orten.** Es gab nie eine Fraktion „Griechen". Athen, Sparta, Pergamon, Ephesos
+- **Zwei Arten von Fraktion: Staat und Stadtstaat.** Der Unterschied steht im
+  Auswahlbogen neben dem Namen, und er betrifft das eine, was zum Spielstart
+  zählt – wie viel Land man hat.
+
+  Ein **Staat** beginnt mit **drei** Orten: der Hauptstadt als Große Stadt,
+  einer Stadt und einem Dorf. Ein **Stadtstaat** beginnt mit **zwei**: der
+  Hauptstadt und einem Dorf. Sonst ist alles gleich – dieselben 500 Gold,
+  dasselbe Startheer (bis auf Sparta, das weniger Bürger hat).
+
+  Vorher hielt jedes Reich fünf Orte. Das war viel: ein Spieler begann mit
+  einem fertigen Land und hatte wenig Grund, danach noch etwas zu wollen.
+  Jetzt hält jeder einen **Kern**, und **56 der 110 Orte auf der Karte gehören
+  niemandem** – die Mehrheit. Arretium und Tarent vor Roms Tür, Hadrumetum
+  neben Karthago, Londinium neben Camulodunum, Damaskus südlich von Antiochia:
+  lauter Städte mit Mauern und Wachen, die auf den ersten warten, der danach
+  greift. Über zwölf Läufe zu 60 Runden liegt das Feld dadurch enger
+  beieinander als vorher – zwischen **1,8** (Rom) und **8,0** (Sarmaten) Orten
+  statt zwischen 1,9 und 9,2.
+- **Kein Ort steht neben einem anderen.** Zwischen zwei Siedlungen liegt
+  jetzt mindestens ein freies Feld – bei 55 km je Feld rund hundert Kilometer.
+  Vorher standen **vierzehn Paare** Wand an Wand, vor allem in Griechenland
+  und auf Sizilien, und dort war die Karte kein Land mehr, sondern eine
+  Häuserzeile: Athen und Eleusis und Korinth in drei Feldern nebeneinander,
+  Syrakus, Tauromenion und Messana in einer Reihe die Küste hinauf.
+
+  Wo zwei echte Städte in benachbarte Felder fielen, musste eine weichen.
+  Weggefallen sind **Thessalonike** (neben Pella), **Korinth** (zwischen Athen
+  und Sparta), **Eleusis** (vor Athen), **Gytheion** (unter Sparta),
+  **Tauromenion** (zwischen Syrakus und Messana), dazu Dion, Ktesiphon,
+  Naxuana und Azagarion. Das ist der Preis der Regel, und bei Thessalonike und
+  Korinth tut er weh – aber eine Karte, auf der zwei Hauptstädte einander die
+  Mauern berühren, ist keine Karte.
+
+  Mit Korinth fiel auch **Makedoniens zweites Heer** weg: es war die Besatzung
+  auf Akrokorinth, und ohne die Burg hat es keinen Grund mehr.
+- **Athen und Sparta statt „der Griechen".** Es gab nie eine Fraktion „Griechen". Athen, Sparta, Pergamon, Ephesos
   und Rhodos waren 264 v. Chr. fünf verschiedene politische Körper, von denen
   mehrere miteinander im Krieg lagen; sie in einen Topf zu werfen war die
   bequeme Lösung, nicht die richtige. **Athen** und **Sparta** stehen jetzt als
@@ -1604,16 +1646,20 @@ der ins Spiel führt.
   der Karte, denn Griechenland war eng, und eine Karte mit 55 km je Feld
   verträgt dort keine Ortsdichte, die jedes Feld belegt.
 
-  **Und sie haben nur zwei Orte.** Athen hält Athen und **Eleusis**, Sparta
-  hält Sparta und seinen Hafen **Gytheion**, Syrakus hält Syrakus und
-  **Tauromenion**. Das ist kein Versehen und keine Sparmaßnahme: ein Stadtstaat
-  war eine Stadt mit einem Umland, kein Reich, und wer einen spielt, soll das
-  vom ersten Zug an merken. Sie bekommen dieselben 500 Gold und (bis auf
-  Sparta) dasselbe Startheer wie alle anderen – was ihnen fehlt, ist das Land
-  dahinter. In den Messungen ist das die härteste Ausgangslage im Spiel:
-  Athen **2,7**, Sparta **3,2**, Syrakus **4,8** Orte im Schnitt nach 60
-  Runden, bei einem Median von **6,1**. Ausgeschaltet wurde in zwölf Läufen
-  aber keiner von ihnen: die Lage ist eng, nicht aussichtslos.
+  **Und sie haben nur zwei Orte: die Stadt und ein Dorf.** Athen hält Athen und
+  **Oreos**, die Kleruchie auf Nord-Euboia; Sparta hält Sparta und **Kyllene**
+  an der Westküste; Syrakus hält Syrakus und **Akragas**. Dass die zweiten
+  Orte so weit ab liegen, ist kein Zufall, sondern die Zwei-Felder-Regel:
+  **Attika und die Lakonike sind bei 55 km je Feld jeweils ein einziges Feld
+  groß.** Was ein Stadtstaat sonst noch hielt – Eleusis, Piräus, Gytheion –
+  liegt im Nachbarfeld seiner Hauptstadt und kann deshalb kein eigener Ort
+  sein. Der zweite Ort muss an den Rand der Einflusszone, und dort steht dann
+  eine Kleruchie oder ein Stützpunkt statt einer Vorstadt.
+
+  In den Messungen ist das die härteste Ausgangslage im Spiel: Athen **3,0**,
+  Sparta **2,8**, Syrakus **4,7** Orte im Schnitt nach 60 Runden, bei einem
+  Median von **5,5**. Ausgeschaltet wurde in zwölf Läufen aber keiner von
+  ihnen: die Lage ist eng, nicht aussichtslos.
 
   **Sparta ist die schärfste Fraktion des Spiels.** Der **Spartiat** hat
   **13 Verteidigung** – mehr hat niemand –, kostet dafür 132 Gold, und Sparta
@@ -1624,10 +1670,10 @@ der ins Spiel führt.
   ausgeglichen und fährt, worauf die Stadt wirklich stand: die **Triere** ist
   ihre erste Bauart.
 
-  **Auf Sizilien stehen jetzt vier Orte statt sieben.** Syrakus und
-  Tauromenion an der Ostküste, dazu die unabhängigen **Messana** und
-  **Panormus**. Akragas, Kamarina und Gela sind weg – auf einer Insel, die
-  neun Felder breit ist, war jeder zweite davon eine Stadt.
+  **Auf Sizilien stehen jetzt vier Orte statt sieben.** Syrakus und Akragas,
+  dazu die unabhängigen **Messana** und **Panormus** – jeder zwei Felder vom
+  nächsten. Kamarina, Gela und Tauromenion sind weg: auf einer Insel, die neun
+  Felder breit ist, war jeder zweite davon eine Stadt.
 - **Jede Fraktion hat ihre eigenen Einheiten.** Drei Waffengattungen gibt es
   überall – Fußvolk, Reiterei, Fernkampf –, aber jede Fraktion füllt sie anders
   aus, mit eigenem Namen, eigenen Werten und eigenem Preis:
@@ -1744,7 +1790,7 @@ der ins Spiel führt.
   Wie lange das dauert, entscheidet, was man in den Ort steckt: ein Dorf
   braucht ohne alles rund **135 Runden** bis zur Stadt, mit einer **Farm 89**,
   mit **Farm und Viadukt 77**. In zweihundert Runden ohne Krieg wachsen so von
-  115 Orten etwa **67** in den nächsten Rang.
+  110 Orten etwa **64** in den nächsten Rang.
   **Auf der Karte hat jedes Gebäude überall dasselbe Maß.** Vorher wuchsen mit
   dem Rang eines Orts einfach alle Gebäude mit – dieselben vier Hütten, nur
   größer gezeichnet; eine Große Stadt sah aus wie ein Dorf für Riesen, und zwei
@@ -1826,14 +1872,13 @@ der ins Spiel führt.
   Wer eine ruhige Karte will, schaltet es in den Einstellungen unter **„Leben
   auf der Karte"** ab.
 
-  **Die Reiche beginnen mit denselben fünf Orten**: der
-  Hauptstadt als Große Stadt, zwei Städten und zwei Dörfern. Wo einer sitzt,
-  sagt die Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt
-  reicher als das andere. Ausgenommen sind die drei **Stadtstaaten** – Athen,
-  Sparta und Syrakus –, die mit Absicht nur **zwei** Orte haben: eine Stadt mit
-  einem Umland war kein Reich, und das soll man beim Spielen merken.
-  **29 Orte gehören niemandem** und sind frei zu
-  erobern – von Gades bis Exopolis. Neun davon liegen im **Nordosten**, wo die
+  **Ein Staat beginnt mit drei Orten**: der Hauptstadt als Große Stadt, einer
+  Stadt und einem Dorf. Ein **Stadtstaat** – Athen, Sparta, Syrakus – beginnt
+  mit zweien: der Hauptstadt und einem Dorf. Wo einer sitzt, sagt die
+  Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt reicher
+  als das andere. **56 der 110 Orte gehören niemandem** und sind frei zu
+  erobern – von Gades bis Exopolis, und das ist die Mehrheit der Karte.
+  Zwischen je zwei Orten liegt mindestens **ein freies Feld**. Neun davon liegen im **Nordosten**, wo die
   Karte bisher leer war: Kremnoi am Maiotischen See, Azagarion und Karrodounon
   im Binnenland, Naubaris und Exopolis im asiatischen Sarmatien, Rha an dem
   Strom, der bei Ptolemaios so heißt, und Pityus, Phasis und Harmozica in

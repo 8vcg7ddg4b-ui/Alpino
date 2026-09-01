@@ -2824,3 +2824,19 @@ kbd {
   background: rgba(150, 40, 30, 0.75);
 }
 .event-btn:hover { background: rgba(178, 52, 38, 0.9); }
+
+/* Die Art der Fraktion - Staat oder Stadtstaat - neben ihrem Namen im
+   Auswahlbogen. Sie steht klein und in Gold: eine Einordnung, keine
+   Überschrift. */
+.fd-kind {
+  margin-left: 10px;
+  font-size: 0.5em;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
