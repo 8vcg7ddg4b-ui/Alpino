@@ -660,6 +660,24 @@ und die Leiste wird nach unten gedrückt.
 - **Gelände ansehen**: Ein Klick auf ein beliebiges Feld zeigt in der
   Seitenleiste Geländeart, Bewegungskosten, Verteidigungsbonus, Höhe über dem
   Meer und die geografische Lage – dazu, was auf dem Feld steht.
+- **Angeklickt wird, was man sieht.** Der Klick sucht sich sein Feld lange nur
+  am **Boden**: der Strahl ging durch Mauern, Dächer und Zelte hindurch und traf
+  die Erde *dahinter*. Bei einem Dorf fiel das kaum auf; bei einer Großen Stadt
+  lagen zwischen dem, was man anklickte, und dem, was ausgewählt wurde, **ein
+  bis zwei Felder**. Wer als Athen sein Heer in die Stadt zog, klickte danach
+  auf ein Modell, das gar nichts auswählte – das Heer war nur noch über den
+  schmalen Streifen Boden davor zu erreichen, und wirkte darum unerreichbar.
+
+  Jetzt zählen **Ort und Heer selbst** als Ziel: ein Klick auf Mauer, Dach oder
+  Zelt wählt das, was dort steht. Mit einer Einschränkung, die ebenso wichtig
+  ist – **ein Modell nimmt einen Klick nur an sich, wenn dahinter freies Land
+  liegt.** Sonst nähme eine hohe Stadt jedem Heer, das hinter ihr steht, den
+  Klick weg, und der Fehler wäre bloß umgezogen. Wer auf ein Feld zielt, auf dem
+  selbst etwas steht, meint das, was dort steht.
+- **Stehen Heer und Ort auf demselben Feld**, wechselt jeder weitere Klick
+  zwischen beiden: erst das Heer, dann der Ort, dann wieder das Heer. Bei einem
+  Stadtstaat wie Athen ist das der Regelfall – dort hat das Heer nur diesen
+  einen Ort.
 - **Seitenleiste**: drei Reiter – **Auswahl**, **Fraktionen**, **Ereignisse**.
   Es liegt immer nur einer offen; wer etwas anklickt, landet von selbst auf der
   Auswahl, und neue Ereignisse melden sich mit einer Zahl am Reiter.

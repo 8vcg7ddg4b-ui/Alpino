@@ -5467,6 +5467,10 @@ function buildSiegeWorks(scale, color) {
 function syncArmyGroup(state, army, entry) {
   const { group } = entry;
   const faction = factionById(state, army.factionId);
+  // Wo dieses Modell steht - für den Klick. Ein marschierendes Heer trägt das
+  // Feld, auf das es zieht; wer es unterwegs anklickt, meint es und nicht den
+  // Boden darunter.
+  group.userData.tile = { col: army.col, row: army.row };
   if (!armyAnimations.has(army.id)) {
     group.position.set(worldX(army.col), surfaceY(army.col, army.row), worldZ(army.row));
   }
@@ -5696,6 +5700,9 @@ export function syncEntities(state) {
     if (!entry) {
       entry = buildCityGroup(city);
       entry.group.position.set(worldX(city.col), surfaceY(city.col, city.row), worldZ(city.row));
+      // Auf welchem Feld dieses Modell steht: `pickTile` braucht es, um einen
+      // Klick auf Mauer oder Dach dem richtigen Feld zuzuordnen.
+      entry.group.userData.tile = { col: city.col, row: city.row };
       // Wie tief die Terrasse reicht: bis unter die tiefste Stelle des Bodens,
       // den sie überdeckt. Am Hang ist das mehr als einen Meter, in der Ebene
       // fast nichts - und sichtbar ist ohnehin nur, was aus dem Boden ragt.
@@ -6657,16 +6664,83 @@ export function animateArmyPath(armyId, tiles, onComplete) {
 // camera, then derives the tile from the hit point (vertices sit exactly at
 // tile centres, so a simple round-to-nearest is exact for the terrain and a
 // good approximation for open water).
+// Wie weit ein Modell von der getroffenen Bodenstelle entfernt sein darf, um
+// beim Klick überhaupt in Betracht zu kommen. Eine Große Stadt ragt gut zwei
+// Felder weit ins Bild; drei sind reichlich Rand.
+const PICK_RANGE = 3;
+
+// Steht auf diesem Feld ein Modell - ein Ort oder ein Heer?
+function hasMarker(col, row) {
+  for (const entry of cityGroups.values()) {
+    const t = entry.group.userData.tile;
+    if (t && t.col === col && t.row === row) return true;
+  }
+  for (const entry of armyGroups.values()) {
+    const t = entry.group.userData.tile;
+    if (t && t.col === col && t.row === row) return true;
+  }
+  return false;
+}
+
+// Was auf dem Boden steht, ist auch anzuklicken.
+//
+// Lange strahlte der Klick nur gegen Gelände und Wasser. Alles, was darüber
+// steht - Mauern, Dächer, Zelte, die Zahl über einem Heer -, war damit
+// unsichtbar für die Maus: der Strahl ging hindurch und traf den Boden
+// *dahinter*, also ein Feld weiter hinten. Bei einem Dorf fiel das kaum auf,
+// bei einer Großen Stadt lag zwischen dem, was man anklickte, und dem, was
+// ausgewählt wurde, ein bis zwei Felder. Wer als Athen sein Heer in die Stadt
+// zog, klickte danach auf ein Modell, das gar nichts auswählte - das Heer war
+// nur noch über den schmalen Streifen Boden davor zu erreichen.
+//
+// Ein Modell darf einen Klick aber **nur dann** an sich ziehen, wenn dahinter
+// **freies Land** liegt. Sonst nimmt eine hohe Stadt jedem Heer, das hinter
+// ihr steht, den Klick weg - und der Fehler wäre nur umgezogen: statt der
+// Stadt wäre nun das Heer dahinter nicht mehr anzuwählen. Wer auf ein Feld
+// zielt, auf dem selbst etwas steht, meint das, was dort steht.
+function pickMarker(raycaster, boden, bodenFeld) {
+  if (bodenFeld && hasMarker(bodenFeld.col, bodenFeld.row)) return null;
+  const kandidaten = [];
+  const grenze = TILE_SIZE * PICK_RANGE;
+  for (const map of [cityGroups, armyGroups]) {
+    for (const entry of map.values()) {
+      const group = entry.group;
+      if (!group || !group.visible || !group.userData.tile) continue;
+      if (boden && (Math.abs(group.position.x - boden.point.x) > grenze
+        || Math.abs(group.position.z - boden.point.z) > grenze)) continue;
+      kandidaten.push(group);
+    }
+  }
+  if (!kandidaten.length) return null;
+  const treffer = raycaster.intersectObjects(kandidaten, true);
+  if (!treffer.length) return null;
+  // Liegt der Boden davor, ist der Boden gemeint: ein Klick auf die Wiese vor
+  // der Stadt wählt die Wiese.
+  if (boden && boden.distance <= treffer[0].distance) return null;
+  let obj = treffer[0].object;
+  while (obj && !obj.userData.tile) obj = obj.parent;
+  return obj && obj.userData.tile ? { ...obj.userData.tile } : null;
+}
+
 export function pickTile(ndcX, ndcY) {
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera);
 
   const candidates = [terrainMesh, waterMesh].filter(Boolean);
   const hits = raycaster.intersectObjects(candidates, false);
-  if (!hits.length) return null;
-  const p = hits[0].point;
-  const col = colFromWorldX(p.x);
-  const row = rowFromWorldZ(p.z);
-  if (col < 0 || col >= mapCols || row < 0 || row >= mapRows) return null;
-  return { col, row };
+  const boden = hits.length ? hits[0] : null;
+
+  let bodenFeld = null;
+  if (boden) {
+    const col = colFromWorldX(boden.point.x);
+    const row = rowFromWorldZ(boden.point.z);
+    if (col >= 0 && col < mapCols && row >= 0 && row < mapRows) bodenFeld = { col, row };
+  }
+
+  // Liegt hinter dem Klick freies Land, gilt das Modell davor.
+  const marker = pickMarker(raycaster, boden, bodenFeld);
+  if (marker && marker.col >= 0 && marker.col < mapCols
+    && marker.row >= 0 && marker.row < mapRows) return marker;
+
+  return bodenFeld;
 }
