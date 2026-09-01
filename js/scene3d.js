@@ -575,8 +575,11 @@ export function wildlifeProbe() {
       blas: !!g.extra,
       // Wo die ersten stehen - damit ein Prüflauf die Kamera dorthin schwenken
       // kann, statt das Meer abzusuchen.
+      // Wer einen Weg abfährt - Karren und Handelsschiffe -, hat keine feste
+      // Mitte; dann zählt der Anfang seines Wegs.
       wo: g.tiere.slice(0, 3).map((t) => ({
-        col: colFromWorldX(t.mx), row: rowFromWorldZ(t.mz),
+        col: t.weg ? t.weg[0].col : colFromWorldX(t.mx),
+        row: t.weg ? t.weg[0].row : rowFromWorldZ(t.mz),
         ueber: t.wo ? +(t.wo.y - SEA_LEVEL_Y).toFixed(2) : null,
         blas: t.blas ? +t.blas.toFixed(2) : 0,
       })),
@@ -683,6 +686,55 @@ function spoutGeometry() {
 }
 
 // Eine Möwe von unten: zwei Flügel und ein Rumpf dazwischen.
+// Ein Handelsschiff, wie es zwischen den Häfen fuhr: bauchig, hochbordig, ein
+// einziger Mast mit Rahsegel und Fracht an Deck. Kein Rammsporn, keine
+// Ruderreihen - man soll es auf den ersten Blick von einer Kriegsflotte
+// unterscheiden, die als eigenes Modell auf der Karte steht.
+// Rumpf, Deck, Steven, Mast und Fracht - alles aus Holz, also eine Farbe.
+function merchantHullGeometry() {
+  const rumpf = new THREE.CylinderGeometry(0.34, 0.2, 1.5, 7, 1, false, 0, Math.PI);
+  const deck = new THREE.BoxGeometry(1.44, 0.06, 0.6);
+  const steven = new THREE.CylinderGeometry(0.04, 0.06, 0.4, 5);
+  const mast = new THREE.CylinderGeometry(0.032, 0.045, 0.95, 5);
+  const rah = new THREE.BoxGeometry(0.04, 0.04, 0.86);
+  const fracht = new THREE.BoxGeometry(0.16, 0.14, 0.16);
+  const teile = [
+    // Der halbe Zylinder liegt längs: seine Achse zeigt von Haus aus nach oben,
+    // eine Vierteldrehung um z legt sie nach vorn, und die offene Hälfte
+    // (Theta 0 bis Pi, also die Seite nach +x) zeigt dabei nach unten - die
+    // Wölbung des Rumpfs liegt im Wasser, das Deck oben.
+    shapePart(rumpf, 0, 0.26, 0, 0, 0, -Math.PI / 2),
+    shapePart(deck, 0, 0.24, 0),
+    // Vorn und achtern ein hochgezogener Steven.
+    shapePart(steven, 0.72, 0.36, 0, 0, 0, 0.35),
+    shapePart(steven, -0.72, 0.38, 0, 0, 0, -0.5),
+    shapePart(mast, -0.02, 0.72, 0),
+    shapePart(rah, -0.02, 1.06, 0),
+  ];
+  for (const [x, z] of [[0.3, -0.12], [0.32, 0.13], [-0.3, 0.02]]) {
+    teile.push(shapePart(fracht, x, 0.34, z));
+  }
+  const g = mergeShapes(teile);
+  rumpf.dispose();
+  deck.dispose();
+  steven.dispose();
+  mast.dispose();
+  rah.dispose();
+  fracht.dispose();
+  return g;
+}
+
+// Das Rahsegel als eigene Wolke, damit es hell bleibt: eine Instanzenwolke
+// trägt nur eine Farbe, und ein Segel in Rumpfbraun ist kein Segel.
+function merchantSailGeometry() {
+  const segel = new THREE.BoxGeometry(0.03, 0.52, 0.82);
+  // Vor dem Mast, nicht in ihm: ein Rahsegel steht beim Vorwindkurs voraus,
+  // und im Mast steckend sähe es aus, als wäre es aufgespießt.
+  const g = mergeShapes([shapePart(segel, 0.05, 0.79, 0)]);
+  segel.dispose();
+  return g;
+}
+
 function gullGeometry() {
   const fluegel = new THREE.BoxGeometry(0.12, 0.05, 0.8);
   const leib = new THREE.SphereGeometry(0.13, 5, 4);
@@ -928,11 +980,66 @@ function roadPaths(roads) {
   return wege;
 }
 
+// Seewege für die Handelsschifffahrt. Gefahren wurde in der Antike nicht quer
+// über die offene See, sondern an der Küste entlang, in Sichtweite des Landes:
+// deshalb zählen nur Wasserfelder, die nicht weiter als drei Felder vom Ufer
+// entfernt liegen. Aus diesen wird - wie bei den Straßen - eine Kette
+// benachbarter Felder gezogen, und die ist der Weg.
+function seaLanes(cols, rows, tiles) {
+  const frei = new Set();
+  const nahAmLand = (col, row) => {
+    for (let dr = -3; dr <= 3; dr++) {
+      for (let dc = -3; dc <= 3; dc++) {
+        const t = tiles[row + dr] && tiles[row + dr][col + dc];
+        if (t && t.type !== 'water') return true;
+      }
+    }
+    return false;
+  };
+  for (let row = 2; row < rows - 2; row++) {
+    for (let col = 2; col < cols - 2; col++) {
+      if (tiles[row][col].type !== 'water') continue;
+      // Direkt am Ufer nicht: dort läge das Schiff auf dem Strand.
+      const amStrand = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => {
+        const t = tiles[row + dr] && tiles[row + dr][col + dc];
+        return t && t.type !== 'water';
+      });
+      if (!amStrand && nahAmLand(col, row)) frei.add(`${col},${row}`);
+    }
+  }
+  const nachbarn = (key) => {
+    const [col, row] = key.split(',').map(Number);
+    return [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .map(([dc, dr]) => `${col + dc},${row + dr}`)
+      .filter((k) => frei.has(k));
+  };
+  const wege = [];
+  for (const start of [...frei]) {
+    if (!frei.has(start)) continue;
+    const weg = [];
+    let hier = start;
+    while (hier && frei.has(hier) && weg.length < SEA_LANE_MAX) {
+      frei.delete(hier);
+      const [col, row] = hier.split(',').map(Number);
+      weg.push({ col, row });
+      const weiter = nachbarn(hier);
+      hier = weiter.length ? weiter[0] : null;
+    }
+    if (weg.length >= 6) wege.push(weg);
+  }
+  // Die längsten zuerst: auf einem langen Weg ist ein Segel länger zu sehen.
+  wege.sort((x, y) => y.length - x.length);
+  return wege;
+}
+
 // Wie viele es höchstens werden. Auf einer Karte mit fünftausend Feldern wären
 // "alle Küstenfelder" ein Teppich - es geht um Leben, nicht um eine Zählung.
 // Ein Wal ist ein seltenes Tier, und im Mittelmeer erst recht: ein Dutzend auf
 // einer Karte machte aus ihm einen Fisch. Fünf, und die nur weit draußen.
-const WILDLIFE_MAX = { fische: 44, wale: 5, moewen: 70, wild: 90, wagen: 70 };
+const WILDLIFE_MAX = { fische: 44, wale: 5, moewen: 70, wild: 90, wagen: 70, schiffe: 26 };
+// So lang wird ein Seeweg höchstens - lang genug, dass ein Schiff eine Weile
+// unterwegs ist, kurz genug, dass es nicht quer über das Mittelmeer zieht.
+const SEA_LANE_MAX = 26;
 // So viele Rücken hat ein Schwarm. Vorher waren es drei, die alle auf
 // derselben Kreisbahn liefen - das sah aus wie eine Reihe, nicht wie ein
 // Schwarm. Jetzt schwimmen sie nebeneinander.
@@ -1186,6 +1293,49 @@ function buildWildlife(state) {
     mass.setScalar(tier.gross);
     matrix.compose(lage, dreh, mass);
   };
+  // --- Handelsschiffe auf der See -------------------------------------------
+  // Was die Karren auf den Straßen sind, sind sie auf dem Wasser: Verkehr, der
+  // ohne den Feldherrn stattfindet. Sie fahren dieselben Wege hin und zurück
+  // und wenden am Ende - eine Fahrt quer über die Karte wäre in der Antike
+  // ohnehin niemand gefahren.
+  const schiffe = [];
+  for (const weg of seaLanes(cols, rows, tiles)) {
+    if (schiffe.length >= WILDLIFE_MAX.schiffe) break;
+    schiffe.push({
+      weg,
+      takt: 0.012 + rng() * 0.01,
+      start: rng() * 2,
+      gross: 0.9 + rng() * 0.35,
+    });
+  }
+  const segeln = (tier, t, matrix, lage, dreh, mass) => {
+    const felder = tier.weg.length - 1;
+    // Hin und zurück statt im Kreis, sonst springt das Schiff am Ende.
+    const roh = (tier.start + t * tier.takt) % 2;
+    const anteil = (roh < 1 ? roh : 2 - roh) * felder;
+    const i = Math.min(felder - 1, Math.floor(anteil));
+    const rest = anteil - i;
+    const a = tier.weg[i];
+    const b = tier.weg[i + 1];
+    const col = a.col + (b.col - a.col) * rest;
+    const row = a.row + (b.row - a.row) * rest;
+    // Ein Schiff liegt im Wasser, nicht darauf: der Rumpf taucht ein, und der
+    // Seegang hebt es kaum merklich.
+    lage.set(worldX(col), SEA_LEVEL_Y - 0.06 + Math.sin(t * 0.9 + tier.start * 6) * 0.03,
+      worldZ(row));
+    const vor = roh < 1 ? 1 : -1;
+    dreh.setFromAxisAngle(WILDLIFE_ACHSE,
+      Math.atan2(-(b.row - a.row) * vor, (b.col - a.col) * vor));
+    mass.setScalar(tier.gross);
+    matrix.compose(lage, dreh, mass);
+  };
+  addWildlife(merchantHullGeometry(),
+    new THREE.MeshStandardMaterial({ color: '#6b4a2c', roughness: 0.9 }), schiffe, segeln);
+  addWildlife(merchantSailGeometry(),
+    new THREE.MeshStandardMaterial({
+      color: '#e0d3b4', roughness: 0.95, side: THREE.DoubleSide,
+    }), schiffe, segeln);
+
   addWildlife(stagGeometry(),
     new THREE.MeshStandardMaterial({ color: '#8a5a30', roughness: 0.95 }), hirsche, aesen);
   addWildlife(roeGeometry(),
@@ -2593,65 +2743,6 @@ function pushBand(positions, ax, az, bx, bz, halfWidth, lift = 0.18, schuerze = 
   }
 }
 
-// Eine ebene Fläche auf fester Höhe - anders als pushBand, das der
-// Geländehöhe folgt. Das Wasser eines Flusses steht waagerecht.
-function pushFlat(positions, ax, az, bx, bz, halfWidth, y) {
-  const dx = bx - ax;
-  const dz = bz - az;
-  const length = Math.hypot(dx, dz) || 1;
-  const nx = (-dz / length) * halfWidth;
-  const nz = (dx / length) * halfWidth;
-  const p = [
-    [ax + nx, y, az + nz], [bx + nx, y, bz + nz],
-    [bx - nx, y, bz - nz], [ax - nx, y, az - nz],
-  ];
-  const dreieck = (i, j, k) => {
-    positions.push(...p[i], ...p[j], ...p[k]);
-  };
-  dreieck(0, 1, 2);
-  dreieck(0, 2, 3);
-}
-
-// Die beiden Felsschultern des Bettes. Jede besteht aus zwei Flächen: der
-// **Wand**, die von der Wasserkante unter den Spiegel hinabreicht und die
-// Fuge zum Gelände deckt, und der **Schulter**, die von der Wasserkante über
-// den Spiegel hinaufsteigt und nach außen zur Geländekante abfällt. Zusammen
-// ergeben sie den Eindruck einer Rinne, die in den Boden geschnitten ist.
-function pushBankWalls(positions, ax, az, bx, bz, halfWidth, lippe, wasserY) {
-  const dx = bx - ax;
-  const dz = bz - az;
-  const length = Math.hypot(dx, dz) || 1;
-  const ux = -dz / length;
-  const uz = dx / length;
-  const dreieck = (p, q, r) => {
-    positions.push(p[0], p[1], p[2], q[0], q[1], q[2], r[0], r[1], r[2]);
-  };
-  for (const seite of [1, -1]) {
-    const ix = ux * halfWidth * seite;
-    const iz = uz * halfWidth * seite;
-    const ox = ux * lippe * seite;
-    const oz = uz * lippe * seite;
-    // Die Kante am Wasser, oben auf der Schulter.
-    const kA = [ax + ix, wasserY + RIVER_RIM, az + iz];
-    const kB = [bx + ix, wasserY + RIVER_RIM, bz + iz];
-    // Dieselbe Kante, unter dem Wasser: das deckt die Fuge zum Gelände.
-    const uA = [ax + ix, wasserY - RIVER_SKIRT, az + iz];
-    const uB = [bx + ix, wasserY - RIVER_SKIRT, bz + iz];
-    dreieck(kA, uA, kB);
-    dreieck(kB, uA, uB);
-    // Und die Oberseite der Schulter, außen auf Geländehöhe - aber nicht
-    // tiefer als die Wand reicht. Ohne diese Grenze wurde aus der Schulter am
-    // Berghang eine Felswand von mehreren Metern: der Boden fällt dort weit
-    // unter den Wasserspiegel, und die Fläche zog sich mit ihm hinab.
-    const tiefstens = wasserY - RIVER_SKIRT;
-    const aussen = (x, z) => Math.max(bandY(x, z) + 0.03, tiefstens);
-    const aA = [ax + ox, aussen(ax + ox, az + oz), az + oz];
-    const aB = [bx + ox, aussen(bx + ox, bz + oz), bz + oz];
-    dreieck(kA, kB, aA);
-    dreieck(kB, aB, aA);
-  }
-}
-
 function pushQuad(positions, ax, az, bx, bz, halfWidth, lift = 0.18) {
   pushBand(positions, ax, az, bx, bz, halfWidth, lift, 0);
 }
@@ -2667,27 +2758,27 @@ let riversGroup = null;
 // dem Boden - hoch genug, dass ein Knick im Gelände es nicht verschluckt,
 // flach genug, dass es nicht über der Landschaft schwebt.
 const RIVER_PIECES = 5;
-// Ein Fluss liegt nicht auf dem Land, er hat sich hineingeschnitten. Vorher
-// lag das Band flach über dem Boden und folgte jeder Bodenwelle - im Gebirge
-// kletterte der Lauf die Hänge hinauf und hinunter wie ein aufgemalter Strich.
+// Der Fluss **folgt dem Gelände**: jedes Uferstück wird in Teilstücke zerlegt,
+// und jedes nimmt seine Höhe dort, wo es wirklich liegt. Eine Fassung lang lag
+// die Wasserfläche stattdessen eben und über der höchsten Stelle ihrer Kante -
+// gerade, aber im Hang wie ein Aquädukt aufgeständert. Ein Fluss läuft
+// bergab, nicht waagerecht.
 //
-// Wirklich in den Boden schneiden lässt sich der Lauf nicht: das Gelände ist
-// ein Netz aus Feldhöhen, und ein Fluss läuft auf einer Feldgrenze - wer dort
-// eine Kerbe zöge, müsste die Höhe ganzer Felder senken, und mit ihr alles,
-// was darauf steht. Stattdessen bekommt der Lauf **Felsschultern**: zu beiden
-// Seiten steht eine Wand, die über den Wasserspiegel hinausragt und unter ihn
-// hinabreicht. Von oben sieht man Wasser zwischen zwei Felskanten, von der
-// Seite eine Rinne im Land - und das Wasser bleibt überall sichtbar, weil es
-// eine Spur über dem höchsten Punkt seiner Kante liegt.
-//
-//   RIVER_WIDTH  die halbe Breite der Wasserfläche (schmaler als vorher)
-//   RIVER_LIP    bis wohin die Felskante nach außen reicht
-//   RIVER_RIM    wie hoch die Schulter über dem Wasser steht
-//   RIVER_SKIRT  wie weit die Wand unter das Wasser reicht
-const RIVER_WIDTH = 0.068;
-const RIVER_LIP = 0.112;
-const RIVER_RIM = 0.16;
-const RIVER_SKIRT = 0.34;
+// **Wie breit und mit welchem Ufer, entscheidet das Land.** In der Ebene
+// mäandert ein Strom breit dahin und lässt zu beiden Seiten einen
+// **Uferstreifen** aus Sand und Kies liegen - die Aue, die er bei jedem
+// Hochwasser umgräbt. Im Hügelland und im Gebirge gibt es das nicht: dort
+// steht der Fels bis ans Wasser, der Lauf ist eingeengt und schmal. Genau das
+// hat einer früheren Fassung gefehlt, in der jeder Bach überall dieselbe
+// Kiesbank bekam und die Karte aussah wie ein Gleisnetz.
+const RIVER_WIDTH_FLAT = 0.085;
+const RIVER_WIDTH_STEEP = 0.052;
+// Wie weit der Uferstreifen neben dem Wasser liegt - nur in der Ebene.
+const RIVER_BANK = 0.075;
+const RIVER_LIFT = 0.13;
+const RIVER_SKIRT = 0.22;
+// Steilland: dort gibt es keinen Uferstreifen.
+const STEILES_LAND = new Set(['hills', 'mountain']);
 
 // Die beiden Feldmitten einer Kante und der Punkt dazwischen.
 function riverEdgeTiles(key, cols) {
@@ -2718,32 +2809,34 @@ function buildRivers(state) {
     const mx = (worldX(a.col) + worldX(b.col)) / 2;
     const mz = (worldZ(a.row) + worldZ(b.row)) / 2;
     const alongX = a.row === b.row;
-    // Jedes Bett reicht um seine Lippe über die Feldgrenze hinaus. Zwei
+    // **Was für ein Land liegt links und rechts?** Steht auch nur auf einer
+    // Seite Fels, ist der Lauf eingeengt: schmal und ohne Ufer. Erst wo zu
+    // beiden Seiten Flachland liegt, breitet er sich aus und legt eine Aue an.
+    const boden = (t) => (state.map.tiles[t.row] && state.map.tiles[t.row][t.col]);
+    const steil = [a, b].some((t) => {
+      const feld = boden(t);
+      return feld && STEILES_LAND.has(feld.type);
+    });
+    const width = TILE_SIZE * (steil ? RIVER_WIDTH_STEEP : RIVER_WIDTH_FLAT);
+    const ufer = steil ? 0 : TILE_SIZE * RIVER_BANK;
+    // **Erreicht der Lauf hier das Meer?** Dann reicht das Band tiefer in das
+    // Wasserfeld hinein, damit die Mündung wirklich am Meer ankommt und nicht
+    // eine halbe Feldbreite davor aufhört.
+    const insMeer = [a, b].some((t) => {
+      const feld = boden(t);
+      return feld && feld.type === 'water';
+    });
+    // Jedes Band reicht um seine halbe Breite über die Feldgrenze hinaus. Zwei
     // Stücke, die im rechten Winkel aufeinandertreffen, überlappen sich
     // dadurch in der Ecke; ohne diesen Überstand blieb dort außen ein Zwickel
     // frei, und ein Lauf über viele Ecken sah aus wie eine gestrichelte Linie.
-    const width = TILE_SIZE * RIVER_WIDTH;
-    const lippe = TILE_SIZE * RIVER_LIP;
-    const reach = half + lippe;
+    const reach = half + width + ufer + (insMeer ? half * 0.7 : 0);
     const from = alongX ? [mx, mz - reach] : [mx - reach, mz];
     const to = alongX ? [mx, mz + reach] : [mx + reach, mz];
-    // **Die Wasserfläche ist eben.** Ihre Höhe steht für das ganze Uferstück
-    // fest - genommen am höchsten Punkt entlang der Kante, damit das Wasser
-    // nirgends im Hang verschwindet. Damit läuft der Fluss gerade, statt jeder
-    // Bodenwelle nachzugeben; auf einem Gefälle setzt er von Stück zu Stück
-    // ab, so wie ein Gebirgsbach es tut.
-    let hoechster = -Infinity;
-    for (let piece = 0; piece <= RIVER_PIECES; piece++) {
-      const t = piece / RIVER_PIECES;
-      const x = from[0] + (to[0] - from[0]) * t;
-      const z = from[1] + (to[1] - from[1]) * t;
-      hoechster = Math.max(hoechster, bandY(x, z));
-    }
-    const wasserY = hoechster + 0.05;
-    pushFlat(positions, from[0], from[1], to[0], to[1], width, wasserY);
-    // Und die beiden Felswände: unten an der Wasserkante, oben an der
-    // Geländekante. Sie werden in Stücke zerlegt, weil ihre Oberkante dem
-    // Boden folgt - nur die Unterkante ist eben.
+    // In Stücke zerlegt, damit das Band dem Gelände folgt. Ein Uferstück ist
+    // ein ganzes Feld lang und läuft dabei über ein Dreiecksfeld des Geländes
+    // hinweg; als eine einzige Fläche zwischen zwei Endpunkten schnitt es in
+    // hügeligem Land in den Boden, und der Fluss wirkte unterbrochen.
     for (let piece = 0; piece < RIVER_PIECES; piece++) {
       const t0 = piece / RIVER_PIECES;
       const t1 = (piece + 1) / RIVER_PIECES;
@@ -2751,7 +2844,9 @@ function buildRivers(state) {
       const az = from[1] + (to[1] - from[1]) * t0;
       const bx = from[0] + (to[0] - from[0]) * t1;
       const bz = from[1] + (to[1] - from[1]) * t1;
-      pushBankWalls(banks, ax, az, bx, bz, width, lippe, wasserY);
+      // Der Uferstreifen zuerst und etwas tiefer: das Wasser liegt darin.
+      if (ufer) pushBand(banks, ax, az, bx, bz, width + ufer, RIVER_LIFT * 0.55, RIVER_SKIRT);
+      pushBand(positions, ax, az, bx, bz, width, RIVER_LIFT, ufer ? 0 : RIVER_SKIRT);
     }
 
     const roads = state.roads || {};
@@ -2775,9 +2870,10 @@ function buildRivers(state) {
     mesh.frustumCulled = false;
     riversGroup.add(mesh);
   };
-  // Der Fels zuerst, damit das Wasser davor liegt.
+  // Der Uferstreifen zuerst, damit das Wasser darin liegt: heller Sand und
+  // Kies, wie ihn ein Strom bei jedem Hochwasser umlagert.
   bandMesh(banks, new THREE.MeshStandardMaterial({
-    color: '#6f6455', roughness: 1, side: THREE.DoubleSide,
+    color: '#b6a882', roughness: 1, side: THREE.DoubleSide,
   }));
   bandMesh(positions, new THREE.MeshStandardMaterial({
     color: '#3f7fb8', roughness: 0.35, side: THREE.DoubleSide,

@@ -1830,22 +1830,28 @@ der ins Spiel führt.
   liegt die Straße auf einem **Damm**, dessen Böschung im Schrägblick einen
   Schatten wirft.
 
-  **Und der Fluss hat sich eingeschnitten.** Er lag als Band flach über dem
-  Boden und folgte dabei jeder Bodenwelle – im Gebirge kletterte der Lauf die
-  Hänge hinauf und hinunter wie ein aufgemalter Strich. Jetzt ist die
-  **Wasserfläche je Uferstück eben**: eine Höhe für das ganze Stück, und der
-  Fluss läuft gerade, statt jeder Welle nachzugeben; auf einem Gefälle setzt er
-  von Stück zu Stück ab, so wie ein Gebirgsbach es tut. Zu beiden Seiten steht
-  eine **Felsschulter**, die über den Spiegel hinausragt und unter ihn
-  hinabreicht: von oben sieht man Wasser zwischen zwei Felskanten, von der
-  Seite eine Rinne im Land. Dazu ist der Lauf **um ein Drittel schmaler** als
-  vorher.
+  **Und der Fluss richtet sich nach dem Land, durch das er läuft.** Er folgt
+  wie eh und je dem Gelände – jedes Uferstück nimmt seine Höhe dort, wo es
+  wirklich liegt. Eine Fassung lang lag die Wasserfläche stattdessen eben und
+  über der höchsten Stelle ihrer Kante: gerade, aber im Hang wie ein Aquädukt
+  aufgeständert. Ein Fluss läuft bergab, nicht waagerecht.
 
-  Wirklich in den Boden schneiden lässt sich ein Fluss auf dieser Karte nicht:
-  das Gelände ist ein Netz aus Feldhöhen, und ein Fluss läuft auf einer
-  Feldgrenze – wer dort eine Kerbe zöge, müsste die Höhe ganzer Felder senken,
-  und mit ihr alles, was darauf steht, vom Bauernhof bis zum Berg. Die
-  Schulter macht dasselbe von außen.
+  Was sich ändert, ist die **Breite und das Ufer**, und beides entscheidet das
+  Land zu beiden Seiten. **In der Ebene** mäandert ein Strom breit dahin und
+  lässt einen **Uferstreifen** aus Sand und Kies liegen – die Aue, die er bei
+  jedem Hochwasser umgräbt. **Im Hügelland und im Gebirge** gibt es das nicht:
+  dort steht der Fels bis ans Wasser, und der Lauf ist eingeengt und **um ein
+  Drittel schmaler**. Man sieht es einem Fluss auf der Karte an, wo er das
+  Gebirge verlässt: die Sandbänder setzen genau dort ein.
+
+  Genau das hat einer früheren Fassung gefehlt, in der jeder Bach überall
+  dieselbe Kiesbank bekam: die Karte sah aus wie ein Gleisnetz, und die Bänke
+  flogen wieder heraus. Der Unterschied ist nicht die Bank, sondern dass sie
+  nur dort liegt, wo sie hingehört.
+
+  **Und der Lauf erreicht das Meer.** An der Mündung reicht das Band jetzt
+  eine halbe Feldbreite weiter in das Wasserfeld hinein, statt an der
+  Feldgrenze aufzuhören – vorher endete mancher Strom sichtbar vor der Küste.
 
   Dazu sind beide auf ihr Maß gebracht –
   eine Straße ist so breit, dass zwei Karren aneinander vorbeikommen, also
@@ -1874,8 +1880,8 @@ der ins Spiel führt.
   und zurück: zwei Pferde nebeneinander, jedes mit Leib, Hals, Kopf, vier
   Läufen und Schweif, dazu Joch, Deichsel und der Kastenwagen mit Plane über
   zwei Speichenrädern – rund 220 Fische, **fünf Wale**,
-  vierzig Möwen, zweihundertdreißig Stück Wild und ein Fuhrwerk auf jedem Weg
-  von einiger Länge. Ein Dutzend Wale waren zu viele: das Meer sah aus wie ein
+  vierzig Möwen, zweihundertdreißig Stück Wild, **sechsundzwanzig
+  Handelsschiffe** und ein Fuhrwerk auf jedem Weg von einiger Länge. Ein Dutzend Wale waren zu viele: das Meer sah aus wie ein
   Teich mit Karpfen. Fünf sind ein Fund, und sie ziehen erst dort, wo das
   Wasser wirklich offen ist – im Umkreis von **vier** Feldern darf kein Land
   liegen, vorher genügten zwei.
@@ -1894,7 +1900,18 @@ der ins Spiel führt.
   Enden; **Rehe** stehen zu **dritt**, kleiner und zierlicher, mit dem hellen
   Spiegel am Hinterteil; **Wildschweine** ebenfalls zu dritt – eine Bache mit
   ihren Frischlingen, gedrungen, mit Rüssel, zwei Hauern und dem Kamm über dem
-  Widerrist. Rehe sind am häufigsten, der einzelne Hirsch am seltensten. Eine Straße, auf der nie etwas fährt, ist ein Strich; die
+  Widerrist. Rehe sind am häufigsten, der einzelne Hirsch am seltensten.
+
+  **Und auf dem Meer fahren Handelsschiffe.** Was die Ochsenkarren auf den
+  Straßen sind, sind sie auf dem Wasser: Verkehr, der ohne den Feldherrn
+  stattfindet. Sechsundzwanzig **Frachtsegler** – bauchiger Rumpf, hochgezogene
+  Steven, ein Mast mit hellem Rahsegel, Kisten an Deck – ziehen auf **Seewegen**
+  hin und zurück. Die Wege liegen dort, wo in der Antike wirklich gefahren
+  wurde: **an der Küste entlang, in Sichtweite des Landes** und höchstens drei
+  Felder von ihr entfernt, aber nicht auf dem Strand. Quer über die offene See
+  fuhr niemand freiwillig, und auf der Karte tut es auch niemand. Von einer
+  Kriegsflotte unterscheidet man sie auf den ersten Blick: die hat Rammsporn
+  und Ruderreihen, der Frachtsegler hat ein Segel und Fracht. Eine Straße, auf der nie etwas fährt, ist ein Strich; die
   Karren fahren die wirklichen Wege ab und wenden an ihrem Ende. Nichts davon greift in die Regeln ein: es
   ist Landschaft. Deshalb ist es billig gebaut – je Gattung **eine
   Instanzenwolke**, und bewegt wird nur **fünfzehnmal je Sekunde**; dazwischen
