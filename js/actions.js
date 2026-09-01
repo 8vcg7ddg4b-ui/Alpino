@@ -2,6 +2,7 @@ import {
   UNIT_ROLES, GARRISON_ROLES, COMBAT_ROLES, WATCH_ROLE, watchTarget, watchGrowth,
   unitDef, MAX_MOVEMENT, cityTax,
   RECRUIT_BATCH, recruitPopCost, RECRUIT_MIN_POPULATION,
+  trainingTurns, trainingSlots, TRAINING_REFUND,
   TILE_TYPES, settlementTier, garrisonCapacity,
   DEFAULT_TACTIC, tacticByKey,
   MORALE_MAX, MORALE_START, MORALE_AFTER_WIN, MORALE_AFTER_LOSS,
@@ -764,6 +765,9 @@ export function resolveTileCombat(state, army, destCol, destRow) {
     // A small occupying garrison remains so the city isn't immediately
     // defenseless against a follow-up attack the same turn.
     city.garrison = { infantry: 30 };
+    // Wer den Ort verliert, verliert auch seinen Exerzierplatz: die Rekruten,
+    // die dort noch übten, laufen auseinander. Der Eroberer erbt sie nicht.
+    city.training = [];
     city.population = Math.round(city.population * 0.92);
     // Was der Sturm angerichtet hat: eine Bresche in der Mauer, Trümmer, wo
     // Werkstätten und Speicher standen. Der neue Herr erbt eine Baustelle.
@@ -1021,31 +1025,128 @@ export function embarkStatus(state, army) {
   return { can: true, city };
 }
 
-export function recruitUnit(state, cityId, unitKey) {
+// --- Die Ausbildung --------------------------------------------------------
+// Alles, was ausgehoben wird, geht durch den Exerzierplatz: Gold und Einwohner
+// sind sofort weg, die Männer stehen erst nach einigen Runden bereit. Das ist
+// die Bremse gegen das Heer, das man sich in drei Runden kauft.
+
+export function trainingQueue(city) {
+  if (!city.training) city.training = [];
+  return city.training;
+}
+
+// Wie viele Plätze der Exerzierplatz hat und wie viele davon belegt sind.
+export function trainingStatus(state, city) {
+  const plaetze = trainingSlots(city);
+  const belegt = trainingQueue(city).length;
+  return { plaetze, belegt, frei: Math.max(0, plaetze - belegt) };
+}
+
+// Warum hier gerade niemand ausgehoben werden kann - oder dass es geht.
+export function recruitStatus(state, cityId, unitKey) {
   const city = state.cities.find((c) => c.id === cityId);
-  if (!city) return { ok: false };
-  // Ohne Kaserne wird niemand ausgebildet: ein Ort ohne Ausbildungsstätte
-  // stellt keine Truppen, er hat nur seine Wache.
-  if (!city.barracks) return { ok: false, reason: 'noBarracks' };
+  if (!city) return { can: false, reason: 'noCity' };
+  if (!city.barracks) return { can: false, reason: 'noBarracks' };
   const faction = factionById(state, city.factionId);
-  if (!faction || faction.isNeutral) return { ok: false };
+  if (!faction || faction.isNeutral) return { can: false, reason: 'noFaction' };
+  // Unter Belagerung steht der Exerzierplatz still - so wie jede Baustelle.
+  if (citySieged(state, city)) return { can: false, reason: 'siege', city };
+  const { frei, plaetze } = trainingStatus(state, city);
+  if (frei <= 0) return { can: false, reason: 'slots', city, plaetze };
   const def = unitDef(city.factionId, unitKey);
+  // Was schon in der Ausbildung steht, zählt auf die Wache mit: sonst hebt
+  // man drei Trupps für eine Wache aus, die nur einen fasst.
   const maxTotal = garrisonCapacity(city, faction);
-  if (unitTotalCount(city.garrison) >= maxTotal) return { ok: false, reason: 'full' };
-  if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
-  // Die Männer kommen aus der Stadt, nicht aus der Truhe: jede Aushebung
-  // kostet Einwohner - und damit Steuer, Nachwuchs und die Wache, die sich
-  // aus ihnen nachstellt. Unter die Untergrenze geht es nicht.
+  const unterwegs = trainingQueue(city).reduce((sum, t) => sum + t.count, 0);
+  if (unitTotalCount(city.garrison) + unterwegs >= maxTotal) {
+    return { can: false, reason: 'full', city };
+  }
+  if (faction.gold < def.cost) return { can: false, reason: 'gold', city };
   const leute = recruitPopCost(RECRUIT_BATCH);
   if (city.population - leute < RECRUIT_MIN_POPULATION) {
-    return { ok: false, reason: 'population', needed: leute };
+    return { can: false, reason: 'population', needed: leute, city };
   }
+  return { can: true, city, faction, def, leute };
+}
+
+// Eine Aushebung in die Ausbildung stellen. `armyId` merkt sich das Heer, für
+// das sie gedacht war: steht es bei der Musterung noch im Ort, treten die
+// Männer bei ihm an, sonst gehen sie in die Wache.
+function beginTraining(state, cityId, unitKey, armyId = null) {
+  const status = recruitStatus(state, cityId, unitKey);
+  if (!status.can) return { ok: false, reason: status.reason, needed: status.needed };
+  const { city, faction, def, leute } = status;
   faction.gold -= def.cost;
   city.population -= leute;
-  city.garrison[unitKey] = (city.garrison[unitKey] || 0) + RECRUIT_BATCH;
+  const runden = trainingTurns(unitKey);
+  trainingQueue(city).push({
+    unit: unitKey, count: RECRUIT_BATCH, turns: runden, turnsLeft: runden,
+    gold: def.cost, armyId,
+  });
   logOwn(state, faction.id, `${RECRUIT_BATCH} ${def.name} in ${city.name} ausgehoben `
-    + `– ${leute} Einwohner weniger (${city.population.toLocaleString('de-DE')}).`);
-  return { ok: true, pop: leute };
+    + `– ${leute} Einwohner weniger (${city.population.toLocaleString('de-DE')}), `
+    + `${runden} Runden Ausbildung.`);
+  return { ok: true, pop: leute, turns: runden };
+}
+
+export function recruitUnit(state, cityId, unitKey) {
+  return beginTraining(state, cityId, unitKey, null);
+}
+
+// Eine laufende Ausbildung abbrechen. Die Männer sind aus der Stadt heraus und
+// kommen nicht zurück; die Hälfte des Goldes schon.
+export function cancelTraining(state, cityId, index) {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false };
+  const queue = trainingQueue(city);
+  const posten = queue[index];
+  if (!posten) return { ok: false, reason: 'unknown' };
+  const faction = factionById(state, city.factionId);
+  if (!faction) return { ok: false };
+  queue.splice(index, 1);
+  const zurueck = Math.round((posten.gold || 0) * TRAINING_REFUND);
+  faction.gold += zurueck;
+  const def = unitDef(city.factionId, posten.unit);
+  logOwn(state, faction.id, `Die Ausbildung von ${posten.count} ${def.name} in `
+    + `${city.name} ist abgebrochen – ${zurueck} Gold zurück, die Männer nicht.`);
+  return { ok: true, gold: zurueck };
+}
+
+// Eine Runde Ausbildung. Was fertig wird, tritt an.
+export function advanceTraining(state) {
+  const fertig = [];
+  for (const city of state.cities) {
+    const queue = city.training;
+    if (!queue || !queue.length) continue;
+    // Unter Belagerung wird nicht exerziert: es gibt nichts zu essen und
+    // keinen Platz vor dem Tor.
+    if (citySieged(state, city)) continue;
+    const bleiben = [];
+    for (const posten of queue) {
+      posten.turnsLeft -= 1;
+      if (posten.turnsLeft > 0) { bleiben.push(posten); continue; }
+      const def = unitDef(city.factionId, posten.unit);
+      // War die Aushebung für ein bestimmtes Heer gedacht und steht das noch
+      // im Ort, tritt sie dort an - sonst geht sie in die Wache.
+      const heer = posten.armyId
+        ? state.armies.find((a) => a.id === posten.armyId
+          && a.factionId === city.factionId && a.col === city.col && a.row === city.row
+          && !a.embarked && !isFleet(a))
+        : null;
+      if (heer) {
+        const veterans = unitTotalCount(heer.units);
+        heer.experience = ((heer.experience || 0) * veterans) / (veterans + posten.count);
+        heer.units[posten.unit] = (heer.units[posten.unit] || 0) + posten.count;
+      } else {
+        city.garrison[posten.unit] = (city.garrison[posten.unit] || 0) + posten.count;
+      }
+      fertig.push({ city, unit: posten.unit, count: posten.count, army: heer || null });
+      logOwn(state, city.factionId, `⚔️ ${posten.count} ${def.name} in ${city.name} `
+        + `sind ausgebildet${heer ? ` und treten bei ${heer.name} an` : ''}.`);
+    }
+    city.training = bleiben;
+  }
+  return fertig;
 }
 
 // --- Flottenbau -----------------------------------------------------------
@@ -1129,6 +1230,11 @@ export function buildFleet(state, cityId, kind = null) {
 // Eine Armee, die in einer eigenen Stadt steht, kann dort frische Truppen
 // kaufen. Sie treten unmittelbar in die Armee ein statt den Umweg über die
 // Garnison zu nehmen - und verdünnen wie jede Aushebung die Erfahrung.
+// Verstärkung im Feld ist nichts anderes als eine Aushebung: sie geht durch
+// denselben Exerzierplatz und dauert dieselben Runden. Sonst wäre sie das
+// Schlupfloch, durch das man die Ausbildung umgeht. Gemerkt wird nur, für wen
+// sie gedacht war - steht das Heer bei der Musterung noch da, tritt sie bei
+// ihm an, sonst geht sie in die Wache.
 export function reinforceArmy(state, armyId, unitKey) {
   const army = state.armies.find((a) => a.id === armyId);
   if (!army) return { ok: false };
@@ -1136,27 +1242,7 @@ export function reinforceArmy(state, armyId, unitKey) {
   if (!UNIT_ROLES.includes(unitKey)) return { ok: false, reason: 'role' };
   const city = cityAt(state, army.col, army.row);
   if (!city || city.factionId !== army.factionId) return { ok: false, reason: 'noCity' };
-  // Auch die Verstärkung im Feld kommt aus der Kaserne des Orts.
-  if (!city.barracks) return { ok: false, reason: 'noBarracks' };
-  const faction = factionById(state, army.factionId);
-  if (!faction || faction.isNeutral) return { ok: false };
-  const def = unitDef(city.factionId, unitKey);
-  if (faction.gold < def.cost) return { ok: false, reason: 'gold' };
-  // Auch diese Männer kommen aus der Stadt - sonst wäre die Verstärkung im
-  // Feld das Schlupfloch, durch das man die Aushebung umgeht.
-  const leute = recruitPopCost(RECRUIT_BATCH);
-  if (city.population - leute < RECRUIT_MIN_POPULATION) {
-    return { ok: false, reason: 'population', needed: leute };
-  }
-
-  faction.gold -= def.cost;
-  city.population -= leute;
-  const veterans = unitTotalCount(army.units);
-  army.experience = ((army.experience || 0) * veterans) / (veterans + RECRUIT_BATCH);
-  army.units[unitKey] = (army.units[unitKey] || 0) + RECRUIT_BATCH;
-  logOwn(state, faction.id, `${RECRUIT_BATCH} ${def.name} verstärken ${army.name} in ${city.name} `
-    + `– ${leute} Einwohner weniger.`);
-  return { ok: true, pop: leute };
+  return beginTraining(state, city.id, unitKey, army.id);
 }
 
 // --- Belagerungsgerät ------------------------------------------------------

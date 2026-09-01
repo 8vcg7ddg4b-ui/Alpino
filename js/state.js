@@ -111,6 +111,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       // Seit wann dieser Ort belagert wird - alles andere an einer Belagerung
       // ergibt sich aus der Lage der Heere, nur die Dauer muss stehen.
       siege: null,
+      // Der Exerzierplatz: was hier ausgehoben wurde und noch übt. Zu Beginn
+      // steht überall die Wache, die es schon gibt, und sonst niemand.
+      training: [],
       garrison,
     };
   });

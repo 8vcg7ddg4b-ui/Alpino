@@ -680,15 +680,55 @@ der ins Spiel führt.
   **Stadtwache** (sie stellt sich aus ihnen nach) und eine niedrigere
   **Garnisonsgrenze** (ein Mann je 8 Einwohner). Unter **300 Einwohner** hebt
   niemand mehr aus – der Knopf ist dann ausgegraut und sagt, warum. Auf jedem
-  Aushebungsknopf steht beides: `120 Gold · −100 Einw.`
+  Aushebungsknopf steht alles: `120 Gold · −100 Einw. · ⏳ 2 Runden`.
   Über 120 Runden gemessen hält das die Karte im Gleichgewicht: die
   Gesamtbevölkerung steht die erste Spielhälfte still und wächst danach wieder.
+- **Eine Aushebung kostet Zeit**: Und das ist die dritte Rechnung, die härteste
+  von allen. Eine Aushebung war lange ein Kauf: Gold hin, hundert Mann her, in
+  derselben Runde in der Wache und in der nächsten schon im Feld. Wer Gold
+  hatte, hatte binnen drei Runden ein Heer, und die einzige Grenze war die
+  Truhe. Ein Legionär entsteht aber nicht auf dem Markt, sondern auf dem
+  Exerzierplatz.
+
+  **Zwei Bremsen greifen ineinander.** Die erste ist die **Ausbildungszeit**:
+
+  | | Runden |
+  | --- | --- |
+  | Fußvolk | 2 |
+  | Schützen | 3 |
+  | Reiterei | 4 |
+
+  Ein Bauer bekommt in zwei Runden Schild und Speer in die Hand; ein
+  Bogenschütze muss treffen lernen; ein Reiter muss erst ein Pferd haben und
+  dann darauf kämpfen können. **Gold und Einwohner sind sofort weg**, die
+  Männer treten erst am Ende an – wer aushebt, geht in Vorleistung.
+
+  Die zweite ist der **Platz auf dem Exerzierplatz**: eine **Große Stadt bildet
+  drei Trupps gleichzeitig aus, eine Stadt zwei, ein Dorf einen**. Der Rang des
+  Ortes ist die Größe seines Exerzierplatzes – und damit auch die Grenze
+  dessen, was je Runde überhaupt ausgehoben werden kann. Ist kein Platz frei,
+  ist der Knopf ausgegraut und sagt, warum.
+
+  **Was noch übt, zählt auf die Garnisonsgrenze mit**: sonst hebt man drei
+  Trupps für eine Wache aus, die nur einen fasst.
+  **Unter Belagerung ruht der Exerzierplatz** – wie jede Baustelle.
+  **Fällt der Ort, laufen die Rekruten auseinander**: der Eroberer erbt sie
+  nicht.
+  Eine laufende Ausbildung lässt sich mit `✕` **abbrechen**; dann kommt **die
+  Hälfte des Goldes** zurück. Die Männer nicht – die sind längst aus der Stadt
+  heraus.
+
+  Im Ortsfenster steht darüber der **Exerzierplatz**: eine Zeile je Trupp, mit
+  einem Balken für den Fortschritt und der Zahl der Runden, die noch fehlen.
+  Was fertig wird, meldet das Meldefenster am Rundenende.
 - **Armeen in der Stadt verstärken**: Steht eine eigene Armee in einer eigenen
-  Stadt, kann sie dort direkt Truppen kaufen – je 100 Mann, die sofort in die
-  Armee eintreten, statt den Umweg über die Garnison zu nehmen. Wie bei jeder
-  Aushebung verdünnen die Neuen die Erfahrung der Armee – **und sie kostet
-  denselben Preis an Einwohnern**: sonst wäre die Verstärkung im Feld das
-  Schlupfloch, durch das man die Aushebung umgeht.
+  Stadt, kann sie dort Truppen ausheben – je 100 Mann, die zur Armee stoßen
+  statt in die Garnison zu gehen. Wie bei jeder Aushebung verdünnen die Neuen
+  die Erfahrung der Armee, **sie kostet denselben Preis an Einwohnern und
+  dieselbe Ausbildungszeit**: sonst wäre die Verstärkung im Feld das
+  Schlupfloch, durch das man beides umgeht. Gemerkt wird nur, **für wen** sie
+  gedacht war – steht das Heer bei der Musterung noch im Ort, tritt sie bei ihm
+  an; ist es abmarschiert, geht sie in die Wache.
 - **Erfahrung**: Jede Armee sammelt im Feld Erfahrung – ein Stern nach etwa
   zwei Schlachten, drei Sterne nach rund sieben. Jeder Stern bringt **+12 %
   Kampfkraft**, und die Sterne stehen im Armee-Panel, auf der Karte am
@@ -1404,10 +1444,18 @@ der ins Spiel führt.
   neun Felder statt sechs, und weil Erschöpfung je Punkt anfällt, zehrt ein
   Straßenfeld auch weniger als ein Feld Ebene. Das Wetter kostet weiter extra. Gebaut wird eine Verbindung
   als Ganzes und immer nur eine je Stadt;
-  Gezeichnet wird eine Straße in Stücken statt als ein Band über das ganze
-  Feld: als eine Fläche zwischen zwei Feldmitten schnitt sie in hügeligem Land
-  in den Boden, und der Weg sah aus, als wäre er unterbrochen – dasselbe
-  Mittel, das schon die Flüsse durchgängig macht.
+  **Gezeichnet wird eine Straße in Kurven, nicht im Schachbrett.** Sie wurde
+  lange Feld für Feld gezeichnet – ein Kreuz je Feld und ein gerades Stück zum
+  Nachbarn –, und dabei kam heraus, was dabei herauskommen muss: rechte Winkel.
+  Eine römische Straße ist zwar berühmt gerade, aber sie knickt nicht alle
+  55 km um neunzig Grad. Jetzt wird derselbe Weg gegangen wie beim Fluss: aus
+  den Straßenfeldern wird ein Graph, daraus werden **durchgehende Züge**, deren
+  Knicke mit einer **Bézierkurve ausgerundet** werden, und darauf liegt **ein**
+  Band – getrennt nach Ausbaustufe, damit das Pflaster dort endet, wo der
+  Ausbau endet. Der Querschnitt liegt dabei waagerecht auf der höchsten Stelle
+  darunter: so schneidet die Trasse in hügeligem Land nicht in den Boden, und
+  der Weg reißt nicht ab. Es ist dieselbe Maschinerie, die die Flüsse rund
+  laufen lässt – sie war nur bisher den Flüssen vorbehalten.
   Neue Straßen legen sich an das bestehende Netz an. Drei Regeln fassen sie
   zusammen: ein vorhandenes Straßenfeld ist der billigste Schritt (die neue
   Verbindung schwenkt auf die alte Trasse ein), **neben** einer Straße
@@ -1654,24 +1702,51 @@ der ins Spiel führt.
   beide um Hilfe riefen, Karthago und Rom, ist der Anfang des Krieges. Auf der
   Karte liegt Messana als **unabhängige Stadt** genau zwischen Rom und Syrakus,
   und wer sie will, muss über die Meerenge.
-- **Zwei Arten von Fraktion: Staat und Stadtstaat.** Der Unterschied steht im
-  Auswahlbogen neben dem Namen, und er betrifft das eine, was zum Spielstart
-  zählt – wie viel Land man hat.
+- **Die Startlage ist die des Jahres 264 v. Chr. – keine Regel mehr.** Lange
+  bekam jede Fraktion gleich viel: Hauptstadt, Stadt, Dorf, **drei Orte für
+  alle**, für das Seleukidenreich wie für die Germanen. Das war gerecht, und es
+  war falsch. Im Frühjahr 264, als in Messana der Erste Punische Krieg beginnt,
+  war nichts gleich verteilt.
 
-  Ein **Staat** beginnt mit **drei** Orten: der Hauptstadt als Große Stadt,
-  einer Stadt und einem Dorf. Ein **Stadtstaat** beginnt mit **einem**: seiner
-  Hauptstadt, und sonst nichts. Sonst ist alles gleich – dieselben 500 Gold,
-  dasselbe Startheer (bis auf Sparta, das weniger Bürger hat).
+  | Orte | Fraktion | was sie hält |
+  | --- | --- | --- |
+  | **7** | **Karthago** | Karthago und Hadrumetum in Afrika, Panormus auf Sizilien, Caralis auf Sardinien, Gades und Malaca in Iberien, dazu Leptis Magna |
+  | **7** | **Seleukiden** | von Kilikien über Syrien und Babylonien bis nach Susa: Antiochia, Tarsos, Edessa, Damaskus, Dura Europos, Babylon |
+  | **6** | **Ptolemäer** | Alexandria, Memphis, Kyrene, Salamis auf Zypern, Tyrus und Jerusalem |
+  | **5** | **Rom** | ganz Italien südlich des Po – Roma, Capua, Arretium, Ravenna, Tarent |
+  | **5** | **Gallier** | Alesia, Bibracte, Lutetia, Burdigala, Tolosa |
+  | **3** | die mittleren Königreiche und Stammesverbände | Makedonien, Pontus, Armenien, Numidien, Illyrer, Germanen, Britannier, Iberer, Daker, Sarmaten |
+  | **2** | **Parther** | Ekbatana und Rhagae – die Parner sind noch ein Reitervolk am Saum des Seleukidenreichs |
+  | **1** | **Athen · Sparta · Syrakus** | eine Stadt, ein Heer, sonst nichts |
 
-  Vorher hielt jedes Reich fünf Orte. Das war viel: ein Spieler begann mit
-  einem fertigen Land und hatte wenig Grund, danach noch etwas zu wollen.
-  Jetzt hält jeder einen **Kern**, und **56 der 107 Orte auf der Karte gehören
-  niemandem** – die Mehrheit. Arretium und Tarent vor Roms Tür, Hadrumetum
-  neben Karthago, Londinium neben Camulodunum, Damaskus südlich von Antiochia:
-  lauter Städte mit Mauern und Wachen, die auf den ersten warten, der danach
-  greift. Über zwölf Läufe zu 60 Runden liegt das Feld dadurch enger
-  beieinander als vorher – zwischen **1,4** (Rom) und **7,4** (Gallier) Orten
-  statt zwischen 1,9 und 9,2.
+  Wer als Karthago beginnt, hat sieben Orte und sieben Grenzen; wer als Athen
+  beginnt, hat eine Stadt und muss sich alles nehmen. **Das ist der
+  Unterschied, den die Epoche macht, und er soll zu spüren sein.** Sonst bleibt
+  alles gleich: dieselben 500 Gold, dasselbe Startheer (bis auf Sparta, das
+  weniger Bürger hat).
+
+  **Was dabei neutral wurde, ist ebenso Absicht.** **Sinope**, **Olbia** und
+  **Chersonesos** waren 264 freie griechische Poleis, keine Untertanen von
+  Pontus oder der Sarmaten – Sinope fiel erst 183 an Pontus. **Karthago Nova**
+  gab es noch nicht: die Stadt wurde 228 gegründet, und Karthagos Besitz in
+  Iberien waren 264 die alten phönizischen Kolonien Gades und Malaca.
+  **Massilia** war eine freie Stadt und blieb es. **Messana** liegt in der Hand
+  der Mamertiner – eben deshalb beginnt dort der Krieg. **42 der 107 Orte
+  gehören niemandem.**
+
+  **Eine Freiheit ist genommen:** Ekbatana war 264 seleukidisch, nicht
+  parthisch. Ohne diesen Sitz hätten die Parther gar keinen – als reines
+  Steppenvolk wären sie keine spielbare Fraktion mehr, sondern eine Fußnote.
+  Sie behalten Ekbatana und bekommen Rhagae dazu; alles andere in Medien und
+  Susiana ist seleukidisch.
+
+  **Gemessen** über acht Läufe zu 60 Runden (mit Athen als unbespielter
+  Fraktion, damit Rom von der KI geführt wird) reicht das Feld von **1,4**
+  (Parther) bis **10,1** (Karthago) Orten, mit Rom bei 8,3, den Seleukiden bei
+  10,0 und den Ptolemäern bei 6,9. Vorher lag es zwischen 1,7 und 8,6. Die
+  Spanne ist **breiter geworden, und das ist der Sinn**: die Karte bildet jetzt
+  ab, wer 264 groß war. Ausgeschaltet wird trotzdem fast niemand – nur die
+  Parther fielen in einem von acht Läufen.
 - **Kein Ort steht neben einem anderen.** Zwischen zwei Siedlungen liegt
   jetzt mindestens ein freies Feld – bei 55 km je Feld rund hundert Kilometer.
   Vorher standen **vierzehn Paare** Wand an Wand, vor allem in Griechenland
@@ -2010,12 +2085,11 @@ der ins Spiel führt.
   Regia** sind bis heute nicht sicher lokalisiert, und **Gelonos**,
   **Amadoka**, **Karrodounon**, **Naubaris**, **Exopolis** und **Rha** sind
   Namen aus Herodot und Ptolemaios, zu denen es keine Ausgrabung gibt.
-  **Ein Staat beginnt mit drei Orten**: der Hauptstadt als Große Stadt, einer
-  Stadt und einem Dorf. Ein **Stadtstaat** – Athen, Sparta, Syrakus – beginnt
-  mit einem: seiner Hauptstadt. Wo einer sitzt, sagt die
-  Geschichte; wie viel er hat, sagt diese Regel – kein Reich beginnt reicher
-  als das andere. **56 der 107 Orte gehören niemandem** und sind frei zu
-  erobern – von Gades bis Exopolis, und das ist die Mehrheit der Karte.
+  **Wie viel wem gehört, sagt nicht mehr eine Regel, sondern das Jahr 264**:
+  zwischen sieben Orten (Karthago, Seleukiden) und einem (Athen, Sparta,
+  Syrakus) – die ganze Aufstellung steht weiter unten unter *Die Startlage ist
+  die des Jahres 264 v. Chr.* **42 der 107 Orte gehören niemandem** und sind
+  frei zu erobern – von Massilia bis Exopolis.
   Zwischen je zwei Orten liegt mindestens **ein freies Feld**. Neun davon liegen im **Nordosten**, wo die
   Karte bisher leer war: Kremnoi am Maiotischen See, Azagarion und Karrodounon
   im Binnenland, Naubaris und Exopolis im asiatischen Sarmatien, Rha an dem

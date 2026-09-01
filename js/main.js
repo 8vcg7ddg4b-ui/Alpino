@@ -23,6 +23,7 @@ import {
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
   buyRoad, upgradeRoad, advanceRoadConstruction, buildFleet,
   buyBuilding, advanceConstruction, mineIncomeOf,
+  advanceTraining, cancelTraining,
   updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp, besiegeCity,
   layAmbush, leaveAmbush,
   openTradeRoute, closeTradeRoute, pruneTradeRoutes, growPopulations, growSettlements,
@@ -1774,6 +1775,12 @@ function refresh() {
       (ok ? sfx.recruit : sfx.denied)();
       refresh();
     },
+    onCancelTraining: (cityId, index) => {
+      pushUndo();
+      const ok = cancelTraining(state, cityId, index).ok;
+      (ok ? sfx.wallBuy : sfx.denied)();
+      refresh();
+    },
     onRaise: (cityId) => {
       pushUndo();
       const ok = raiseArmyFromGarrison(state, cityId).ok;
@@ -1964,6 +1971,30 @@ function collectBuildNews(wallsDone, roadsDone, builtDone) {
   });
 }
 
+// Was in dieser Runde auf dem Exerzierplatz fertig geworden ist. Eine Meldung
+// für alles zusammen: wer in fünf Orten aushebt, will nicht fünf Fenster.
+function collectTrainingNews(fertig) {
+  const me = playerFaction(state).id;
+  const meine = fertig.filter((f) => f.city.factionId === me);
+  if (!meine.length) return;
+  const mann = meine.reduce((sum, f) => sum + f.count, 0);
+  diploNewsQueue.push({
+    icon: '⚔️',
+    sound: 'bau',
+    kind: 'Der Exerzierplatz meldet',
+    title: meine.length === 1
+      ? `${meine[0].count} ${unitDefs(me)[meine[0].unit].name} sind ausgebildet`
+      : `${mann.toLocaleString('de-DE')} Mann sind ausgebildet`,
+    text: 'Die Ausbildung ist beendet, die Männer stehen bereit:',
+    list: meine.map((f) => ({
+      icon: '⚔️',
+      name: `${f.count} ${unitDefs(me)[f.unit].name} in ${f.city.name}`,
+      note: f.army ? `treten bei ${f.army.name} an` : 'stehen in der Wache',
+    })),
+    effect: 'Von dieser Runde an zählen sie mit.',
+  });
+}
+
 function endTurn() {
   // Ending the turn mid-march would let the AI move while the player's army is
   // still visibly walking, and the resulting sync would teleport it.
@@ -2010,6 +2041,10 @@ function endTurn() {
   const wallsDone = advanceWallConstruction(state);
   const roadsDone = advanceRoadConstruction(state);
   const builtDone = advanceConstruction(state);
+  // Und der Exerzierplatz: was ausgebildet ist, tritt an. Nach den Bauten,
+  // damit eine Kaserne, die in dieser Runde fertig wird, erst ab der nächsten
+  // ausbildet.
+  const ausgebildet = advanceTraining(state);
   // The season that just passed is what wore the armies down; the next one is
   // rolled once the turn has actually turned.
   applyWeather(state);
@@ -2033,6 +2068,7 @@ function endTurn() {
   if (!state.gameOver) {
     const me = playerFaction(state).id;
     collectBuildNews(wallsDone, roadsDone, builtDone);
+    collectTrainingNews(ausgebildet);
     // Eine Belagerung des eigenen Reichs ist eine Meldung wert: sie kostet ab
     // dieser Runde Steuer, Nachschub und Bauzeit.
     for (const city of belagert) {
@@ -2349,6 +2385,7 @@ function factionDetailHTML(faction) {
       <div class="fd-fact"><span>Startgold</span><strong>${STARTING_GOLD}</strong></div>
     </div>
     <p class="fd-line"><b>Orte:</b> ${tiers}</p>
+    <p class="fd-line"><b>${factionKind(faction).label}:</b> ${factionKind(faction).note}</p>
     <div class="fd-units">
       ${UNIT_ROLES.map((role) => `<div class="fd-unit">${defs[role].icon}
         <strong>${defs[role].name}</strong>

@@ -2,6 +2,7 @@ import {
   UNIT_ROLES, GARRISON_ROLES, COMBAT_ROLES, WATCH_ROLE, SHIP_ROLE, watchTarget,
   WARSHIP_BATCH,
   unitDef, ROLE_LABELS, settlementTier, garrisonCapacity, TILE_TYPES,
+  trainingTurns,
   wallLevelInfo, wallLevelName, MAX_WALL_LEVEL,
   starMarks, starTitle, experienceStars, EXPERIENCE_THRESHOLDS, MAX_EXPERIENCE,
   shipTypesOf, shipTypeByKey,
@@ -43,6 +44,7 @@ import {
   mineOre, mineIncomeOf, huntGame, huntIncomeOf, canBuildBuilding, siegeInfo, citySieged,
   engineSummary, movementAllowance,
   campStatus, campSiegeTarget, ambushStatus,
+  recruitStatus, trainingStatus, trainingQueue,
   buildingPrice, buildingRuined, wallRuined, stoneTargets,
 } from './actions.js';
 import {
@@ -691,6 +693,28 @@ function foreignCityHTML(state, city, intel) {
     : 'Aus der Ferne gesehen. Wer ein Heer davorstellt, erfährt mehr.'}</p>`;
 }
 
+// Der Exerzierplatz: was gerade ausgebildet wird und wie lange noch. Steht
+// nichts darauf, steht hier auch nichts - eine leere Liste ist keine Auskunft.
+function trainingHTML(state, city, platz, uebt) {
+  if (!uebt.length) return '';
+  return `
+    <div class="training-box">
+      <p class="training-head">⏳ Exerzierplatz – ${uebt.length} von ${platz.plaetze}
+        ${platz.plaetze === 1 ? 'Platz' : 'Plätzen'} belegt</p>
+      ${uebt.map((t, i) => {
+        const def = unitDef(city.factionId, t.unit);
+        const anteil = Math.round(((t.turns - t.turnsLeft) / t.turns) * 100);
+        return `<div class="training-row">
+          <span class="training-name">${def.icon} ${t.count} ${escapeHTML(def.name)}</span>
+          <span class="training-bar"><i style="width:${anteil}%"></i></span>
+          <span class="training-left">noch ${t.turnsLeft}</span>
+          <button class="training-cancel" data-training="${i}"
+            title="Abbrechen – die Hälfte des Goldes kommt zurück, die Männer nicht">✕</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
 function renderSelectedCity(state, city, onRecruit, onRaise) {
   const faction = factionById(state, city.factionId);
   const player = playerFaction(state);
@@ -709,25 +733,39 @@ function renderSelectedCity(state, city, onRecruit, onRaise) {
   // Kaserne baut, steht ohnehin darüber.
   let recruitHTML = '';
   if (isMine && city.barracks) {
-    // Eine Aushebung kostet zweierlei: Gold aus der Truhe und Menschen aus der
-    // Stadt. Beides steht auf dem Knopf, ehe er gedrückt wird.
+    // Eine Aushebung kostet dreierlei: Gold aus der Truhe, Menschen aus der
+    // Stadt und Zeit auf dem Exerzierplatz. Alles drei steht auf dem Knopf,
+    // ehe er gedrückt wird.
     const leute = recruitPopCost();
     const entvoelkert = city.population - leute < RECRUIT_MIN_POPULATION;
+    const platz = trainingStatus(state, city);
+    const uebt = trainingQueue(city);
+    const unterwegs = uebt.reduce((sum, t) => sum + t.count, 0);
     recruitHTML = `
       <div class="recruit-row">
         ${UNIT_ROLES.map((k) => {
           const def = unitDef(city.factionId, k);
-          const disabled = current >= maxTotal || player.gold < def.cost || entvoelkert;
-          return `<button class="recruit-btn" data-unit="${k}" ${disabled ? 'disabled' : ''}>
-            ${def.icon} ${def.name}<br><small>${def.cost} Gold · −${leute} Einw.</small>
+          const status = recruitStatus(state, city.id, k);
+          return `<button class="recruit-btn" data-unit="${k}" ${status.can ? '' : 'disabled'}>
+            ${def.icon} ${def.name}<br><small>${def.cost} Gold · −${leute} Einw.<br>
+            ⏳ ${trainingTurns(k)} Runden</small>
           </button>`;
         }).join('')}
       </div>
+      ${trainingHTML(state, city, platz, uebt)}
       <p class="wall-line muted recruit-note">${entvoelkert
     ? `👥 ${escapeHTML(city.name)} ist zu klein für eine weitere Aushebung – `
       + `unter ${RECRUIT_MIN_POPULATION.toLocaleString('de-DE')} Einwohner geht niemand.`
-    : `👥 Jede Aushebung nimmt ${RECRUIT_BATCH} Mann aus ${escapeHTML(city.name)}: `
-      + `${leute} Einwohner weniger, und damit auch weniger Steuer und Wache.`}</p>
+    : platz.frei <= 0
+      ? `⏳ Der Exerzierplatz von ${escapeHTML(city.name)} ist voll: `
+        + `${platz.plaetze} ${platz.plaetze === 1 ? 'Trupp übt' : 'Trupps üben'} `
+        + 'gleichzeitig. Erst wenn einer antritt, wird wieder ausgehoben.'
+      : current + unterwegs >= maxTotal
+        ? `🛡️ Die Wache von ${escapeHTML(city.name)} ist voll – auch das, was noch `
+          + 'übt, zählt schon mit.'
+        : `👥 Jede Aushebung nimmt ${RECRUIT_BATCH} Mann aus ${escapeHTML(city.name)}: `
+          + `${leute} Einwohner weniger, und damit auch weniger Steuer und Wache. `
+          + `Ausgebildet wird auf ${platz.frei} von ${platz.plaetze} freien Plätzen.`}</p>
       <button class="raise-btn" ${field === 0 ? 'disabled' : ''}>🚩 Armee ausheben / verstärken
         <small>${field === 0
     ? 'Erst Truppen ausheben – die Stadtwache rückt nicht aus.'
@@ -2004,6 +2042,10 @@ export function renderUI(state, handlers) {
       panel.innerHTML = renderSelectedCity(state, city);
       panel.querySelectorAll('.recruit-btn').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onRecruit(city.id, btn.dataset.unit));
+      });
+      panel.querySelectorAll('.training-cancel').forEach((btn) => {
+        btn.addEventListener('click', () => handlers.onCancelTraining
+          && handlers.onCancelTraining(city.id, Number(btn.dataset.training)));
       });
       const raiseBtn = panel.querySelector('.raise-btn');
       if (raiseBtn) raiseBtn.addEventListener('click', () => handlers.onRaise(city.id));

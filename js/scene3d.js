@@ -2812,21 +2812,14 @@ function riverEdgeCorners(a, b) {
 // Aus der Menge der Uferstücke die Linienzüge: erst ein Graph über die Ecken,
 // dann von jedem freien Ende aus durchlaufen, und was danach übrig bleibt,
 // sind Ringe.
-function riverPolylines(rivers, cols) {
-  const graph = new Map();
-  const kante = (p, q) => {
-    const pk = `${p[0]},${p[1]}`;
-    const qk = `${q[0]},${q[1]}`;
-    if (!graph.has(pk)) graph.set(pk, []);
-    if (!graph.has(qk)) graph.set(qk, []);
-    graph.get(pk).push(qk);
-    graph.get(qk).push(pk);
-  };
-  for (const key of rivers) {
-    const { a, b } = riverEdgeTiles(key, cols);
-    const [p, q] = riverEdgeCorners(a, b);
-    kante(p, q);
-  }
+// Aus einem Nachbarschaftsgraphen durchgehende Linienzüge machen. Dieselbe
+// Arbeit für Flüsse wie für Straßen: beide sind im Kern ein Haufen einzelner
+// Kanten, und beide sollen als *ein* Band gezeichnet werden, damit sie rund
+// laufen und sich an den Knicken nicht überlappen.
+//
+// Die Knoten sind Zeichenketten "x,y"; der Aufrufer übersetzt sie danach in
+// Weltpunkte. Zurück kommen Ketten von Knotennamen.
+function zuegeAusGraph(graph) {
   const benutzt = new Set();
   const strichKey = (x, y) => (x < y ? `${x}>${y}` : `${y}>${x}`);
   const zuege = [];
@@ -2835,15 +2828,15 @@ function riverPolylines(rivers, cols) {
   // Ast: sonst bricht der Zug mitten im Lauf ab, und dort, wo zwei Züge
   // stumpf aneinanderstoßen, klafft im Band ein Keil.
   const geradeaus = (vorher, hier) => {
-    const offen = (graph.get(hier) || []).filter((n) => !benutzt.has(strichKey(hier, n)));
-    if (offen.length <= 1) return offen[0];
+    const offenNach = (graph.get(hier) || []).filter((n) => !benutzt.has(strichKey(hier, n)));
+    if (offenNach.length <= 1) return offenNach[0];
     const [hx, hy] = punkt(hier);
     const [vx, vy] = vorher ? punkt(vorher) : [hx, hy];
     const dx = hx - vx;
     const dy = hy - vy;
-    let bester = offen[0];
+    let bester = offenNach[0];
     let bestes = -Infinity;
-    for (const n of offen) {
+    for (const n of offenNach) {
       const [nx, ny] = punkt(n);
       const wert = (nx - hx) * dx + (ny - hy) * dy;
       if (wert > bestes) { bestes = wert; bester = n; }
@@ -2873,7 +2866,7 @@ function riverPolylines(rivers, cols) {
   // Und dann so lange nachfassen, bis keine Kante mehr übrig ist. Ein einzelner
   // Durchlauf genügt nicht: eine Ecke, die beim Vorbeigehen noch geschlossen
   // war, kann später wieder offen sein, weil ein Zug an ihr abgebogen ist -
-  // und genau diese eine Kante fehlte dann als Loch mitten im Fluss.
+  // und genau diese eine Kante fehlte dann als Loch mitten im Band.
   for (;;) {
     let nachgefasst = false;
     for (const ecke of graph.keys()) {
@@ -2883,7 +2876,25 @@ function riverPolylines(rivers, cols) {
     }
     if (!nachgefasst) break;
   }
-  return zuege.map((zug) => zug.map((k) => {
+  return zuege;
+}
+
+function riverPolylines(rivers, cols) {
+  const graph = new Map();
+  const kante = (p, q) => {
+    const pk = `${p[0]},${p[1]}`;
+    const qk = `${q[0]},${q[1]}`;
+    if (!graph.has(pk)) graph.set(pk, []);
+    if (!graph.has(qk)) graph.set(qk, []);
+    graph.get(pk).push(qk);
+    graph.get(qk).push(pk);
+  };
+  for (const key of rivers) {
+    const { a, b } = riverEdgeTiles(key, cols);
+    const [p, q] = riverEdgeCorners(a, b);
+    kante(p, q);
+  }
+  return zuegeAusGraph(graph).map((zug) => zug.map((k) => {
     const [i, j] = k.split(',').map(Number);
     return { x: worldX(i - 0.5), z: worldZ(j - 0.5) };
   }));
@@ -3190,9 +3201,11 @@ function buildBridge(parent, bridge) {
 const BRIDGE_TIMBER = new THREE.MeshStandardMaterial({ color: '#a97c46', roughness: 0.95 });
 const BRIDGE_TIMBER_DARK = new THREE.MeshStandardMaterial({ color: '#6f4d29', roughness: 1 });
 
-// In so viele Stücke wird ein Straßenabschnitt zerlegt, und so weit liegt er
-// über dem Boden.
-const ROAD_PIECES = 4;
+// Wie fein der Straßenzug unterteilt wird, damit das Band dem Gelände folgt,
+// und wie weit die Kurven an den Knicken ausholen.
+const ROAD_STEP = TILE_SIZE * 0.3;
+const ROAD_ROUND = TILE_SIZE * 0.45;
+const ROAD_ROUND_STUFEN = 5;
 // Eine Straße ist so breit, dass zwei Karren aneinander vorbeikommen - also
 // ungefähr so breit wie ein Haus lang ist, und nicht wie drei nebeneinander.
 // Sie liegt auf einem Damm: die Schürze an den Rändern macht aus dem Band
@@ -3200,6 +3213,46 @@ const ROAD_PIECES = 4;
 const ROAD_HALF = TILE_SIZE * 0.105;
 const ROAD_LIFT = 0.17;
 const ROAD_SKIRT = 0.3;
+
+// Straßen laufen in Kurven, nicht im Schachbrett. Sie wurden lange Feld für
+// Feld gezeichnet - ein Kreuz je Feld und ein gerades Stück zum Nachbarn -,
+// und dabei kam heraus, was dabei herauskommen muss: rechte Winkel. Eine
+// römische Straße ist zwar berühmt gerade, aber sie knickt nicht alle 55 km um
+// neunzig Grad.
+//
+// Jetzt wird derselbe Weg gegangen wie beim Fluss: aus den Straßenfeldern wird
+// ein Graph, daraus werden durchgehende Züge, deren Knicke ausgerundet werden,
+// und darauf liegt *ein* Band. Getrennt nach Ausbaustufe, damit das Pflaster
+// dort endet, wo der Ausbau endet.
+function roadPolylines(roads, stufe) {
+  const graph = new Map();
+  const gehoert = (key) => {
+    const l = roadLevelOf(roads[key]);
+    return l ? Math.min(2, l) : 0;
+  };
+  const kante = (a, b) => {
+    if (!graph.has(a)) graph.set(a, []);
+    if (!graph.has(b)) graph.set(b, []);
+    graph.get(a).push(b);
+    graph.get(b).push(a);
+  };
+  for (const key of Object.keys(roads)) {
+    if (!gehoert(key)) continue;
+    const [col, row] = key.split(',').map(Number);
+    for (const [dc, dr] of [[1, 0], [0, 1]]) {
+      const nachbarKey = `${col + dc},${row + dr}`;
+      const nachbar = gehoert(nachbarKey);
+      if (!nachbar) continue;
+      // Ein Stück gehört der niedrigeren der beiden Stufen an seinen Enden.
+      if (Math.min(gehoert(key), nachbar) !== stufe) continue;
+      kante(key, nachbarKey);
+    }
+  }
+  return zuegeAusGraph(graph).map((zug) => zug.map((k) => {
+    const [col, row] = k.split(',').map(Number);
+    return { x: worldX(col), z: worldZ(row) };
+  }));
+}
 
 function buildRoadNetwork(state) {
   while (roadsGroup.children.length) {
@@ -3209,40 +3262,28 @@ function buildRoadNetwork(state) {
   }
   const roads = state.roads || {};
   // Zwei Bänder: der gefahrene Weg in Erdfarbe, die Steinstraße in hellem
-  // Basalt. Ein Stück gehört der niedrigeren der beiden Stufen an seinen
-  // Enden - so endet das Pflaster dort, wo der Ausbau endet.
+  // Basalt.
   const bahnen = { 1: [], 2: [] };
   const half = ROAD_HALF;
 
+  for (const stufe of [1, 2]) {
+    for (const zug of roadPolylines(roads, stufe)) {
+      const pfad = resamplePath(roundPath(zug, ROAD_ROUND, ROAD_ROUND_STUFEN), ROAD_STEP);
+      pushRibbon(bahnen[stufe], pfad, pfad.map(() => half), ROAD_LIFT, ROAD_SKIRT);
+    }
+  }
+  // Ein einzelnes Straßenfeld ohne Nachbarn steht in keinem Zug - es bekommt
+  // trotzdem sein Stück Weg, sonst verschwände der erste Spatenstich.
   for (const key of Object.keys(roads)) {
-    const [col, row] = key.split(',').map(Number);
     const stufe = roadLevelOf(roads[key]);
     if (!stufe) continue;
-    const positions = bahnen[Math.min(2, stufe)];
+    const [col, row] = key.split(',').map(Number);
+    const allein = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .every(([dc, dr]) => !roadLevelOf(roads[`${col + dc},${row + dr}`]));
+    if (!allein) continue;
     const x = worldX(col);
     const z = worldZ(row);
-    pushBand(positions, x - half, z, x + half, z, half, ROAD_LIFT, ROAD_SKIRT);
-    pushBand(positions, x, z - half, x, z + half, half, ROAD_LIFT, ROAD_SKIRT);
-    for (const [dc, dr] of [[1, 0], [0, 1]]) {
-      const nachbar = roadLevelOf(roads[`${col + dc},${row + dr}`]);
-      if (!nachbar) continue;
-      const stueck = bahnen[Math.min(2, Math.min(stufe, nachbar))];
-      // In Stücke zerlegt, damit das Band dem Gelände folgt. Ein ganzes Feld
-      // lang läuft es über den diagonalen Knick des Geländedreiecks hinweg
-      // und schnitt dort in den Boden - genau daran sah eine Straße in
-      // hügeligem Land aus, als wäre sie unterbrochen. Dasselbe Mittel wie
-      // bei den Flüssen.
-      const bx = worldX(col + dc);
-      const bz = worldZ(row + dr);
-      for (let piece = 0; piece < ROAD_PIECES; piece++) {
-        const t0 = piece / ROAD_PIECES;
-        const t1 = (piece + 1) / ROAD_PIECES;
-        pushBand(stueck,
-          x + (bx - x) * t0, z + (bz - z) * t0,
-          x + (bx - x) * t1, z + (bz - z) * t1,
-          half, ROAD_LIFT, ROAD_SKIRT);
-      }
-    }
+    pushBand(bahnen[Math.min(2, stufe)], x - half, z, x + half, z, half, ROAD_LIFT, ROAD_SKIRT);
   }
 
   for (const [stufe, positions] of Object.entries(bahnen)) {
