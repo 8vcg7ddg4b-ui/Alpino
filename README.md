@@ -162,11 +162,27 @@ In der Leiste unten steht die **Spielversion**; sie kommt aus `GAME_VERSION`
 in `js/data.js` und wird mit `package.json` gleichgehalten, damit Anzeige und
 Auslieferung nicht auseinanderlaufen.
 
-Sobald der Spieler die erste Taste drückt, setzt die **Titelmusik** ein – ein
-Stück in d-Moll, das sich Takt für Takt selbst weiterschreibt: Bass und Blech
-tragen die Harmonie, ein Streicherteppich hält sie zusammen, die Kriegstrommel
-gibt den Schritt, und im zweiten Durchgang kommt die Melodie dazu. Sie läuft
-durch die Fraktionswahl.
+Sobald der Spieler die erste Taste drückt, setzt die **Titelmusik** ein:
+**„Aureate Legion"**, knapp drei Minuten, im Kreis. Sie läuft durch die
+Fraktionswahl und verstummt, wenn das Zelt steht.
+
+**Sie ist die einzige Aufnahme im Spiel.** Alles andere – Schritte, Schwerter,
+Fanfaren und die neunzehn Fraktionshymnen – entsteht zur Laufzeit aus
+Oszillatoren; das Titelstück liegt als Datei bei (`audio/aureate-legion.mp3`).
+Abgespielt wird es als Medienelement, nicht als entschlüsselter Puffer: acht
+Minuten Musik in den Klangzusammenhang zu entschlüsseln kostete zweihundert
+Megabyte Arbeitsspeicher, ein Element streamt sie. Eingehängt wird es in
+**dieselbe Signalkette** wie alles andere, und deshalb gilt für die Aufnahme
+unverändert, was für die synthetischen Klänge gilt: Stummschalten, Ein- und
+Ausblenden, und das kurze Beiseiteschieben, wenn ein Zusammenstoß dazwischen
+kommt. Im gebündelten Artefakt steckt sie als Datenadresse in der HTML-Datei –
+auch dort wird nichts nachgeladen, die Datei wächst dadurch von 1,9 auf 7,0 MB.
+
+Lässt der Browser die Aufnahme nicht zu, springt das **frühere Titelstück**
+ein: ein Stück in d-Moll, das sich Takt für Takt selbst weiterschreibt – Bass
+und Blech tragen die Harmonie, ein Streicherteppich hält sie zusammen, die
+Kriegstrommel gibt den Schritt, und im zweiten Durchgang kommt die Melodie
+dazu. Lieber die alte Fassung als Stille.
 
 **Sie fängt mit dem Programm an.** Im Desktop-Programm läuft sie sofort – dort
 gibt es keinen fremden Reiter, den eine Tonspur überraschen könnte, und die
@@ -2171,8 +2187,11 @@ und die Leiste wird nach unten gedrückt.
 - `js/anthems.js` – die Partituren der neunzehn Fraktionen: Leitern, Grundtöne,
   Motive und Besetzung
 - `js/audio.js` – der ganze Ton: Hall- und Kompressorkette, die einzelnen
-  Klangereignisse, der Marschtritt, die Titelmusik und der Spieler für die
+  Klangereignisse, der Marschtritt, das Titelstück und der Spieler für die
   Fraktionsmusik
+- `js/titlemusic.js` – wo das Titelstück liegt; der Bündler tauscht diese eine
+  Zeile gegen eine eingebettete Datenadresse
+- `audio/aureate-legion.mp3` – das Titelstück, die einzige Klangdatei im Spiel
 - `js/settings.js` – Einstellungen: Schema, Speicherung, Einstellungsfenster
 - `js/events.js` – die Zufallsereignisse: Bedingung, Wirkung und der Satz,
   der sie erzählt

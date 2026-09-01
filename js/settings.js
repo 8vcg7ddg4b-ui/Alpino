@@ -67,7 +67,8 @@ export const SETTINGS = [
   {
     key: 'music',
     label: 'Titelmusik',
-    help: 'Das Stück im Startbildschirm und bei der Fraktionswahl. Auf der Karte bleibt es still.',
+    help: '„Aureate Legion" im Hauptmenü und bei der Fraktionswahl. Auf der Karte '
+      + 'übernimmt die Musik der eigenen Fraktion.',
     type: 'toggle',
     fallback: true,
   },

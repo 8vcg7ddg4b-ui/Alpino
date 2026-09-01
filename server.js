@@ -10,6 +10,10 @@ const MIME = {
   '.json': 'application/json',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  // Das Titelstück ist die einzige Klangdatei im Spiel. Ohne den richtigen
+  // Typ liefert der Server sie als Bytestrom aus, und das Medienelement
+  // weigert sich, sie abzuspielen - im Desktop-Programm wäre das Menü stumm.
+  '.mp3': 'audio/mpeg',
 };
 
 // Static file server for the game directory. The desktop build reuses this

@@ -1,7 +1,14 @@
-// Jeder Ton wird zur Laufzeit mit der Web-Audio-API erzeugt. Das hält das
-// Spiel bei einem einzigen Ordner - keine Klangdateien, nichts nachzuladen
-// (was eine strenge Sicherheitsregel ohnehin blockieren würde), und offline
-// funktioniert es genauso.
+// Fast jeder Ton wird zur Laufzeit mit der Web-Audio-API erzeugt: Schritte,
+// Schwerter, Fanfaren und die neunzehn Fraktionshymnen sind Partituren, keine
+// Aufnahmen. Das hält das Spiel bei einem einzigen Ordner und funktioniert
+// offline genauso.
+//
+// Eine Ausnahme gibt es: das **Titelstück** im Hauptmenü ist eine Aufnahme
+// (`audio/aureate-legion.mp3`). Sie läuft als Medienelement und wird in
+// dieselbe Signalkette eingehängt wie alles andere - damit gelten Stummschalten,
+// Ausblenden und das kurze Beiseiteschieben für sie genauso. Im gebündelten
+// Artefakt steckt sie als Datenadresse in der Datei; nachgeladen wird auch
+// dort nichts.
 //
 // Die Signalkette ist für alles dieselbe:
 //
@@ -13,6 +20,7 @@
 // Raum, und erst dadurch klingen synthetische Töne nicht mehr nach Piepser.
 
 import { anthemFor, SCALES, degreeFrequency, noteFrequency } from './anthems.js';
+import { TITLE_MUSIC_URL, TITLE_MUSIC_FADE_IN, TITLE_MUSIC_FADE_OUT } from './titlemusic.js';
 
 let ctx = null;
 let master = null;      // trockenes Summensignal
@@ -114,7 +122,15 @@ export function unlockAudio() {
 export function audioProbe() {
   return {
     state: ctx ? ctx.state : 'keiner',
-    theme: musicHandle !== null,
+    theme: musicHandle !== null || !!(themeMedia && !themeMedia.paused),
+    // Woher das Titelstück kommt: die Aufnahme oder das geschriebene Stück.
+    themeKind: themeMedia && !themeMedia.paused ? 'aufnahme'
+      : musicHandle !== null ? 'partitur' : null,
+    // Wie weit die Aufnahme gelaufen ist: eine Musik, die steht, ist keine.
+    themeAt: themeMedia ? Math.round(themeMedia.currentTime * 10) / 10 : null,
+    themeLength: themeMedia && Number.isFinite(themeMedia.duration)
+      ? Math.round(themeMedia.duration) : null,
+    themeRouted: !!themeSource,
     // Im Feldzug läuft die Hymne der eigenen Fraktion, nicht das Titelstück -
     // eine Prüfung, die nur nach `theme` sieht, hielte das für Stille.
     anthem: anthemHandle !== null ? anthemId : null,
@@ -142,7 +158,10 @@ export function setMuted(value) {
   if (master) master.gain.value = muted ? 0 : MASTER_LEVEL;
   if (muted) {
     stopMarch();
-    stopTheme();
+    // Beim Stummschalten hat ein Ausblenden keinen Sinn - der Summenregler
+    // steht ohnehin schon auf null. Die Aufnahme wird sofort angehalten,
+    // damit sie nicht in einem halb beendeten Zustand hängen bleibt.
+    stopTheme({ fadeOut: 0 });
     stopAnthem();
   }
 }
@@ -956,7 +975,7 @@ export function isMusicEnabled() {
 }
 
 export function isThemePlaying() {
-  return musicHandle !== null;
+  return musicHandle !== null || !!(themeMedia && !themeMedia.paused);
 }
 
 // Setzt die Musik in Gang. `fadeIn` ist die Zeit, über die sie aufblendet.
@@ -968,8 +987,50 @@ export function isThemePlaying() {
 // Zusammenhang aufwacht.
 let themeWanted = null;
 
-export function startTheme({ fadeIn = 2.5 } = {}) {
-  if (muted || !musicEnabled || musicHandle !== null) return;
+// --- Das Titelstück als Aufnahme -----------------------------------------
+// „Aureate Legion" läuft als Medienelement, nicht als geplante Takte: acht
+// Minuten Musik in den Kontext zu entschlüsseln kostete zweihundert Megabyte
+// Arbeitsspeicher, ein Element streamt sie. Eingehängt wird es in denselben
+// Musikregler wie alles andere - dadurch gelten Stummschalten, Ein- und
+// Ausblenden und das kurze Beiseiteschieben unverändert.
+let themeMedia = null;      // das <audio>-Element
+let themeSource = null;     // sein Knoten im Klanggraphen
+let themeStopTimer = null;
+
+function ensureThemeMedia(context) {
+  if (themeMedia) return themeMedia;
+  if (typeof Audio === 'undefined') return null;
+  const el = new Audio();
+  el.src = TITLE_MUSIC_URL;
+  el.loop = true;
+  el.preload = 'auto';
+  // Das Element selbst bleibt auf voller Lautstärke; geregelt wird im Graphen.
+  el.volume = 1;
+  try {
+    themeSource = context.createMediaElementSource(el);
+    themeSource.connect(musicBus);
+  } catch (err) {
+    // Kann das Element nicht in den Graphen, bleibt es für sich stehen - dann
+    // regelt seine eigene Lautstärke, und der Rest der Kette greift nicht.
+    themeSource = null;
+  }
+  themeMedia = el;
+  return el;
+}
+
+// Setzt die Musik in Gang. `fadeIn` ist die Zeit, über die sie aufblendet.
+export function startTheme({ fadeIn = TITLE_MUSIC_FADE_IN } = {}) {
+  if (muted || !musicEnabled) return;
+  // Läuft gerade ein Ausblenden, wird es zurückgenommen statt abgewartet: die
+  // Aufnahme spielt in dieser Zeit noch, und ein „schon am Laufen" hätte den
+  // Neustart verworfen - danach hielt der Zeitgeber sie an, und das Menü blieb
+  // stumm. Genau das passierte beim Stummschalten und sofortigen Einschalten.
+  if (themeStopTimer !== null) {
+    clearTimeout(themeStopTimer);
+    themeStopTimer = null;
+  } else if (isThemePlaying()) {
+    return;
+  }
   const context = ensureContext();
   if (!context) return;
   if (context.state === 'suspended') {
@@ -987,9 +1048,30 @@ export function startTheme({ fadeIn = 2.5 } = {}) {
   musicBus.gain.cancelScheduledValues(now);
   musicBus.gain.setValueAtTime(0.0001, now);
   musicBus.gain.linearRampToValueAtTime(1, now + fadeIn);
-  musicBar = 0;
-  musicNextAt = now + 0.15;
 
+  clearTimeout(themeStopTimer);
+  themeStopTimer = null;
+  const el = ensureThemeMedia(context);
+  if (el) {
+    if (!themeSource) el.volume = 1;
+    const versuch = el.play();
+    if (versuch && versuch.catch) {
+      // Lässt der Browser die Aufnahme nicht zu, bleibt das geschriebene
+      // Stück: lieber die alte Fassung als Stille.
+      versuch.catch(() => { startWrittenTheme(context); });
+    }
+    return;
+  }
+  startWrittenTheme(context);
+}
+
+// Die frühere Titelmusik: ein Stück in d-Moll, das sich Takt für Takt selbst
+// weiterschreibt. Sie ist nicht mehr die erste Wahl, aber sie bleibt - wenn
+// die Aufnahme nicht spielt, soll das Menü nicht stumm sein.
+function startWrittenTheme(context) {
+  if (musicHandle !== null) return;
+  musicBar = 0;
+  musicNextAt = context.currentTime + 0.15;
   const schedule = () => {
     while (musicNextAt < context.currentTime + MUSIC_LOOKAHEAD) {
       if (musicNextAt < context.currentTime) musicNextAt = context.currentTime + 0.05;
@@ -1004,16 +1086,32 @@ export function startTheme({ fadeIn = 2.5 } = {}) {
 
 // Blendet die Musik aus und hört auf, neue Takte zu planen. Was schon in der
 // Zukunft liegt, läuft still weiter aus.
-export function stopTheme({ fadeOut = 3 } = {}) {
+export function stopTheme({ fadeOut = TITLE_MUSIC_FADE_OUT } = {}) {
   // Titelmusik und Fraktionsmusik teilen sich einen Regler. Wer nichts spielt,
   // fasst ihn deshalb nicht an: sonst dreht ein "hör auf" für das eine Stück
   // das andere mit ab - und dessen Planer läuft weiter, ohne dass noch etwas
   // zu hören wäre.
   // Auch ein Wunsch, der noch auf den Ton wartet, wird damit zurückgenommen.
   themeWanted = null;
-  if (musicHandle === null) return;
-  clearInterval(musicHandle);
-  musicHandle = null;
+  const laeuft = musicHandle !== null || !!(themeMedia && !themeMedia.paused);
+  if (!laeuft) return;
+  if (musicHandle !== null) {
+    clearInterval(musicHandle);
+    musicHandle = null;
+  }
+  // Die Aufnahme wird erst leise gedreht und dann angehalten: ein Element, das
+  // mitten im Ausblenden stehen bleibt, macht genau den Absatz, den die Blende
+  // verhindern soll. Zurückgespult wird auch - das Stück beginnt beim nächsten
+  // Mal von vorn und nicht in seiner Mitte.
+  if (themeMedia && !themeMedia.paused) {
+    clearTimeout(themeStopTimer);
+    themeStopTimer = setTimeout(() => {
+      themeStopTimer = null;
+      if (!themeMedia) return;
+      themeMedia.pause();
+      try { themeMedia.currentTime = 0; } catch (err) { /* noch nicht bereit */ }
+    }, Math.max(0, fadeOut) * 1000 + 60);
+  }
   if (!musicBus || !ctx) return;
   const now = ctx.currentTime;
   musicBus.gain.cancelScheduledValues(now);
