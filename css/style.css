@@ -1213,24 +1213,20 @@ kbd {
   pointer-events: none;
 }
 
+/* Der Kranz ist jetzt gezeichnetes SVG (js/ornaments.js), keine Emoji mehr -
+   ein Emoji sieht auf jedem Betriebssystem anders aus, in eigenen Farben; das
+   Gold hier ist überall dasselbe Gold wie am Rahmen der Tafeln. */
 .tb-wreath {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  font-size: clamp(1.2rem, 2.4vw, 1.9rem);
-  line-height: 1;
-  margin-bottom: 4px;
+  width: clamp(150px, 22vw, 220px);
+  height: clamp(46px, 6.6vw, 66px);
+  margin: 0 auto 4px;
+  color: #d9b25a;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.7));
 }
-.tb-leaf {
-  /* Zwei Zweige, die sich zum Kranz schließen: derselbe Zweig, einmal
-     gespiegelt. */
-  display: inline-block;
-  transform: rotate(-32deg);
-}
-.tb-leaf-right { transform: rotate(32deg) scaleX(-1); }
-.tb-eagle { font-size: 1.15em; }
+.tb-wreath svg { display: block; width: 100%; height: 100%; }
 
 .title-name {
   margin: 0;
@@ -1334,6 +1330,13 @@ kbd {
     0 0 22px rgba(212, 175, 55, 0.14);
   outline: none;
 }
+/* Ein eigener Ring für die Tastatur, zusätzlich zum Leuchten oben - sonst
+   sieht ein Tab-Sprung genauso aus wie ein Mauszeiger, der zufällig darüber
+   steht, und wer nur die Tastatur bedient, verliert die Orientierung. */
+.menu-plaque:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
 .menu-plaque.active {
   border-color: rgba(232, 200, 106, 0.9);
   background: linear-gradient(180deg, rgba(64, 50, 30, 0.9), rgba(30, 22, 14, 0.92));
@@ -1356,12 +1359,18 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(1rem, 1.7vw, 1.35rem);
-  line-height: 1;
+  padding: clamp(6px, 0.8vw, 9px);
   border: 1px solid rgba(212, 175, 55, 0.22);
   border-radius: 3px;
   background: rgba(0, 0, 0, 0.28);
+  /* Die sechs Zeichen sind gezeichnetes SVG (js/ornaments.js) statt Emoji -
+     überall dasselbe Strichgewicht, in derselben Farbe wie der Rahmen. */
+  color: #cdb27e;
 }
+.mp-icon svg { display: block; width: 100%; height: 100%; }
+.menu-plaque:hover .mp-icon,
+.menu-plaque.active .mp-icon { color: var(--gold); }
+.menu-primary .mp-icon { color: #f0dcae; }
 
 .mp-text {
   display: flex;
@@ -1430,6 +1439,12 @@ kbd {
   font-size: 0.9rem;
 }
 .sheet-close:hover { border-color: var(--gold); color: var(--gold); }
+.sheet-close:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-color: var(--gold);
+  color: var(--gold);
+}
 
 .sheet-part { display: flex; flex-direction: column; gap: 14px; }
 .sheet-part[hidden] { display: none; }

@@ -82,11 +82,7 @@
          überlappen, wenn der Schirm flach wird. -->
     <div class="title-left">
       <header class="title-brand">
-        <div class="tb-wreath" aria-hidden="true">
-          <span class="tb-leaf tb-leaf-left">🌿</span>
-          <span class="tb-eagle">🦅</span>
-          <span class="tb-leaf tb-leaf-right">🌿</span>
-        </div>
+        <div class="tb-wreath" id="tbWreath" aria-hidden="true"></div>
         <h1 class="title-name">Pax<br>Aeterna</h1>
         <p class="title-year"><span>264 v. Chr.</span></p>
         <p class="title-tagline">Rundenbasiert. Strategisch. Zeitlos.</p>
@@ -95,42 +91,42 @@
       <!-- Das Menü: eine Tafel je Eintrag, mit Zeichen, Namen und Beisatz. -->
       <nav class="title-menu" aria-label="Hauptmenü">
         <button id="startGameBtn" class="menu-plaque menu-primary">
-          <span class="mp-icon">🏛️</span>
+          <span class="mp-icon" data-icon="temple"></span>
           <span class="mp-text">
             <strong>Neues Spiel</strong>
             <small>Beginne deinen Feldzug</small>
           </span>
         </button>
         <button id="menuChronicleBtn" class="menu-plaque" data-sheet="chronik">
-          <span class="mp-icon">📜</span>
+          <span class="mp-icon" data-icon="scroll"></span>
           <span class="mp-text">
             <strong>Chronik</strong>
             <small>Die Bilder der Republik</small>
           </span>
         </button>
         <button id="menuMemoBtn" class="menu-plaque" data-sheet="memo">
-          <span class="mp-icon">⚱️</span>
+          <span class="mp-icon" data-icon="urn"></span>
           <span class="mp-text">
             <strong>Letzter Feldzug</strong>
             <small>Das Andenken deiner Kampagne</small>
           </span>
         </button>
         <button id="menuHelpBtn" class="menu-plaque" data-sheet="regeln">
-          <span class="mp-icon">📖</span>
+          <span class="mp-icon" data-icon="book"></span>
           <span class="mp-text">
             <strong>Spielregeln</strong>
             <small>Wie ein Feldzug geführt wird</small>
           </span>
         </button>
         <button id="menuSettingsBtn" class="menu-plaque">
-          <span class="mp-icon">⚙️</span>
+          <span class="mp-icon" data-icon="gear"></span>
           <span class="mp-text">
             <strong>Einstellungen</strong>
             <small>Bild, Klang und Ansprache</small>
           </span>
         </button>
         <button id="menuFullscreenBtn" class="menu-plaque">
-          <span class="mp-icon">⛶</span>
+          <span class="mp-icon" data-icon="expand"></span>
           <span class="mp-text">
             <strong>Vollbild</strong>
             <small>Den Feldherrnblick weiten</small>

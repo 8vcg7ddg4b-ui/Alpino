@@ -232,6 +232,17 @@ wird.
   darunter. Der erste trägt Rot – er ist der, um den es geht. Sechs Einträge:
   **Neues Spiel**, **Chronik**, **Letzter Feldzug**, **Spielregeln**,
   **Einstellungen**, **Vollbild**.
+  Kranz und Zeichen waren zunächst Emoji (🌿🦅🏛️📜⚱️📖⚙️⛶) – bequem, aber nicht
+  im Bild: ein Emoji sieht auf jedem Betriebssystem anders aus, in eigenen
+  Farben, mit eigenem Strichgewicht. Jetzt sind es **gezeichnete Linien**
+  (`js/ornaments.js`), in demselben Gold wie der Rahmen der Tafeln – ein
+  Lorbeerzweig auf jeder Seite, dazwischen derselbe Legionsadler, der auch auf
+  der Fahne im Zelt steht (`emblems.js`), und sechs Zeichen im selben
+  Strichgewicht statt sechs verschiedener Schriftarten.
+  Mit **Pfeil hoch/runter** springt der Fokus durch die sechs Tafeln, mit
+  **Enter** wird die fokussierte gedrückt, **Escape** schließt eine
+  aufgeschlagene Tafel wieder – und ein eigener goldener Ring um die Tafel
+  zeigt, wo die Tastatur gerade steht, getrennt vom Leuchten unter der Maus.
 - **Die Tafel rechts** tritt hervor, wenn Chronik, Andenken oder Regeln
   aufgeschlagen werden, und verschwindet wieder. Sie ist so hoch wie ihr
   Inhalt, nicht so hoch wie der Schirm.
@@ -2252,5 +2263,6 @@ und die Leiste wird nach unten gedrückt.
 - `js/events.js` – die Zufallsereignisse: Bedingung, Wirkung und der Satz,
   der sie erzählt
 - `js/titlescene.js` – das Titelbild des Hauptmenüs als SVG-Silhouetten
+- `js/ornaments.js` – Lorbeerkranz und Menüzeichen des Startbildschirms als SVG
 - `js/chronicle.js` – die acht Chronikbilder als SVG-Silhouetten
 - `js/ui.js`, `js/input.js`, `js/main.js` – Seitenleiste, Eingabe, Startbildschirm, Bootstrap

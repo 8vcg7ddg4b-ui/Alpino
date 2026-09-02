@@ -51,6 +51,7 @@ import {
 } from './audio.js';
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
 import { titleSceneSVG } from './titlescene.js';
+import { wreathSVG, menuIconSVG } from './ornaments.js';
 import { factionArt, factionArtSVG } from './factionart.js';
 import { emblemSVG } from './emblems.js';
 import {
@@ -1032,6 +1033,7 @@ function quitToMenu() {
   schliesseTafel();
   zeigeMerktafel();
   syncMenuMusic();
+  focusStartButton();
 }
 
 function setupQuitButton() {
@@ -2476,6 +2478,7 @@ function hideFactionScreen() {
 function backToMenu() {
   hideFactionScreen();
   document.getElementById('startScreen').classList.remove('hidden');
+  focusStartButton();
 }
 
 function startNewGame(factionId = chosenFaction) {
@@ -2663,6 +2666,14 @@ for (const id of ['settingsBtn', 'menuSettingsBtn']) {
 const titleStage = document.getElementById('titleStage');
 if (titleStage) titleStage.innerHTML = titleSceneSVG();
 
+// Der Kranz über dem Titel und die sechs Zeichen auf den Menütafeln sind
+// gezeichnetes SVG, kein Emoji mehr - siehe js/ornaments.js.
+const tbWreath = document.getElementById('tbWreath');
+if (tbWreath) tbWreath.innerHTML = wreathSVG();
+document.querySelectorAll('.mp-icon[data-icon]').forEach((el) => {
+  el.innerHTML = menuIconSVG(el.dataset.icon);
+});
+
 let offeneTafel = null;
 
 function schliesseTafel() {
@@ -2700,8 +2711,39 @@ document.querySelectorAll('.menu-plaque[data-sheet]').forEach((btn) => {
 const sheetClose = document.getElementById('sheetClose');
 if (sheetClose) sheetClose.addEventListener('click', () => { schliesseTafel(); sfx.select(); });
 
+// --- Tastatur im Hauptmenü -------------------------------------------------
+// Die sechs Tafeln waren als <button> zwar mit Tab erreichbar, aber ohne
+// Pfeiltasten - wer nur die Tastatur nutzt, musste sich mit Tab durch alle
+// sechs hangeln, statt mit hoch/runter durch ein Menü zu gehen. Und Escape
+// schloss die aufgeschlagene Tafel nur über das Kreuz, nicht über die Taste,
+// die auf jedem anderen Fenster im Spiel genau das tut.
+function focusStartButton() {
+  const btn = document.getElementById('startGameBtn');
+  if (btn) btn.focus({ preventScroll: true });
+}
+
+window.addEventListener('keydown', (e) => {
+  const startScreen = document.getElementById('startScreen');
+  if (!startScreen || startScreen.classList.contains('hidden')) return;
+  if (e.key === 'Escape') {
+    if (offeneTafel) { schliesseTafel(); sfx.select(); e.preventDefault(); }
+    return;
+  }
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  const buttons = [...document.querySelectorAll('.title-menu .menu-plaque')];
+  if (!buttons.length) return;
+  const idx = buttons.indexOf(document.activeElement);
+  const richtung = e.key === 'ArrowDown' ? 1 : -1;
+  const naechster = idx === -1
+    ? (richtung > 0 ? 0 : buttons.length - 1)
+    : (idx + richtung + buttons.length) % buttons.length;
+  buttons[naechster].focus();
+  e.preventDefault();
+});
+
 // Die Merktafel steht beim ersten Bild schon da.
 zeigeMerktafel();
+focusStartButton();
 
 // Die Version steht im Startbildschirm - eine Wahrheit aus data.js, damit sie
 // nicht zwischen Auslieferung und Anzeige auseinanderläuft.
