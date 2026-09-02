@@ -620,6 +620,92 @@ function shapePart(geometry, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz
   return { geometry, matrix };
 }
 
+// --- Backen: aus vielen Meshes eines je Material ---------------------------
+// Ein Ort wurde aus 60 bis 180 einzelnen Meshes gebaut, jedes mit eigener
+// Geometrie - für die Grafikkarte 180 Zeichenaufrufe je Ort, für 107 Orte
+// über zehntausend je Bild. Das ist der Grund, warum die Karte auf schwacher
+// Hardware zäh war: nicht die Dreiecke, sondern die Zahl der Aufrufe.
+//
+// Gebacken wird, nachdem alles steht: alle Meshes einer Gruppe werden nach
+// Material sortiert und je Material zu einem einzigen Mesh verschmolzen. Was
+// sich noch bewegen oder ändern muss, bleibt draußen - die Fahne, die sich mit
+// der Kamera dreht; das Schild; die Terrasse, deren Tiefe erst beim Setzen
+// feststeht. Die Teile in der Fraktionsfarbe bekommen ein gemeinsames Material,
+// damit ein Besitzerwechsel weiterhin nur eine Farbe setzt.
+function bakeGroup(group, { keep = new Set(), tinted = null } = {}) {
+  group.updateMatrixWorld(true);
+  // Gerechnet wird relativ zur Gruppe, nicht in Weltkoordinaten: die Gruppe
+  // kann beim Backen schon verschoben und skaliert sein (die Wunder sind es),
+  // und ihre eigene Verschiebung darf nicht in die Scheitelpunkte wandern -
+  // sonst wird sie beim Zeichnen ein zweites Mal angewandt, und das Modell
+  // steht irgendwo, nur nicht dort, wo es hingehört.
+  const inGruppe = new THREE.Matrix4().copy(group.matrixWorld).invert();
+  const unter = (obj, menge) => {
+    for (let o = obj; o; o = o.parent) if (menge.has(o)) return true;
+    return false;
+  };
+  const eimer = new Map();   // Materialschlüssel -> { material, teile: [{geometry, matrix}], quellen }
+  const texturiert = (m) => !!(m.map || m.alphaMap || m.emissiveMap || m.normalMap
+    || m.roughnessMap || m.bumpMap);
+  group.traverse((obj) => {
+    if (!obj.isMesh || obj.isInstancedMesh || obj.isSprite) return;
+    if (obj === group || unter(obj, keep)) return;
+    if (Array.isArray(obj.material)) return;
+    // Ein Stoff mit Muster braucht seine UV-Koordinaten; die trägt das Backen
+    // nicht weiter. Was eine Textur trägt, bleibt ein eigenes Mesh.
+    if (texturiert(obj.material)) return;
+    const farbig = tinted && tinted.has(obj);
+    const key = farbig ? '__tinted' : obj.material.uuid;
+    let e = eimer.get(key);
+    if (!e) {
+      e = { material: farbig ? obj.material.clone() : obj.material, farbig, teile: [], quellen: [] };
+      eimer.set(key, e);
+    }
+    e.teile.push({ geometry: obj.geometry, matrix: new THREE.Matrix4().multiplyMatrices(inGruppe, obj.matrixWorld) });
+    e.quellen.push(obj);
+  });
+  const neueFarbige = [];
+  for (const e of eimer.values()) {
+    if (!e.teile.length) continue;
+    const ganz = mergeShapes(e.teile);
+    const mesh = new THREE.Mesh(ganz, e.material);
+    group.add(mesh);
+    if (e.farbig) neueFarbige.push(mesh);
+    for (const q of e.quellen) {
+      q.parent.remove(q);
+      q.geometry.dispose();
+      // Ein Material, das nur diesem einen Teil gehörte, geht mit ihm.
+      if (e.farbig) q.material.dispose();
+    }
+  }
+  // Leer gewordene Untergruppen (der Tempel) fliegen mit heraus.
+  const leer = [];
+  group.traverse((obj) => {
+    if (obj !== group && obj.isGroup && !obj.children.length && !unter(obj, keep)) leer.push(obj);
+  });
+  for (const g of leer) if (g.parent) g.parent.remove(g);
+  return neueFarbige;
+}
+
+
+// Ein Anbau - Hafen, Kaserne, Acker, Stollen ... - wird wie ein Ort gebacken.
+// Draußen bleibt die Fundamentplatte, weil `placeAt` sie erst beim Setzen an
+// das Gelände anpasst, und was sich später ein- und ausschalten lässt (die
+// Werft am Hafen, der Speicher am Acker); das wird für sich gebacken.
+function bakeFeature(group) {
+  const u = group.userData || {};
+  const keep = new Set([u.fundament, u.werft, u.speicher].filter(Boolean));
+  bakeGroup(group, { keep });
+  for (const teil of [u.werft, u.speicher]) if (teil && teil.isGroup) bakeGroup(teil);
+  return group;
+}
+
+// Ist `obj` ein Nachfahre von `wurzel`?
+function stammtAus(wurzel, obj) {
+  for (let o = obj; o; o = o.parent) if (o === wurzel) return true;
+  return false;
+}
+
 // Ein Fisch, wie er von oben aussieht, wenn er dicht unter der Oberfläche
 // steht: ein dunkler Rücken und eine Schwanzflosse.
 function fishGeometry() {
@@ -1056,6 +1142,7 @@ function buildWildlife(state) {
   }
   wildlife.length = 0;
   wildlifeGroup = new THREE.Group();
+  wildlifeGroup.name = 'Tiere';
   scene.add(wildlifeGroup);
   zeigeWildlife();
   const rng = seededRandomFactory(77);
@@ -1438,7 +1525,9 @@ export function buildMap(state) {
   currentRoads = state.roads || {};
   const props = { trunks: [], leaves: [], rockPeaks: [], snowPeaks: [], oreRock: [], oreVein: [] };
   propsGroup = new THREE.Group();
+  propsGroup.name = 'Requisiten';
   roadsGroup = new THREE.Group();
+  roadsGroup.name = 'Straßen';
   scene.add(propsGroup);
   scene.add(roadsGroup);
   const rng = seededRandomFactory(11);
@@ -1616,7 +1705,7 @@ const TABLE_LEG_HEIGHT = 42;
 function buildTable(boardW, boardH) {
   if (tableGroup) scene.remove(tableGroup);
   tableGroup = new THREE.Group();
-
+  tableGroup.name = 'Tisch';
   const rim = TILE_SIZE * 1.15;
   const rimTop = SEA_LEVEL_Y + 1.1;
   const rimHeight = 3.2;
@@ -2611,7 +2700,7 @@ function buildTentExit(tent, state, colour, floorY) {
 function buildTent(state) {
   if (tentGroup) scene.remove(tentGroup);
   tentGroup = new THREE.Group();
-
+  tentGroup.name = 'Zelt';
   const player = factionById(state, (state.factions.find((f) => f.isPlayer) || {}).id);
   const colour = player ? player.color : '#8a6134';
   const radius = TENT_RADIUS;
@@ -2687,6 +2776,9 @@ function buildTent(state) {
   buildTentBackdrop(tentGroup, state, colour, floor.position.y);
   buildTentExit(tentGroup, state, colour, floor.position.y);
 
+  // Alles Holz und Metall im Zelt zu je einem Mesh; die Zeltbahnen mit ihrem
+  // Stoffmuster bleiben eigene Meshes.
+  bakeGroup(tentGroup);
   scene.add(tentGroup);
 }
 
@@ -2997,6 +3089,7 @@ function pushRibbon(positions, punkte, breiten, lift, schuerze) {
 function buildRivers(state) {
   if (riversGroup) scene.remove(riversGroup);
   riversGroup = new THREE.Group();
+  riversGroup.name = 'Flüsse';
   scene.add(riversGroup);
   const rivers = state.map.rivers;
   if (!rivers || !rivers.size) return;
@@ -3361,7 +3454,16 @@ function addGate(ring, { angle, half, width, height, thickness, material, t = 0 
 // angle = Math.PI/2 - t genau auf 0 führt).
 const TOR_SEITE = 0;
 
+// Ein Mauerring besteht aus dreißig bis sechzig Teilen - Pfähle, Spitzen,
+// Wandstücke, Türme -, die alle stillstehen. Gebaut wird er wie bisher, und
+// dann zu einem Mesh je Material gebacken.
 function buildFortification(kind, scale, options = {}) {
+  const ring = buildFortificationParts(kind, scale, options);
+  bakeGroup(ring);
+  return ring;
+}
+
+function buildFortificationParts(kind, scale, options = {}) {
   const ring = new THREE.Group();
   const span = 4.4 * scale;
   const half = span / 2;
@@ -3867,6 +3969,16 @@ function buildCityGroup(city) {
     addStandard(group, tinted, 4.0 * bau, 1.1 * bau);
   }
 
+  // Alles Feste zu je einem Mesh je Material verschmelzen. Draußen bleiben
+  // die Fahnen (sie drehen sich mit der Kamera) und die Terrasse (ihre Tiefe
+  // wird erst beim Setzen des Orts an das Gelände angepasst).
+  const keep = new Set(billboards.filter((b) => stammtAus(group, b)));
+  keep.add(fundament);
+  const farbigeTeile = new Set(tinted);
+  const gebacken = bakeGroup(group, { keep, tinted: farbigeTeile });
+  // Was in der Fraktionsfarbe bleibt: das gebackene Dachwerk und die Banner.
+  const tintedNeu = [...gebacken, ...tinted.filter((t) => t.parent)];
+
   const label = makeLabelSprite(city.name, { scale: city.capital ? 1.15 : 0.95 });
   // Das Schild steht über dem höchsten Dach, nicht über einer gedachten Größe.
   label.position.y = (city.size === 'village' ? 2.9 : 3.4) * bau + 1.2 * spread;
@@ -3875,7 +3987,7 @@ function buildCityGroup(city) {
   // Die Befestigungen entstehen erst, wenn sie gebaut sind: die meisten Orte
   // haben keine, und jedes ungenutzte Modell kostet Zeichenaufrufe.
   return {
-    group, label, tinted, scale: spread, bau, size: city.size,
+    group, label, tinted: tintedNeu, scale: spread, bau, size: city.size,
     fundament, grundRadius,
     walls: [null, null, null], harbour: null,
   };
@@ -4124,6 +4236,7 @@ let wondersGroup = null;
 
 function buildWonders(state) {
   wondersGroup = new THREE.Group();
+  wondersGroup.name = 'Wunder';
   scene.add(wondersGroup);
   if (!state.wonders) return;
 
@@ -4175,6 +4288,7 @@ function buildWonders(state) {
     const label = makeLabelSprite(wonder.name, { scale: 0.78, color: '#ffe4a6' });
     label.position.y = aufFels ? 13.5 : 12;
     group.add(label);
+    bakeGroup(group);
     wondersGroup.add(group);
   }
 }
@@ -4229,7 +4343,7 @@ function buildHarbour(scale) {
   werft.visible = false;
   harbour.add(werft);
   harbour.userData = { werft };
-  return harbour;
+  return bakeFeature(harbour);
 }
 
 // Das Bergwerk: ein Fördergerüst über dem Schacht, eine Halde daneben und ein
@@ -4285,7 +4399,7 @@ function buildMine(scale) {
   mine.add(halde);
 
   addFoundation(mine);
-  return mine;
+  return bakeFeature(mine);
 }
 
 // Wohin das Bergwerk gehört: an den höchsten Punkt neben dem Ort - dorthin,
@@ -4350,7 +4464,7 @@ function buildFarm(scale) {
   farm.add(speicher);
   farm.userData = { speicher };
   addFoundation(farm, 0.1);
-  return farm;
+  return bakeFeature(farm);
 }
 
 
@@ -4450,7 +4564,7 @@ function buildBarracks(scale) {
     kaserne.add(arm);
   }
   addFoundation(kaserne);
-  return kaserne;
+  return bakeFeature(kaserne);
 }
 
 // Der Kornspeicher: ein Bau auf Stelzen, damit weder Nässe noch Ratten
@@ -4486,7 +4600,7 @@ function buildGranary(scale) {
   rampe.position.set(0, 0.2 * scale, 0.62 * scale);
   rampe.rotation.x = -0.5;
   speicher.add(rampe);
-  return speicher;
+  return bakeFeature(speicher);
 }
 
 // --- Fischerei -------------------------------------------------------------
@@ -4570,7 +4684,7 @@ function buildFishery(scale) {
 
   addFoundation(fischerei, 0.12);
   fischerei.userData.werk = 'fischerei';
-  return fischerei;
+  return bakeFeature(fischerei);
 }
 
 // --- Jagdhütte -------------------------------------------------------------
@@ -4636,7 +4750,7 @@ function buildHuntLodge(scale) {
 
   addFoundation(jagd, 0.18);
   jagd.userData.werk = 'jagd';
-  return jagd;
+  return bakeFeature(jagd);
 }
 
 // Das Forum: die Basilika des Orts - ein Säulenbau mit Giebel, kein
@@ -4702,7 +4816,7 @@ function buildForum(scale) {
   dach.position.y = 1.4 * scale;
   forum.add(dach);
   addFoundation(forum);
-  return forum;
+  return bakeFeature(forum);
 }
 
 // Die Werft: die Helling mit dem halbfertigen Rumpf auf den Stapelblöcken und
@@ -4809,7 +4923,7 @@ function buildViaduct(scale) {
   );
   wasser.position.y = hoehe + 0.26 * scale;
   viadukt.add(wasser);
-  return viadukt;
+  return bakeFeature(viadukt);
 }
 
 // Wo ein Bauwerk neben der Stadt steht: das höchste oder das flachste
@@ -5638,6 +5752,7 @@ function buildTradeLanes(state) {
     laneGroup = null;
   }
   laneGroup = new THREE.Group();
+  laneGroup.name = 'Handelswege';
   scene.add(laneGroup);
   const me = playerFaction(state).id;
   const bojenGeometrie = new THREE.SphereGeometry(0.34, 8, 6);
@@ -5977,6 +6092,7 @@ const BORDER_PIECES = 4;
 export function buildBorders(state) {
   if (bordersGroup) scene.remove(bordersGroup);
   bordersGroup = new THREE.Group();
+  bordersGroup.name = 'Grenzen';
   bordersGroup.visible = bordersVisible;
   scene.add(bordersGroup);
   if (!state) return;

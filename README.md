@@ -2150,6 +2150,44 @@ und die Leiste wird nach unten gedrückt.
   Kolchis und Iberien – Namen aus Herodot, Strabon und Ptolemaios, wie Amadoka
   und Tanais auch. Sizilien, Sardinien, Kreta, Zypern, Rhodos, die Balearen und
   Britannien sind nur mit Schiffen erreichbar.
+- **Orte werden gebacken: ein Mesh je Material statt eines je Balken.** Ein
+  Ort wurde aus sechzig bis hundertachtzig einzelnen Meshes gebaut – jedes Haus
+  ein Klotz und ein Dach, jeder Pfahl der Palisade ein Zylinder und eine
+  Spitze –, jedes mit eigener Geometrie. Für die Grafikkarte waren das
+  **5.667 Zeichenaufrufe je Bild** bei 107 Orten, und die Zahl der Aufrufe,
+  nicht die der Dreiecke, ist es, was eine Karte auf schwacher Hardware zäh
+  macht. Jetzt wird jeder Ort, jeder Mauerring, jeder Anbau, jedes Wunder und
+  das Zelt **nach dem Bau gebacken**: alle Teile mit demselben Material zu
+  einem einzigen Mesh verschmolzen. Draußen bleibt, was sich noch bewegen oder
+  ändern muss – die Fahnen, die sich mit der Kamera drehen; die Terrasse und
+  die Fundamentplatten, die erst beim Setzen ans Gelände angepasst werden; die
+  Werft am Hafen und der Speicher am Acker, die sich ein- und ausschalten; und
+  die Zeltbahnen, weil ihr Stoffmuster UV-Koordinaten braucht, die das Backen
+  nicht weiterträgt. Die Teile in der Fraktionsfarbe bekommen ein gemeinsames
+  Material, damit ein Besitzerwechsel weiterhin nur eine Farbe setzt.
+
+  | | vorher | nachher |
+  | --- | --- | --- |
+  | Zeichenaufrufe je Bild | 5.667 | **733** |
+  | Meshes in der Szene | 11.405 | **1.297** |
+  | Geometrien im Speicher | 9.889 | **1.142** |
+  | Zeichenzeit je Bild (Software-GL) | 40,6 ms | **4,7 ms** |
+  | JS-Heap nach dem Start | 90 MB | **37 MB** |
+  | Start bis zur Karte | 11,0 s | **6,5 s** |
+  | `refresh()` je Klick | 61 ms | **21 ms** |
+
+  Die Dreiecke bleiben gleich (360.000) – es wird nichts weggelassen, nur
+  zusammengefasst; die Orte sind vor und nach dem Backen **pixelgenau
+  identisch** (0,00 % Abweichung in drei Nahaufnahmen, ebenso Zelt, Mauern und
+  Anbauten). Zwei Fallen hat das Backen bereitgehalten: Wunder werden gebacken,
+  nachdem ihre Gruppe schon verschoben und skaliert ist – gerechnet wird
+  deshalb **relativ zur Gruppe**, nicht in Weltkoordinaten, sonst wandert die
+  Verschiebung in die Scheitelpunkte und wird beim Zeichnen ein zweites Mal
+  angewandt (der Leuchtturm stand dann irgendwo im Meer); und die Werft am
+  Hafen ist eine Untergruppe mit eigener Verschiebung, für die dasselbe gilt.
+  Der Rundenwechsel wird davon nicht schneller: seine drei Sekunden sind die
+  sichtbaren Märsche der KI, nicht das Zeichnen – die Rechnung der neunzehn
+  Fraktionen selbst dauert 100 bis 170 ms.
 - **Gelände**: Ebene, Wald und Hügel wie bisher, dazu die **Wüste** – die
   Sahara und das arabische Binnenland sind zäh zu durchqueren und halten den
   Krieg in Afrika an der Küste.
