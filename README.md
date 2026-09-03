@@ -286,7 +286,13 @@ Die Kriegsschiffe im Hafen haben ihr eigenes, größeres Vorbild
 (`titleWarship()`) statt des kleinen Schiffs aus der Chronik: geschwungener
 Bug mit Rammsporn, erhöhtes Achterdeck, ein bauchiges Rahsegel statt eines
 flachen Dreiecks - in dieser Größe fiel die Vereinfachung der Chronik auf,
-die aus der Ferne nicht stört.
+die aus der Ferne nicht stört. Aus demselben Grund bekam auch der **Feldherr**
+einen zweiten Durchgang: der Kopf lief am Hinterkopf spitz zu wie ein Gefäß
+statt rund zu bleiben, und das Schulterstück der Rüstung verschwand fast ganz
+unter dem Mantel. Beides steht jetzt anders - ein runder Schädel mit flachem
+Nacken, ein Rüstungskragen, der über dem Mantel wirklich zu sehen ist. Die
+Berge dahinter haben eine dritte, nahe Staffel bekommen, wie schon in der
+Chronik - zwei Reihen sahen neben der reicheren Kette dort schmal aus.
 
 Mehrere kleine Bewegungen halten es zusätzlich am Leben, jede für sich
 unauffällig: das **Feuer im Leuchtturm** flackert, das **Tuch am Feldzeichen**

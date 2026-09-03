@@ -159,21 +159,26 @@ function fieldStandard(x, top, h, w, tuch, saum, gold) {
 function commander(x, kopfY, s, haut, haar, panzer, mantel, mantelTief, gold) {
   const g = (v) => (v * s).toFixed(1);
   return `<g transform="translate(${x} ${kopfY})">
-    <!-- Kopf und Nacken -->
-    <path d="M ${g(-46)} ${g(4)} Q ${g(-52)} ${g(-62)} 0 ${g(-70)}
-      Q ${g(52)} ${g(-62)} ${g(46)} ${g(4)}
-      Q ${g(40)} ${g(52)} 0 ${g(56)} Q ${g(-40)} ${g(52)} ${g(-46)} ${g(4)} Z" fill="${haar}"/>
-    <path d="M ${g(-20)} ${g(48)} L ${g(20)} ${g(48)} L ${g(24)} ${g(96)}
-      L ${g(-24)} ${g(96)} Z" fill="${haut}"/>
-    <!-- Schulterstück und Rücken -->
-    <path d="M ${g(-104)} ${g(214)} Q ${g(-96)} ${g(104)} 0 ${g(92)}
-      Q ${g(96)} ${g(104)} ${g(104)} ${g(214)} Z" fill="${panzer}"/>
+    <!-- Kopf und Nacken: eine runde Kalotte, die unten flach ausläuft statt
+         spitz zuzulaufen - ein Punkt am Hinterkopf machte aus dem Kopf ein
+         Gefäß statt eines Schädels. -->
+    <path d="M ${g(-48)} 0 Q ${g(-54)} ${g(-64)} 0 ${g(-72)}
+      Q ${g(54)} ${g(-64)} ${g(48)} 0
+      Q ${g(46)} ${g(38)} ${g(30)} ${g(50)} L ${g(-30)} ${g(50)}
+      Q ${g(-46)} ${g(38)} ${g(-48)} 0 Z" fill="${haar}"/>
+    <path d="M ${g(-18)} ${g(48)} L ${g(18)} ${g(48)} L ${g(22)} ${g(90)}
+      L ${g(-22)} ${g(90)} Z" fill="${haut}"/>
+    <!-- Schulterstück und Rücken: höher angesetzt und mit flachem Bund statt
+         einer Spitze, damit über dem Mantel wirklich ein Kragen aus Rüstung
+         steht und nicht nur ein schmaler dunkler Strich. -->
+    <path d="M ${g(-104)} ${g(214)} Q ${g(-96)} ${g(100)} ${g(-16)} ${g(80)}
+      L ${g(16)} ${g(80)} Q ${g(96)} ${g(100)} ${g(104)} ${g(214)} Z" fill="${panzer}"/>
     <!-- Der Mantel: über die linke Schulter geworfen, nach unten breiter -->
-    <path d="M ${g(-96)} ${g(120)} Q ${g(-150)} ${g(170)} ${g(-168)} ${g(300)}
+    <path d="M ${g(-96)} ${g(134)} Q ${g(-150)} ${g(180)} ${g(-168)} ${g(300)}
       Q ${g(-186)} ${g(470)} ${g(-160)} ${g(660)} L ${g(150)} ${g(660)}
       Q ${g(172)} ${g(430)} ${g(140)} ${g(268)}
-      Q ${g(120)} ${g(160)} ${g(74)} ${g(112)}
-      Q ${g(20)} ${g(150)} ${g(-40)} ${g(126)} Z" fill="${mantel}"/>
+      Q ${g(120)} ${g(170)} ${g(74)} ${g(126)}
+      Q ${g(20)} ${g(164)} ${g(-40)} ${g(140)} Z" fill="${mantel}"/>
     <!-- Die Falten: dieselbe Farbe, nur tiefer -->
     <g fill="${mantelTief}" opacity="0.55">
       <path d="M ${g(-150)} ${g(300)} Q ${g(-128)} ${g(450)} ${g(-142)} ${g(660)}
@@ -277,9 +282,12 @@ export function titleSceneSVG() {
     ${cloud(1500, 232, 0.9, '#eef4f7', 0.32)}
     ${cloud(120, 262, 0.7, '#e8f0f4', 0.26)}
 
-    <!-- Die Berge hinter der Bucht -->
+    <!-- Die Berge hinter der Bucht: drei Staffeln statt zwei, wie schon in
+         der Chronik - eine dritte, nahe und dunklere Reihe gibt der Kette
+         Tiefe, statt dass die zweite Reihe schon die letzte ist. -->
     ${peaks(452, 250, rng, '#6f87a2', 0.72, 7)}
     ${peaks(472, 158, rng, '#5b7590', 0.85, 9)}
+    ${peaks(486, 96, rng, '#465e76', 0.9, 11)}
     <rect y="300" width="${SCENE_W}" height="184" fill="${dunst}" opacity="0.26"/>
 
     <!-- Das Meer -->
