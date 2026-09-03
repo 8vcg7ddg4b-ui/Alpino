@@ -54,9 +54,11 @@ function carrier(kind, color, accent) {
     <g>
       <!-- Rumpf -->
       <path d="M210 500 L300 452 L880 442 L980 476 L880 516 L300 512 Z"
-        fill="#141c28" stroke="${color}" stroke-width="2"/>
+        fill="#1c2836" stroke="${accent}" stroke-width="2.4" stroke-opacity="0.8"/>
+      <path d="M300 452 L880 442 L980 476" fill="none" stroke="${accent}"
+        stroke-width="3" stroke-opacity="0.5"/>
       <!-- Flugdeck -->
-      <path d="M320 456 L860 448 L880 462 L330 470 Z" fill="#1e2a3c"/>
+      <path d="M320 456 L860 448 L880 462 L330 470 Z" fill="#27364b"/>
       <path d="M360 458 L820 452" stroke="${accent}" stroke-width="2" opacity="0.55" stroke-dasharray="14 10"/>
       <!-- Insel mit Brücke -->
       <path d="M640 448 L700 408 L742 412 L748 448 Z" fill="#1a2536" stroke="${color}" stroke-width="1.6"/>
@@ -64,10 +66,12 @@ function carrier(kind, color, accent) {
       <!-- Hangartor, aus dem die Staffel kommt -->
       <path d="M300 476 L360 476 L360 500 L300 498 Z" fill="${accent}" opacity="0.35"/>
       <!-- Triebwerke -->
-      <circle cx="222" cy="498" r="12" fill="${accent}" opacity="0.85"/>
-      <circle cx="238" cy="478" r="9" fill="${accent}" opacity="0.7"/>
-      <path d="M140 498 L216 498" stroke="${accent}" stroke-width="12" opacity="0.3" stroke-linecap="round"/>
-      <path d="M160 478 L232 478" stroke="${accent}" stroke-width="8" opacity="0.22" stroke-linecap="round"/>
+      <circle cx="222" cy="498" r="14" fill="#ffffff" opacity="0.9"/>
+      <circle cx="222" cy="498" r="22" fill="${accent}" opacity="0.35"/>
+      <circle cx="238" cy="478" r="10" fill="#ffffff" opacity="0.75"/>
+      <circle cx="238" cy="478" r="17" fill="${accent}" opacity="0.28"/>
+      <path d="M120 498 L216 498" stroke="${accent}" stroke-width="14" opacity="0.4" stroke-linecap="round"/>
+      <path d="M148 478 L232 478" stroke="${accent}" stroke-width="9" opacity="0.3" stroke-linecap="round"/>
       <!-- Geschütztürme -->
       <g fill="#1a2536" stroke="${color}" stroke-width="1.2">
         <rect x="430" y="432" width="22" height="12" rx="3"/>
@@ -137,6 +141,9 @@ export function titleSceneSVG(factionId = 'confed') {
     <ellipse rx="380" ry="58" fill="none" stroke="${color}" stroke-width="3" opacity="0.35"
       transform="rotate(-16)"/>
     <path d="M-300 0 A300 300 0 0 0 300 0 A300 300 0 0 0 -300 0" fill="#04060c" opacity="0.45"/>
+    <!-- Der Lichtsaum: die Sonne steht links hinter dem Planeten -->
+    <path d="M-300 0 A300 300 0 0 1 -60 -294" fill="none" stroke="${accent}"
+      stroke-width="7" stroke-opacity="0.55" stroke-linecap="round"/>
   </g>
 
   <!-- Der Träger im Anflug -->

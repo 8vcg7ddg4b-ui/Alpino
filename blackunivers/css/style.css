@@ -18,7 +18,24 @@
   --text: #dce9fb;
   --muted: #8fa6c4;
   --faction: #6fb0ff;
-  font-family: 'Eurostile', 'Bahnschrift', 'Segoe UI', system-ui, sans-serif;
+  /* Zwei Schriften: eine kantige, technische für alles, was auf einer
+     Konsole steht, und eine schmale Grotesk für den Fließtext daneben. */
+  --font-display: 'Chakra Petch', 'Eurostile', 'Bahnschrift', system-ui, sans-serif;
+  --font-body: 'Barlow', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
+}
+
+/* Alles, was wie eine Beschriftung auf einem Pult aussieht, trägt die
+   technische Schrift: Titel, Überschriften, Schalter, Zahlenfelder. */
+h1, h2, h3, h4,
+.title-name, .title-kicker, .title-year, .mp-text strong,
+.top-tools button, .btn-primary, .btn-ghost, .bottom-bar button,
+.tb-names strong, .tb-stat strong, .tb-turn strong, .tb-turn small,
+.panel-stats span, .panel-stats strong, .panel-block h4, .ph-title strong,
+.build-btn, .list th, .battle-rounds th, .em-summary span, .em-summary strong,
+.dc-state, .tl-level, .set-choice button, .vc-stats span, .turn-banner,
+.sc-year, .fc-text strong, .pv-chance, .pv-side strong {
+  font-family: var(--font-display);
 }
 
 * { box-sizing: border-box; }

@@ -219,7 +219,7 @@ function drawMapTexture(state) {
   }
 
   // Die Sektorgrenzen und ihre Namen - der Kartenrand einer Seekarte.
-  g.font = `${scale * 1.1}px "Eurostile", "Bahnschrift", system-ui, sans-serif`;
+  g.font = `${scale * 1.1}px "Chakra Petch", "Eurostile", "Bahnschrift", system-ui, sans-serif`;
   for (const sector of SECTORS) {
     const x0 = (sector.x0 / 100) * cv.width;
     const x1 = (sector.x1 / 100) * cv.width;
@@ -669,7 +669,7 @@ function labelSprite(text, { color = '#dbe8ff', size = 34, weight = 600, backgro
   const pad = 12;
   const cv = document.createElement('canvas');
   const g = cv.getContext('2d');
-  const font = `${weight} ${size}px "Eurostile", "Bahnschrift", system-ui, sans-serif`;
+  const font = `${weight} ${size}px "Chakra Petch", "Eurostile", "Bahnschrift", system-ui, sans-serif`;
   g.font = font;
   const w = Math.ceil(g.measureText(text).width) + pad * 2;
   cv.width = w;

@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node test/smoke.mjs 80",
+    "artifact": "node build-artifact.mjs",
     "desktop": "electron .",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
@@ -17,6 +18,7 @@
   "devDependencies": {
     "electron": "^44.0.0",
     "electron-builder": "^26.0.0",
+    "esbuild": "^0.28.0",
     "playwright": "^1.49.0"
   },
   "build": {

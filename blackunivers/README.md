@@ -148,6 +148,19 @@ npm run dist:linux   # AppImage bauen (analog dist:win, dist:mac)
 Der kleine Server wird gebraucht, weil Chromium ES-Module nicht von einer
 `file://`-Adresse lädt.
 
+## Als Artefakt
+
+Das ganze Spiel passt in eine einzige HTML-Datei: der Bündler legt die zwanzig
+Module, die Formatvorlage und Three.js zusammen.
+
+```bash
+npm run artifact     # dist/black-univers.html, rund 900 KB, ohne Nachladen
+```
+
+Die Datei läuft per Doppelklick im Browser und lässt sich als Artefakt
+veröffentlichen. Der Spielstand liegt dann im Speicher des Browsers, in dem sie
+geöffnet wurde.
+
 ## Steuerung
 
 | Eingabe | Wirkung |
