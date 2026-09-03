@@ -26,8 +26,13 @@ let ctx = null;
 let master = null;      // trockenes Summensignal
 let wetGain = null;     // Hallanteil
 let compressor = null;
-let musicBus = null;    // eigener Regler, damit die Musik getrennt schaltbar ist
-let musicDuck = null;   // senkt die Musik kurz ab, wenn es laut wird
+// Titelstück (Aufnahme oder geschriebenes Stück) und Fraktionshymne haben
+// je einen eigenen Regler - nur so kann der eine ausblenden, während der
+// andere schon aufblendet, ohne dass ein "cancelScheduledValues" für das
+// eine Stück die gerade erst geplante Blende des anderen mitreißt.
+let themeGain = null;   // Titelstück: Aufnahme oder geschriebenes Stück
+let anthemGain = null;  // Hymne der eigenen Fraktion
+let musicDuck = null;   // senkt beide kurz ab, wenn es laut wird
 let muted = false;
 let musicEnabled = true;
 
@@ -84,14 +89,17 @@ function ensureContext() {
   reverb.connect(wetGain);
   wetGain.connect(compressor);
 
-  musicBus = ctx.createGain();
-  musicBus.gain.value = 0;
-  // Ein zweiter Regler hinter der Musik, nur zum kurzen Absenken. Er muss vom
+  themeGain = ctx.createGain();
+  themeGain.gain.value = 0;
+  anthemGain = ctx.createGain();
+  anthemGain.gain.value = 0;
+  // Ein dritter Regler hinter beiden, nur zum kurzen Absenken. Er muss vom
   // Ein- und Ausblenden getrennt sein, sonst reißt ein Trommelschlag die
   // Blende auf, die gerade läuft.
   musicDuck = ctx.createGain();
   musicDuck.gain.value = 1;
-  musicBus.connect(musicDuck);
+  themeGain.connect(musicDuck);
+  anthemGain.connect(musicDuck);
   musicDuck.connect(master);
   return ctx;
 }
@@ -140,6 +148,10 @@ export function audioProbe() {
     // Wie weit die Musik gerade beiseitegeschoben ist (1 = gar nicht) und wie
     // viele Klänge im laufenden Fenster schon durchgelassen wurden.
     duck: musicDuck ? Math.round(musicDuck.gain.value * 100) / 100 : 1,
+    // Die beiden Regler einzeln - damit ein Prüflauf sehen kann, ob ein
+    // Wechsel wirklich blendet statt hart zu schneiden.
+    themeVol: themeGain ? Math.round(themeGain.gain.value * 1000) / 1000 : 0,
+    anthemVol: anthemGain ? Math.round(anthemGain.gain.value * 1000) / 1000 : 0,
     stimmen: stimmenZahl,
   };
 }
@@ -778,7 +790,7 @@ function scheduleBar(context, index, when) {
   const bar = PROGRESSION[index % PROGRESSION.length];
   // Der zweite Durchlauf ist der lautere: erst die Harmonie, dann das Blech.
   const loud = index % (PROGRESSION.length * 2) >= PROGRESSION.length;
-  const bus = musicBus;
+  const bus = themeGain;
 
   pad(context, when, { frequency: note(bar.root) * 2, duration: BAR * 1.02, gain: 0.05, destination: bus });
   for (const tone3 of bar.chord) {
@@ -829,7 +841,7 @@ function scheduleAnthemBar(context, score, index, when) {
   const takt = index % score.melodie.length;
   // Der zweite Durchlauf trägt die Melodie; der erste stellt nur den Raum auf.
   const loud = Math.floor(index / score.melodie.length) % 2 === 1;
-  const bus = musicBus;
+  const bus = anthemGain;
 
   // Der Grundton des Takts, und was durchgehend liegt.
   const bassDegree = score.bass[takt];
@@ -906,14 +918,17 @@ export function startAnthem(factionId, { fadeIn = 3 } = {}) {
     // Dasselbe Stück läuft schon. Es kann aber sein, dass jemand den Regler
     // inzwischen zugedreht hat - dann wird er hier wieder aufgezogen, statt
     // dass ein laufendes Stück stumm weiterspielt.
-    if (musicBus && ctx) {
+    if (anthemGain && ctx) {
       const jetzt = ctx.currentTime;
-      musicBus.gain.cancelScheduledValues(jetzt);
-      musicBus.gain.setValueAtTime(musicBus.gain.value, jetzt);
-      musicBus.gain.linearRampToValueAtTime(1, jetzt + 0.6);
+      anthemGain.gain.cancelScheduledValues(jetzt);
+      anthemGain.gain.setValueAtTime(anthemGain.gain.value, jetzt);
+      anthemGain.gain.linearRampToValueAtTime(1, jetzt + 0.6);
     }
     return;
   }
+  // Titelstück und Hymne haben je einen eigenen Regler (siehe oben) - das
+  // Ausblenden hier lässt sich deshalb in Ruhe fertig laufen, ohne dass die
+  // Aufblende der Hymne gleich danach dazwischenfunkt.
   stopTheme({ fadeOut: 0.8 });
   stopAnthem({ fadeOut: 0.8 });
   const context = ensureContext();
@@ -927,9 +942,9 @@ export function startAnthem(factionId, { fadeIn = 3 } = {}) {
   // Der Wechsel braucht einen Moment, sonst fällt der neue Anfang in das
   // Ausblenden des alten Stücks.
   const start = now + 0.9;
-  musicBus.gain.cancelScheduledValues(now);
-  musicBus.gain.setValueAtTime(0.0001, start);
-  musicBus.gain.linearRampToValueAtTime(1, start + fadeIn);
+  anthemGain.gain.cancelScheduledValues(now);
+  anthemGain.gain.setValueAtTime(0.0001, start);
+  anthemGain.gain.linearRampToValueAtTime(1, start + fadeIn);
   // Angefangen wird mit dem lauten Durchlauf: wer das Zelt betritt, soll die
   // Melodie hören und nicht erst einen halben Takt Grundierung. Danach
   // wechselt es von selbst - leiser Durchgang, lauter Durchgang.
@@ -949,17 +964,17 @@ export function startAnthem(factionId, { fadeIn = 3 } = {}) {
 }
 
 export function stopAnthem({ fadeOut = 3 } = {}) {
-  // Wie bei der Titelmusik: nur wer spielt, darf den gemeinsamen Regler
-  // zurückdrehen.
+  // Nur wer spielt, darf den eigenen Regler zurückdrehen - sonst reißt ein
+  // Aufruf ohne laufende Hymne eine Blende an, die niemand hören soll.
   if (anthemHandle === null) return;
   clearInterval(anthemHandle);
   anthemHandle = null;
   anthemId = null;
-  if (!musicBus || !ctx) return;
+  if (!anthemGain || !ctx) return;
   const now = ctx.currentTime;
-  musicBus.gain.cancelScheduledValues(now);
-  musicBus.gain.setValueAtTime(musicBus.gain.value, now);
-  musicBus.gain.linearRampToValueAtTime(0.0001, now + fadeOut);
+  anthemGain.gain.cancelScheduledValues(now);
+  anthemGain.gain.setValueAtTime(anthemGain.gain.value, now);
+  anthemGain.gain.linearRampToValueAtTime(0.0001, now + fadeOut);
 }
 
 export function setMusicEnabled(value) {
@@ -1008,7 +1023,7 @@ function ensureThemeMedia(context) {
   el.volume = 1;
   try {
     themeSource = context.createMediaElementSource(el);
-    themeSource.connect(musicBus);
+    themeSource.connect(themeGain);
   } catch (err) {
     // Kann das Element nicht in den Graphen, bleibt es für sich stehen - dann
     // regelt seine eigene Lautstärke, und der Rest der Kette greift nicht.
@@ -1045,9 +1060,9 @@ export function startTheme({ fadeIn = TITLE_MUSIC_FADE_IN } = {}) {
   themeWanted = null;
 
   const now = context.currentTime;
-  musicBus.gain.cancelScheduledValues(now);
-  musicBus.gain.setValueAtTime(0.0001, now);
-  musicBus.gain.linearRampToValueAtTime(1, now + fadeIn);
+  themeGain.gain.cancelScheduledValues(now);
+  themeGain.gain.setValueAtTime(0.0001, now);
+  themeGain.gain.linearRampToValueAtTime(1, now + fadeIn);
 
   clearTimeout(themeStopTimer);
   themeStopTimer = null;
@@ -1087,10 +1102,8 @@ function startWrittenTheme(context) {
 // Blendet die Musik aus und hört auf, neue Takte zu planen. Was schon in der
 // Zukunft liegt, läuft still weiter aus.
 export function stopTheme({ fadeOut = TITLE_MUSIC_FADE_OUT } = {}) {
-  // Titelmusik und Fraktionsmusik teilen sich einen Regler. Wer nichts spielt,
-  // fasst ihn deshalb nicht an: sonst dreht ein "hör auf" für das eine Stück
-  // das andere mit ab - und dessen Planer läuft weiter, ohne dass noch etwas
-  // zu hören wäre.
+  // Nur wer spielt, fasst den eigenen Regler an - sonst reißt ein "hör auf"
+  // ohne laufendes Titelstück eine Blende an, die niemand hören soll.
   // Auch ein Wunsch, der noch auf den Ton wartet, wird damit zurückgenommen.
   themeWanted = null;
   const laeuft = musicHandle !== null || !!(themeMedia && !themeMedia.paused);
@@ -1112,9 +1125,9 @@ export function stopTheme({ fadeOut = TITLE_MUSIC_FADE_OUT } = {}) {
       try { themeMedia.currentTime = 0; } catch (err) { /* noch nicht bereit */ }
     }, Math.max(0, fadeOut) * 1000 + 60);
   }
-  if (!musicBus || !ctx) return;
+  if (!themeGain || !ctx) return;
   const now = ctx.currentTime;
-  musicBus.gain.cancelScheduledValues(now);
-  musicBus.gain.setValueAtTime(musicBus.gain.value, now);
-  musicBus.gain.linearRampToValueAtTime(0.0001, now + fadeOut);
+  themeGain.gain.cancelScheduledValues(now);
+  themeGain.gain.setValueAtTime(themeGain.gain.value, now);
+  themeGain.gain.linearRampToValueAtTime(0.0001, now + fadeOut);
 }

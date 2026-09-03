@@ -217,9 +217,19 @@ stattdessen neben sie klickte, hörte den ganzen Vorspann über nichts: die
 Takte waren in einen schlafenden Klangapparat geplant worden, und genau dieser
 Griff hielt jeden neuen Versuch ab.
 
-**Mit dem Betreten des Zeltes** übernimmt die Musik der eigenen Fraktion. Jede
-der neunzehn hat ihr eigenes Stück – wieder keine Aufnahme, sondern eine
-Partitur (`js/anthems.js`), die der Klangsatz Takt für Takt spielt. Der
+**Mit dem Betreten des Zeltes** übernimmt die Musik der eigenen Fraktion, und
+beim Verlassen des Feldzugs übernimmt umgekehrt wieder das Titelstück – beides
+überblendet, nicht geschnitten: Titelstück und Hymne hängen in `js/audio.js`
+an je einem eigenen Lautstärkeregler (`themeGain`, `anthemGain`), die
+gemeinsam in denselben Ausgang münden. Erst dadurch kann der eine Regler
+herunterlaufen, während der andere schon aufzieht, ohne dass ein Aufruf für
+das eine Stück die gerade erst geplante Blende des anderen mit sich reißt -
+mit nur einem gemeinsamen Regler für beide (der frühere Aufbau) blieb davon in
+der Praxis nichts übrig: der zweite Aufruf hob die gerade erst begonnene
+Blende des ersten sofort wieder auf, und was wie ein Übergang gedacht war,
+kam als harter Schnitt mitten im Takt heraus. Jede der neunzehn Fraktionen hat
+ihr eigenes Stück – wieder keine Aufnahme, sondern eine Partitur
+(`js/anthems.js`), die der Klangsatz Takt für Takt spielt. Der
 Unterschied steckt in der Leiter und in der Besetzung: der **Hidschas** mit
 seiner übermäßigen Sekunde trägt Karthago, Numidien, die Parther, die
 Seleukiden und Ägypten; **Mixolydisch** ohne Leitton den keltischen Norden;
