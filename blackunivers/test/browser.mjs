@@ -36,7 +36,18 @@ console.log('Startbild …');
 // Nicht auf 'networkidle' warten: die Musik lädt beim ersten Klick nach,
 // und ein laufender Medienstrom hält die Leitung offen.
 await page.goto('http://127.0.0.1:8123/index.html', { waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(800);
+await page.waitForTimeout(900);
+// Der Vorspann läuft zuerst; wo er abspielbar ist, wird er weggeklickt, wo
+// nicht, ist er schon von selbst verschwunden.
+const introShown = await page.locator('#intro').count();
+if (introShown) {
+  await shot('00-vorspann');
+  await page.click('#introSkip').catch(() => {});
+  await page.waitForSelector('#intro', { state: 'detached', timeout: 8000 }).catch(() => {
+    problems.push('Der Vorspann ließ sich nicht überspringen.');
+  });
+}
+await page.waitForTimeout(400);
 await shot('01-startbild');
 
 console.log('Fraktionswahl …');

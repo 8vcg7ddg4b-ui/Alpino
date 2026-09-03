@@ -28,6 +28,14 @@ zwei Sonnen, oder das eigene Flugdeck mit Landebahn und Positionslichtern.
 Bevor der erste Zug fällt, meldet sich der Erste Offizier:
 **„Ich grüße Sie an Bord. Die Karte liegt auf dem Tisch."**
 
+## Der Vorspann
+
+Vor dem Startbild läuft ein kurzer Film (`video/vorspann.mp4`, dazu eine
+WebM-Fassung für Browser ohne H.264). Er lässt sich mit Klick, Leertaste oder
+Escape überspringen, endet von selbst und geht dann weich ins Startbild über.
+In den Einstellungen kann man ihn abschalten. Fehlt oder stockt die Datei,
+steht man nicht vor einer schwarzen Wand - das Startbild kommt trotzdem.
+
 ## Das Startbild
 
 Es ist kein Bild, sondern eine laufende Szene: der **Träger der gewählten

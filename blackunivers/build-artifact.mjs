@@ -31,6 +31,11 @@ const musicPath = path.join(here, 'audio', 'black-hull-directive.mp3');
 const music = fs.existsSync(musicPath)
   ? `data:audio/mpeg;base64,${fs.readFileSync(musicPath).toString('base64')}`
   : null;
+// Der Vorspann ebenso: eine Seite, ein Film.
+const introPath = path.join(here, 'video', 'vorspann.mp4');
+const intro = fs.existsSync(introPath)
+  ? `data:video/mp4;base64,${fs.readFileSync(introPath).toString('base64')}`
+  : null;
 const css = fs.readFileSync(path.join(here, 'css', 'style.css'), 'utf8');
 const three = fs.readFileSync(path.join(here, 'js', 'vendor', 'three.min.js'), 'utf8');
 
@@ -42,6 +47,10 @@ const body = html
   .replace(/\n\s*<script type="module"[^>]*><\/script>/g, '')
   .replace(/\n\s*<link[^>]*>/g, '')
   .replace('src="audio/black-hull-directive.mp3"', music ? `src="${music}"` : '')
+  // Im Artefakt steckt nur die MP4-Fassung: H.264 spielt jeder Browser, und
+  // eine zweite Fassung daneben würde die Seite um Megabyte schwerer machen.
+  .replace('src="video/vorspann.mp4"', intro ? `src="${intro}"` : '')
+  .replace(/\n\s*<source src="video\/vorspann\.webm"[^>]*>/g, '')
   .trim();
 
 const page = `<title>Black Univers</title>
@@ -64,4 +73,4 @@ ${bundle}
 const file = path.join(out, 'black-univers.html');
 fs.writeFileSync(file, page, 'utf8');
 const kb = (Buffer.byteLength(page) / 1024).toFixed(0);
-console.log(`${file} geschrieben (${kb} KB${music ? ', mit Musik' : ', ohne Musik'})`);
+console.log(`${file} geschrieben (${kb} KB${music ? ', mit Musik' : ''}${intro ? ', mit Vorspann' : ''})`);

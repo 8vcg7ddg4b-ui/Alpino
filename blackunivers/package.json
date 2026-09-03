@@ -29,6 +29,7 @@
       "css/**/*",
       "js/**/*",
       "audio/**/*",
+      "video/**/*",
       "desktop/**/*",
       "server.js"
     ],

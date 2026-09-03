@@ -65,6 +65,18 @@
     })();
   </script>
 
+  <!-- ================= Vorspann ================= -->
+  <!-- Er liegt über allem und geht weg, wenn er zu Ende ist oder wenn man
+       ihn wegklickt. Danach steht das Startbild da. -->
+  <div id="intro" class="intro">
+    <video id="introVideo" class="intro-video" playsinline preload="auto">
+      <source src="video/vorspann.mp4" type="video/mp4" />
+      <source src="video/vorspann.webm" type="video/webm" />
+    </video>
+    <button id="introSound" class="intro-sound hidden" type="button">Ton einschalten</button>
+    <button id="introSkip" class="intro-skip" type="button">Vorspann überspringen ›</button>
+  </div>
+
   <!-- ================= Startbild ================= -->
   <div id="startScreen">
     <div id="titleStage" aria-hidden="true"></div>

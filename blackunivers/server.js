@@ -14,6 +14,10 @@ const MIME = {
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.mp3': 'audio/mpeg',
+  // Ohne den richtigen Typ weigert sich das Videoelement, den Vorspann
+  // abzuspielen - der Browser bekäme sonst nur einen Bytestrom.
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
 };
 
 export function createGameServer(root) {

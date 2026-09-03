@@ -834,6 +834,75 @@ function wireGameChrome() {
   });
 }
 
+// --- Der Vorspann ---------------------------------------------------------
+// Er läuft vor dem Startbild und ist jederzeit wegzuklicken. Ton gibt es nur,
+// wenn der Browser ihn ohne Handlung zulässt - sonst läuft der Film stumm,
+// und eine Schaltfläche bietet den Ton an.
+let introDone = false;
+
+function playIntro() {
+  return new Promise((resolve) => {
+    const box = $('intro');
+    const video = $('introVideo');
+    const skip = $('introSkip');
+    const soundBtn = $('introSound');
+    if (!box || !video || !getSetting('vorspann')) {
+      if (box) box.remove();
+      resolve();
+      return;
+    }
+
+    let finished = false;
+    function onKey(ev) {
+      if (ev.key === 'Escape' || ev.key === ' ' || ev.key === 'Enter') finish();
+    }
+    function finish() {
+      if (finished) return;
+      finished = true;
+      box.classList.add('is-leaving');
+      try { video.pause(); } catch (err) { /* schon aus */ }
+      window.removeEventListener('keydown', onKey);
+      setTimeout(() => { box.remove(); resolve(); }, 750);
+    }
+
+    skip.onclick = (ev) => { ev.stopPropagation(); finish(); };
+    box.onclick = finish;
+    video.addEventListener('ended', finish);
+    // Geht der Film nicht auf, steht man nicht vor einer schwarzen Wand: das
+    // Element meldet den Fehler, die einzelnen Quellen melden ihn auch.
+    video.addEventListener('error', finish);
+    for (const source of video.querySelectorAll('source')) {
+      source.addEventListener('error', () => {
+        // Erst wenn keine Quelle mehr übrig ist, ist der Vorspann verloren.
+        if (video.networkState === video.NETWORK_NO_SOURCE) finish();
+      });
+    }
+    window.addEventListener('keydown', onKey);
+    setTimeout(() => { if (video.readyState === 0) finish(); }, 6000);
+
+    soundBtn.onclick = (ev) => {
+      ev.stopPropagation();
+      video.muted = false;
+      video.volume = 0.9;
+      soundBtn.classList.add('hidden');
+    };
+
+    // Erst mit Ton versuchen; verbietet der Browser das, läuft der Film stumm
+    // weiter, und der Ton wird angeboten.
+    video.muted = false;
+    video.volume = 0.9;
+    const attempt = video.play();
+    if (attempt && attempt.catch) {
+      attempt.catch(() => {
+        video.muted = true;
+        soundBtn.classList.remove('hidden');
+        const second = video.play();
+        if (second && second.catch) second.catch(() => finish());
+      });
+    }
+  });
+}
+
 // --- Start ----------------------------------------------------------------
 // Die Zeichen im Menü stehen als `data-icon` im HTML - hier bekommen sie
 // ihre gezeichnete Form.
@@ -856,12 +925,21 @@ function boot() {
     if (isTitleSceneRunning()) resizeTitleScene();
   });
   // Musik startet beim ersten Klick - vorher lässt der Browser keinen Ton zu.
+  // Solange der Vorspann läuft, bleibt sie aus.
   const kick = () => {
     unlockAudio();
-    if (getSetting('musik')) startTheme();
+    if (introDone && getSetting('musik')) startTheme();
     window.removeEventListener('pointerdown', kick);
   };
   window.addEventListener('pointerdown', kick);
+
+  // Zuerst der Film, dann das Startbild - und erst danach die Musik: der
+  // Vorspann bringt seinen eigenen Ton mit.
+  playIntro().then(() => {
+    introDone = true;
+    unlockAudio();
+    if (getSetting('musik')) startTheme();
+  });
   // Ein schmaler Zugang für die Prüfläufe: Feld zu Bildschirmpunkt. Er kostet
   // nichts und erspart dem Test das Raten, wo ein Feld liegt.
   window.__bu = {
