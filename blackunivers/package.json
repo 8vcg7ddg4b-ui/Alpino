@@ -28,6 +28,7 @@
       "index.html",
       "css/**/*",
       "js/**/*",
+      "audio/**/*",
       "desktop/**/*",
       "server.js"
     ],

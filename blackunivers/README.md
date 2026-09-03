@@ -189,8 +189,11 @@ Das ganze Spiel passt in eine einzige HTML-Datei: der Bündler legt die zwanzig
 Module, die Formatvorlage und Three.js zusammen.
 
 ```bash
-npm run artifact     # dist/black-univers.html, rund 900 KB, ohne Nachladen
+npm run artifact     # dist/black-univers.html, rund 7 MB, ohne Nachladen
 ```
+
+Die Aufnahme wandert dabei als Datenadresse mit in die Seite - deshalb die
+sieben Megabyte, und deshalb klingt auch die einzelne Datei.
 
 Die Datei läuft per Doppelklick im Browser und lässt sich als Artefakt
 veröffentlichen. Der Spielstand liegt dann im Speicher des Browsers, in dem sie
@@ -215,9 +218,12 @@ geöffnet wurde.
 ## Aufbau des Codes
 
 Reine ES-Module, keine Bauwerkzeuge, keine Abhängigkeiten außer Three.js
-(mitgeliefert unter `js/vendor/`). Der Klang wird gerechnet, nicht geladen: Funk,
-Triebwerke, Laser, Einschläge und das Titelstück „Schwarzes Feuer" entstehen im
-Browser aus Oszillatoren.
+(mitgeliefert unter `js/vendor/`). Die **Geräusche werden gerechnet, nicht
+geladen**: Funk, Triebwerke, Laser und Einschläge entstehen im Browser aus
+Oszillatoren. Die **Musik ist eine Aufnahme**: „Black Hull Directive"
+(`audio/black-hull-directive.mp3`) läuft im Startbild und tritt im Feldzug
+hinter die Meldungen zurück; sie lässt sich in den Einstellungen abschalten.
+Fehlt die Datei, springt der eingebaute Synthesizer-Marsch ein.
 
 | Datei | Inhalt |
 | --- | --- |

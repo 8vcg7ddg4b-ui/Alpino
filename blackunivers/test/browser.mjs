@@ -33,7 +33,9 @@ async function shot(name) {
 }
 
 console.log('Startbild …');
-await page.goto('http://127.0.0.1:8123/index.html', { waitUntil: 'networkidle' });
+// Nicht auf 'networkidle' warten: die Musik lädt beim ersten Klick nach,
+// und ein laufender Medienstrom hält die Leitung offen.
+await page.goto('http://127.0.0.1:8123/index.html', { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(800);
 await shot('01-startbild');
 

@@ -76,7 +76,7 @@ export function settingsHTML() {
 
   return `
     <div class="set-list">
-      ${row('musik', 'Musik', 'Das Titelstück und die Brückenmusik', toggle('musik'))}
+      ${row('musik', 'Musik', '„Black Hull Directive" – im Startbild und im Feldzug', toggle('musik'))}
       ${row('klang', 'Klang', 'Funk, Triebwerke, Treffer', toggle('klang'))}
       ${row('bruecke', 'Brücke zeigen', 'Der Raum um den Holotisch. Aus: nur die Karte.', toggle('bruecke'))}
       ${row('sternenstaub', 'Sternenstaub', 'Der Hintergrund hinter der Karte', toggle('sternenstaub'))}

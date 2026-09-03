@@ -52,7 +52,7 @@ import {
 } from './settings.js';
 import {
   unlockAudio, sfx, startTheme, stopTheme, setMusicEnabled, setSfxEnabled,
-  playFanfare, startEngine, stopEngine,
+  playFanfare, startEngine, stopEngine, setMusicScene, THEME_TITLE,
 } from './audio.js';
 import { saveGame, loadGame, clearSaveGame, saveGameSummary } from './savegame.js';
 
@@ -646,6 +646,7 @@ function backToTitle() {
   $('startScreen').classList.remove('hidden', 'behind');
   paintTitle(setup.factionId);
   setTitleLayout('start');
+  setMusicScene('titel');
   if (getSetting('musik')) startTheme();
   const summary = saveGameSummary();
   $('continueGameBtn').classList.toggle('hidden', !summary);
@@ -664,7 +665,10 @@ function applySettingsToGame() {
 async function beginGame(newState, { opening = true } = {}) {
   state = newState;
   window.__blackUniversState = state;
-  stopTheme();
+  // Die Musik läuft weiter in den Feldzug hinein - sie tritt nur hinter die
+  // Meldungen zurück.
+  setMusicScene('feldzug');
+  startTheme();
   stopTitleScene();
   $('startScreen').classList.add('hidden');
   $('startScreen').classList.remove('behind');
@@ -854,7 +858,7 @@ function boot() {
   // Musik startet beim ersten Klick - vorher lässt der Browser keinen Ton zu.
   const kick = () => {
     unlockAudio();
-    if (getSetting('musik') && !state) startTheme();
+    if (getSetting('musik')) startTheme();
     window.removeEventListener('pointerdown', kick);
   };
   window.addEventListener('pointerdown', kick);

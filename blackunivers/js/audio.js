@@ -11,6 +11,12 @@ let sfxOn = true;
 let themeTimer = null;
 let themeStep = 0;
 let marchNode = null;
+// Das Titelstück liegt als Datei vor: „Black Hull Directive". Der Synthesizer
+// weiter unten bleibt als Rückfall stehen - ohne Datei klingt das Spiel
+// trotzdem.
+let themeEl = null;
+let themeVolume = 0.55;
+let themeFade = null;
 
 function ensure() {
   if (ctx) return ctx;
@@ -41,6 +47,7 @@ export function setMusicEnabled(on) {
   musicOn = !!on;
   if (musicGain) musicGain.gain.value = musicOn ? 0.34 : 0;
   if (!musicOn) stopTheme();
+  else if (themeAudio() && themeAudio().paused) startTheme();
 }
 export function setSfxEnabled(on) {
   sfxOn = !!on;
@@ -187,7 +194,48 @@ export function stopEngine() {
   setTimeout(() => { try { src.stop(); } catch (err) { /* schon aus */ } }, 400);
 }
 
-// --- Das Titelstück -------------------------------------------------------
+// --- Das Titelstück als Aufnahme ----------------------------------------
+// Gefunden wird es über ein <audio>-Element im Dokument. Im gebündelten
+// Artefakt steckt dieselbe Aufnahme als Datenadresse darin - so klingt die
+// eine Datei genauso wie das Spiel aus dem Verzeichnis.
+export const THEME_TITLE = 'Black Hull Directive';
+
+function themeAudio() {
+  if (themeEl !== null) return themeEl;
+  themeEl = (typeof document !== 'undefined' && document.getElementById('themeAudio')) || null;
+  if (themeEl) {
+    themeEl.loop = true;
+    themeEl.volume = 0;
+    themeEl.addEventListener('error', () => { themeEl = null; });
+  }
+  return themeEl;
+}
+
+function fadeTo(target, ms = 900, onDone = null) {
+  const el = themeAudio();
+  if (!el) return;
+  if (themeFade) clearInterval(themeFade);
+  const from = el.volume;
+  const start = Date.now();
+  themeFade = setInterval(() => {
+    const t = Math.min(1, (Date.now() - start) / ms);
+    el.volume = Math.max(0, Math.min(1, from + (target - from) * t));
+    if (t >= 1) {
+      clearInterval(themeFade);
+      themeFade = null;
+      if (onDone) onDone();
+    }
+  }, 40);
+}
+
+// Wie laut das Stück steht: im Startbild vorn, im Feldzug hinter den
+// Meldungen. Es läuft weiter, wenn der Feldzug beginnt - nur leiser.
+export function setMusicScene(scene) {
+  themeVolume = scene === 'feldzug' ? 0.3 : 0.55;
+  if (musicOn && themeAudio() && !themeAudio().paused) fadeTo(themeVolume, 1400);
+}
+
+// --- Der Synthesizer als Rückfall ---------------------------------------
 // „Schwarzes Feuer": ein Marsch in d-moll. Blech aus Sägezähnen, ein Bass
 // darunter, dazu ein Schlag auf die Zwei und Vier. Er läuft in Schleife,
 // solange das Startbild steht.
@@ -268,6 +316,34 @@ function playDrum(at, strong) {
 const BEAT = 0.42;
 
 export function startTheme() {
+  if (!musicOn) return;
+  const el = themeAudio();
+  if (el) {
+    // Der Browser lässt Ton erst nach einer Handlung zu; scheitert das
+    // Abspielen, versucht es der nächste Klick erneut.
+    const promise = el.play();
+    if (promise && promise.catch) promise.catch(() => {});
+    fadeTo(themeVolume, 1600);
+    return;
+  }
+  startSynthTheme();
+}
+
+export function stopTheme() {
+  const el = themeAudio();
+  if (el) {
+    fadeTo(0, 700, () => { try { el.pause(); } catch (err) { /* schon aus */ } });
+  }
+  stopSynthTheme();
+}
+
+export function isThemePlaying() {
+  const el = themeAudio();
+  if (el) return !el.paused;
+  return !!themeTimer;
+}
+
+function startSynthTheme() {
   const c = ensure();
   if (!c || !musicOn || themeTimer) return;
   themeStep = 0;
@@ -283,13 +359,9 @@ export function startTheme() {
   themeTimer = setInterval(tick, BEAT * 1000);
 }
 
-export function stopTheme() {
+function stopSynthTheme() {
   if (themeTimer) clearInterval(themeTimer);
   themeTimer = null;
-}
-
-export function isThemePlaying() {
-  return !!themeTimer;
 }
 
 // Ein kurzer Fanfarenstoß beim Fraktionswechsel im Auswahlbildschirm - jede
