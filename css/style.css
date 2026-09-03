@@ -2305,8 +2305,6 @@ kbd {
 
 @media (prefers-reduced-motion: reduce) {
   .chron-layer { animation: none; transition: opacity 0.4s linear; }
-  #titleStage svg, .tscn-flame, .tscn-cloth, .tscn-sparkle,
-  .tscn-ship, .tscn-underway { animation: none; }
 }
 
 @media (max-width: 760px) {

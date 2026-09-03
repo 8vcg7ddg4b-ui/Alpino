@@ -301,8 +301,11 @@ schwingt leicht im Wind, während Stange und Kranz starr bleiben, das
 statt im Gleichtakt, die **Kriegsschiffe im Hafen** wiegen sich vor Anker, und
 weit draußen jenseits des Hafens zieht ein **Segler** in neunzig Sekunden
 einmal über die ganze Bucht. Alles reines CSS (`.tscn-flame`, `.tscn-cloth`,
-`.tscn-sparkle`, `.tscn-ship`, `.tscn-underway` in `css/style.css`), und alles
-steht still, wenn das Betriebssystem reduzierte Bewegung verlangt.
+`.tscn-sparkle`, `.tscn-ship`, `.tscn-underway` in `css/style.css`). Sie laufen
+absichtlich unabhängig davon, ob das Betriebssystem reduzierte Bewegung
+verlangt - keine der Bewegungen ist groß oder schnell genug, um dafür ein
+Grund zu sein, und ein Titelbild, das deshalb ganz stillsteht, wirkt wie eines,
+das nicht geladen hat.
 
 **Wird es schmal**, rückt zuerst die Tafel über das ganze Bild; unter 700
 Punkten stehen Titel, Menü und Leiste untereinander, das Bild bleibt dahinter,
