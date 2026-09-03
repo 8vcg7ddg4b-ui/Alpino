@@ -78,6 +78,13 @@ Elburs sowie Euphrat und Tigris.
 Das Spiel läuft wahlweise **im Browser** oder als **eigenständige Desktop-Anwendung**
 (Windows/macOS/Linux) mit eigenem Fenster, eigenem Icon und ohne sichtbaren Browser.
 
+> **Schwesterspiel:** Im Verzeichnis [`blackunivers/`](blackunivers/README.md) liegt
+> **Black Univers** – derselbe Bau, verlegt ins Wing-Commander-Universum: die
+> Sternkarte zwischen Sol und Kilrah liegt als Hologramm auf dem Kartentisch
+> einer Flaggbrücke, statt der Legionen fliegen Trägerkampfgruppen, und statt
+> Belagerungsleitern drücken Bomber den Planetenschild nieder. Starten mit
+> `node blackunivers/server.js` oder `npm run blackunivers`.
+
 ## Als Desktop-Programm starten
 
 ```bash
