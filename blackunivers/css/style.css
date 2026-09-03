@@ -98,20 +98,71 @@ button {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 30% 45%, rgba(4, 7, 14, 0) 25%, rgba(4, 7, 14, 0.85) 78%),
-    linear-gradient(90deg, rgba(4, 7, 14, 0.92) 0%, rgba(4, 7, 14, 0.35) 45%, rgba(4, 7, 14, 0) 70%);
+    radial-gradient(circle at 26% 48%, rgba(4, 7, 14, 0) 22%, rgba(4, 7, 14, 0.7) 74%),
+    linear-gradient(90deg, rgba(4, 7, 14, 0.95) 0%, rgba(4, 7, 14, 0.7) 30%, rgba(4, 7, 14, 0.12) 58%, rgba(4, 7, 14, 0) 76%),
+    linear-gradient(0deg, rgba(4, 7, 14, 0.8) 0%, rgba(4, 7, 14, 0) 32%);
   pointer-events: none;
 }
+
+/* Der Rahmen einer Konsole: vier Ecken, sonst nichts. */
+.title-frame {
+  position: absolute;
+  inset: clamp(12px, 2vw, 26px);
+  pointer-events: none;
+  border: 1px solid rgba(120, 175, 235, 0.1);
+}
+.tf-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 2px solid rgba(140, 190, 255, 0.5);
+}
+.tf-tl { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.tf-tr { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
+.tf-bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
+.tf-br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+/* Die Zeile am unteren Rand nennt das Schiff, das gerade im Bild treibt. */
+.title-ship {
+  position: absolute;
+  right: clamp(26px, 4vw, 64px);
+  bottom: clamp(24px, 4vh, 48px);
+  margin: 0;
+  padding: 6px 12px;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-right: 2px solid var(--blue);
+  background: linear-gradient(90deg, rgba(4, 9, 18, 0) 0%, rgba(4, 9, 18, 0.75) 100%);
+  pointer-events: none;
+}
+#startScreen.behind .title-frame,
+#startScreen.behind .title-ship { display: none; }
 
 .title-left {
   position: absolute;
   left: clamp(20px, 5vw, 78px);
   top: 50%;
   transform: translateY(-50%);
-  width: min(440px, 84vw);
+  width: min(460px, 84vw);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 24px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(120, 175, 235, 0.22);
+}
+.title-brand { position: relative; }
+.title-brand::before {
+  content: '';
+  position: absolute;
+  left: -21px;
+  top: 4px;
+  width: 3px;
+  height: 46px;
+  background: var(--blue);
+  box-shadow: 0 0 14px rgba(111, 176, 255, 0.6);
 }
 .title-kicker {
   margin: 0;
@@ -121,7 +172,7 @@ button {
   font-size: 0.68rem;
 }
 .title-name {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   font-size: clamp(3rem, 8vw, 5.4rem);
   line-height: 0.92;
   letter-spacing: 0.04em;
@@ -144,7 +195,12 @@ button {
   padding: 6px 0;
   display: inline-block;
 }
-.title-tagline { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
+.title-tagline {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+}
 .title-version { color: rgba(143, 166, 196, 0.6); font-size: 0.72rem; margin: 0; }
 
 .title-menu { display: flex; flex-direction: column; gap: 10px; }
@@ -350,6 +406,61 @@ button {
   display: block;
 }
 
+/* --- Beschriftung über der Karte ---------------------------------------
+   Namen und Stärken liegen als HTML über dem Bild: immer gleich groß,
+   immer scharf, und sie halten einander Platz frei. */
+.map-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+.map-label, .fleet-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 2px 7px 2px 5px;
+  border-radius: 2px;
+  background: rgba(4, 9, 18, 0.62);
+  border: 1px solid transparent;
+  color: #e6f0ff;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  transition: opacity 0.12s linear;
+  will-change: transform;
+}
+.map-label i, .fleet-badge i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: 0 0 6px currentColor;
+}
+.map-label b { color: var(--amber); font-weight: 400; }
+.map-label em { color: var(--amber); font-style: normal; font-size: 0.85em; }
+.map-label.is-mine { color: #ffffff; background: rgba(6, 16, 30, 0.72); }
+.map-label.is-siege { border-color: rgba(255, 122, 79, 0.7); }
+.map-label.is-selected {
+  border-color: var(--amber);
+  background: rgba(20, 14, 4, 0.82);
+  color: #fff3d8;
+}
+.fleet-badge {
+  font-family: var(--font-display);
+  font-size: 11px;
+  padding: 1px 6px 1px 4px;
+  background: rgba(4, 9, 18, 0.78);
+  border-width: 1px;
+  border-style: solid;
+}
+.fleet-badge b { color: var(--muted); font-weight: 400; font-size: 0.85em; }
+.fleet-badge.is-selected { box-shadow: 0 0 0 1px var(--amber), 0 0 12px rgba(255, 190, 92, 0.4); }
+
 .top-bar {
   position: absolute;
   top: 0;
@@ -363,6 +474,7 @@ button {
   border-bottom: 1px solid var(--line-soft);
   font-size: 0.8rem;
   pointer-events: none;
+  z-index: 6;
 }
 .tb-faction { display: flex; align-items: center; gap: 10px; }
 .tb-emblem { color: var(--faction); display: flex; }
@@ -376,6 +488,7 @@ button {
 
 .top-tools {
   position: absolute;
+  z-index: 6;
   top: 54px;
   right: clamp(10px, 2vw, 20px);
   display: flex;
@@ -407,6 +520,7 @@ button {
 
 .side-panel {
   position: absolute;
+  z-index: 6;
   left: clamp(8px, 1.5vw, 18px);
   top: 60px;
   bottom: 84px;
@@ -560,6 +674,7 @@ button.mini.good { color: var(--green); }
 /* --- Meldungen ---------------------------------------------------------- */
 .feed {
   position: absolute;
+  z-index: 6;
   right: clamp(8px, 1.5vw, 18px);
   bottom: 124px;
   width: min(320px, 40vw);
@@ -582,6 +697,7 @@ button.mini.good { color: var(--green); }
 
 .bottom-bar {
   position: absolute;
+  z-index: 6;
   bottom: clamp(10px, 2vh, 20px);
   right: clamp(10px, 2vw, 20px);
   display: flex;
@@ -590,6 +706,7 @@ button.mini.good { color: var(--green); }
 
 .compass {
   position: absolute;
+  z-index: 6;
   bottom: clamp(10px, 2vh, 20px);
   left: clamp(10px, 2vw, 20px);
   width: 56px;
@@ -601,6 +718,7 @@ button.mini.good { color: var(--green); }
 
 .turn-banner {
   position: absolute;
+  z-index: 8;
   top: 44%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -615,6 +733,7 @@ button.mini.good { color: var(--green); }
 
 .toast {
   position: absolute;
+  z-index: 8;
   bottom: 76px;
   left: 50%;
   transform: translateX(-50%);
@@ -630,6 +749,7 @@ button.mini.good { color: var(--green); }
 /* --- Tafeln und Fenster ------------------------------------------------- */
 .sheet {
   position: absolute;
+  z-index: 10;
   top: 54px;
   right: clamp(8px, 2vw, 20px);
   bottom: 84px;

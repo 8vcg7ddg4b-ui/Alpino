@@ -42,8 +42,9 @@ import {
 import { titleSceneSVG, factionArtSVG } from './titlescene.js';
 import {
   initTitleScene, setTitleFaction, stopTitleScene, resumeTitleScene,
-  resizeTitleScene, isTitleSceneRunning, setTitleLayout,
+  resizeTitleScene, isTitleSceneRunning, setTitleLayout, heroShipName,
 } from './titlescene3d.js';
+import { initMapLabels, updateMapLabels, clearMapLabels } from './maplabels.js';
 import { emblemSVG, iconSVG } from './emblems.js';
 import {
   loadSettings, getSetting, setSetting, resetSettings, settingsHTML,
@@ -68,6 +69,16 @@ const $ = (id) => document.getElementById(id);
 
 // --- Zeichnen -------------------------------------------------------------
 function draw() {
+  // Die Beschriftung liegt als HTML über dem Bild und wandert mit ihm: sie
+  // wird bei jedem Zeichnen neu gesetzt, aber nur gemessen, wenn sich ihr
+  // Inhalt ändert.
+  if (state) {
+    updateMapLabels(state, {
+      selectedFleetId: selection.fleetId,
+      selectedSystemId: selection.systemId,
+      visibleFleets: visibility ? visibility.fleets : null,
+    });
+  }
   const compass = $('compassRose');
   if (compass) {
     const grad = Math.round((northOnScreen() * 1800) / Math.PI) / 10;
@@ -532,6 +543,8 @@ function paintTitle(factionId = 'confed') {
     stage.appendChild(svgLayer);
   }
   svgLayer.innerHTML = titleSceneSVG(factionId);
+  const shipLine = $('titleShip');
+  if (shipLine) shipLine.textContent = heroShipName(factionId);
   if (!titleSceneReady) {
     titleSceneReady = initTitleScene(stage, factionId);
     if (titleSceneReady) svgLayer.classList.add('hidden');
@@ -619,12 +632,15 @@ function renderSetup() {
     <h4>${scenario.name} · ${scenario.year}</h4>
     <p>${scenario.blurb}</p>
     <p class="hint">${scenario.hint}</p>`;
+  const shipLine = $('titleShip');
+  if (shipLine) shipLine.textContent = heroShipName(setup.factionId);
   if (titleSceneReady) setTitleFaction(setup.factionId);
   else paintTitle(setup.factionId);
 }
 
 function backToTitle() {
   stopBattle();
+  clearMapLabels();
   $('setupScreen').classList.add('hidden');
   $('app').classList.add('hidden');
   $('startScreen').classList.remove('hidden', 'behind');
@@ -675,6 +691,7 @@ async function beginGame(newState, { opening = true } = {}) {
   }
   applySettingsToGame();
   buildMap(state);
+  initMapLabels($('mapLabels'));
   resize();
 
   // Der eigene Raum ist bekannt, der Rest ist dunkel.

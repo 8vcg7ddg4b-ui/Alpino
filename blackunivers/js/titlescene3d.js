@@ -23,6 +23,22 @@ let currentFaction = null;
 let clock = 0;
 const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
 
+// Welches Schiff da treibt. Der Name steht klein am Bildrand - er sagt, was
+// man sieht, und nebenbei, wessen Flotte man führen würde.
+const HERO_SHIPS = {
+  confed: 'TCS Tiger’s Claw · Bengal-Klasse',
+  kilrathi: 'KIS Hha’ifra · Snakeir-Klasse',
+  borderworlds: 'BWS Intrepid · Grenzwelt-Klasse',
+  landreich: 'FRLS Mjollnir · Kruger-Klasse',
+  firekka: 'Hochnest Ku’kara · Hortträger',
+  nephilim: 'Leviathan · ohne Kennung',
+  neutral: 'Freihändler · Frachtträger',
+};
+
+export function heroShipName(factionId) {
+  return HERO_SHIPS[factionId] || HERO_SHIPS.neutral;
+}
+
 // Eine Wolke aus Rauschen: sie ist der Nebel, den die Bänke auf der Karte
 // später auch werfen.
 function cloudTexture(seed = 1) {

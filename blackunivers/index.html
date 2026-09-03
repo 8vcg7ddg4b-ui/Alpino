@@ -69,6 +69,15 @@
   <div id="startScreen">
     <div id="titleStage" aria-hidden="true"></div>
     <div class="title-vignette" aria-hidden="true"></div>
+    <!-- Der Rahmen einer Konsole: vier Ecken und zwei Linien. Er macht aus
+         dem Bild eine Anzeige, ohne etwas zu verdecken. -->
+    <div class="title-frame" aria-hidden="true">
+      <span class="tf-corner tf-tl"></span>
+      <span class="tf-corner tf-tr"></span>
+      <span class="tf-corner tf-bl"></span>
+      <span class="tf-corner tf-br"></span>
+    </div>
+    <p id="titleShip" class="title-ship" aria-hidden="true"></p>
 
     <div class="title-left">
       <header class="title-brand">
@@ -134,6 +143,7 @@
   <!-- ================= Das Spiel ================= -->
   <div id="app" class="hidden">
     <canvas id="gameCanvas"></canvas>
+    <div id="mapLabels" class="map-labels" aria-hidden="true"></div>
 
     <header id="topBar" class="top-bar"></header>
 

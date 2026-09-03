@@ -660,41 +660,6 @@ function buildViewportTexture(state, profile) {
   });
 }
 
-// --- Schrift auf der Karte ----------------------------------------------
-// Namen und Zahlen werden als kleine Leinwände in den Raum gehängt. Sie
-// werden zwischengespeichert: derselbe Text kostet nur einmal.
-const labelCache = new Map();
-function labelSprite(text, { color = '#dbe8ff', size = 34, weight = 600, background = null } = {}) {
-  const key = `${text}|${color}|${size}|${weight}|${background}`;
-  if (labelCache.has(key)) return labelCache.get(key).clone();
-  const pad = 12;
-  const cv = document.createElement('canvas');
-  const g = cv.getContext('2d');
-  const font = `${weight} ${size}px "Chakra Petch", "Eurostile", "Bahnschrift", system-ui, sans-serif`;
-  g.font = font;
-  const w = Math.ceil(g.measureText(text).width) + pad * 2;
-  cv.width = w;
-  cv.height = size + pad * 2;
-  const g2 = cv.getContext('2d');
-  g2.font = font;
-  if (background) {
-    g2.fillStyle = background;
-    g2.fillRect(0, 0, cv.width, cv.height);
-  }
-  g2.fillStyle = 'rgba(4,8,16,0.75)';
-  g2.fillText(text, pad + 1.5, size + pad - 6 + 1.5);
-  g2.fillStyle = color;
-  g2.fillText(text, pad, size + pad - 6);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.needsUpdate = true;
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(cv.width / 13, cv.height / 13, 1);
-  sprite.userData.textWidth = cv.width;
-  labelCache.set(key, sprite);
-  return sprite.clone();
-}
-
 // --- Die Karte aufbauen --------------------------------------------------
 export function buildMap(state) {
   stateRef = state;
@@ -803,20 +768,7 @@ function buildSystems(state) {
     yard.name = 'yard';
     group.add(yard);
 
-    // Der Name steht daneben, die Größe entscheidet, wie groß er steht.
-    const label = labelSprite(sys.name, { size: sys.capital ? 38 : 30 });
-    label.position.set(0, radius * 2 + 5.5, 0);
-    label.name = 'label';
-    group.add(label);
-
-    // Ein Großes Werk bekommt ein Zeichen darüber.
-    if (sys.greatWork) {
-      const work = GREAT_WORKS.find((w) => w.id === sys.greatWork);
-      const mark = labelSprite(`◆ ${work ? work.name : 'Großes Werk'}`, { size: 20, color: '#ffe6a8' });
-      mark.position.set(0, radius * 2 + 9.5, 0);
-      mark.name = 'work';
-      group.add(mark);
-    }
+    // Name und Zeichen liegen als HTML darüber (siehe `maplabels.js`).
 
     mapGroup.add(group);
     systemMeshes.set(sys.id, group);
@@ -939,11 +891,6 @@ function fleetMesh(fleet) {
   ring.name = 'ring';
   group.add(ring);
 
-  const count = labelSprite(String(fleetTotalCount(fleet)), { size: 24, color: '#eaf3ff' });
-  count.position.set(0, 11, 0);
-  count.name = 'count';
-  group.add(count);
-
   return group;
 }
 
@@ -983,16 +930,6 @@ export function syncEntities(state, view = {}) {
     if (stack.length > 1 && !mesh.userData.animating) {
       mesh.position.x += (idx - (stack.length - 1) / 2) * 1.8;
       mesh.position.z += (idx % 2) * 1.6;
-    }
-    const old = mesh.getObjectByName('count');
-    const total = fleetTotalCount(fleet);
-    if (old && mesh.userData.count !== total) {
-      mesh.remove(old);
-      const count = labelSprite(String(total), { size: 24, color: '#eaf3ff' });
-      count.position.set(0, 11, 0);
-      count.name = 'count';
-      mesh.add(count);
-      mesh.userData.count = total;
     }
     const ring = mesh.getObjectByName('ring');
     if (ring) {
@@ -1164,19 +1101,6 @@ export function flashTile(col, row, color = 0xffd166) {
 // --- Die Kamera -----------------------------------------------------------
 // Sie kreist um ein Feld der Karte. Flach heißt Brücke, steil heißt Karte;
 // dazwischen liegt der Blick, in dem man beides sieht.
-function updateLabelVisibility() {
-  // Aus der Ferne stehen zu viele Namen übereinander; aus der Brückensicht
-  // stören sie ganz. Also blenden sie mit der Kamera aus.
-  const showNames = cam.zoom > 0.85 && cam.polar > 0.45;
-  const showWorks = cam.zoom > 1.25 && cam.polar > 0.55;
-  for (const group of systemMeshes.values()) {
-    const label = group.getObjectByName('label');
-    const work = group.getObjectByName('work');
-    if (label) label.visible = showNames;
-    if (work) work.visible = showWorks;
-  }
-}
-
 function applyCamera() {
   const dist = BASE_DISTANCE / cam.zoom;
   const target = worldOfTile(cam.col, cam.row);
@@ -1190,7 +1114,6 @@ function applyCamera() {
   // Steigt die Kamera über die Decke, wird sie ausgeblendet: sonst schaut man
   // von oben auf ein geschlossenes Dach und sieht seine eigene Karte nicht.
   if (ceilingMesh) ceilingMesh.visible = camera.position.y < ceilingMesh.position.y - 14;
-  updateLabelVisibility();
 }
 
 export function centerOn(col, row, immediate = true) {

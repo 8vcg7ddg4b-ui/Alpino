@@ -115,6 +115,15 @@ verstärkt seine Rolle, hebt die Moral oder gibt einen Bewegungspunkt. Fällt di
 Flotte, kann das Ass mit ihr fallen – dann steht sein Name in der Chronik und
 nie wieder auf der Karte.
 
+## Was auf der Karte steht
+
+Die Namen der Systeme liegen nicht im Bild, sondern als **HTML darüber**:
+immer gleich groß, immer scharf, mit dem Farbpunkt ihrer Flagge, einem Stern
+für Hauptwelten und einer Raute für Große Werke. Wo zwei einander im Weg
+stehen, weicht der unwichtigere - und je weiter die Kamera zurückgeht, desto
+weniger Namen bleiben: aus der Ferne stehen nur noch Sol, Vega, Kilrah und
+ihresgleichen. Die Stärke einer Flotte steht als Plakette daneben.
+
 ## Wie eine Welt fällt
 
 Eine Welt fällt erst, wenn drei Dinge zusammenkommen:
@@ -225,6 +234,7 @@ Browser aus Oszillatoren.
 | `js/pilots.js` | Herrscher, Eigenschaften, Asse |
 | `js/ships3d.js` | Die Schiffsmodelle: Rapier, Broadsword, Bengal, Dralthi, Fralthi, Snakeir |
 | `js/titlescene3d.js` | Das Startbild in Echtzeit: Träger, Rotte, Nebel, Planet |
+| `js/maplabels.js` | Namen und Stärken als HTML über der Karte, mit Vorrang und Ausweichen |
 | `js/scene3d.js` | Die Darstellung: Holotisch, Brücke, Karte, Flotten, Nebel des Krieges |
 | `js/battle3d.js` | Das Gefecht auf der Karte |
 | `js/ui.js` | Kopfleiste, Tafeln, Berichte |
