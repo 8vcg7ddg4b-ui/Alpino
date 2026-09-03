@@ -114,6 +114,12 @@ function terranFighter(colour, accent) {
   }
   // Leitwerk
   g.add(box(hull, 0.07, 0.42, 0.4, 0, 0.24, -0.7));
+  for (const side of [-1, 1]) {
+    // Lufteinlauf und Raketenschiene unter der Fläche
+    g.add(box(dark, 0.16, 0.16, 0.5, side * 0.34, -0.06, -0.25));
+    g.add(box(dark, 0.06, 0.06, 0.62, side * 0.86, -0.12, 0.05));
+    g.add(nose(dark, 0.05, 0.22, side * 0.86, -0.12, 0.42, 5));
+  }
   g.add(engine(dark, accent, 0.17, 0.42, -0.24, -0.02, -0.95));
   g.add(engine(dark, accent, 0.17, 0.42, 0.24, -0.02, -0.95));
   return g;
@@ -209,6 +215,44 @@ function terranCarrier(colour, accent) {
     g.add(engine(dark, accent, 0.3, 0.7, side * 0.45, -0.2, -3.9, 1.3));
     g.add(engine(dark, accent, 0.22, 0.6, side * 1.15, -0.2, -3.8, 1.0));
   }
+  // Der Bug ist gekantet, nicht abgeschnitten: zwei Keile führen den Rumpf
+  // zusammen.
+  for (const side of [-1, 1]) {
+    g.add(box(hull, 0.7, 0.9, 1.4, side * 0.5, -0.25, 3.5, [0, side * -0.22, 0]));
+  }
+  // Kühlrippen an den Flanken - das, was einen Kasten zu einem Schiff macht.
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 5; i++) {
+      g.add(box(dark, 0.12, 0.5, 0.34, side * 0.9, -0.35, 1.6 - i * 0.9));
+    }
+    // Rettungsboote und Andockluken
+    for (let i = 0; i < 3; i++) {
+      g.add(box(dark, 0.18, 0.2, 0.44, side * 0.88, 0.12, 0.9 - i * 1.3));
+    }
+  }
+  // Fensterband der Brücke und Aufzugfelder auf dem Deck.
+  g.add(box(glowMaterial(0xbfe4ff, 0.7), 0.52, 0.07, 0.9, 0.86, 0.78, -0.6));
+  for (const z of [1.9, 0.1, -1.7]) {
+    g.add(box(dark, 0.9, 0.03, 0.7, 0.35, 0.44, z));
+  }
+  // Deckbefeuerung: kleine Lichter entlang der Bahn.
+  for (let i = 0; i < 7; i++) {
+    const light = box(glowMaterial(i % 2 ? accent : 0xffb765, 0.9), 0.07, 0.05, 0.07,
+      -1.16, 0.44, 2.4 - i * 0.8);
+    light.name = 'licht';
+    g.add(light);
+  }
+  // Sensorschüssel und Mastspitze auf der Insel.
+  const dish = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), dark);
+  dish.rotation.set(-0.5, 0, 0);
+  dish.position.set(0.86, 1.12, -0.9);
+  g.add(dish);
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 5), glowMaterial(0xff5a4a));
+  beacon.position.set(0.86, 1.72, -1.0);
+  beacon.name = 'licht';
+  g.add(beacon);
+  // Triebwerksblock, in dem die Düsen sitzen.
+  g.add(box(dark, 1.5, 0.7, 0.6, 0, -0.2, -3.5));
   runningLights(g, 1.35, 3.2);
   return g;
 }
@@ -245,6 +289,14 @@ function kilrathiFighter(colour, accent) {
     g.add(box(hull, 1.0, 0.08, 0.62, side * 0.6, 0, 0.05, [0, side * 0.42, side * 0.1]));
     g.add(box(hull, 0.62, 0.07, 0.44, side * 1.28, 0.06, 0.42, [0, side * 0.75, side * 0.3]));
     g.add(box(dark, 0.1, 0.2, 0.3, side * 1.5, 0.14, 0.55));
+  }
+  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), glowMaterial(0xffc98a, 0.55));
+  canopy.scale.set(1, 0.7, 1.2);
+  canopy.position.set(0, 0.16, 0.24);
+  g.add(canopy);
+  for (const side of [-1, 1]) {
+    // Neutronenkanonen an den Spitzen
+    g.add(box(dark, 0.05, 0.05, 0.44, side * 1.46, 0.14, 0.72));
   }
   g.add(engine(dark, accent, 0.18, 0.4, 0, 0, -0.72));
   return g;
@@ -323,6 +375,25 @@ function kilrathiCarrier(colour, accent) {
     g.add(engine(dark, accent, 0.36, 0.8, side * 0.6, -0.1, -3.6, 1.3));
     g.add(engine(dark, accent, 0.24, 0.6, side * 1.5, -0.3, -3.4, 1.0));
   }
+  // Rippen über dem Rückenkamm - der Klanträger trägt sein Skelett außen.
+  for (let i = 0; i < 5; i++) {
+    g.add(box(hull, 0.5, 0.24, 0.16, 0, 1.5, 1.4 - i * 0.9));
+  }
+  // Zähne am Hangarschlund.
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 3; i++) {
+      g.add(nose(hull, 0.12, 0.5, side * (0.25 + i * 0.22), -0.05, 3.3, 4));
+    }
+    // Seitenflossen mit glühender Kante
+    g.add(box(hull, 0.16, 1.1, 1.6, side * 1.9, 0.4, -1.4, [0, 0, side * 0.2]));
+    g.add(box(glowMaterial(accent, 0.6), 0.05, 0.08, 1.4, side * 2.05, 0.92, -1.4));
+  }
+  // Kommandoblister auf dem Rücken.
+  const blister = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 8), hull);
+  blister.scale.set(1, 0.6, 1.4);
+  blister.position.set(0, 0.62, -1.9);
+  g.add(blister);
+  g.add(box(glowMaterial(0xffc98a, 0.7), 0.5, 0.06, 0.24, 0, 0.72, -1.55));
   runningLights(g, 1.6, 2.6);
   return g;
 }

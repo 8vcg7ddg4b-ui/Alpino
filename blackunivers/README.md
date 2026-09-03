@@ -28,6 +28,17 @@ zwei Sonnen, oder das eigene Flugdeck mit Landebahn und Positionslichtern.
 Bevor der erste Zug fällt, meldet sich der Erste Offizier:
 **„Ich grüße Sie an Bord. Die Karte liegt auf dem Tisch."**
 
+## Das Startbild
+
+Es ist kein Bild, sondern eine laufende Szene: der **Träger der gewählten
+Flagge** treibt vor einer Nebelbank, eine **Rotte Jäger** zieht durch das Bild,
+darunter steht ein Planet mit Ring, und die Kamera folgt dem Mauszeiger ein
+Stück weit. Wer in der Auswahl eine andere Flagge anklickt, sieht sofort deren
+Schiff: der Bengal weicht dem Snakeir, das Blau dem Rot des Klans.
+
+Geht WebGL nicht, bleibt die gezeichnete Tafel darunter stehen - sie ist der
+Rückfall, nicht die Regel.
+
 ## Der Raum
 
 Die Karte ist **echte Wing-Commander-Geografie**, gerastert auf 76 × 42 Felder:
@@ -213,6 +224,7 @@ Browser aus Oszillatoren.
 | `js/events.js` | Ereignisse, Freibeuter, der Schwarm |
 | `js/pilots.js` | Herrscher, Eigenschaften, Asse |
 | `js/ships3d.js` | Die Schiffsmodelle: Rapier, Broadsword, Bengal, Dralthi, Fralthi, Snakeir |
+| `js/titlescene3d.js` | Das Startbild in Echtzeit: Träger, Rotte, Nebel, Planet |
 | `js/scene3d.js` | Die Darstellung: Holotisch, Brücke, Karte, Flotten, Nebel des Krieges |
 | `js/battle3d.js` | Das Gefecht auf der Karte |
 | `js/ui.js` | Kopfleiste, Tafeln, Berichte |

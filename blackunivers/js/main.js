@@ -40,6 +40,10 @@ import {
   factionChoiceHTML, scenarioChoiceHTML, victoryHTML, briefingHTML, noticeFromNews, num,
 } from './ui.js';
 import { titleSceneSVG, factionArtSVG } from './titlescene.js';
+import {
+  initTitleScene, setTitleFaction, stopTitleScene, resumeTitleScene,
+  resizeTitleScene, isTitleSceneRunning, setTitleLayout,
+} from './titlescene3d.js';
 import { emblemSVG, iconSVG } from './emblems.js';
 import {
   loadSettings, getSetting, setSetting, resetSettings, settingsHTML,
@@ -514,9 +518,27 @@ function handleAction(action, el) {
 }
 
 // --- Startbild ------------------------------------------------------------
+// Das Startbild läuft in echtem 3D: derselbe Träger, den man später auf der
+// Karte führt, treibt vor dem Nebel. Geht WebGL nicht, bleibt die gezeichnete
+// Tafel darunter stehen - sie ist der Rückfall, nicht die Regel.
+let titleSceneReady = false;
 function paintTitle(factionId = 'confed') {
   const stage = $('titleStage');
-  if (stage) stage.innerHTML = titleSceneSVG(factionId);
+  if (!stage) return;
+  let svgLayer = stage.querySelector('.title-svg');
+  if (!svgLayer) {
+    svgLayer = document.createElement('div');
+    svgLayer.className = 'title-svg';
+    stage.appendChild(svgLayer);
+  }
+  svgLayer.innerHTML = titleSceneSVG(factionId);
+  if (!titleSceneReady) {
+    titleSceneReady = initTitleScene(stage, factionId);
+    if (titleSceneReady) svgLayer.classList.add('hidden');
+  } else {
+    setTitleFaction(factionId);
+    resumeTitleScene();
+  }
 }
 
 function startSheet(name) {
@@ -569,8 +591,12 @@ function startSheet(name) {
 }
 
 function openSetup() {
-  $('startScreen').classList.add('hidden');
+  // Das Startbild bleibt stehen, nur seine Schrift geht: hinter der Auswahl
+  // treibt weiter der Träger - und er wechselt mit der Flagge, die man
+  // anklickt.
+  $('startScreen').classList.add('behind');
   $('setupScreen').classList.remove('hidden');
+  setTitleLayout('setup');
   renderSetup();
 }
 
@@ -580,22 +606,30 @@ function renderSetup() {
   const profile = factionProfile(setup.factionId);
   const scenario = scenarioById(setup.scenarioId);
   $('setupPreview').innerHTML = `
-    <div class="sp-art">${factionArtSVG(setup.factionId, { width: 460, height: 260 })}</div>
+    <div class="sp-crest" style="--faction:${profile.color}">
+      ${emblemSVG(profile.emblem, { size: 88, color: profile.color })}
+      <div>
+        <span>${profile.short}</span>
+        <strong>${profile.homeSystem ? `Hauptquartier ${profile.homeSystem}` : 'ohne festen Hafen'}</strong>
+      </div>
+    </div>
     <h3 style="--faction:${profile.color}">${profile.name}</h3>
     <p>${profile.doctrine}</p>
     <p class="sp-strength">${profile.strength}</p>
     <h4>${scenario.name} · ${scenario.year}</h4>
     <p>${scenario.blurb}</p>
     <p class="hint">${scenario.hint}</p>`;
-  paintTitle(setup.factionId);
+  if (titleSceneReady) setTitleFaction(setup.factionId);
+  else paintTitle(setup.factionId);
 }
 
 function backToTitle() {
   stopBattle();
   $('setupScreen').classList.add('hidden');
   $('app').classList.add('hidden');
-  $('startScreen').classList.remove('hidden');
+  $('startScreen').classList.remove('hidden', 'behind');
   paintTitle(setup.factionId);
+  setTitleLayout('start');
   if (getSetting('musik')) startTheme();
   const summary = saveGameSummary();
   $('continueGameBtn').classList.toggle('hidden', !summary);
@@ -615,7 +649,9 @@ async function beginGame(newState, { opening = true } = {}) {
   state = newState;
   window.__blackUniversState = state;
   stopTheme();
+  stopTitleScene();
   $('startScreen').classList.add('hidden');
+  $('startScreen').classList.remove('behind');
   $('setupScreen').classList.add('hidden');
   $('app').classList.remove('hidden');
 
@@ -702,7 +738,8 @@ function wireStartScreen() {
 
   $('setupBack').onclick = () => {
     $('setupScreen').classList.add('hidden');
-    $('startScreen').classList.remove('hidden');
+    $('startScreen').classList.remove('behind');
+    setTitleLayout('start');
   };
   $('setupStart').onclick = () => {
     sfx.klick();
@@ -793,7 +830,10 @@ function boot() {
   document.title = `${GAME_NAME} – Feldzug im Kilrathi-Krieg`;
   wireStartScreen();
   wireGameChrome();
-  window.addEventListener('resize', () => { if (sceneReady) { resize(); draw(); } });
+  window.addEventListener('resize', () => {
+    if (sceneReady) { resize(); draw(); }
+    if (isTitleSceneRunning()) resizeTitleScene();
+  });
   // Musik startet beim ersten Klick - vorher lässt der Browser keinen Ton zu.
   const kick = () => {
     unlockAudio();

@@ -82,8 +82,18 @@ button {
   position: fixed;
   inset: 0;
 }
-#titleStage { position: absolute; inset: 0; }
+#titleStage { position: absolute; inset: 0; overflow: hidden; }
+.title-svg { position: absolute; inset: 0; }
 #titleStage svg { width: 100%; height: 100%; display: block; }
+/* Die 3D-Szene liegt über der gezeichneten Tafel und ersetzt sie, sobald
+   sie läuft. */
+.title-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 .title-vignette {
   position: absolute;
   inset: 0;
@@ -217,13 +227,23 @@ button {
 .bad { color: var(--red); }
 
 /* --- Fraktionswahl ------------------------------------------------------ */
+/* Die Auswahl liegt über dem laufenden Startbild: links deckt sie ab, damit
+   die Karten lesbar bleiben, rechts wird sie durchsichtig - dort treibt das
+   Schiff der Flagge, die man gerade anklickt. */
 #setupScreen {
-  background:
-    radial-gradient(circle at 70% 20%, rgba(40, 80, 140, 0.35), transparent 60%),
-    linear-gradient(160deg, #060b16, #04070e 70%);
+  background: linear-gradient(100deg,
+    rgba(4, 7, 14, 0.96) 0%,
+    rgba(4, 7, 14, 0.92) 42%,
+    rgba(4, 7, 14, 0.62) 68%,
+    rgba(4, 7, 14, 0.28) 100%);
   overflow-y: auto;
   padding: clamp(16px, 3vw, 40px);
+  z-index: 5;
 }
+
+#startScreen.behind .title-left,
+#startScreen.behind .start-sheet,
+#startScreen.behind .title-vignette { display: none; }
 .setup-grid {
   display: grid;
   grid-template-columns: minmax(320px, 1fr) minmax(320px, 520px);
@@ -275,12 +295,29 @@ button {
 .setup-preview {
   position: sticky;
   top: 20px;
-  background: var(--panel);
+  background: rgba(6, 12, 22, 0.78);
+  backdrop-filter: blur(3px);
   border: 1px solid var(--line);
   padding: 18px;
   clip-path: polygon(0 18px, 18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
 }
-.sp-art svg { width: 100%; height: auto; display: block; border: 1px solid var(--line-soft); }
+.sp-crest {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--faction);
+}
+.sp-crest > div { display: flex; flex-direction: column; }
+.sp-crest span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.sp-crest strong { color: var(--text); font-size: 0.9rem; }
 .setup-preview h3 { color: var(--faction); font-size: 1.1rem; letter-spacing: 0.06em; }
 .setup-preview p { font-size: 0.84rem; line-height: 1.5; }
 .sp-strength { color: var(--amber); }
