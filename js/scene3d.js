@@ -5544,6 +5544,42 @@ function columnLength(strength) {
   return Math.max(4, Math.min(COLUMN_MAX, Math.round(strength / 90) + 3));
 }
 
+// --- Die Wache im Lager -----------------------------------------------------
+// Ein Zeltlager allein sagt nicht, dass dort ein Heer liegt - nur, dass dort
+// jemand campiert. Ein Ring von Gestalten um die Zelte macht daraus, was es
+// ist: dieselben Gattungen und Geometrien wie in der Kolonne, nur ruhig
+// stehend statt im Marsch, und in derselben Stärke wie die Zeltreihen selbst
+// (`tierForCount`) - ein großes Heer bekommt so auch eine große Wache.
+const GARRISON_MAX = 8;
+const GARRISON_RADIUS = 1.55;
+
+function buildGarrison(color) {
+  const group = new THREE.Group();
+  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
+  const formen = marcherShapes();
+  const wachen = [];
+  for (let i = 0; i < GARRISON_MAX; i++) {
+    const mann = new THREE.Group();
+    const teile = {};
+    for (const rolle of COLUMN_ROLES) {
+      const stueck = new THREE.Mesh(formen[rolle], material);
+      stueck.visible = false;
+      mann.add(stueck);
+      teile[rolle] = stueck;
+    }
+    // Im Kreis um die Zelte verteilt, mit dem Blick nach außen - eine Wache,
+    // kein Umzug.
+    const winkel = (i / GARRISON_MAX) * Math.PI * 2 + 0.35;
+    mann.position.set(Math.cos(winkel) * GARRISON_RADIUS, 0, Math.sin(winkel) * GARRISON_RADIUS);
+    mann.rotation.y = winkel;
+    mann.userData = { teile, rolle: null };
+    group.add(mann);
+    wachen.push(mann);
+  }
+  group.userData = { wachen, material };
+  return group;
+}
+
 // --- Die Belagerung auf der Karte -----------------------------------------
 // Ein eingeschlossener Ort sieht anders aus als einer, an dem ein Heer nur
 // vorbeizieht: um ihn herum stehen Sturmpfähle und die Zelte des Belagerers.
@@ -5680,8 +5716,31 @@ function syncArmyGroup(state, army, entry) {
   tents.children.forEach((tent) => { tent.material.color.set(faction.color); });
   group.userData.banner.material.color.set(faction.color);
 
+  // Die Wache um die Zelte: sichtbar, solange die Zelte es sind, und in
+  // derselben Zusammensetzung wie eine Kolonne - nur ruhig stehend.
+  const bewacht = tents.visible;
+  if (bewacht && !group.userData.garrison) {
+    group.userData.garrison = buildGarrison(faction.color);
+    group.add(group.userData.garrison);
+  }
+  if (group.userData.garrison) {
+    const garrison = group.userData.garrison;
+    garrison.visible = bewacht;
+    garrison.userData.material.color.set(faction.color);
+    const rollenWache = columnRoles(army.units || {}, tierCount);
+    garrison.userData.wachen.forEach((mann, i) => {
+      mann.visible = i < tierCount;
+      if (i >= tierCount) return;
+      const rolle = rollenWache[i] || 'infantry';
+      if (mann.userData.rolle === rolle) return;
+      mann.userData.rolle = rolle;
+      for (const key of COLUMN_ROLES) mann.userData.teile[key].visible = key === rolle;
+    });
+  }
+
   // Das ganze Lager - Zelte, Stange, Banner, Schiff - wächst mit der Stärke.
   tents.scale.setScalar(scale);
+  if (group.userData.garrison) group.userData.garrison.scale.setScalar(scale);
   // Die Kolonne steht größer da als das Lager: an einem Zelt ist nichts zu
   // erkennen, an einer Gestalt schon - Schild, Bogen oder Pferd.
   if (group.userData.column) group.userData.column.scale.setScalar(scale * 1.45);

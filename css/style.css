@@ -1203,6 +1203,28 @@ kbd {
   50% { opacity: 1; }
 }
 
+/* Ein Schiff vor Anker liegt nicht still - es wiegt sich mit dem Wasser.
+   Fünf Verzögerungen sorgen dafür, dass die Flotte nicht im Gleichtakt nickt. */
+.tscn-ship {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: tscnShip 5.2s ease-in-out infinite;
+}
+@keyframes tscnShip {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(1deg); }
+}
+
+/* Ein Segler weit draußen zieht ganz langsam über die Bucht - lang genug,
+   dass die Bewegung nur auffällt, wer wirklich hinschaut. */
+.tscn-underway {
+  animation: tscnUnderway 90s linear infinite;
+}
+@keyframes tscnUnderway {
+  from { transform: translateX(0); }
+  to { transform: translateX(1900px); }
+}
+
 /* Der Schleier: links dunkel, damit die Schrift steht; unten dunkel für die
    Leiste; oben ein Hauch, damit der Titel nicht im hellen Himmel schwimmt. */
 .title-vignette {
@@ -2283,7 +2305,8 @@ kbd {
 
 @media (prefers-reduced-motion: reduce) {
   .chron-layer { animation: none; transition: opacity 0.4s linear; }
-  #titleStage svg, .tscn-flame, .tscn-cloth, .tscn-sparkle { animation: none; }
+  #titleStage svg, .tscn-flame, .tscn-cloth, .tscn-sparkle,
+  .tscn-ship, .tscn-underway { animation: none; }
 }
 
 @media (max-width: 760px) {

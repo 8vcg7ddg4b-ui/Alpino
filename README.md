@@ -215,8 +215,10 @@ abwechselnd einen lauten Durchgang mit Melodie und einen leisen ohne.
 Das Startbild ist **ein Bild**, das den ganzen Schirm füllt, und darüber liegt
 alles Übrige. Man sieht einen Mann in rotem Mantel auf einer Terrasse über
 einer Hafenstadt am Meer: dahinter die Berge, unter ihm der Kai mit den
-Schiffen, neben ihm das Feldzeichen, vor ihm der Tisch mit Karte und Helm. Es
-ist der Augenblick vor dem Feldzug.
+Schiffen, neben ihm das Feldzeichen, vor ihm der Tisch mit Karte und Helm, und
+zwei Mann seiner Wache zur Stadt hin - kleiner als er und ohne Farbe, damit
+sein Mantel das eine Rot im Bild bleibt, aber er steht damit vor seinem Heer,
+nicht allein auf einer Terrasse. Es ist der Augenblick vor dem Feldzug.
 
 Vorher standen hier **drei Tafeln nebeneinander** wie ein Altarbild – Chronik
 links, Titel und Menü in der Mitte, Merktafel rechts. Das war ordentlich, aber
@@ -282,13 +284,15 @@ Bilddatei: das Spiel läuft als einzelne HTML-Datei und ohne Netz. Es wandert
 sehr langsam, damit es nicht ganz stillsteht, und ein Schleier dunkelt die
 linke Seite ab, damit die Schrift darauf steht statt darin zu schwimmen.
 
-Drei kleine Bewegungen halten es zusätzlich am Leben, jede für sich unauffällig:
-das **Feuer im Leuchtturm** flackert, das **Tuch am Feldzeichen** schwingt
-leicht im Wind, während Stange und Kranz starr bleiben, und das **Glitzern auf
-dem Wasser** blinkt Punkt für Punkt mit eigener Verzögerung statt im
-Gleichtakt. Alles reines CSS (`.tscn-flame`, `.tscn-cloth`, `.tscn-sparkle` in
-`css/style.css`), und alles steht still, wenn das Betriebssystem reduzierte
-Bewegung verlangt.
+Mehrere kleine Bewegungen halten es zusätzlich am Leben, jede für sich
+unauffällig: das **Feuer im Leuchtturm** flackert, das **Tuch am Feldzeichen**
+schwingt leicht im Wind, während Stange und Kranz starr bleiben, das
+**Glitzern auf dem Wasser** blinkt Punkt für Punkt mit eigener Verzögerung
+statt im Gleichtakt, die **Kriegsschiffe im Hafen** wiegen sich vor Anker, und
+weit draußen jenseits des Hafens zieht ein **Segler** in neunzig Sekunden
+einmal über die ganze Bucht. Alles reines CSS (`.tscn-flame`, `.tscn-cloth`,
+`.tscn-sparkle`, `.tscn-ship`, `.tscn-underway` in `css/style.css`), und alles
+steht still, wenn das Betriebssystem reduzierte Bewegung verlangt.
 
 **Wird es schmal**, rückt zuerst die Tafel über das ganze Bild; unter 700
 Punkten stehen Titel, Menü und Leiste untereinander, das Bild bleibt dahinter,
@@ -757,7 +761,12 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   zeigt bei Bedarf auch die Kriege der anderen.
 - **Armeen sind an ihrer Größe zu erkennen**: das Lager wächst mit der Stärke,
   von einem einzelnen Zelt bei einer Handvoll Männern bis zum Zeltring mit
-  Führungszelt bei einem vollen Heer.
+  Führungszelt bei einem vollen Heer. Um die Zelte steht dieselbe Zahl an
+  **Wachen** - Fußvolk, Reiterei oder Schützen, je nachdem, woraus das Heer
+  wirklich besteht, in derselben Zusammensetzung wie die Marschordnung. Ein
+  Lager aus bloßen Zelten sagte nur "hier campiert jemand"; die Wache sagt,
+  dass dort ein Heer steht. Marschiert das Heer, treten die Zelte ab und die
+  Kolonne tritt an - dieselben Gestalten, nur im Zug statt im Ring.
 - **Karte verschieben**: Ziehen mit Maus oder einem Finger, Pfeiltasten/WASD
   oder das Steuerkreuz unten links. **Umschalt + Mausrad gedrückt** verschiebt
   ebenfalls – auch dort, wo unter dem Zeiger kein Boden liegt und das Ziehen
