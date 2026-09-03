@@ -11,7 +11,38 @@
 // Chronik - geschichtete Silhouetten vor einem Himmelsverlauf -, nur dichter
 // gestaffelt, weil dieses eine Bild stehen bleibt, statt weiterzuziehen.
 
-import { SCENE_W, SCENE_H, seeded, sky, sun, peaks, temple, warship } from './chronicle.js';
+import { SCENE_W, SCENE_H, seeded, sky, sun, peaks, temple } from './chronicle.js';
+
+// --- Die Schiffe im Hafen ---------------------------------------------------
+// Die Chronik zeichnet ihr Schiff aus der Ferne, als eine von vielen kleinen
+// Figuren in einem historischen Augenblick. Hier steht es groß und allein im
+// eigenen Vordergrund, und in dieser Größe reichten Rumpf, Ruder und Segel
+// aus der Chronik nicht mehr: der Bug war eine gerade Kante, kein Rammsporn,
+// das Achterdeck fehlte ganz. Diese Fassung gehört nur dem Titelbild.
+function titleWarship(x, y, s, hull, sail) {
+  const g = (v) => (v * s).toFixed(1);
+  const oars = Array.from({ length: 8 }, (_, i) =>
+    `<path d="M ${g(-64 + i * 18)} 0 l ${g(-6)} ${g(16)}"
+      stroke="${hull}" stroke-width="${g(3)}" fill="none"/>`).join('');
+  return `<g transform="translate(${x} ${y})">
+    ${oars}
+    <!-- Rumpf: der Bug schwingt hoch, das Heck nur leicht - so lag ein
+         Kriegsschiff der Alten Welt im Wasser. -->
+    <path d="M ${g(-84)} ${g(-6)} Q ${g(-98)} ${g(-26)} ${g(-74)} ${g(-38)}
+      L ${g(80)} ${g(-8)} Q ${g(96)} ${g(-2)} ${g(86)} ${g(13)}
+      L ${g(-70)} ${g(13)} Z" fill="${hull}"/>
+    <!-- Der Rammsporn, knapp über der Wasserlinie am Bug -->
+    <path d="M ${g(-84)} ${g(-6)} L ${g(-108)} ${g(-2)} L ${g(-84)} ${g(6)} Z" fill="${sail}"/>
+    <!-- Das Achterdeck, leicht erhöht -->
+    <rect x="${g(56)}" y="${g(-19)}" width="${g(26)}" height="${g(11)}" rx="${g(4)}"
+      fill="${sail}" opacity="0.85"/>
+    <!-- Mast und Rah -->
+    <rect x="${g(-5)}" y="${g(-92)}" width="${g(5)}" height="${g(86)}" fill="${hull}"/>
+    <rect x="${g(-28)}" y="${g(-88)}" width="${g(52)}" height="${g(4)}" fill="${hull}"/>
+    ${sail ? `<path d="M ${g(-24)} ${g(-84)} Q 0 ${g(-64)} ${g(24)} ${g(-84)}
+      L ${g(19)} ${g(-36)} Q 0 ${g(-47)} ${g(-19)} ${g(-36)} Z" fill="${sail}"/>` : ''}
+  </g>`;
+}
 
 // --- Wolken ---------------------------------------------------------------
 // Ein Haufen aus überlappenden Kreisen mit flacher Unterkante: aus der Ferne
@@ -163,32 +194,6 @@ function commander(x, kopfY, s, haut, haar, panzer, mantel, mantelTief, gold) {
   </g>`;
 }
 
-// --- Die Wache neben dem Feldherrn -----------------------------------------
-// Zwei Gestalten, von hinten wie der Feldherr selbst, aber kleiner und ohne
-// jede Farbe - sie sind nicht die Figur, auf die der Blick fallen soll, nur
-// die, die zeigt, dass er nicht allein auf der Terrasse steht. Helm und
-// Rüstung stehen in zwei Tönen, sonst verschwimmt Kopf und Rumpf zu einem
-// einzigen dunklen Fleck, wie es die erste Fassung tat.
-function guard(x, baseY, s, ruestung, helm) {
-  const g = (v) => (v * s).toFixed(1);
-  return `<g transform="translate(${x} ${baseY})">
-    <!-- Speer, über den Helm hinaus -->
-    <rect x="${g(-3)}" y="${g(-170)}" width="${g(6)}" height="${g(250)}" fill="${helm}"/>
-    <!-- Schild, an die Schulter gelehnt statt lose daneben zu schweben -->
-    <rect x="${g(36)}" y="${g(20)}" width="${g(40)}" height="${g(120)}" rx="${g(12)}" fill="${ruestung}"/>
-    <!-- Helm: rund, mit kleinem Nackenschirm -->
-    <path d="M ${g(-26)} ${g(-6)} Q ${g(-30)} ${g(-52)} 0 ${g(-56)}
-      Q ${g(30)} ${g(-52)} ${g(26)} ${g(-6)}
-      Q ${g(24)} ${g(6)} 0 ${g(8)} Q ${g(-24)} ${g(6)} ${g(-26)} ${g(-6)} Z" fill="${helm}"/>
-    <!-- Schultern, schmal am Hals und breiter zur Hüfte - eine Gestalt, kein
-         Glockenumriss. -->
-    <path d="M ${g(-34)} ${g(18)} Q ${g(-30)} ${g(4)} 0 ${g(2)}
-      Q ${g(30)} ${g(4)} ${g(34)} ${g(18)}
-      Q ${g(40)} ${g(70)} ${g(44)} ${g(150)} L ${g(-44)} ${g(150)}
-      Q ${g(-40)} ${g(70)} ${g(-34)} ${g(18)} Z" fill="${ruestung}"/>
-  </g>`;
-}
-
 // --- Der Helm auf dem Tisch -----------------------------------------------
 // Von der Seite gesehen, wie er abgelegt daliegt: die Kalotte, der
 // Nackenschirm hinten, die Wangenklappe darunter - und darauf der Helmbusch,
@@ -311,17 +316,17 @@ export function titleSceneSVG() {
          vorbei, statt nur dazustehen (CSS-Klasse tscn-underway). Ausreichend
          Weg auf beiden Seiten, damit der Sprung zurück an den Anfang
          außerhalb des Bildes liegt, wo ihn niemand sieht. -->
-    <g class="tscn-underway">${warship(-140, 512, 0.4, '#5a7488', '#e9e2c8')}</g>
+    <g class="tscn-underway">${titleWarship(-140, 512, 0.4, '#5a7488', '#e9e2c8')}</g>
 
     <!-- Der Hafen: Kai und Schiffe. Jedes Schiff liegt vor Anker und wiegt
          sich leicht - fünf verschiedene Verzögerungen, sonst nickte die
          ganze Flotte im Gleichtakt. -->
     <path d="M 620 706 L 1660 706 L 1660 670 Q 1160 646 620 670 Z" fill="#6d6350"/>
-    <g class="tscn-ship" style="animation-delay:-0.6s">${warship(700, 630, 0.62, '#33475c', '#f2ead0')}</g>
-    <g class="tscn-ship" style="animation-delay:-2.1s">${warship(880, 652, 0.72, '#2c3e50', '#eadfc0')}</g>
-    <g class="tscn-ship" style="animation-delay:-3.4s">${warship(1180, 624, 0.56, '#33475c', '#f2ead0')}</g>
-    <g class="tscn-ship" style="animation-delay:-1.2s">${warship(1360, 660, 0.76, '#28384a', '#e4d8b6')}</g>
-    <g class="tscn-ship" style="animation-delay:-4.0s">${warship(380, 600, 0.5, '#3a5670', '#e6eef2')}</g>
+    <g class="tscn-ship" style="animation-delay:-0.6s">${titleWarship(700, 630, 0.62, '#33475c', '#f2ead0')}</g>
+    <g class="tscn-ship" style="animation-delay:-2.1s">${titleWarship(880, 652, 0.72, '#2c3e50', '#eadfc0')}</g>
+    <g class="tscn-ship" style="animation-delay:-3.4s">${titleWarship(1180, 624, 0.56, '#33475c', '#f2ead0')}</g>
+    <g class="tscn-ship" style="animation-delay:-1.2s">${titleWarship(1360, 660, 0.76, '#28384a', '#e4d8b6')}</g>
+    <g class="tscn-ship" style="animation-delay:-4.0s">${titleWarship(380, 600, 0.5, '#3a5670', '#e6eef2')}</g>
 
     <!-- Der Hang unter der Terrasse: er trägt den Vordergrund -->
     <path d="M -40 900 L -40 620 Q 240 604 440 668 Q 600 716 740 764
@@ -340,12 +345,6 @@ export function titleSceneSVG() {
       </g>
       <rect x="180" y="732" width="1480" height="6" fill="#71684f" opacity="0.7"/>
     </g>
-
-    <!-- Zwei Mann seiner Wache, zur Stadt hin - damit ist er ein Feldherr vor
-         seinem Heer, nicht ein Mann allein auf einer Terrasse. Kleiner als er
-         und ohne Farbe, damit sein Mantel das eine Rot im Bild bleibt. -->
-    ${guard(880, 486, 0.42, '#4a3c28', '#1c1712')}
-    ${guard(760, 502, 0.4, '#443724', '#181410')}
 
     <!-- Der Feldherr: rechts der Mitte, damit die Stadt frei bleibt. Er ist
          kleiner als in der ersten Fassung - dort verdeckte er den halben

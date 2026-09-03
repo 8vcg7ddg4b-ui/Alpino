@@ -215,10 +215,8 @@ abwechselnd einen lauten Durchgang mit Melodie und einen leisen ohne.
 Das Startbild ist **ein Bild**, das den ganzen Schirm füllt, und darüber liegt
 alles Übrige. Man sieht einen Mann in rotem Mantel auf einer Terrasse über
 einer Hafenstadt am Meer: dahinter die Berge, unter ihm der Kai mit den
-Schiffen, neben ihm das Feldzeichen, vor ihm der Tisch mit Karte und Helm, und
-zwei Mann seiner Wache zur Stadt hin - kleiner als er und ohne Farbe, damit
-sein Mantel das eine Rot im Bild bleibt, aber er steht damit vor seinem Heer,
-nicht allein auf einer Terrasse. Es ist der Augenblick vor dem Feldzug.
+Schiffen, neben ihm das Feldzeichen, vor ihm der Tisch mit Karte und Helm. Es
+ist der Augenblick vor dem Feldzug.
 
 Vorher standen hier **drei Tafeln nebeneinander** wie ein Altarbild – Chronik
 links, Titel und Menü in der Mitte, Merktafel rechts. Das war ordentlich, aber
@@ -283,6 +281,12 @@ gestaffelt, weil dieses eine Bild stehen bleibt statt weiterzuziehen. Keine
 Bilddatei: das Spiel läuft als einzelne HTML-Datei und ohne Netz. Es wandert
 sehr langsam, damit es nicht ganz stillsteht, und ein Schleier dunkelt die
 linke Seite ab, damit die Schrift darauf steht statt darin zu schwimmen.
+
+Die Kriegsschiffe im Hafen haben ihr eigenes, größeres Vorbild
+(`titleWarship()`) statt des kleinen Schiffs aus der Chronik: geschwungener
+Bug mit Rammsporn, erhöhtes Achterdeck, ein bauchiges Rahsegel statt eines
+flachen Dreiecks - in dieser Größe fiel die Vereinfachung der Chronik auf,
+die aus der Ferne nicht stört.
 
 Mehrere kleine Bewegungen halten es zusätzlich am Leben, jede für sich
 unauffällig: das **Feuer im Leuchtturm** flackert, das **Tuch am Feldzeichen**
