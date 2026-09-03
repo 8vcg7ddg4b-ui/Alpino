@@ -158,6 +158,20 @@ Einstellungen abschalten; die Regeln gelten weiter.
 
 ## Startbildschirm
 
+### Der Vorspann: das Studio-Logo
+
+Bevor das Startbild erscheint, blendet sich für gut zwei Sekunden das
+Studio-Logo auf schwarzem Grund ein und wieder aus (`#splashScreen` in
+`index.html`, Regeln in `css/style.css`). Die ganze Abfolge läuft über zwei
+CSS-Animationen, ohne dass `main.js` beteiligt wäre: eine skaliert und blendet
+das Bild selbst, die andere schaltet danach `visibility` und `pointer-events`
+am Rahmen ab, damit der Startbildschirm dahinter wieder anklickbar wird.
+Absichtlich rein in CSS und ohne Rücksicht auf „reduzierte Bewegung" gebaut –
+ein Vorspann, der sich nicht von selbst wegräumt, bliebe für immer vor dem
+Spiel stehen, und genau das darf nicht passieren, falls `main.js` aus
+irgendeinem Grund nie lädt: die Fehlertafel `#bootError` liegt eine Ebene
+darüber und bleibt so in jedem Fall sichtbar.
+
 In der Leiste unten steht die **Spielversion**; sie kommt aus `GAME_VERSION`
 in `js/data.js` und wird mit `package.json` gleichgehalten, damit Anzeige und
 Auslieferung nicht auseinanderlaufen.

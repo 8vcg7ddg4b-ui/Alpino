@@ -10,6 +10,8 @@ const MIME = {
   '.json': 'application/json',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   // Das Titelstück ist die einzige Klangdatei im Spiel. Ohne den richtigen
   // Typ liefert der Server sie als Bytestrom aus, und das Medienelement
   // weigert sich, sie abzuspielen - im Desktop-Programm wäre das Menü stumm.
