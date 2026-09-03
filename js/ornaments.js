@@ -125,6 +125,9 @@ const STROKE = 'fill="none" stroke="currentColor" stroke-width="1.6" '
   + 'stroke-linecap="round" stroke-linejoin="round"';
 
 const MENU_ICONS = {
+  // Fortsetzen: das Feldherrnzelt, in dem jeder Feldzug beginnt - offen für
+  // den, der nur unterbrochen hat und zurückkehrt.
+  camp: `<path ${STROKE} d="M12 4 L3 20 M12 4 L21 20 M3 20 H21 M9 20 L12 11 L15 20"/>`,
   // Neues Spiel: ein Tempel, Giebel und Säulen - derselbe Bauplan, der auf
   // der Karte jede Stadt krönt.
   temple: `<path ${STROKE} d="M3 9 L12 3.5 L21 9 M4 9 H20 M4 9 V19 M20 9 V19

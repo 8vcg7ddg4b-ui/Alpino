@@ -90,6 +90,13 @@
 
       <!-- Das Menü: eine Tafel je Eintrag, mit Zeichen, Namen und Beisatz. -->
       <nav class="title-menu" aria-label="Hauptmenü">
+        <button id="continueGameBtn" class="menu-plaque menu-primary hidden">
+          <span class="mp-icon" data-icon="camp"></span>
+          <span class="mp-text">
+            <strong>Fortsetzen</strong>
+            <small>Dein unterbrochener Feldzug</small>
+          </span>
+        </button>
         <button id="startGameBtn" class="menu-plaque menu-primary">
           <span class="mp-icon" data-icon="temple"></span>
           <span class="mp-text">
@@ -520,12 +527,12 @@
     </div>
   </div>
 
-  <!-- Feldzug beenden: der Spielstand ist danach weg, also wird gefragt. -->
+  <!-- Feldzug beenden: er wird dabei gespeichert, nicht verworfen. -->
   <div id="quitOverlay" class="hidden">
     <div class="overlay-box">
       <h1 class="overlay-title">Feldzug beenden?</h1>
-      <p class="overlay-text">Der laufende Feldzug geht dabei verloren – es gibt
-        keinen Spielstand, der ihn zurückholt.</p>
+      <p class="overlay-text">Der Feldzug wird unterbrochen und über
+        "Fortsetzen" im Hauptmenü wieder aufgenommen.</p>
       <div class="overlay-actions">
         <button id="quitConfirm">Beenden</button>
         <button id="quitCancel" class="overlay-secondary">Weiterspielen</button>

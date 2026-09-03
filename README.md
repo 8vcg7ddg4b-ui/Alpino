@@ -229,9 +229,12 @@ wird.
   die Zeile *Rundenbasiert. Strategisch. Zeitlos.*
 - **Das Menü** darunter, in derselben Spalte: eine **Tafel je Eintrag**, mit dem
   Zeichen in einem eigenen Feld, dem Namen in Kapitälchen und einem Beisatz
-  darunter. Der erste trägt Rot – er ist der, um den es geht. Sechs Einträge:
-  **Neues Spiel**, **Chronik**, **Letzter Feldzug**, **Spielregeln**,
-  **Einstellungen**, **Vollbild**.
+  darunter. Der hervorgehobene Eintrag trägt Rot – er ist der, um den es geht.
+  Sechs feste Einträge: **Neues Spiel**, **Chronik**, **Letzter Feldzug**,
+  **Spielregeln**, **Einstellungen**, **Vollbild** – und ein siebter,
+  **Fortsetzen**, der nur erscheint, wenn ein Feldzug wartet (siehe
+  „Spielstand" weiter unten); erscheint er, trägt er das Rot, nicht mehr
+  Neues Spiel.
   Kranz und Zeichen waren zunächst Emoji (🌿🦅🏛️📜⚱️📖⚙️⛶) – bequem, aber nicht
   im Bild: ein Emoji sieht auf jedem Betriebssystem anders aus, in eigenen
   Farben, mit eigenem Strichgewicht. Jetzt sind es **gezeichnete Linien**
@@ -258,10 +261,10 @@ wird.
   Tafel offen ist**: ein Bild, das niemand sieht, muss auch niemand zeichnen.
 - **Der letzte Feldzug** – Reich, Ausgang, Jahr, Runden, Orte, Mann im Feld,
   Schatz und die letzte Schlacht. Aufgeschrieben wird er, wenn ein Feldzug
-  endet, ob gewonnen, verloren oder abgebrochen; er liegt im Browser, nicht in
-  einem Spielstand. **Es gibt keinen Spielstand** – ein neuer Feldzug beginnt
-  von vorn, und die Tafel sagt das auch. Wer noch nie gespielt hat, liest dort
-  stattdessen in drei Sätzen, worum es geht.
+  **entschieden** ist, gewonnen oder verloren; er liegt im Browser. Wer noch
+  nie gespielt hat, liest dort stattdessen in drei Sätzen, worum es geht.
+  Ein Feldzug, der nur **unterbrochen** wurde, steht hier nicht – der wartet
+  als Spielstand auf die Kachel „Fortsetzen".
 - **Die Spielregeln** – die Bedienung in einem Dutzend Sätzen.
 
 **Das Bild ist gezeichnet, nicht fotografiert.** Wie alles Bildliche hier ist
@@ -275,6 +278,23 @@ linke Seite ab, damit die Schrift darauf steht statt darin zu schwimmen.
 **Wird es schmal**, rückt zuerst die Tafel über das ganze Bild; unter 700
 Punkten stehen Titel, Menü und Leiste untereinander, das Bild bleibt dahinter,
 und die Leiste wird nach unten gedrückt.
+
+### Der Spielstand
+
+Ein Feldzug, der über das Menü verlassen wird, ist nicht zu Ende – er wartet
+(`js/savegame.js`). Gespeichert wird im Browser, bei jedem Rundenwechsel und
+noch einmal beim Verlassen über das Menü, damit auch das, was seit der letzten
+Runde geschehen ist, nicht verloren geht. Die Karte selbst gehört nicht zur
+Ablage: sie entsteht aus einer festen Startzahl byte-gleich neu, sobald sie
+gebraucht wird, und nur was sich seither verändert hat – Städte, Heere,
+Fraktionen, Beziehungen, das Protokoll – wird tatsächlich weggeschrieben.
+
+Ist ein Spielstand da, erscheint im Hauptmenü die Kachel **Fortsetzen** und
+übernimmt das Rot von Neues Spiel; ein Klick geht ohne Fraktionswahl und ohne
+Ansprache im Zelt direkt auf die Karte, an die Stelle, an der der Feldzug
+verlassen wurde. Ein **entschiedener** Feldzug – gewonnen oder verloren –
+räumt seinen Spielstand dagegen ab: er bekommt sein Andenken auf der
+Merktafel, aber nichts mehr, das „Fortsetzen" zurückholen könnte.
 
 ## Bedienung
 
@@ -2229,6 +2249,8 @@ und die Leiste wird nach unten gedrückt.
   ihre Zuordnung zum nächsten Ort und was sie einbringen
 - `js/mapgen.js` / `js/state.js` – Rasterung der Geografie zu Gelände,
   Spielzustand
+- `js/savegame.js` – der Spielstand: Ablage und Wiederherstellung im Browser,
+  ohne die Karte, die aus fester Startzahl neu entsteht
 - `js/pathfind.js` – Bewegungsreichweite (Dijkstra) inkl. Kampf-Zielfeldern
   und Seewegen für eingeschiffte Armeen
 - `js/combat.js` – Kampfauflösung (mehrere Runden, Fernkampf-Bonus, Moral) und

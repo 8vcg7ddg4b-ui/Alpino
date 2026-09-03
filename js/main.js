@@ -52,6 +52,7 @@ import {
 import { CHRONICLE, chronicleSVG } from './chronicle.js';
 import { titleSceneSVG } from './titlescene.js';
 import { wreathSVG, menuIconSVG } from './ornaments.js';
+import { saveGame, loadGame, clearSaveGame, saveGameSummary } from './savegame.js';
 import { factionArt, factionArtSVG } from './factionart.js';
 import { emblemSVG } from './emblems.js';
 import {
@@ -899,10 +900,11 @@ function observeMapSize() {
 }
 
 // --- Die Merktafel --------------------------------------------------------
-// Der rechte Flügel des Triptychons. Es gibt keinen Spielstand - ein Feldzug,
-// der zu Ende ist, ist zu Ende. Was bleibt, ist sein Andenken: wer man war,
-// wie weit man kam, wie es ausging. Das steht hier, damit der Startbildschirm
-// nicht bei jedem Aufruf so aussieht, als hätte man nie gespielt.
+// Der rechte Flügel des Triptychons. Ein Feldzug, der zu Ende ist - gewonnen
+// oder verloren -, ist zu Ende: was bleibt, ist sein Andenken. Ein Feldzug,
+// der nur unterbrochen wurde, ist etwas anderes - der wartet als Spielstand
+// auf die Kachel "Fortsetzen" (`savegame.js`) und steht hier nicht drin. Die
+// Merktafel füllt nur, was sonst leer bliebe, wenn man noch nie gespielt hat.
 const MEMO_KEY = 'spqr.letzterFeldzug';
 
 function ladeMerktafel() {
@@ -967,9 +969,9 @@ function zeigeMerktafel() {
         <p>Gewonnen hat, wer <strong>zwanzig Orte</strong> hält. Verloren hat,
           wer keinen mehr hat.</p>
       </div>
-      <p class="memo-note">Es gibt keinen Spielstand: Was hier steht, wenn du
-        einmal gespielt hast, ist das Andenken an den letzten Feldzug – nicht
-        der Feldzug selbst.</p>`;
+      <p class="memo-note">Was hier steht, wenn du einmal gespielt hast, ist das
+        Andenken an den letzten zu Ende gebrachten Feldzug – ein
+        unterbrochener wartet stattdessen unter "Fortsetzen".</p>`;
     return;
   }
   const ausgang = MEMO_AUSGANG[merk.ausgang] || MEMO_AUSGANG.abgebrochen;
@@ -991,13 +993,34 @@ function zeigeMerktafel() {
     `<span class="${merk.schlacht.sieg ? 'memo-win' : 'memo-loss'}">${
       merk.schlacht.sieg ? 'Sieg' : 'Niederlage'}</span> bei ${escapeText(merk.schlacht.wo)}`) : ''}
     </dl>
-    <p class="memo-note">Es gibt keinen Spielstand – ein neuer Feldzug beginnt
-      von vorn. Diese Tafel ist nur das Andenken.</p>`;
+    <p class="memo-note">Dieser Feldzug ist entschieden – ein neuer beginnt von
+      vorn. Diese Tafel ist nur das Andenken.</p>`;
+}
+
+// --- Die Kachel "Fortsetzen" -----------------------------------------------
+// Sie steht nur da, solange ein unterbrochener Feldzug wartet - und dann an
+// der Stelle, an der sonst "Neues Spiel" hervorgehoben ist: wer mitten in
+// einem Feldzug steckt, will ihn eher fortsetzen als einen zweiten beginnen.
+function zeigeFortsetzenKachel() {
+  const btn = document.getElementById('continueGameBtn');
+  const startBtn = document.getElementById('startGameBtn');
+  if (!btn || !startBtn) return;
+  const stand = saveGameSummary();
+  btn.classList.toggle('hidden', !stand);
+  btn.classList.toggle('menu-primary', !!stand);
+  startBtn.classList.toggle('menu-primary', !stand);
+  if (!stand) return;
+  const label = btn.querySelector('.mp-text small');
+  if (label) {
+    label.textContent = `${stand.fraktion} · ${stand.jahr} · ${
+      stand.orte} ${stand.orte === 1 ? 'Ort' : 'Orte'}`;
+  }
 }
 
 // --- Feldzug beenden ------------------------------------------------------
-// Zurück ins Hauptmenü, mit Rückfrage: es gibt keinen Spielstand, der den
-// laufenden Feldzug zurückholt.
+// Zurück ins Hauptmenü, mit Rückfrage - nicht weil der Feldzug dabei verloren
+// ginge (er wird gespeichert), sondern weil ein falscher Klick mitten in
+// einem Zug sonst ungefragt aus dem Spiel führte.
 
 function showQuitDialog() {
   const overlay = document.getElementById('quitOverlay');
@@ -1010,8 +1033,10 @@ function hideQuitDialog() {
 }
 
 function quitToMenu() {
-  // Ehe der Spielstand losgelassen wird, wird er noch einmal gelesen.
-  merkeFeldzug(state && state.gameOver ? state.gameOver.result : 'abgebrochen');
+  // Ein entschiedener Feldzug hat sein Andenken und keinen Spielstand mehr -
+  // das erledigt schon das Rundenende, in dem er entschieden wurde. Ein
+  // unterbrochener bekommt seinen Spielstand erst hier, beim Verlassen.
+  if (state && !state.gameOver) saveGame(state);
   hideQuitDialog();
   hideHerald();
   hideEmpire();
@@ -1032,6 +1057,7 @@ function quitToMenu() {
   document.getElementById('startScreen').classList.remove('hidden');
   schliesseTafel();
   zeigeMerktafel();
+  zeigeFortsetzenKachel();
   syncMenuMusic();
   focusStartButton();
 }
@@ -2164,8 +2190,14 @@ function endTurn() {
   // meldet jetzt das Bauamt - mit seinem eigenen Klang.
   if (state.gameOver) {
     (state.gameOver.result === 'victory' ? sfx.victory : sfx.defeat)();
-    // Der Feldzug ist entschieden - für die Merktafel im Startbild aufgeschrieben.
+    // Der Feldzug ist entschieden - für die Merktafel im Startbild aufgeschrieben,
+    // und der Spielstand ist es damit auch: es gibt nichts mehr fortzusetzen.
     merkeFeldzug(state.gameOver.result);
+    clearSaveGame();
+  } else {
+    // Der Feldzug geht weiter - jede Runde ist ein Punkt, zu dem "Fortsetzen"
+    // zurückkehren kann, nicht nur das bewusste Verlassen über das Menü.
+    saveGame(state);
   }
 }
 
@@ -2481,17 +2513,11 @@ function backToMenu() {
   focusStartButton();
 }
 
-function startNewGame(factionId = chosenFaction) {
-  unlockAudio();
-  stopChronicle();
-  // Starting a game is a click, which is the gesture fullscreen needs.
-  wantsFullscreen = true;
-  requestAppFullscreen({ explain: true });
-  document.getElementById('startScreen').classList.add('hidden');
-  hideFactionScreen();
-  appEl.classList.remove('hidden');
-
-  state = createInitialState(factionId);
+// Der gemeinsame Teil zwischen einem neuen Feldzug und einem fortgesetzten:
+// beide brauchen dieselbe Szene, denselben Eingang für die Karte, dieselbe
+// Musik. Was sie trennt, ist nur der erste Blick - ins Zelt oder gleich auf
+// die eigene Hauptstadt, so wie man sie verlassen hat.
+function enterGame(resumed) {
   try {
     initScene(canvas);
     resizeScene();
@@ -2513,17 +2539,25 @@ function startNewGame(factionId = chosenFaction) {
   setWeatherReporter(paintWeatherLabel);
   setWeatherSource((col, row) => weatherAt(state, col, row));
 
-  // Der Feldzug beginnt nicht auf der Karte, sondern im Zelt: erst der Tisch
-  // mit der Karte darauf und der Thron dahinter, dann - wenn der Spieler die
-  // Ansprache wegklickt - der Blick auf die eigene Hauptstadt.
-  setOpeningView();
+  if (resumed) {
+    // Wer fortsetzt, steht schon mitten im Feldzug: kein Zelt, keine
+    // Ansprache - der Blick geht sofort dorthin, wo die Ansprache im Zelt
+    // sonst erst hinführt.
+    resetCameraOrientation();
+    focusOwnCapital();
+  } else {
+    // Der Feldzug beginnt nicht auf der Karte, sondern im Zelt: erst der
+    // Tisch mit der Karte darauf und der Thron dahinter, dann - wenn der
+    // Spieler die Ansprache wegklickt - der Blick auf die eigene Hauptstadt.
+    setOpeningView();
+  }
   // Mit dem Zelt wechselt die Musik: die Titelmusik gehört zum Vorspann, von
   // hier an klingt die eigene Fraktion.
   stopTheme({ fadeOut: 2 });
   if (!isMuted() && getSetting('music')) {
     startAnthem(playerFaction(state).id, { fadeIn: 3.5 });
   }
-  showHerald();
+  if (!resumed) showHerald();
 
   // Input holds no reference to `state` itself, so it reads through a getter -
   // undo swaps the object wholesale.
@@ -2533,6 +2567,41 @@ function startNewGame(factionId = chosenFaction) {
   undoBtn.addEventListener('click', undoLastAction);
   observeMapSize();
   refresh();
+}
+
+function startNewGame(factionId = chosenFaction) {
+  unlockAudio();
+  stopChronicle();
+  // Starting a game is a click, which is the gesture fullscreen needs.
+  wantsFullscreen = true;
+  requestAppFullscreen({ explain: true });
+  document.getElementById('startScreen').classList.add('hidden');
+  hideFactionScreen();
+  appEl.classList.remove('hidden');
+
+  state = createInitialState(factionId);
+  enterGame(false);
+}
+
+function continueGame() {
+  const saved = loadGame();
+  if (!saved) {
+    // Zwischen dem Anzeigen der Kachel und dem Klick kann der Spielstand
+    // verschwunden sein - ein anderer Tab, ein geleerter Speicher. Dann bleibt
+    // nur, die Kachel wieder verschwinden zu lassen.
+    zeigeFortsetzenKachel();
+    return;
+  }
+  unlockAudio();
+  stopChronicle();
+  wantsFullscreen = true;
+  requestAppFullscreen({ explain: true });
+  document.getElementById('startScreen').classList.add('hidden');
+  hideFactionScreen();
+  appEl.classList.remove('hidden');
+
+  state = saved;
+  enterGame(true);
 }
 
 window.addEventListener('resize', () => {
@@ -2718,7 +2787,12 @@ if (sheetClose) sheetClose.addEventListener('click', () => { schliesseTafel(); s
 // schloss die aufgeschlagene Tafel nur über das Kreuz, nicht über die Taste,
 // die auf jedem anderen Fenster im Spiel genau das tut.
 function focusStartButton() {
-  const btn = document.getElementById('startGameBtn');
+  // Steht "Fortsetzen" da, ist es die naheliegende Wahl und bekommt den
+  // ersten Fokus - genau die Tafel, die dann auch als hervorgehoben dasteht.
+  const continueBtn = document.getElementById('continueGameBtn');
+  const btn = (continueBtn && !continueBtn.classList.contains('hidden'))
+    ? continueBtn
+    : document.getElementById('startGameBtn');
   if (btn) btn.focus({ preventScroll: true });
 }
 
@@ -2730,7 +2804,9 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-  const buttons = [...document.querySelectorAll('.title-menu .menu-plaque')];
+  // Verborgene Tafeln zählen nicht mit - "Fortsetzen" ist nicht immer da.
+  const buttons = [...document.querySelectorAll('.title-menu .menu-plaque')]
+    .filter((b) => !b.classList.contains('hidden'));
   if (!buttons.length) return;
   const idx = buttons.indexOf(document.activeElement);
   const richtung = e.key === 'ArrowDown' ? 1 : -1;
@@ -2741,8 +2817,10 @@ window.addEventListener('keydown', (e) => {
   e.preventDefault();
 });
 
-// Die Merktafel steht beim ersten Bild schon da.
+// Die Merktafel steht beim ersten Bild schon da, die Kachel "Fortsetzen" nur,
+// wenn tatsächlich ein Feldzug wartet.
 zeigeMerktafel();
+zeigeFortsetzenKachel();
 focusStartButton();
 
 // Die Version steht im Startbildschirm - eine Wahrheit aus data.js, damit sie
@@ -2780,10 +2858,13 @@ window.__mapFrame = captureFrame;
 window.__spqrState = () => state;
 window.__spqrRefresh = () => refresh();
 
-// Der Weg ins Spiel führt über die Fraktionswahl.
+// Der Weg ins Spiel führt über die Fraktionswahl - "Fortsetzen" übergeht sie,
+// die Fraktion steht ja schon fest.
 document.getElementById('startGameBtn').addEventListener('click', showFactionScreen);
 document.getElementById('factionBackBtn').addEventListener('click', backToMenu);
 document.getElementById('factionStartBtn').addEventListener('click', () => startNewGame());
+const continueGameBtn = document.getElementById('continueGameBtn');
+if (continueGameBtn) continueGameBtn.addEventListener('click', continueGame);
 
 // The boot watchdog in index.html looks for this: reaching it means the whole
 // script parsed and the start button is wired.
