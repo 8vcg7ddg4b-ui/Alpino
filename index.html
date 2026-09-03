@@ -68,12 +68,18 @@
     })();
   </script>
 
-  <!-- Der Vorspann: das Studio-Logo, kurz eingeblendet, ehe der Startbildschirm
-       dahinter zum Vorschein kommt. Läuft rein über CSS (siehe style.css) -
-       unabhängig davon, ob main.js überhaupt lädt, damit ein Skriptfehler nie
-       hinter einem für immer stehenbleibenden Logo verschwindet. -->
+  <!-- Der Vorspann: das Studio-Logo als kurzer Film, ehe der Startbildschirm
+       dahinter zum Vorschein kommt. Die Ausblendung läuft rein über CSS (siehe
+       style.css) - unabhängig davon, ob main.js überhaupt lädt, damit ein
+       Skriptfehler nie hinter einem für immer stehenbleibenden Vorspann
+       verschwindet. Stumm und ohne Bedienelemente, da der Film selbst keinen
+       Ton trägt - die Titelmusik läuft ohnehin schon eigenständig an, sobald
+       main.js bereit ist (siehe beginMenuMusic in main.js). -->
   <div id="splashScreen" aria-hidden="true">
-    <img src="img/studio-logo.jpg" alt="" />
+    <video autoplay muted playsinline>
+      <source src="video/studio-logo.webm" type="video/webm" />
+      <source src="video/studio-logo.mp4" type="video/mp4" />
+    </video>
   </div>
 
   <!-- Das Startbild als Triptychon: links die Chronik, in der Mitte Titel und

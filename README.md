@@ -160,17 +160,26 @@ Einstellungen abschalten; die Regeln gelten weiter.
 
 ### Der Vorspann: das Studio-Logo
 
-Bevor das Startbild erscheint, blendet sich für gut zwei Sekunden das
-Studio-Logo auf schwarzem Grund ein und wieder aus (`#splashScreen` in
-`index.html`, Regeln in `css/style.css`). Die ganze Abfolge läuft über zwei
-CSS-Animationen, ohne dass `main.js` beteiligt wäre: eine skaliert und blendet
-das Bild selbst, die andere schaltet danach `visibility` und `pointer-events`
-am Rahmen ab, damit der Startbildschirm dahinter wieder anklickbar wird.
-Absichtlich rein in CSS und ohne Rücksicht auf „reduzierte Bewegung" gebaut –
-ein Vorspann, der sich nicht von selbst wegräumt, bliebe für immer vor dem
-Spiel stehen, und genau das darf nicht passieren, falls `main.js` aus
-irgendeinem Grund nie lädt: die Fehlertafel `#bootError` liegt eine Ebene
-darüber und bleibt so in jedem Fall sichtbar.
+Bevor das Startbild erscheint, läuft für knapp sechs Sekunden ein kurzer Film
+mit dem Studio-Logo auf schwarzem Grund (`#splashScreen` in `index.html`,
+Regeln in `css/style.css`, Datei `video/studio-logo.webm` mit
+`video/studio-logo.mp4` als Ausweichlösung für Safari). Der Film selbst trägt
+keinen Ton - er läuft stumm und automatisch an (`autoplay muted playsinline`,
+sonst verweigern Browser den Start ohne Nutzergeste). Die **Titelmusik**
+läuft parallel dazu an: `beginMenuMusic()` in `js/main.js` versucht sie sofort
+zu starten, sobald das Spielskript bereit ist - im Desktop-Programm läuft sie
+dadurch schon während des Vorspanns, im Browser holt die erste Geste
+(irgendein Klick, auch auf den Vorspann selbst) sie nach, aus denselben
+Gründen wie im Abschnitt zur Titelmusik weiter unten beschrieben.
+
+Nach Ablauf der Länge blendet sich der Rahmen um den Film über eine einzige
+CSS-Animation wieder aus (`visibility`, `pointer-events` und `opacity`), ohne
+dass `main.js` daran beteiligt wäre. Absichtlich rein in CSS und ohne
+Rücksicht auf „reduzierte Bewegung" gebaut – ein Vorspann, der sich nicht von
+selbst wegräumt, bliebe für immer vor dem Spiel stehen, und genau das darf
+nicht passieren, falls `main.js` aus irgendeinem Grund nie lädt: die
+Fehlertafel `#bootError` liegt eine Ebene darüber und bleibt so in jedem Fall
+sichtbar.
 
 In der Leiste unten steht die **Spielversion**; sie kommt aus `GAME_VERSION`
 in `js/data.js` und wird mit `package.json` gleichgehalten, damit Anzeige und

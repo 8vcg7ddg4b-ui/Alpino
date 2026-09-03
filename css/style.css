@@ -735,10 +735,11 @@ html, body {
 /* --- Das Studio-Logo -------------------------------------------------------
    Ein kurzer Vorspann vor dem eigentlichen Startbildschirm - läuft rein über
    CSS, ohne auf main.js zu warten: scheitert das Spielskript, blendet sich
-   das Logo trotzdem von selbst wieder aus, und die Fehlermeldung (#bootError,
-   höherer Rang) bleibt sichtbar. Bewusst nicht hinter "reduzierte Bewegung"
-   versteckt - ohne die Ausblendung bliebe das Logo für immer vor dem Spiel
-   stehen. */
+   der Vorspann trotzdem von selbst wieder aus, und die Fehlermeldung
+   (#bootError, höherer Rang) bleibt sichtbar. Bewusst nicht hinter
+   "reduzierte Bewegung" versteckt - ohne die Ausblendung bliebe der Vorspann
+   für immer vor dem Spiel stehen. Die Zeitspanne (5,875s Film + kurze
+   Überblendung) ist auf die Länge von video/studio-logo.mp4 abgestimmt. */
 #splashScreen {
   position: fixed;
   inset: 0;
@@ -747,22 +748,17 @@ html, body {
   align-items: center;
   justify-content: center;
   background: #000;
-  animation: splashWeg 0s linear 2.2s forwards;
+  animation: splashWeg 0.5s ease 5.9s forwards;
 }
-#splashScreen img {
-  width: min(36vw, 36vh, 420px);
-  height: auto;
+#splashScreen video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   display: block;
-  animation: splashLogo 2.2s ease forwards;
-}
-@keyframes splashLogo {
-  0% { opacity: 0; transform: scale(0.94); }
-  18% { opacity: 1; transform: scale(1); }
-  82% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.03); }
 }
 @keyframes splashWeg {
-  to { visibility: hidden; pointer-events: none; }
+  from { opacity: 1; visibility: visible; }
+  to { opacity: 0; visibility: hidden; pointer-events: none; }
 }
 
 /* Collapsing the sidebar is the fallback when real fullscreen is refused by
