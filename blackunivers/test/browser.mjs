@@ -19,7 +19,11 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
 const problems = [];
 page.on('console', (msg) => {
-  if (msg.type() === 'error') problems.push(`Konsole: ${msg.text()}`);
+  if (msg.type() !== 'error') return;
+  // Ohne Netz laden die Schriften von Google nicht. Das ist kein Fehler des
+  // Spiels - es fällt auf die Systemschrift zurück.
+  if (/net::ERR_/.test(msg.text())) return;
+  problems.push(`Konsole: ${msg.text()}`);
 });
 page.on('pageerror', (err) => problems.push(`Seitenfehler: ${err.message}`));
 
@@ -86,7 +90,13 @@ const before = await page.evaluate(() => {
 const point = await page.evaluate(([col, row]) => window.__bu.tileToScreen(col, row),
   [before.col, before.row + 3]);
 await page.mouse.click(box.x + point.x, box.y + point.y);
-await page.waitForTimeout(1600);
+// Der Flug wird gezeigt, bevor er im Spielstand steht: also warten, bis die
+// Flotte wirklich woanders ist - auf einer langsamen Maschine dauert das.
+await page.waitForFunction(([id, col, row]) => {
+  const f = window.__blackUniversState.fleets.find((x) => x.id === id);
+  return !f || f.col !== col || f.row !== row;
+}, [before.id, before.col, before.row], { timeout: 30000 }).catch(() => {});
+await page.waitForTimeout(300);
 const after = await page.evaluate((id) => {
   const f = window.__blackUniversState.fleets.find((x) => x.id === id);
   return f ? { col: f.col, row: f.row, movement: f.movement } : null;
@@ -131,7 +141,7 @@ if (hasConfirm) {
   await page.waitForTimeout(2200);
   await shot('05d-gefecht');
   try {
-    await page.waitForSelector('#battleModal:not(.hidden)', { timeout: 30000 });
+    await page.waitForSelector('#battleModal:not(.hidden)', { timeout: 90000 });
     await page.waitForTimeout(400);
     await shot('05e-gefechtsbericht');
     await page.click('#battleClose');

@@ -68,6 +68,21 @@ Dazu der **Nephilim-Schwarm**, der nach vielen Zügen durch ein Tor am Rand der
 Karte kommt und nicht verhandelt, sowie **Retros, Mandarine und Freibeuter**,
 die aus Nebelbänken auftauchen und plündern.
 
+### Wie sie aussehen
+
+Jede Flotte auf der Karte zeigt ihr **schwerstes Schiff**: der Träger führt,
+wenn einer dabei ist, sonst der Kreuzer, sonst die Korvette - und ganz unten
+die Jägerstaffel allein. Zwei Begleiter fliegen daneben, wenn die Flotte auch
+Jäger führt. Fällt das Flaggschiff, bekommt die Flotte ein neues Gesicht.
+
+Die Modelle sind gebaut, nicht geladen: der Bengal-Träger mit Flugdeck,
+Landebahn, Insel und offenem Hangarmaul; der Rapier mit gepfeilten Flächen und
+zwei Düsen; der Dralthi als fliegender Flügel ohne Rumpf; der Snakeir als
+Klinge mit Rückenkamm; die Firekkaner mit gefächerten Schwingen; der Schwarm
+gewachsen statt gebaut. Der Rumpf trägt die Farbe der Flagge gedämpft, hell
+wird nur, was leuchtet - Düsen, Landebahn, Kennstreifen. Im Gefecht fliegen
+dieselben Silhouetten, in klein.
+
 ### Verbände
 
 Sechs Rollen, die einander im Kreis schlagen: **Jäger** fangen **Bomber**,
@@ -197,6 +212,7 @@ Browser aus Oszillatoren.
 | `js/diplomacy.js` | Beziehungen, Verträge, Kriege, Angebote |
 | `js/events.js` | Ereignisse, Freibeuter, der Schwarm |
 | `js/pilots.js` | Herrscher, Eigenschaften, Asse |
+| `js/ships3d.js` | Die Schiffsmodelle: Rapier, Broadsword, Bengal, Dralthi, Fralthi, Snakeir |
 | `js/scene3d.js` | Die Darstellung: Holotisch, Brücke, Karte, Flotten, Nebel des Krieges |
 | `js/battle3d.js` | Das Gefecht auf der Karte |
 | `js/ui.js` | Kopfleiste, Tafeln, Berichte |

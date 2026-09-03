@@ -15,6 +15,7 @@ import {
 } from './state.js';
 import { atWar } from './diplomacy.js';
 import { emblemSVG } from './emblems.js';
+import { shipModel, flagshipRole, SHIP_LENGTH } from './ships3d.js';
 
 export const TILE_SIZE = 6;
 const MAP_W = GRID_COLS * TILE_SIZE;
@@ -868,25 +869,57 @@ export function updateSystems(state) {
 // --- Flotten, Auswahl, Reichweiten --------------------------------------
 const fleetMeshes = new Map();
 
+// Wie lang ein Schiff auf dem Kartentisch liegt. Ein Jäger misst gut ein
+// halbes Feld, ein Träger anderthalb - so sieht man an der Silhouette, was
+// da fliegt, bevor man die Flotte anklickt.
+const MAP_SHIP_LENGTH = {
+  jaeger: 5.4, bomber: 5.8, korvette: 7, kreuzer: 8.8, traeger: 11.4, marines: 5.8, wache: 6,
+};
+
 function fleetMesh(fleet) {
   const profile = factionProfile(fleet.factionId);
   const group = new THREE.Group();
   const colour = new THREE.Color(profile.color);
 
-  // Der Verband als Pfeilspitze - drei Maschinen in Keilform.
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: colour, emissive: new THREE.Color(profile.colorDark), emissiveIntensity: 0.6,
-    metalness: 0.55, roughness: 0.4,
-  });
-  // Die Keile fliegen über der Platte - hoch genug, dass sie nicht in einem
-  // Planeten stecken, wenn die Flotte über einem System steht.
-  const shapes = [[0, 0, 0, 1], [-2.6, 0, 2.4, 0.72], [2.6, 0, 2.4, 0.72]];
-  for (const [dx, dy, dz, s] of shapes) {
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(1.5 * s, 4.4 * s, 4), bodyMat);
-    cone.rotation.x = Math.PI / 2;
-    cone.position.set(dx, 5 + dy, dz);
-    group.add(cone);
+  // Die Flotte zeigt ihr schwerstes Schiff: der Träger führt, wenn einer
+  // dabei ist, sonst der Kreuzer, sonst die Korvette - und ganz unten die
+  // Jägerstaffel allein.
+  const role = flagshipRole(fleet);
+  const scale = MAP_SHIP_LENGTH[role] / SHIP_LENGTH[role];
+  const flagship = shipModel(profile.kind, role, profile.color, profile.accent, { scale });
+  flagship.position.y = 5;
+  flagship.name = 'flagship';
+  group.add(flagship);
+  group.userData.role = role;
+
+  // Ein weicher Schein hinter dem Schiff: er macht den Verband auf der weiten
+  // Karte auffindbar, ohne die Silhouette zu überstrahlen.
+  const halo = new THREE.Mesh(
+    new THREE.CircleGeometry(MAP_SHIP_LENGTH[role] * 0.42, 20),
+    new THREE.MeshBasicMaterial({
+      color: colour, transparent: true, opacity: 0.16,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }),
+  );
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.y = 3.6;
+  group.add(halo);
+
+  // Zwei Begleiter daneben, wenn die Flotte auch Jäger führt: ein Träger
+  // fliegt nicht allein.
+  const hasFighters = fleet.units.some((u) => (u.role === 'jaeger' || u.role === 'bomber') && u.count > 0);
+  if (hasFighters && role !== 'jaeger') {
+    const escortRole = fleet.units.some((u) => u.role === 'jaeger' && u.count > 0) ? 'jaeger' : 'bomber';
+    const escortScale = (MAP_SHIP_LENGTH[escortRole] / SHIP_LENGTH[escortRole]) * 0.6;
+    for (const side of [-1, 1]) {
+      const escort = shipModel(profile.kind, escortRole, profile.color, profile.accent,
+        { scale: escortScale, detail: 'low' });
+      escort.position.set(side * 2.6, 4.2, -1.8);
+      escort.rotation.y = side * 0.12;
+      group.add(escort);
+    }
   }
+
   // Ein dünner Halt zur Platte hinunter, damit man sieht, auf welchem Feld
   // der Verband steht.
   const tether = new THREE.Mesh(
@@ -922,6 +955,13 @@ export function syncEntities(state, view = {}) {
     const visible = fleet.factionId === state.playerFactionId
       || (view.visibleFleets ? view.visibleFleets.has(fleet.id) : hasSeen(state, fleet.col, fleet.row));
     let mesh = fleetMeshes.get(fleet.id);
+    // Ist das Flaggschiff gefallen, wird das Modell neu gebaut: eine Flotte
+    // ohne Träger soll auch keinen mehr zeigen.
+    if (mesh && mesh.userData.role !== flagshipRole(fleet)) {
+      entityGroup.remove(mesh);
+      fleetMeshes.delete(fleet.id);
+      mesh = null;
+    }
     if (!mesh) {
       mesh = fleetMesh(fleet);
       fleetMeshes.set(fleet.id, mesh);

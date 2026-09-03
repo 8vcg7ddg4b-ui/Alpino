@@ -4,6 +4,7 @@
 // geflogen: Anflug, Laserfäden, Torpedos gegen den Schild, Wracks.
 import { sceneHandles, worldOfTile, TILE_SIZE, flashTile, glideTo, zoomTo, cameraState } from './scene3d.js';
 import { factionProfile, ROLE_SHORT } from './data.js';
+import { shipModel, SHIP_LENGTH } from './ships3d.js';
 import { sfx } from './audio.js';
 
 let running = false;
@@ -33,14 +34,38 @@ function clearGroup() {
   }
 }
 
-// Ein Jäger im Gefecht: ein kleiner Keil, der eine Bahn fliegt.
-function makeFighter(colour, scale = 1) {
-  const mesh = new THREE.Mesh(
-    new THREE.ConeGeometry(0.45 * scale, 1.5 * scale, 4),
-    new THREE.MeshBasicMaterial({ color: colour }),
-  );
-  mesh.rotation.x = Math.PI / 2;
+// Wie groß ein Schiff im Gefecht auf der Karte steht. Ein Jäger ist ein
+// halbes Feld lang, ein Träger füllt eines - so bleibt zu sehen, wer da
+// aufeinander schießt.
+const FIGHT_LENGTH = {
+  jaeger: 2.8, bomber: 3.2, korvette: 4, kreuzer: 5, traeger: 6.2, marines: 3.2, wache: 3.6,
+};
+
+// Ein Schiff im Gefecht. Es trägt dieselbe Silhouette wie auf der Karte -
+// nur fliegt es hier seine eigene Bahn.
+function makeFighter(kind, role, profile, heading) {
+  const scale = FIGHT_LENGTH[role] / SHIP_LENGTH[role];
+  const mesh = shipModel(kind, role, profile.color, profile.accent, { scale, detail: 'low' });
+  mesh.rotation.y = heading;
   return mesh;
+}
+
+// Womit eine Seite ins Gefecht geht: die Verbände, die sie wirklich hat, vom
+// schwersten zum leichtesten - Träger einmal, Jäger so oft wie nötig.
+function battleRoles(units, slots) {
+  const order = ['traeger', 'kreuzer', 'korvette', 'bomber', 'marines', 'jaeger', 'wache'];
+  const present = order.filter((r) => units.some((u) => u.role === r && u.count > 0));
+  if (!present.length) return new Array(slots).fill('jaeger');
+  const out = [];
+  for (const role of present) {
+    // Große Kiele einmal, kleine nach Zahl - so steht ein Träger zwischen
+    // seinen Staffeln und nicht zehnmal nebeneinander.
+    const many = role === 'jaeger' || role === 'bomber' || role === 'marines';
+    out.push(role);
+    if (many) out.push(role, role);
+  }
+  while (out.length < slots) out.push(present[present.length - 1]);
+  return out.slice(0, slots);
 }
 
 function makeLaser(from, to, colour) {
@@ -73,8 +98,10 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
   cancelled = false;
   clearGroup();
 
-  const attackerColour = new THREE.Color(factionProfile(report.attacker.factionId).color);
-  const defenderColour = new THREE.Color(factionProfile(report.defender.factionId).color);
+  const attackerProfile = factionProfile(report.attacker.factionId);
+  const defenderProfile = factionProfile(report.defender.factionId);
+  const attackerColour = new THREE.Color(attackerProfile.color);
+  const defenderColour = new THREE.Color(defenderProfile.color);
   const centre = worldOfTile(report.col, report.row);
   const origin = new THREE.Vector3(centre.x, 5, centre.z);
 
@@ -88,15 +115,18 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
   // Westen, Verteidiger hält die Stellung.
   const attackers = [];
   const defenders = [];
-  const attackerCount = Math.min(14, Math.max(4, Math.round(sumUnits(report.attacker.units) / 4)));
-  const defenderCount = Math.min(14, Math.max(4, Math.round(sumUnits(report.defender.units) / 4)));
+  const attackerCount = Math.min(8, Math.max(3, Math.round(sumUnits(report.attacker.units) / 6)));
+  const defenderCount = Math.min(8, Math.max(3, Math.round(sumUnits(report.defender.units) / 6)));
+  const attackerRoles = battleRoles(report.attacker.units, attackerCount);
+  const defenderRoles = battleRoles(report.defender.units, defenderCount);
   for (let i = 0; i < attackerCount; i++) {
-    const f = makeFighter(attackerColour, 1.8);
+    // Der Angreifer kommt von Westen und fliegt nach Osten.
+    const f = makeFighter(attackerProfile.kind, attackerRoles[i], attackerProfile, Math.PI / 2);
     const angle = (i / attackerCount) * Math.PI - Math.PI / 2;
     f.userData.home = new THREE.Vector3(
-      origin.x - TILE_SIZE * 1.9 + Math.cos(angle) * 3.2,
+      origin.x - TILE_SIZE * 2.8 + Math.cos(angle) * 3.4,
       6 + Math.sin(angle) * 4,
-      origin.z + Math.sin(angle) * TILE_SIZE * 1.2,
+      origin.z + Math.sin(angle) * TILE_SIZE * 1.5,
     );
     f.position.copy(f.userData.home);
     f.userData.phase = Math.random() * Math.PI * 2;
@@ -104,12 +134,13 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
     attackers.push(f);
   }
   for (let i = 0; i < defenderCount; i++) {
-    const f = makeFighter(defenderColour, 1.8);
+    // Der Verteidiger hält dagegen und blickt nach Westen.
+    const f = makeFighter(defenderProfile.kind, defenderRoles[i], defenderProfile, -Math.PI / 2);
     const angle = (i / defenderCount) * Math.PI + Math.PI / 2;
     f.userData.home = new THREE.Vector3(
-      origin.x + TILE_SIZE * 1.7 + Math.cos(angle) * 3.2,
+      origin.x + TILE_SIZE * 2.6 + Math.cos(angle) * 3.4,
       6 + Math.sin(angle) * 4,
-      origin.z + Math.sin(angle) * TILE_SIZE * 1.2,
+      origin.z + Math.sin(angle) * TILE_SIZE * 1.5,
     );
     f.position.copy(f.userData.home);
     f.userData.phase = Math.random() * Math.PI * 2;
@@ -137,12 +168,18 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
     for (const f of attackers) {
       f.position.x = f.userData.home.x + Math.sin(clock.t + f.userData.phase) * 2.4;
       f.position.z = f.userData.home.z + Math.cos(clock.t * 0.8 + f.userData.phase) * 2.2;
-      f.rotation.z = Math.sin(clock.t + f.userData.phase) * 0.6;
+      f.position.y = f.userData.home.y + Math.sin(clock.t * 1.3 + f.userData.phase) * 0.6;
+      // Rollen um die eigene Achse: das Modell blickt nach vorn, also liegt
+      // die Rolle auf X.
+      f.rotation.x = Math.sin(clock.t + f.userData.phase) * 0.45;
+      f.rotation.y = Math.PI / 2 + Math.sin(clock.t * 0.6 + f.userData.phase) * 0.35;
     }
     for (const f of defenders) {
       f.position.x = f.userData.home.x + Math.cos(clock.t * 0.9 + f.userData.phase) * 2.2;
       f.position.z = f.userData.home.z + Math.sin(clock.t + f.userData.phase) * 2.4;
-      f.rotation.z = Math.cos(clock.t + f.userData.phase) * 0.6;
+      f.position.y = f.userData.home.y + Math.cos(clock.t * 1.1 + f.userData.phase) * 0.6;
+      f.rotation.x = Math.cos(clock.t + f.userData.phase) * 0.45;
+      f.rotation.y = -Math.PI / 2 + Math.cos(clock.t * 0.7 + f.userData.phase) * 0.35;
     }
     if (render) render();
     requestAnimationFrame(swirl);
