@@ -36,11 +36,14 @@ export const MONTHS = [
   'December', 'Ianuarius', 'Februarius',
 ];
 
-export function calendarOfTurn(turn) {
+// `startYear` lässt einen Feldzug in einem anderen Jahr beginnen (siehe
+// `scenarios.js`) - der Kalender selbst zählt immer gleich, nur die Zahl, von
+// der er herunterzählt, ist eine andere.
+export function calendarOfTurn(turn, startYear = START_YEAR_BC) {
   const index = Math.max(0, turn - 1);
   const seasonIndex = Math.floor(index / TURNS_PER_SEASON);
   const season = SEASONS[seasonIndex % SEASONS.length];
-  const year = START_YEAR_BC - Math.floor(index / TURNS_PER_YEAR);
+  const year = startYear - Math.floor(index / TURNS_PER_YEAR);
   // Der wievielte Monat der Jahreszeit gerade läuft - und wie er heißt.
   const monthOfSeason = (index % TURNS_PER_SEASON) + 1;
   const month = MONTHS[index % TURNS_PER_YEAR];

@@ -72,6 +72,8 @@ function terracedTown(x0, x1, baseY, rows, rng, wall, roof, dunst) {
 // der Pharos, wie ihn die Münzen zeigen.
 function pharos(x, baseY, h, color, feuer) {
   const w = h * 0.19;
+  // Das Feuer im Korb flackert leise (CSS, `.tscn-flame` in style.css) - das
+  // einzige Licht im Bild, das sich bewegt, statt nur zu scheinen.
   return `<g fill="${color}">
     <rect x="${x - w / 2}" y="${baseY - h * 0.55}" width="${w}" height="${h * 0.55}"/>
     <rect x="${x - w * 0.36}" y="${baseY - h * 0.84}" width="${w * 0.72}" height="${h * 0.3}"/>
@@ -79,8 +81,10 @@ function pharos(x, baseY, h, color, feuer) {
     <rect x="${x - w * 0.66}" y="${baseY - h * 0.57}" width="${w * 1.32}" height="${h * 0.035}"/>
     <rect x="${x - w * 0.46}" y="${baseY - h * 0.86}" width="${w * 0.92}" height="${h * 0.03}"/>
   </g>
-  <circle cx="${x}" cy="${baseY - h - h * 0.02}" r="${h * 0.055}" fill="${feuer}"/>
-  <circle cx="${x}" cy="${baseY - h - h * 0.02}" r="${h * 0.16}" fill="${feuer}" opacity="0.22"/>`;
+  <g class="tscn-flame">
+    <circle cx="${x}" cy="${baseY - h - h * 0.02}" r="${h * 0.055}" fill="${feuer}"/>
+    <circle cx="${x}" cy="${baseY - h - h * 0.02}" r="${h * 0.16}" fill="${feuer}" opacity="0.22"/>
+  </g>`;
 }
 
 // --- Das Feldzeichen ------------------------------------------------------
@@ -98,17 +102,21 @@ function fieldStandard(x, top, h, w, tuch, saum, gold) {
     <rect x="${x - w / 2 - 26}" y="${top - 14}" width="${w + 52}" height="12" rx="6" fill="${gold}"/>
     <circle cx="${x - w / 2 - 26}" cy="${top - 8}" r="9" fill="${gold}"/>
     <circle cx="${x + w / 2 + 26}" cy="${top - 8}" r="9" fill="${gold}"/>
-    <rect x="${x - w / 2}" y="${top}" width="${w}" height="${h - 46}" fill="${tuch}"/>
-    <path d="${zipfel}" fill="${tuch}"/>
-    <rect x="${x - w / 2}" y="${top}" width="${w}" height="${h - 46}" fill="none"
-      stroke="${saum}" stroke-width="5"/>
+    <!-- Das Tuch selbst schwingt leicht (CSS-Klasse tscn-cloth) - Stange,
+         Kranz und Spitze bleiben starr, wie es sich für Metall im Boden gehört. -->
+    <g class="tscn-cloth">
+      <rect x="${x - w / 2}" y="${top}" width="${w}" height="${h - 46}" fill="${tuch}"/>
+      <path d="${zipfel}" fill="${tuch}"/>
+      <rect x="${x - w / 2}" y="${top}" width="${w}" height="${h - 46}" fill="none"
+        stroke="${saum}" stroke-width="5"/>
+      <text x="${x}" y="${top + 158}" text-anchor="middle" fill="${gold}"
+        font-family="Georgia, 'Times New Roman', serif" font-size="46"
+        letter-spacing="4" opacity="0.92">SPQR</text>
+    </g>
     <g fill="none" stroke="${gold}" stroke-width="7" stroke-linecap="round" opacity="0.9">
       <path d="M ${x - 44} ${top + 178} Q ${x - 60} ${top + 116} ${x - 28} ${top + 76}"/>
       <path d="M ${x + 44} ${top + 178} Q ${x + 60} ${top + 116} ${x + 28} ${top + 76}"/>
     </g>
-    <text x="${x}" y="${top + 158}" text-anchor="middle" fill="${gold}"
-      font-family="Georgia, 'Times New Roman', serif" font-size="46"
-      letter-spacing="4" opacity="0.92">SPQR</text>
   </g>`;
 }
 
@@ -246,12 +254,17 @@ export function titleSceneSVG() {
     <!-- Das Meer -->
     <rect y="470" width="${SCENE_W}" height="240" fill="#3f7ba6"/>
     <rect y="470" width="${SCENE_W}" height="54" fill="#8fbdd6" opacity="0.6"/>
+    <!-- Die Lichtflecken darauf glitzern leise und einzeln (CSS-Klasse
+         tscn-sparkle) - jeder mit seiner eigenen Verzögerung, sonst
+         blinkte das ganze Meer im Gleichtakt statt in der Sonne zu glitzern. -->
     <g fill="#c2ddea" opacity="0.4">
       ${Array.from({ length: 52 }, () => {
         const x = rng() * SCENE_W;
         const y = 484 + rng() * 200;
         const w = 26 + rng() * 62;
-        return `<rect x="${x.toFixed(0)}" y="${y.toFixed(0)}" width="${w.toFixed(0)}" height="3" rx="1.5"/>`;
+        const delay = (rng() * 4).toFixed(2);
+        return `<rect class="tscn-sparkle" style="animation-delay:${delay}s"
+          x="${x.toFixed(0)}" y="${y.toFixed(0)}" width="${w.toFixed(0)}" height="3" rx="1.5"/>`;
       }).join('')}
     </g>
 

@@ -275,6 +275,14 @@ Bilddatei: das Spiel läuft als einzelne HTML-Datei und ohne Netz. Es wandert
 sehr langsam, damit es nicht ganz stillsteht, und ein Schleier dunkelt die
 linke Seite ab, damit die Schrift darauf steht statt darin zu schwimmen.
 
+Drei kleine Bewegungen halten es zusätzlich am Leben, jede für sich unauffällig:
+das **Feuer im Leuchtturm** flackert, das **Tuch am Feldzeichen** schwingt
+leicht im Wind, während Stange und Kranz starr bleiben, und das **Glitzern auf
+dem Wasser** blinkt Punkt für Punkt mit eigener Verzögerung statt im
+Gleichtakt. Alles reines CSS (`.tscn-flame`, `.tscn-cloth`, `.tscn-sparkle` in
+`css/style.css`), und alles steht still, wenn das Betriebssystem reduzierte
+Bewegung verlangt.
+
 **Wird es schmal**, rückt zuerst die Tafel über das ganze Bild; unter 700
 Punkten stehen Titel, Menü und Leiste untereinander, das Bild bleibt dahinter,
 und die Leiste wird nach unten gedrückt.
@@ -295,6 +303,29 @@ Ansprache im Zelt direkt auf die Karte, an die Stelle, an der der Feldzug
 verlassen wurde. Ein **entschiedener** Feldzug – gewonnen oder verloren –
 räumt seinen Spielstand dagegen ab: er bekommt sein Andenken auf der
 Merktafel, aber nichts mehr, das „Fortsetzen" zurückholen könnte.
+
+### Die Ausgangslage
+
+Auf der Fraktionswahl steht über der Fraktionsliste eine zweite Wahl: in
+welchem Jahr der Feldzug beginnt (`js/scenarios.js`). Karte, Fraktionen und
+Regeln bleiben für jede Ausgangslage dieselben - was sich ändert, ist nur die
+Lage am ersten Tag:
+
+- **264 v. Chr. – Der Erste Punische Krieg**: die Ausgangslage, die es schon
+  immer gab. Rom und Karthago stehen noch nicht im Krieg miteinander.
+- **218 v. Chr. – Hannibals Krieg**: der Krieg ist schon erklärt. Karthago
+  hält mit Karthago Nova seinen spanischen Brückenkopf, den es 264 v. Chr.
+  noch nicht gab, und steht von der ersten Runde an mit Rom im Krieg - über
+  dieselbe Kriegserklärung, die auch die KI und der Spieler mitten im Spiel
+  benutzen, mit denselben Folgen für Meinung und Bündnisfall.
+
+Der Kalender selbst zählt in jeder Ausgangslage gleich (`calendarOfTurn` in
+`js/weather.js` nimmt das Startjahr als Parameter); nur die Zahl, von der er
+herunterzählt, ist eine andere, und die steht von da an überall, wo ein Jahr
+angezeigt wird. Ein Szenario kann außerdem einzelne Orte einer anderen
+Fraktion geben, als sie ihn sonst hätte (`cityOverrides`) - wo welches Heer
+steht und wie stark es ist, ergibt sich wie immer allein aus den
+Hauptstädten, nicht aus eigens gesetzten Truppen.
 
 ## Bedienung
 
@@ -2249,6 +2280,8 @@ Merktafel, aber nichts mehr, das „Fortsetzen" zurückholen könnte.
   ihre Zuordnung zum nächsten Ort und was sie einbringen
 - `js/mapgen.js` / `js/state.js` – Rasterung der Geografie zu Gelände,
   Spielzustand
+- `js/scenarios.js` – die Ausgangslagen: anderes Startjahr, andere
+  Ortsbesitzer, ein schon erklärter Krieg
 - `js/savegame.js` – der Spielstand: Ablage und Wiederherstellung im Browser,
   ohne die Karte, die aus fester Startzahl neu entsteht
 - `js/pathfind.js` – Bewegungsreichweite (Dijkstra) inkl. Kampf-Zielfeldern

@@ -1693,7 +1693,7 @@ export function diplomacyHTML(state, note) {
   const bekannt = others.filter((f) => knowsFaction(state, player.id, f.id));
   const unbekannt = others.filter((f) => !knowsFaction(state, player.id, f.id));
   const kriege = bekannt.filter((f) => atWar(state, player.id, f.id)).length;
-  const { season, year } = calendarOfTurn(state.turn);
+  const { season, year } = calendarOfTurn(state.turn, state.startYear);
   const zeigeUnbekannt = diploTab === 'unbekannt' && unbekannt.length;
   return `
     <h2 class="report-title">🕊 Diplomatie · ${season.icon} ${season.name} ${year} v. Chr.</h2>
@@ -1741,7 +1741,7 @@ export function empireHTML(state) {
   const held = state.wonders
     ? state.wonders.filter((w) => cities.some(({ city }) => city.id === w.cityId))
     : [];
-  const { season, year } = calendarOfTurn(state.turn);
+  const { season, year } = calendarOfTurn(state.turn, state.startYear);
 
   const tile = (label, value, note = '') => `
     <div class="emp-tile"><span class="emp-tile-label">${label}</span>
@@ -1982,7 +1982,7 @@ export function renderUI(state, handlers) {
   // Eine Runde ist ein Monat, drei Monate sind eine Jahreszeit. Angezeigt wird
   // der Monat: er wechselt mit jeder Runde und sagt damit von selbst, wie weit
   // die Jahreszeit ist - ein Zähler daneben wäre dasselbe zweimal.
-  const { season, year, month, monthOfSeason } = calendarOfTurn(state.turn);
+  const { season, year, month, monthOfSeason } = calendarOfTurn(state.turn, state.startYear);
   const label = document.getElementById('turnLabel');
   label.textContent = `${season.icon} ${month} ${year} v. Chr.`;
   label.title = `Runde ${state.turn} · ${season.name}, ${monthOfSeason}. von ${TURNS_PER_SEASON} Monaten`;

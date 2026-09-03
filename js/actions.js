@@ -1846,7 +1846,7 @@ export function applyWeather(state) {
 export function advanceWeather(state) {
   const previous = state.weather;
   state.weather = rollWeather(state.turn, previous, state.weatherSeed);
-  const { season, year, seasonStart } = calendarOfTurn(state.turn);
+  const { season, year, seasonStart } = calendarOfTurn(state.turn, state.startYear);
   const changes = [];
   for (const [zone, key] of Object.entries(state.weather)) {
     if (previous && previous[zone] === key) continue;
@@ -2678,7 +2678,7 @@ export function birthsIn(state, city) {
   const grenze = populationCeiling(city);
   if (city.population >= grenze) return 0;
   if (citySieged(state, city)) return 0;
-  const { season } = calendarOfTurn(state.turn);
+  const { season } = calendarOfTurn(state.turn, state.startYear);
   const rate = BIRTH_RATE * (BIRTH_SEASON[season.key] ?? 1) * growthFactor(city);
   return Math.min(Math.round(city.population * rate), grenze - city.population);
 }

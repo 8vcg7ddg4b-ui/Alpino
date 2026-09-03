@@ -1172,6 +1172,37 @@ kbd {
   to { transform: scale(1.05) translate3d(-0.9%, -0.6%, 0); }
 }
 
+/* Drei kleine Bewegungen im stehenden Bild: das Feuer im Leuchtturm, das Tuch
+   am Feldzeichen, das Glitzern auf dem Wasser. Jede für sich unauffällig -
+   zusammen der Unterschied zwischen einem Bild und einer Ansicht. */
+.tscn-flame {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tscnFlame 2.6s ease-in-out infinite;
+}
+@keyframes tscnFlame {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.86); }
+}
+
+.tscn-cloth {
+  transform-box: fill-box;
+  transform-origin: 0% 0%;
+  animation: tscnCloth 4.4s ease-in-out infinite;
+}
+@keyframes tscnCloth {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(1.6deg); }
+}
+
+.tscn-sparkle {
+  animation: tscnSparkle 3.8s ease-in-out infinite;
+}
+@keyframes tscnSparkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
 /* Der Schleier: links dunkel, damit die Schrift steht; unten dunkel für die
    Leiste; oben ein Hauch, damit der Titel nicht im hellen Himmel schwimmt. */
 .title-vignette {
@@ -2194,6 +2225,7 @@ kbd {
 
 @media (prefers-reduced-motion: reduce) {
   .chron-layer { animation: none; transition: opacity 0.4s linear; }
+  #titleStage svg, .tscn-flame, .tscn-cloth, .tscn-sparkle { animation: none; }
 }
 
 @media (max-width: 760px) {
@@ -2475,6 +2507,45 @@ kbd {
   font-size: 0.85rem;
 }
 .faction-back:hover { border-color: var(--gold); color: var(--gold); }
+
+.scenario-picker {
+  position: relative;
+  z-index: 2;
+  padding: 4px 24px 10px;
+}
+.scenario-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.scenario-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: rgba(24, 17, 11, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  padding: 6px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.scenario-chip:hover { border-color: var(--gold); }
+.scenario-chip.active {
+  background: rgba(60, 44, 24, 0.9);
+  border-color: var(--gold);
+}
+.scenario-chip strong { font-size: 0.9rem; color: var(--gold); }
+.scenario-chip small { font-size: 0.72rem; color: var(--muted); }
+.scenario-chip.active small { color: var(--text); }
+.scenario-blurb {
+  margin: 8px 2px 0;
+  max-width: 640px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
 
 .faction-body {
   position: relative;

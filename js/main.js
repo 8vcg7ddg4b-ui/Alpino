@@ -53,6 +53,7 @@ import { CHRONICLE, chronicleSVG } from './chronicle.js';
 import { titleSceneSVG } from './titlescene.js';
 import { wreathSVG, menuIconSVG } from './ornaments.js';
 import { saveGame, loadGame, clearSaveGame, saveGameSummary } from './savegame.js';
+import { SCENARIOS, DEFAULT_SCENARIO_ID, scenarioById } from './scenarios.js';
 import { factionArt, factionArtSVG } from './factionart.js';
 import { emblemSVG } from './emblems.js';
 import {
@@ -924,7 +925,7 @@ function merkeFeldzug(ausgang) {
     const ich = playerFaction(state);
     const orte = state.cities.filter((c) => c.factionId === ich.id);
     const heere = state.armies.filter((a) => a.factionId === ich.id);
-    const { season, year } = calendarOfTurn(state.turn);
+    const { season, year } = calendarOfTurn(state.turn, state.startYear);
     // Die letzte Schlacht, an der man selbst beteiligt war.
     const schlacht = (state.battleReports || []).find((r) => r.involvesPlayer);
     localStorage.setItem(MEMO_KEY, JSON.stringify({
@@ -1202,7 +1203,7 @@ function paintWeatherLabel(weather) {
   }
   const label = document.getElementById('weatherLabel');
   if (!label || !state) return;
-  const { season } = calendarOfTurn(state.turn);
+  const { season } = calendarOfTurn(state.turn, state.startYear);
   const price = [];
   if (weather.moveCost) price.push(`+${weather.moveCost} Bew.`);
   if (weather.wear) price.push(`+${weather.wear} Ersch.`);
@@ -2375,7 +2376,37 @@ function showGraphicsError() {
 // braucht, um die Wahl zu treffen, bevor die Karte steht.
 
 let chosenFaction = DEFAULT_PLAYER_FACTION;
+let chosenScenario = DEFAULT_SCENARIO_ID;
 let factionArtSlot = 0;
+
+// --- Die Ausgangslage -----------------------------------------------------
+// Über der Fraktionswahl: in welchem Jahr der Feldzug beginnt. Karte und
+// Fraktionen bleiben dieselben, nur die Lage am ersten Tag ist eine andere.
+function selectScenario(id) {
+  chosenScenario = id;
+  const szenario = scenarioById(id);
+  document.querySelectorAll('.scenario-chip').forEach((chip) => {
+    chip.classList.toggle('active', chip.dataset.scenario === id);
+    chip.setAttribute('aria-checked', chip.dataset.scenario === id ? 'true' : 'false');
+  });
+  const blurb = document.getElementById('scenarioBlurb');
+  if (blurb) blurb.textContent = szenario.blurb;
+}
+
+function buildScenarioChoices() {
+  const row = document.getElementById('scenarioRow');
+  if (!row) return;
+  row.innerHTML = SCENARIOS.map((s) => `<button class="scenario-chip" data-scenario="${s.id}"
+    role="radio" aria-checked="false">
+    <strong>${s.kurz}</strong><small>${s.name}</small>
+  </button>`).join('');
+  row.querySelectorAll('.scenario-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      sfx.select();
+      selectScenario(chip.dataset.scenario);
+    });
+  });
+}
 
 function factionFacts(faction) {
   const own = CITY_DEFS.filter((c) => c.factionId === faction.id);
@@ -2499,6 +2530,8 @@ function showFactionScreen() {
   schliesseTafel();
   document.getElementById('startScreen').classList.add('hidden');
   document.getElementById('factionScreen').classList.remove('hidden');
+  buildScenarioChoices();
+  selectScenario(chosenScenario);
   buildFactionChoices();
   selectFaction(chosenFaction);
 }
@@ -2579,7 +2612,7 @@ function startNewGame(factionId = chosenFaction) {
   hideFactionScreen();
   appEl.classList.remove('hidden');
 
-  state = createInitialState(factionId);
+  state = createInitialState(factionId, scenarioById(chosenScenario));
   enterGame(false);
 }
 

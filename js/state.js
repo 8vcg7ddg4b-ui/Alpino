@@ -7,9 +7,9 @@ import {
   tileImpassable, tileMoveCost,
 } from './data.js';
 import { colOfLon, rowOfLat, lonOfCol, latOfRow } from './geodata.js';
-import { rollWeather } from './weather.js';
+import { rollWeather, START_YEAR_BC } from './weather.js';
 import { rulerFor } from './rulers.js';
-import { initRelations, seedKnowledge } from './diplomacy.js';
+import { initRelations, seedKnowledge, declareWar } from './diplomacy.js';
 import { generateMap, landRoute, riverEdgeKey } from './mapgen.js';
 import { placeWonders } from './wonders.js';
 
@@ -21,7 +21,12 @@ export function makeId(prefix) {
 // Jede Fraktion außer den Unabhängigen ist spielbar; welche es ist, entscheidet
 // der Auswahlbildschirm. Alles andere - Startgold, Garnisonen, Heere - ist für
 // alle gleich, damit die Wahl eine Frage der Lage bleibt und nicht der Zahlen.
-export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
+//
+// `scenario` (aus `scenarios.js`) verschiebt den Anfang selbst: ein anderes
+// Jahr, ein paar Orte, die schon einer anderen Fraktion gehören, ein Krieg,
+// der schon erklärt ist. Die Karte, die Fraktionen und die Regeln bleiben
+// dabei immer dieselben - nur die Lage am ersten Tag ist eine andere.
+export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION, scenario = null) {
   const map = generateMap();
 
   const chosen = FACTIONS.some((f) => f.id === playerFactionId && !f.isNeutral)
@@ -45,7 +50,12 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   const playerName = factions.find((f) => f.isPlayer).name;
 
   const cities = CITY_DEFS.map((def) => {
-    const isNeutral = def.factionId === 'neutral';
+    // Ein Szenario kann einen Ort schon zu Beginn einer anderen Fraktion
+    // geben, als er ihn sonst hätte - Karthagos spanischer Brückenkopf im
+    // Krieg von 218 v. Chr. etwa. Ohne Vorgabe gilt, was der Ort ohnehin ist.
+    const factionId = (scenario && scenario.cityOverrides
+      && scenario.cityOverrides[def.name]) || def.factionId;
+    const isNeutral = factionId === 'neutral';
     const size = def.size || DEFAULT_SETTLEMENT_SIZE;
     const tier = settlementTier(size);
     // A settlement's people come from its tier; being a capital or being
@@ -54,7 +64,7 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       : isNeutral ? tier.populationNeutral : tier.population;
     // Jede Siedlung beginnt mit ihrer Stadtwache und sonst nichts. Alles
     // andere in der Garnison ist ausgehoben und kann wieder ausrücken.
-    const faction = FACTIONS.find((f) => f.id === def.factionId);
+    const faction = FACTIONS.find((f) => f.id === factionId);
     const garrison = { [WATCH_ROLE]: watchTarget({ population }, faction) };
     return {
       id: makeId('city'),
@@ -65,7 +75,7 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
       row: rowOfLat(def.lat),
       lon: def.lon,
       lat: def.lat,
-      factionId: def.factionId,
+      factionId,
       capital: !!def.capital,
       size,
       population,
@@ -122,7 +132,10 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   const DEFAULT_ARMY = { infantry: 300, cavalry: 120, ranged: 120 };
   for (const faction of factions) {
     if (faction.isNeutral) continue;
-    const capital = cities.find((c) => c.factionId === faction.id && c.capital);
+    // In der Regel die eigene Hauptstadt - außer ein Szenario hat sie einem
+    // anderen gegeben; dann tut es der erste eigene Ort, den es noch gibt.
+    const capital = cities.find((c) => c.factionId === faction.id && c.capital)
+      || cities.find((c) => c.factionId === faction.id);
     if (!capital) continue;
     // Most factions field one army from the capital; a faction may instead
     // start with several smaller hosts, which are spread over its towns.
@@ -253,6 +266,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
 
   const state = {
     turn: 1,
+    // Das Jahr, in dem der Kalender zu zählen beginnt - für alle Szenarien
+    // derselbe Kalender, nur mit einer anderen Zahl obenan.
+    startYear: scenario ? scenario.jahr : START_YEAR_BC,
     weatherSeed,
     // Die Bauwerke der Alten Welt stehen schon, bevor der erste Zug gemacht
     // wird - sie werden nicht gebaut, sie werden erobert.
@@ -289,6 +305,12 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION) {
   };
   // Wer wen kennt, hängt an den Städten - also erst, wenn der Spielstand steht.
   seedKnowledge(state);
+  // Ein Szenario kann einen Krieg mitbringen, der historisch schon erklärt
+  // ist - über dieselbe Funktion, die auch der Spieler und die KI benutzen,
+  // damit Meinung, Verträge und Bündnisfall genauso greifen wie mitten im Spiel.
+  if (scenario && scenario.atWar) {
+    for (const [a, b] of scenario.atWar) declareWar(state, a, b);
+  }
   return state;
 }
 

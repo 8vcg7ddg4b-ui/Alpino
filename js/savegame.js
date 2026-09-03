@@ -84,7 +84,7 @@ export function saveGameSummary() {
   const ich = state.factions.find((f) => f.isPlayer);
   if (!ich) return null;
   const orte = state.cities.filter((c) => c.factionId === ich.id).length;
-  const { season, year } = calendarOfTurn(state.turn);
+  const { season, year } = calendarOfTurn(state.turn, state.startYear);
   return {
     fraktion: ich.name,
     farbe: ich.color,
