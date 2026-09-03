@@ -1455,6 +1455,53 @@ kbd {
   to { opacity: 1; }
 }
 
+/* Der Blick in die Chronik: dieselbe Kartensprache wie die Tafel selbst -
+   ein Rahmen, der einfach auf dem Bild liegt, statt sich mit ihm zu
+   vertragen - nur kleiner, und nur da, solange die Tafel nicht längst
+   an derselben Stelle steht. */
+.title-glimpse {
+  position: absolute;
+  z-index: 3;
+  right: clamp(16px, 3vw, 46px);
+  bottom: clamp(58px, 9vh, 86px);
+  width: min(300px, 28vw);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 14px;
+  background: rgba(16, 11, 7, 0.74);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 6px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  animation: glimpseFade 0.5s ease;
+}
+.title-glimpse:hover, .title-glimpse:focus-visible { border-color: var(--gold); }
+.title-glimpse:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.title-glimpse.hidden { display: none !important; }
+.tg-year {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.tg-title {
+  font-size: 0.85rem;
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--text);
+}
+@keyframes glimpseFade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Nur, wo wirklich Platz dafür ist: schmal oder flach ringt es sonst mit dem
+   Menü oder der Leiste statt sie in Ruhe zu lassen. */
+@media (max-width: 900px), (max-height: 620px) {
+  .title-glimpse { display: none !important; }
+}
+
 .sheet-close {
   position: absolute;
   top: 10px;
@@ -1513,6 +1560,17 @@ kbd {
   white-space: nowrap;
   letter-spacing: 0.4px;
 }
+.tf-chip-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.tf-chip-link:hover, .tf-chip-link:focus-visible { color: var(--gold); }
+.tf-chip-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 3px; }
+.tf-chip.active { color: var(--gold); }
 
 /* --- Die Merktafel -------------------------------------------------------
    Was aus dem letzten Feldzug dieses Browsers übrig ist: wer man war, wie

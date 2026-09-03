@@ -142,6 +142,15 @@
       </nav>
     </div>
 
+    <!-- Der Blick in die Chronik: solange keine Tafel aufgeschlagen ist,
+         steht hier - nur wo wirklich Platz dafür ist - ein kurzer Ausschnitt
+         daraus. Ein Klick öffnet die Chronik genau an dieser Stelle. -->
+    <button class="title-glimpse hidden" id="titleGlimpse" type="button"
+      aria-label="Chronik aufschlagen">
+      <span class="tg-year" id="tgYear"></span>
+      <span class="tg-title" id="tgTitle"></span>
+    </button>
+
     <!-- Die Tafel rechts: sie tritt hervor, wenn Chronik, Andenken oder
          Regeln aufgeschlagen werden, und ist sonst nicht da. -->
     <aside id="titleSheet" class="hidden" aria-live="polite">
@@ -201,13 +210,14 @@
       </section>
     </aside>
 
-    <!-- Die Leiste unten: Version links, drei Merkmale in der Mitte. -->
+    <!-- Die Leiste unten: Version links, drei Merkmale in der Mitte. Zwei
+         davon sind Türen zur Tafel, keine reine Zierde. -->
     <footer class="title-foot">
       <span class="tf-version">Version <span id="versionLabel">–</span></span>
       <span class="tf-chips">
-        <span class="tf-chip">🗓️ 264 v. Chr.</span>
-        <span class="tf-chip">🏛️ Zeitalter der Reiche</span>
-        <span class="tf-chip">⚔️ Rundenbasiertes Strategiespiel</span>
+        <span class="tf-chip">🗓️ 3. Jh. v. Chr.</span>
+        <button class="tf-chip tf-chip-link" data-sheet="chronik">🏛️ Zeitalter der Reiche</button>
+        <button class="tf-chip tf-chip-link" data-sheet="regeln">⚔️ Rundenbasiertes Strategiespiel</button>
       </span>
     </footer>
   </div>

@@ -249,9 +249,16 @@ wird.
 - **Die Tafel rechts** tritt hervor, wenn Chronik, Andenken oder Regeln
   aufgeschlagen werden, und verschwindet wieder. Sie ist so hoch wie ihr
   Inhalt, nicht so hoch wie der Schirm.
-- **Die Leiste unten** trägt links die **Spielversion** und daneben drei
-  Merkmale: das Jahr, das Zeitalter, die Gattung. Was nicht anklickbar ist,
-  sieht dort auch nicht so aus.
+- **Der Blick in die Chronik**: solange keine Tafel aufgeschlagen ist und der
+  Schirm breit und hoch genug dafür ist, steht rechts unten eine kleine Karte
+  mit Jahr und Titel einer Chronik-Geschichte, alle sieben Sekunden eine
+  andere. Ein Klick öffnet die Chronik genau dort, statt irgendwo zufällig.
+  Auf schmalem oder flachem Schirm bleibt sie ganz weg – dort fehlt der Platz,
+  den `.title-left` und `#titleSheet` schon für sich beanspruchen.
+- **Die Leiste unten** trägt links die **Spielversion**, daneben drei
+  Merkmale. Zwei davon sind Türen zur Tafel, keine reine Zierde: „Zeitalter
+  der Reiche" öffnet die Chronik, „Rundenbasiertes Strategiespiel" die
+  Spielregeln – dieselbe Tafel, nur ein zweiter Weg dorthin.
 
 **Was in der Tafel steht:**
 

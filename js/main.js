@@ -1059,6 +1059,7 @@ function quitToMenu() {
   schliesseTafel();
   zeigeMerktafel();
   zeigeFortsetzenKachel();
+  startGlimpseCycle();
   syncMenuMusic();
   focusStartButton();
 }
@@ -1280,11 +1281,14 @@ function stepChronicle(delta) {
 // Pfeilen.
 let chronicleWired = false;
 
-function startChronicle() {
+// `startIndex` lässt die Chronik gezielt an einer Stelle aufschlagen - der
+// Blick von der Titelseite (`zeigeGlimpse`) öffnet sie genau bei der
+// Geschichte, die dort gerade stand, statt irgendwo neu zu beginnen.
+function startChronicle(startIndex) {
   const dots = document.getElementById('chronDots');
   if (!dots) return;
   if (chronicleWired) {
-    paintChronicle(chronicleIndex, { animate: false });
+    paintChronicle(startIndex !== undefined ? startIndex : chronicleIndex, { animate: false });
     scheduleChronicle();
     return;
   }
@@ -1301,13 +1305,59 @@ function startChronicle() {
   document.getElementById('chronPrev').addEventListener('click', () => stepChronicle(-1));
   document.getElementById('chronNext').addEventListener('click', () => stepChronicle(1));
   // Start somewhere in the story rather than always at the founding.
-  paintChronicle(Math.floor(Math.random() * CHRONICLE.length), { animate: false });
+  paintChronicle(startIndex !== undefined ? startIndex : Math.floor(Math.random() * CHRONICLE.length),
+    { animate: false });
   scheduleChronicle();
 }
 
 function stopChronicle() {
   clearTimeout(chronicleTimer);
   chronicleTimer = null;
+}
+
+// --- Der Blick in die Chronik ----------------------------------------------
+// Rechts blieb sonst nichts als das Bild, solange keine Tafel aufgeschlagen
+// ist - hier steht dafür, nur wo wirklich Platz ist (CSS blendet es auf
+// schmalem oder flachem Schirm aus), ein kurzer Ausschnitt aus der Chronik.
+// Ein Klick öffnet sie genau an dieser Stelle statt zufällig.
+let glimpseIndex = 0;
+let glimpseTimer = null;
+
+function paintGlimpse() {
+  const jahr = document.getElementById('tgYear');
+  const titel = document.getElementById('tgTitle');
+  if (!jahr || !titel) return;
+  const szene = CHRONICLE[glimpseIndex];
+  jahr.textContent = szene.year;
+  titel.textContent = szene.title;
+}
+
+// Nur ein Sichtbarkeitswechsel - der Inhalt steht schon, solange der
+// Umlauf läuft. Gerufen, wenn eine Tafel wieder zugeht.
+function zeigeGlimpse() {
+  const box = document.getElementById('titleGlimpse');
+  if (box) box.classList.remove('hidden');
+}
+
+function hideGlimpse() {
+  const box = document.getElementById('titleGlimpse');
+  if (box) box.classList.add('hidden');
+}
+
+function startGlimpseCycle() {
+  if (glimpseTimer) return;
+  paintGlimpse();
+  zeigeGlimpse();
+  glimpseTimer = setInterval(() => {
+    glimpseIndex = (glimpseIndex + 1) % CHRONICLE.length;
+    paintGlimpse();
+  }, 7000);
+}
+
+function stopGlimpseCycle() {
+  clearInterval(glimpseTimer);
+  glimpseTimer = null;
+  hideGlimpse();
 }
 
 // Die Fraktionsübersicht: nach Macht, Militär oder Schatz sortiert. Die Wahl
@@ -2528,6 +2578,7 @@ function showFactionScreen() {
   wantsFullscreen = true;
   requestAppFullscreen({ explain: true });
   schliesseTafel();
+  stopGlimpseCycle();
   document.getElementById('startScreen').classList.add('hidden');
   document.getElementById('factionScreen').classList.remove('hidden');
   buildScenarioChoices();
@@ -2543,6 +2594,7 @@ function hideFactionScreen() {
 function backToMenu() {
   hideFactionScreen();
   document.getElementById('startScreen').classList.remove('hidden');
+  startGlimpseCycle();
   focusStartButton();
 }
 
@@ -2627,6 +2679,7 @@ function continueGame() {
   }
   unlockAudio();
   stopChronicle();
+  stopGlimpseCycle();
   wantsFullscreen = true;
   requestAppFullscreen({ explain: true });
   document.getElementById('startScreen').classList.add('hidden');
@@ -2781,16 +2834,19 @@ let offeneTafel = null;
 function schliesseTafel() {
   const sheet = document.getElementById('titleSheet');
   if (sheet) sheet.classList.add('hidden');
-  document.querySelectorAll('.menu-plaque[data-sheet]')
+  document.querySelectorAll('.menu-plaque[data-sheet], .tf-chip[data-sheet]')
     .forEach((btn) => btn.classList.remove('active'));
   document.querySelectorAll('#titleSheet .sheet-part')
     .forEach((part) => { part.hidden = true; });
   // Die Chronik zeichnet nur, solange sie zu sehen ist.
   if (offeneTafel === 'chronik') stopChronicle();
   offeneTafel = null;
+  // Der Blick in die Chronik steht sonst genau dort, wo die Tafel jetzt
+  // wieder Platz braucht.
+  zeigeGlimpse();
 }
 
-function oeffneTafel(name) {
+function oeffneTafel(name, startIndex) {
   if (offeneTafel === name) { schliesseTafel(); sfx.select(); return; }
   schliesseTafel();
   const sheet = document.getElementById('titleSheet');
@@ -2798,16 +2854,18 @@ function oeffneTafel(name) {
   if (!sheet || !teil) return;
   sheet.classList.remove('hidden');
   teil.hidden = false;
-  const knopf = document.querySelector(`.menu-plaque[data-sheet="${name}"]`);
-  if (knopf) knopf.classList.add('active');
+  document.querySelectorAll(`.menu-plaque[data-sheet="${name}"], .tf-chip[data-sheet="${name}"]`)
+    .forEach((btn) => btn.classList.add('active'));
   offeneTafel = name;
   // Die Chronik läuft erst, wenn sie aufgeschlagen ist - und dann von vorn.
-  if (name === 'chronik') startChronicle();
+  if (name === 'chronik') startChronicle(startIndex);
   if (name === 'memo') zeigeMerktafel();
+  // Der Blick in die Chronik stünde jetzt unter der Tafel selbst.
+  hideGlimpse();
   sfx.select();
 }
 
-document.querySelectorAll('.menu-plaque[data-sheet]').forEach((btn) => {
+document.querySelectorAll('.menu-plaque[data-sheet], .tf-chip[data-sheet]').forEach((btn) => {
   btn.addEventListener('click', () => oeffneTafel(btn.dataset.sheet));
 });
 const sheetClose = document.getElementById('sheetClose');
@@ -2854,7 +2912,15 @@ window.addEventListener('keydown', (e) => {
 // wenn tatsächlich ein Feldzug wartet.
 zeigeMerktafel();
 zeigeFortsetzenKachel();
+startGlimpseCycle();
 focusStartButton();
+
+const titleGlimpse = document.getElementById('titleGlimpse');
+if (titleGlimpse) {
+  titleGlimpse.addEventListener('click', () => {
+    oeffneTafel('chronik', glimpseIndex);
+  });
+}
 
 // Die Version steht im Startbildschirm - eine Wahrheit aus data.js, damit sie
 // nicht zwischen Auslieferung und Anzeige auseinanderläuft.
