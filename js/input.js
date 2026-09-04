@@ -4,7 +4,7 @@ import { moveArmy, previewTileCombat, moveWarning, besiegeCity } from './actions
 import {
   pickTile, groundPointAt, panCameraByWorld, panCameraRelative, panCameraByScreen,
   zoomCamera, rotateCamera,
-  animateArmyPath, playBattleClash, isAnimating,
+  animateArmyPath, playBattleClash, isAnimating, flyCameraTo,
 } from './scene3d.js';
 import { sfx, startMarch, stopMarch } from './audio.js';
 
@@ -12,6 +12,11 @@ const PAN_KEYS = {
   ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
   w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0],
 };
+
+// Wie nah die Kamera an einen Angriff heranzieht, und wie lange der Schwenk
+// dorthin dauert, bevor der Zusammenprall selbst einsetzt.
+const BATTLE_ZOOM = 3.2;
+const BATTLE_PAN_DURATION = 0.6;
 
 function selectArmy(state, army) {
   state.selectedArmyId = army.id;
@@ -263,10 +268,15 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
       // ist; sagt es ab, geht es wie bisher weiter.
       const schlacht = reports[reports.length - 1];
       if (onWatchBattle && onWatchBattle(schlacht, settle)) return;
-      sfx.clash();
-      // Ob auf See gefochten wurde, sagt der Bericht selbst.
-      const zurSee = reports.some((r) => r.naval);
-      playBattleClash(col, row, settle, { naval: zurSee });
+      // Der Blick zieht erst zur Stelle, dann setzt der Zusammenprall ein -
+      // ein Angriff wird auf der großen Karte ausgetragen, nicht irgendwo
+      // außerhalb des Bildausschnitts.
+      flyCameraTo(col, row, BATTLE_ZOOM, BATTLE_PAN_DURATION, () => {
+        sfx.clash();
+        // Ob auf See gefochten wurde, sagt der Bericht selbst.
+        const zurSee = reports.some((r) => r.naval);
+        playBattleClash(col, row, settle, { naval: zurSee });
+      });
     });
     onChange();
   }

@@ -1293,6 +1293,22 @@ kbd {
   to { transform: translateX(1900px); }
 }
 
+/* Die Wolken ziehen - sehr langsam hin und her statt einmal quer durchs Bild
+   und dann sprunghaft zurück an den Anfang: bei einer Wolke, die groß genug
+   ist, um kaum je ganz aus dem Bild zu wandern, fiele ein harter Rücksprung
+   sofort auf. Jede Wolke bekommt ihre eigene Dauer und Verzögerung inline,
+   sonst zöge der ganze Himmel im Gleichtakt. */
+.tscn-cloud {
+  animation-name: tscnCloudDrift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+@keyframes tscnCloudDrift {
+  from { transform: translateX(0); }
+  to { transform: translateX(120px); }
+}
+
 /* Der Schleier: links dunkel, damit die Schrift steht; unten dunkel für die
    Leiste; oben ein Hauch, damit der Titel nicht im hellen Himmel schwimmt. */
 .title-vignette {

@@ -37,7 +37,7 @@ import {
 } from './diplomacy.js';
 import { rulerFor, TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
-  initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera, propsDebug, hideTent,
+  initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera, cameraState, propsDebug, hideTent,
   cityDebug,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
@@ -2968,6 +2968,7 @@ window.__mapFrame = captureFrame;
 // dorthin zu ziehen.
 window.__centerOn = centerOn;
 window.__zoomCamera = zoomCamera;
+window.__cameraState = cameraState;
 window.__propsDebug = propsDebug;
 window.__cityDebug = cityDebug;
 // Und der Spielstand selbst: ein Prüflauf soll eine Armee auswählen können,

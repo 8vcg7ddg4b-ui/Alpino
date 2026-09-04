@@ -364,8 +364,11 @@ schwingt leicht im Wind, während Stange und Kranz starr bleiben, das
 **Glitzern auf dem Wasser** blinkt Punkt für Punkt mit eigener Verzögerung
 statt im Gleichtakt, die **Kriegsschiffe im Hafen** wiegen sich vor Anker, und
 weit draußen jenseits des Hafens zieht ein **Segler** in neunzig Sekunden
-einmal über die ganze Bucht. Alles reines CSS (`.tscn-flame`, `.tscn-cloth`,
-`.tscn-sparkle`, `.tscn-ship`, `.tscn-underway` in `css/style.css`). Sie laufen
+einmal über die ganze Bucht, und die **Wolken am Himmel** ziehen langsam hin
+und her, jede mit eigener Dauer und Verzögerung, damit der ganze Himmel nicht
+im Gleichtakt wandert. Alles reines CSS (`.tscn-flame`, `.tscn-cloth`,
+`.tscn-sparkle`, `.tscn-ship`, `.tscn-underway`, `.tscn-cloud` in
+`css/style.css`). Sie laufen
 absichtlich unabhängig davon, ob das Betriebssystem reduzierte Bewegung
 verlangt - keine der Bewegungen ist groß oder schnell genug, um dafür ein
 Grund zu sein, und ein Titelbild, das deshalb ganz stillsteht, wirkt wie eines,
@@ -530,6 +533,10 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   die Vorschau abgeschaltet hat, bekommt die Frage allein in einem kleinen
   Fenster. In den Einstellungen lässt sich das festlegen: **jedes Mal fragen**
   (Vorgabe), **immer zusehen** oder **nie**.
+  Wer stattdessen **„⚔️ Angreifen"** wählt, sieht den Kampf auf der großen
+  Karte: die Kamera zieht in einem weichen Schwenk zum Kampffeld heran und
+  bleibt näher dran, ehe der Zusammenprall einsetzt – der Blick springt nicht
+  hin, er zieht dorthin.
   Wer zusieht, bekommt ein eigenes Fenster mit einer eigenen 3D-Ansicht: der
   Boden in der Farbe des Geländes, auf dem wirklich gefochten wird, links die
   Angreifer in ihrer Fraktionsfarbe, rechts die Verteidiger, dazwischen bei

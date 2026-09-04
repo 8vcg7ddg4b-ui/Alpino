@@ -352,6 +352,36 @@ export function zoomCamera(factor) {
   applyCamera();
 }
 
+export function cameraState() {
+  return { col: cam.col, row: cam.row, zoom: cam.zoom };
+}
+
+// Der Blick springt nicht zur Schlacht, er zieht dorthin: ein weicher Schwenk
+// über `duration` Sekunden, danach `onComplete` - so setzt der Zusammenprall
+// erst ein, wenn die Kamera wirklich angekommen ist, statt mitten im Schwenk.
+// `zoom` ist das Ziel selbst, kein Vielfaches wie bei `zoomCamera`.
+export function flyCameraTo(col, row, zoom, duration = 0.6, onComplete) {
+  const startCol = cam.col;
+  const startRow = cam.row;
+  const startZoom = cam.zoom;
+  const zielZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+  effects.push({
+    elapsed: 0,
+    duration,
+    onComplete,
+    update(t) {
+      // Schnell los, weich am Ziel - kein hartes Anschlagen des Schwenks.
+      const eased = 1 - (1 - Math.min(1, t)) ** 3;
+      cam.col = startCol + (col - startCol) * eased;
+      cam.row = startRow + (row - startRow) * eased;
+      cam.zoom = startZoom + (zielZoom - startZoom) * eased;
+      applyCamera();
+    },
+    dispose() {},
+  });
+  startAnimationLoop();
+}
+
 // Baumarten je Klimazone: dieselben vier Bänder wie beim Wetter (weather.js) -
 // im Norden Fichten, in der Mitte Laubbäume, am Mittelmeer Zypressen, im
 // Wüstengürtel Palmen. Jede Art hat ihre eigene Stamm- und Kronengeometrie,

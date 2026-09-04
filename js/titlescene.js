@@ -119,40 +119,54 @@ function pharos(x, baseY, h, color, feuer) {
 }
 
 // Ein kleiner Lorbeerkranz, offen nach oben, wie ihn die Legionsadler unter
-// der Inschrift trugen: zwei gespiegelte Zweige aus schmalen Blättern, die
-// sich unten in einem Knoten treffen. `spanne` ist der Bogen in Grad, den
-// jeder Zweig von unten aus überstreicht - bei 150° bleibt oben eine Lücke,
-// in der die Stange stehen kann, ohne den Kranz zu zerschneiden.
+// der Inschrift trugen: zwei gespiegelte Zweige, die sich unten in einem
+// Knoten treffen. `spanne` ist der Bogen in Grad, den jeder Zweig von unten
+// aus überstreicht - bei 150° bleibt oben eine Lücke, in der die Stange
+// stehen kann, ohne den Kranz zu zerschneiden.
+// Vorher waren die Blätter dünne, weit auseinanderstehende Splitter ohne
+// eigenen Zweig darunter - aus der Nähe ein Kranz, auf Bildgröße ein Kranz
+// aus Punkten, kaum von Funkeln zu unterscheiden. Jetzt trägt jede Seite
+// einen sichtbaren, geschwungenen Zweig, an dem größere, sich leicht
+// überlappende Blätter sitzen.
 function laurelSprig(cx, cy, rx, ry, color, spanne = 150) {
-  const blaetter = 5;
+  const blaetter = 7;
   const bogen = (spanne * Math.PI) / 180;
   let zweige = '';
   for (const seite of [-1, 1]) {
+    const zweigPunkte = [];
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20;
+      const winkel = Math.PI / 2 - t * bogen;
+      zweigPunkte.push(`${(cx + seite * rx * Math.cos(winkel)).toFixed(1)}`
+        + ` ${(cy - ry * Math.sin(winkel)).toFixed(1)}`);
+    }
+    zweige += `<path d="M ${zweigPunkte.join(' L ')}" fill="none" stroke="${color}"
+      stroke-width="2.6" stroke-linecap="round" opacity="0.85"/>`;
     for (let i = 1; i <= blaetter; i++) {
-      const t = i / (blaetter + 1);
+      const t = i / (blaetter + 0.5);
       // 0 = unten (Knoten), 1 = Ende des Zweigs oben außen.
       const winkel = Math.PI / 2 - t * bogen;
       const px = cx + seite * rx * Math.cos(winkel);
       const py = cy - ry * Math.sin(winkel);
       // Das Blatt steht quer zum Zweig, leicht nach oben zur Spitze hin.
-      const tangente = winkel + seite * 0.3;
+      const tangente = winkel + seite * 0.55;
       const lx = Math.cos(tangente) * seite;
       const ly = -Math.sin(tangente);
-      const laenge = 12 + (1 - t) * 5;
+      const laenge = 21 + (1 - t) * 6;
       const x1 = px - (lx * laenge) / 2;
       const y1 = py - (ly * laenge) / 2;
       const x2 = px + (lx * laenge) / 2;
       const y2 = py + (ly * laenge) / 2;
-      const nx = -ly * 3.6;
-      const ny = lx * 3.6;
+      const nx = -ly * 6.2;
+      const ny = lx * 6.2;
       zweige += `<path d="M ${x1.toFixed(1)} ${y1.toFixed(1)}
         Q ${(px + nx).toFixed(1)} ${(py + ny).toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}
         Q ${(px - nx).toFixed(1)} ${(py - ny).toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)} Z"
         fill="${color}"/>`;
     }
   }
-  return `<g opacity="0.92">
-    <circle cx="${cx}" cy="${(cy + ry).toFixed(1)}" r="5" fill="${color}"/>
+  return `<g opacity="0.95">
+    <circle cx="${cx}" cy="${(cy + ry).toFixed(1)}" r="5.5" fill="${color}"/>
     ${zweige}
   </g>`;
 }
@@ -315,12 +329,25 @@ export function titleSceneSVG() {
     ${sun(1210, 214, 40, '#fff6dc', 0.22)}
 
     <!-- Wolken: hoch und hell, tiefer und schwerer. Sie sind hell, nicht
-         grau - sonst zieht ein Gewitter auf, wo Sommer sein soll. -->
-    ${cloud(340, 128, 1.0, '#ffffff', 0.5)}
-    ${cloud(1080, 96, 1.2, '#ffffff', 0.55)}
-    ${cloud(720, 202, 0.8, '#f4f8fa', 0.38)}
-    ${cloud(1500, 232, 0.9, '#eef4f7', 0.32)}
-    ${cloud(120, 262, 0.7, '#e8f0f4', 0.26)}
+         grau - sonst zieht ein Gewitter auf, wo Sommer sein soll. Jede zieht
+         mit eigenem Tempo und eigener Verzögerung (CSS-Klasse tscn-cloud) -
+         sonst wehte der ganze Himmel im Gleichtakt, als hinge er an einer
+         Stange. -->
+    <g class="tscn-cloud" style="animation-duration:130s; animation-delay:-8s">
+      ${cloud(340, 128, 1.0, '#ffffff', 0.5)}
+    </g>
+    <g class="tscn-cloud" style="animation-duration:158s; animation-delay:-64s">
+      ${cloud(1080, 96, 1.2, '#ffffff', 0.55)}
+    </g>
+    <g class="tscn-cloud" style="animation-duration:104s; animation-delay:-30s">
+      ${cloud(720, 202, 0.8, '#f4f8fa', 0.38)}
+    </g>
+    <g class="tscn-cloud" style="animation-duration:172s; animation-delay:-90s">
+      ${cloud(1500, 232, 0.9, '#eef4f7', 0.32)}
+    </g>
+    <g class="tscn-cloud" style="animation-duration:118s; animation-delay:-52s">
+      ${cloud(120, 262, 0.7, '#e8f0f4', 0.26)}
+    </g>
 
     <!-- Die Berge hinter der Bucht: drei Staffeln statt zwei, wie schon in
          der Chronik - eine dritte, nahe und dunklere Reihe gibt der Kette
