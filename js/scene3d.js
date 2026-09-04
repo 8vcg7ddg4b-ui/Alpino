@@ -1699,8 +1699,10 @@ export function armyDebug(armyId) {
   if (!entry) return null;
   const { group } = entry;
   const garrison = group.userData.garrison;
+  const column = group.userData.column;
   return {
     pos: group.position.toArray(),
+    rotationY: group.rotation.y,
     tentsVisible: group.userData.tents ? group.userData.tents.visible : null,
     tentsScale: group.userData.tents ? group.userData.tents.scale.toArray() : null,
     hasGarrison: !!garrison,
@@ -1711,6 +1713,14 @@ export function armyDebug(armyId) {
       rolle: mann.userData.rolle,
       teile: Object.fromEntries(Object.entries(mann.userData.teile)
         .map(([k, mesh]) => [k, mesh.visible])),
+    })) : null,
+    hasColumn: !!column,
+    columnVisible: column ? column.visible : null,
+    columnScale: column ? column.scale.toArray() : null,
+    columnMarschierer: column ? column.userData.marschierer.map((mann) => ({
+      visible: mann.visible,
+      pos: mann.position.toArray(),
+      rolle: mann.userData.rolle,
     })) : null,
   };
 }
@@ -6117,7 +6127,11 @@ function syncArmyGroup(state, army, entry) {
   // Pferd. Ohne sie verschwand die Wache bisher im Zeltring, kaum von den
   // Zelten selbst zu unterscheiden.
   if (group.userData.garrison) group.userData.garrison.scale.setScalar(scale * 1.45);
-  if (group.userData.column) group.userData.column.scale.setScalar(scale * 1.45);
+  // Die Kolonne bekommt noch etwas mehr: sie hat keine Zelte, in denen sie
+  // untergehen könnte, dafür aber die ganze Karte als Hintergrund - und ein
+  // Heer, das gerade über offenes Land zieht, soll man auch aus der
+  // strategischen Kameraposition als das erkennen, was es ist.
+  if (group.userData.column) group.userData.column.scale.setScalar(scale * 1.6);
   if (group.userData.camp) group.userData.camp.scale.setScalar(scale);
   if (ship) ship.scale.setScalar(0.8 + (scale - 0.68) * 0.55);
   if (group.userData.pole) {
@@ -6969,9 +6983,26 @@ function waypointVector(tile) {
   return new THREE.Vector3(worldX(tile.col), surfaceY(tile.col, tile.row), worldZ(tile.row));
 }
 
-function faceHeading(group, dx, dz) {
+// Wendet eine Kolonne allmählich statt schlagartig dem neuen Kurs zu. Ein
+// Weg über die Karte knickt an jedem Feld; würde die Gruppe an jedem Knick
+// hart auf den neuen Winkel springen, drehte sich ein Heer auf der Stelle
+// wie ein Zeiger - eine Kolonne schwenkt stattdessen, mit einer Wendegeschwindigkeit,
+// die für jede Wegbiegung reicht, ohne bei einer Kehrtwende zu übertreiben.
+const COLUMN_TURN_RATE = Math.PI * 2.4;
+
+function faceHeading(anim, dx, dz, dt) {
   if (Math.abs(dx) < 1e-5 && Math.abs(dz) < 1e-5) return;
-  group.rotation.y = Math.atan2(dx, dz);
+  const ziel = Math.atan2(dx, dz);
+  if (anim.heading === null) {
+    anim.heading = ziel;
+  } else {
+    let delta = ziel - anim.heading;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+    const max = COLUMN_TURN_RATE * dt;
+    anim.heading += Math.max(-max, Math.min(max, delta));
+  }
+  anim.group.rotation.y = anim.heading;
 }
 
 function setMarchBob(group, height, elapsed = 0) {
@@ -6987,26 +7018,48 @@ function setMarchBob(group, height, elapsed = 0) {
   }
 }
 
+// Wie weit vor dem Start und vor dem Ziel gebremst bzw. angefahren wird - als
+// Anteil der Gesamtstrecke, aber nie mehr als eine knappe Feldlänge, sonst
+// kröche ein Marsch über zehn Felder ewig lang an, ehe er Fahrt aufnimmt.
+const MARCH_RAMP_SHARE = 0.4;
+const MARCH_RAMP_MAX = TILE_SIZE * 0.8;
+// Unter diesem Tempo bliebe ein Heer am Wegrand fast stehen - ein Mindestmaß
+// an Fahrt bleibt immer, das Anfahren bremst, es hält nicht an.
+const MARCH_RAMP_FLOOR = 0.25;
+
 function advanceAnimations(dt) {
   for (const [armyId, anim] of armyAnimations) {
     anim.elapsed += dt;
-    let budget = MARCH_TILES_PER_SECOND * marchSpeedFactor * TILE_SIZE * dt;
 
-    while (budget > 0 && anim.segment < anim.points.length - 1) {
-      const from = anim.points[anim.segment];
-      const to = anim.points[anim.segment + 1];
-      const length = from.distanceTo(to);
+    // Sanftes An- und Abfahren statt eines Tempos, das aus dem Stand
+    // schlagartig einsetzt und ebenso schlagartig endet - eine Kolonne
+    // beschleunigt und bremst aus, ein Zeiger auf Schienen nicht.
+    let tempo = 1;
+    const rampe = Math.min(anim.totalLength * MARCH_RAMP_SHARE, MARCH_RAMP_MAX);
+    if (rampe > 1e-4) {
+      const anfahrt = Math.min(1, anim.traveled / rampe);
+      const bremsweg = Math.min(1, (anim.totalLength - anim.traveled) / rampe);
+      tempo = MARCH_RAMP_FLOOR + (1 - MARCH_RAMP_FLOOR) * Math.min(anfahrt, bremsweg);
+    }
+
+    let budget = MARCH_TILES_PER_SECOND * marchSpeedFactor * TILE_SIZE * dt * tempo;
+
+    while (budget > 1e-6 && anim.segment < anim.points.length - 1) {
+      const length = anim.segLengths[anim.segment];
       if (length < 1e-4) {
         anim.segment++;
         anim.progress = 0;
         continue;
       }
-      anim.progress += budget / length;
-      if (anim.progress >= 1) {
-        budget = (anim.progress - 1) * length;
+      const rest = (1 - anim.progress) * length;
+      if (budget >= rest) {
+        budget -= rest;
+        anim.traveled += rest;
         anim.segment++;
         anim.progress = 0;
       } else {
+        anim.progress += budget / length;
+        anim.traveled += budget;
         budget = 0;
       }
     }
@@ -7023,8 +7076,10 @@ function advanceAnimations(dt) {
       const from = anim.points[anim.segment];
       const to = anim.points[anim.segment + 1];
       anim.group.position.lerpVectors(from, to, anim.progress);
-      faceHeading(anim.group, to.x - from.x, to.z - from.z);
-      setMarchBob(anim.group, Math.abs(Math.sin(anim.elapsed * 11)) * 0.28, anim.elapsed);
+      faceHeading(anim, to.x - from.x, to.z - from.z, dt);
+      // Der Schritt federt mit dem Tempo mit - im Anfahren und Ausbremsen
+      // trippelt die Kolonne nicht mit vollem Schwung weiter.
+      setMarchBob(anim.group, Math.abs(Math.sin(anim.elapsed * 11)) * 0.28 * (0.5 + 0.5 * tempo), anim.elapsed);
     }
   }
   return armyAnimations.size > 0;
@@ -7435,12 +7490,27 @@ export function animateArmyPath(armyId, tiles, onComplete) {
     if (onComplete) onComplete();
     return;
   }
+  const points = [entry.group.position.clone(), ...tiles.map(waypointVector)];
+  // Jede Teilstrecke wird einmal vermessen, nicht jedes Bild neu - bei einem
+  // langen Zug über mehrere Felder und mehreren Heeren gleichzeitig auf
+  // Marsch spart das die immer gleiche Wurzelrechnung aus dem Bewegungstakt.
+  const segLengths = [];
+  let totalLength = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const laenge = points[i].distanceTo(points[i + 1]);
+    segLengths.push(laenge);
+    totalLength += laenge;
+  }
   armyAnimations.set(armyId, {
     group: entry.group,
-    points: [entry.group.position.clone(), ...tiles.map(waypointVector)],
+    points,
+    segLengths,
+    totalLength,
+    traveled: 0,
     segment: 0,
     progress: 0,
     elapsed: 0,
+    heading: null,
     onComplete,
   });
   startAnimationLoop();

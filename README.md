@@ -1422,9 +1422,17 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   jede vorhandene bekommt mindestens einen, sonst verschwänden dreißig Reiter
   neben achthundert Mann Fußvolk. Und sie marschieren in der Ordnung, die in
   jedem Handbuch steht: **die Reiterei voraus, dahinter das Fußvolk, die
-  Schützen zuletzt.** Damit man das sieht, steht die Kolonne anderthalbmal so
-  groß da wie das Lager – an einem Zelt ist nichts zu erkennen, an einer
-  Gestalt schon.
+  Schützen zuletzt.** Damit man das sieht, steht die Kolonne größer da als das
+  Lager – an einem Zelt ist nichts zu erkennen, an einer Gestalt schon, und die
+  Kolonne hat obendrein keine Zelte mehr, in denen sie unterginge.
+  **Der Marsch selbst läuft jetzt wie ein Zug, nicht wie ein Zeiger auf
+  Schienen.** Er setzt sich sacht in Bewegung und bremst vor dem Ziel ebenso
+  sacht aus, statt mit einem Schlag auf volles Tempo zu springen und ebenso
+  abrupt stehenzubleiben; der Tritt federt mit diesem Tempo mit, sodass die
+  Kolonne beim Anfahren noch nicht mit vollem Schwung trippelt. Und sie
+  schwenkt: wo der Weg über der Karte abknickt, dreht sich die Kolonne nicht
+  mehr schlagartig auf den neuen Kurs, sondern wendet sich ihm mit einer
+  eigenen Geschwindigkeit zu, wie eine Truppe, die um eine Ecke biegt.
 - **Belagerungsgerät**: Eine Steinmauer verdoppelt die Kraft dessen, der
   dahintersteht. Dagegen half bisher nur, mehr Männer davorzustellen – und
   genau so wurden Belagerungen gewonnen: mit Masse. So war es nicht. Wer eine
