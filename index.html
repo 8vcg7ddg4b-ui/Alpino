@@ -69,18 +69,55 @@
   </script>
 
   <!-- Der Vorspann: das Studio-Logo als kurzer Film, ehe der Startbildschirm
-       dahinter zum Vorschein kommt. Die Ausblendung läuft rein über CSS (siehe
-       style.css) - unabhängig davon, ob main.js überhaupt lädt, damit ein
-       Skriptfehler nie hinter einem für immer stehenbleibenden Vorspann
-       verschwindet. Stumm und ohne Bedienelemente, da der Film selbst keinen
-       Ton trägt - die Titelmusik läuft ohnehin schon eigenständig an, sobald
-       main.js bereit ist (siehe beginMenuMusic in main.js). -->
-  <div id="splashScreen" aria-hidden="true">
-    <video autoplay muted playsinline>
+       dahinter zum Vorschein kommt. Stumm, da der Film selbst keinen Ton
+       trägt - die Titelmusik läuft ohnehin schon eigenständig an, sobald
+       main.js bereit ist (siehe beginMenuMusic in main.js). Die Ausblendung
+       läuft über CSS als Grundsicherung (siehe style.css) UND über das
+       eigene, von main.js unabhängige Skript darunter, das auf das Ende des
+       Films, einen Klick, "Überspringen" oder eine Taste reagiert - wie im
+       Vorspann von Black Univers. Beides steht für sich: scheitert main.js,
+       blendet die CSS-Animation trotzdem nach ein paar Sekunden aus. -->
+  <div id="splashScreen">
+    <video id="splashVideo" autoplay muted playsinline aria-hidden="true">
       <source src="video/studio-logo.webm" type="video/webm" />
       <source src="video/studio-logo.mp4" type="video/mp4" />
     </video>
+    <button id="splashSkip" class="splash-skip" type="button">Vorspann überspringen ›</button>
   </div>
+
+  <script>
+    // Eigenständig wie das Fehlerskript oben: der Vorspann muss überspringbar
+    // sein, auch wenn main.js aus irgendeinem Grund nie ausgeführt wird.
+    (function () {
+      var splash = document.getElementById('splashScreen');
+      if (!splash) return;
+      var video = document.getElementById('splashVideo');
+      var skip = document.getElementById('splashSkip');
+      var done = false;
+      function finish() {
+        if (done) return;
+        done = true;
+        splash.classList.add('splash-leaving');
+        window.removeEventListener('keydown', onKey);
+        setTimeout(function () { splash.remove(); }, 500);
+      }
+      function onKey(ev) {
+        if (ev.key === 'Escape' || ev.key === ' ' || ev.key === 'Enter') finish();
+      }
+      if (skip) {
+        skip.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          finish();
+        });
+      }
+      splash.addEventListener('click', finish);
+      window.addEventListener('keydown', onKey);
+      if (video) {
+        video.addEventListener('ended', finish);
+        video.addEventListener('error', finish);
+      }
+    })();
+  </script>
 
   <!-- Das Startbild als Triptychon: links die Chronik, in der Mitte Titel und
        Menü auf einer Marmortafel, rechts die Merktafel mit dem letzten Feldzug

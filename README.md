@@ -202,6 +202,16 @@ nicht passieren, falls `main.js` aus irgendeinem Grund nie lädt: die
 Fehlertafel `#bootError` liegt eine Ebene darüber und bleibt so in jedem Fall
 sichtbar.
 
+**Überspringen lässt er sich immer** – wie der Vorspann in Black Univers: ein
+Knopf unten rechts, ein Klick auf den Vorspann selbst, oder Esc/Leertaste/
+Enter beenden ihn sofort, statt die volle Länge abzuwarten. Das dafür nötige
+Skript steht direkt in `index.html`, ein eigenes, kleines Stück – nicht in
+`main.js` – aus demselben Grund wie die CSS-Animation: es muss auch dann noch
+laufen, wenn das Spielskript selbst nie startet. Endet der Film von selbst
+(Ereignis `ended`) oder schlägt er fehl (`error`), greift dieselbe Funktion.
+Die CSS-Animation bleibt daneben bestehen – fällt dieses Skript aus, blendet
+sich der Vorspann trotzdem nach ein paar Sekunden von selbst aus.
+
 In der Leiste unten steht die **Spielversion**; sie kommt aus `GAME_VERSION`
 in `js/data.js` und wird mit `package.json` gleichgehalten, damit Anzeige und
 Auslieferung nicht auseinanderlaufen.

@@ -733,12 +733,16 @@ html, body {
 .boot-hint { color: var(--muted); font-size: 0.82rem; }
 
 /* --- Das Studio-Logo -------------------------------------------------------
-   Ein kurzer Vorspann vor dem eigentlichen Startbildschirm - läuft rein über
-   CSS, ohne auf main.js zu warten: scheitert das Spielskript, blendet sich
-   der Vorspann trotzdem von selbst wieder aus, und die Fehlermeldung
+   Ein kurzer Vorspann vor dem eigentlichen Startbildschirm, überspringbar wie
+   der Vorspann von Black Univers: ein Klopf auf den Knopf, eine Taste
+   (Esc/Leertaste/Enter) oder ein Klick irgendwo auf den Vorspann beenden ihn
+   sofort (Skript in index.html, unabhängig von main.js). Die
+   Keyframe-Animation hier ist die Grundsicherung, falls dieses Skript aus
+   irgendeinem Grund nie läuft - scheitert es, blendet sich der Vorspann
+   trotzdem nach ein paar Sekunden von selbst aus, und die Fehlermeldung
    (#bootError, höherer Rang) bleibt sichtbar. Bewusst nicht hinter
    "reduzierte Bewegung" versteckt - ohne die Ausblendung bliebe der Vorspann
-   für immer vor dem Spiel stehen. Die Zeitspanne (5,875s Film + kurze
+   sonst für immer vor dem Spiel stehen. Die Zeitspanne (5,875s Film + kurze
    Überblendung) ist auf die Länge von video/studio-logo.mp4 abgestimmt. */
 #splashScreen {
   position: fixed;
@@ -748,6 +752,7 @@ html, body {
   align-items: center;
   justify-content: center;
   background: #000;
+  cursor: pointer;
   animation: splashWeg 0.5s ease 5.9s forwards;
 }
 #splashScreen video {
@@ -755,10 +760,40 @@ html, body {
   height: 100%;
   object-fit: contain;
   display: block;
+  pointer-events: none;
 }
 @keyframes splashWeg {
   from { opacity: 1; visibility: visible; }
   to { opacity: 0; visibility: hidden; pointer-events: none; }
+}
+/* Das Skript setzt diese Klasse, sobald der Vorspann vorzeitig endet - sofort
+   statt erst nach Ablauf der Animation oben. */
+#splashScreen.splash-leaving {
+  animation: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+.splash-skip {
+  position: absolute;
+  right: clamp(16px, 4vw, 40px);
+  bottom: clamp(16px, 4vh, 40px);
+  z-index: 1;
+  padding: 8px 16px;
+  font-family: 'Trajan Pro', Georgia, 'Times New Roman', serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: var(--muted, #a99a80);
+  background: rgba(20, 15, 10, 0.55);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.splash-skip:hover, .splash-skip:focus-visible {
+  color: var(--gold, #d4af37);
+  border-color: var(--gold, #d4af37);
+  outline: none;
 }
 
 /* Collapsing the sidebar is the fallback when real fullscreen is refused by
