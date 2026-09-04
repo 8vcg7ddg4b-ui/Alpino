@@ -1678,6 +1678,43 @@ export function cityDebug() {
   }));
 }
 
+// Das Zeltlager während einer Schlacht: die Truppen stehen jetzt in der
+// Schlachtreihe, nicht mehr am Lagerfeuer, also verschwinden Zelte und Wache
+// dafür. Das Verstecken wirkt sofort; das Zeigen setzt nur die Sperre zurück
+// und überlässt den nächsten `syncEntities`-Durchlauf (nach dem
+// Zusammenprall ohnehin fällig) der eigentlichen Entscheidung - der weiß, ob
+// das Heer inzwischen eingeschifft ist oder wieder marschiert.
+export function setArmyCampHidden(armyId, hidden) {
+  const entry = armyGroups.get(armyId);
+  if (!entry) return;
+  entry.group.userData.hiddenForBattle = hidden;
+  if (hidden) {
+    if (entry.group.userData.tents) entry.group.userData.tents.visible = false;
+    if (entry.group.userData.garrison) entry.group.userData.garrison.visible = false;
+  }
+}
+
+export function armyDebug(armyId) {
+  const entry = armyGroups.get(armyId);
+  if (!entry) return null;
+  const { group } = entry;
+  const garrison = group.userData.garrison;
+  return {
+    pos: group.position.toArray(),
+    tentsVisible: group.userData.tents ? group.userData.tents.visible : null,
+    tentsScale: group.userData.tents ? group.userData.tents.scale.toArray() : null,
+    hasGarrison: !!garrison,
+    garrisonVisible: garrison ? garrison.visible : null,
+    garrisonScale: garrison ? garrison.scale.toArray() : null,
+    garrisonWachen: garrison ? garrison.userData.wachen.map((mann) => ({
+      pos: mann.position.toArray(),
+      rolle: mann.userData.rolle,
+      teile: Object.fromEntries(Object.entries(mann.userData.teile)
+        .map(([k, mesh]) => [k, mesh.visible])),
+    })) : null,
+  };
+}
+
 // Builds a single smooth, vertex-colored heightmap mesh for the whole map
 // (one vertex per tile centre, so slopes blend naturally between tiles),
 // a translucent sea surface, decorative props, and roads between cities.
@@ -3374,8 +3411,12 @@ function buildRivers(state) {
     mesh.frustumCulled = false;
     riversGroup.add(mesh);
   };
+  // Durchscheinend wie die See selbst (`waterMesh`, Deckkraft 0.82) - sonst
+  // liegt an der Mündung ein blickdichter Flusslappen auf dem durchsichtigen
+  // Meer, als Kante zu sehen, statt ineinander überzugehen.
   bandMesh(positions, new THREE.MeshStandardMaterial({
     color: '#3f7fb8', roughness: 0.35, side: THREE.DoubleSide,
+    transparent: true, opacity: 0.82,
   }));
 
   for (const bridge of bridges) buildBridge(riversGroup, bridge);
@@ -5884,7 +5925,7 @@ function columnLength(strength) {
 // statt im Marsch. Immer zwei, gleich groß oder klein das Heer dahinter ist -
 // eine Wache zählt nicht mit, sie zeigt nur, dass dort eine ist.
 const GARRISON_MAX = 2;
-const GARRISON_RADIUS = 1.55;
+const GARRISON_RADIUS = 1.9;
 
 function buildGarrison(color) {
   const group = new THREE.Group();
@@ -6015,7 +6056,7 @@ function syncArmyGroup(state, army, entry) {
     });
   }
 
-  group.userData.tents.visible = !afloat && !marschiert;
+  group.userData.tents.visible = !afloat && !marschiert && !group.userData.hiddenForBattle;
   if (group.userData.pole) group.userData.pole.visible = !afloat;
   group.userData.flag.visible = !afloat;
 
@@ -6071,9 +6112,11 @@ function syncArmyGroup(state, army, entry) {
 
   // Das ganze Lager - Zelte, Stange, Banner, Schiff - wächst mit der Stärke.
   tents.scale.setScalar(scale);
-  if (group.userData.garrison) group.userData.garrison.scale.setScalar(scale);
-  // Die Kolonne steht größer da als das Lager: an einem Zelt ist nichts zu
-  // erkennen, an einer Gestalt schon - Schild, Bogen oder Pferd.
+  // Dieselbe Vergrößerung wie bei der Kolonne, aus demselben Grund: an einem
+  // Zelt ist nichts zu erkennen, an einer Gestalt schon - Schild, Bogen oder
+  // Pferd. Ohne sie verschwand die Wache bisher im Zeltring, kaum von den
+  // Zelten selbst zu unterscheiden.
+  if (group.userData.garrison) group.userData.garrison.scale.setScalar(scale * 1.45);
   if (group.userData.column) group.userData.column.scale.setScalar(scale * 1.45);
   if (group.userData.camp) group.userData.camp.scale.setScalar(scale);
   if (ship) ship.scale.setScalar(0.8 + (scale - 0.68) * 0.55);
@@ -6990,8 +7033,14 @@ function advanceAnimations(dt) {
 function advanceEffects(dt) {
   for (let i = effects.length - 1; i >= 0; i--) {
     const effect = effects[i];
-    effect.elapsed += dt;
-    effect.update(effect.elapsed / effect.duration, dt);
+    // Ein paar Effekte lassen sich beschleunigen (der Zusammenprall, wer
+    // nicht warten will) - `speed` skaliert dann sowohl die verstrichene
+    // Zeit als auch das, was `update` an eigener Physik daraus macht, sonst
+    // sprängen Funken und Staub nur zum Ziel, statt schneller hinzufliegen.
+    const speed = effect.speed || 1;
+    const schritt = dt * speed;
+    effect.elapsed += schritt;
+    effect.update(effect.elapsed / effect.duration, schritt);
     if (effect.elapsed >= effect.duration) {
       effect.dispose();
       completionQueue.push(effect.onComplete);
@@ -7111,6 +7160,14 @@ export function skipBattleClash() {
   if (!activeClash) return;
   for (const effect of activeClash) effect.elapsed = effect.duration;
   activeClash = null;
+}
+
+// Der Mittelweg zwischen abwarten und ganz überspringen: der Zusammenprall
+// läuft weiter, nur schneller - wer zusehen will, sieht noch etwas, wer es
+// eilig hat, muss nicht die volle Länge abwarten.
+export function setBattleSpeed(factor) {
+  if (!activeClash) return;
+  for (const effect of activeClash) effect.speed = factor;
 }
 
 // A clash where the armies actually meet: two shockwave rings race outward

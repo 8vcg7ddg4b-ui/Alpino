@@ -5,6 +5,7 @@ import {
   pickTile, groundPointAt, panCameraByWorld, panCameraRelative, panCameraByScreen,
   zoomCamera, rotateCamera,
   animateArmyPath, playBattleClash, isAnimating, flyCameraTo, cameraState,
+  setArmyCampHidden,
 } from './scene3d.js';
 import { sfx, startMarch, stopMarch } from './audio.js';
 
@@ -242,6 +243,10 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
     const entry = computeReachable(state, marching).get(tileKey(col, row));
     if (!entry) return;
     const origin = { col: marching.col, row: marching.row };
+    // Wer da verteidigt, muss vor dem Kampf festgehalten werden - `moveArmy`
+    // entscheidet ihn sofort, und ein geschlagenes Heer steht danach nicht
+    // mehr hier oder gar nicht mehr auf der Karte.
+    const verteidigerId = armyAt(state, col, row)?.id;
 
     if (onBeforeAction) onBeforeAction();
     // Drop the range overlay before the march so the army isn't walking
@@ -281,6 +286,12 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
       // zugewandt werden - der vorletzte Wegpunkt vor dem Ziel, oder der
       // Ausgangspunkt selbst, wenn es nur ein Feld weit ging.
       const anmarsch = entry.path.length > 1 ? entry.path[entry.path.length - 2] : origin;
+      // Beide Lager leeren sich für die Schlacht: die Truppen stehen jetzt in
+      // der Schlachtreihe, nicht mehr am Lagerfeuer. Ein verteidigendes Heer
+      // gibt es nur, wo eines auf dem Feld stand - eine reine Ortsverteidigung
+      // hat kein eigenes Lager, das zu leeren wäre.
+      setArmyCampHidden(armyId, true);
+      if (verteidigerId) setArmyCampHidden(verteidigerId, true);
       if (onBattleHud) onBattleHud({ report: schlacht, angreiferFraktion, verteidigerFraktion });
       const startPolar = cameraState().polar;
       // Der Blick zieht erst zur Stelle, dann setzt der Zusammenprall ein -
@@ -291,6 +302,8 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
         // Ob auf See gefochten wurde, sagt der Bericht selbst.
         const zurSee = reports.some((r) => r.naval);
         playBattleClash(col, row, () => {
+          setArmyCampHidden(armyId, false);
+          if (verteidigerId) setArmyCampHidden(verteidigerId, false);
           // Erst die Neigung zurück zur gewohnten Warte, dann erst der
           // Bericht - sonst öffnete er sich noch mitten im Rückschwenk.
           const jetzt = cameraState();

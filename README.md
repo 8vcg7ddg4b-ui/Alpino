@@ -373,7 +373,7 @@ Chronik - zwei Reihen sahen neben der reicheren Kette dort schmal aus.
 
 Mehrere kleine Bewegungen halten es zusätzlich am Leben, jede für sich
 unauffällig: das **Feuer im Leuchtturm** flackert, das **Tuch am Feldzeichen**
-schwingt leicht im Wind, während Stange und Kranz starr bleiben, das
+schwingt leicht im Wind, während die Stange starr bleibt, das
 **Glitzern auf dem Wasser** blinkt Punkt für Punkt mit eigener Verzögerung
 statt im Gleichtakt, die **Kriegsschiffe im Hafen** wiegen sich vor Anker, und
 weit draußen jenseits des Hafens zieht ein **Segler** in neunzig Sekunden
@@ -555,8 +555,11 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   im Marschzug und im Wachkreis vor dem Lager (Fußvolk mit Schild und Speer,
   Reiterei mit Lanze, Schützen mit Bogen), nur zu einer Front aufgestellt statt
   zu einer Marschordnung, in der Farbe ihrer Fraktion und im Verhältnis ihrer
-  Gattungen zueinander, wie es der Bericht für diese Schlacht ausweist. Sie
-  rücken ein kurzes Stück aufeinander zu, ehe der **Zusammenprall** einsetzt:
+  Gattungen zueinander, wie es der Bericht für diese Schlacht ausweist. **Die
+  Lager selbst leeren sich dafür** – Zelte und Wache verschwinden auf beiden
+  Seiten, solange die Schlachtreihen stehen, denn die Truppen sind jetzt dort,
+  nicht mehr am Lagerfeuer. Sie rücken ein kurzes Stück aufeinander zu, ehe der
+  **Zusammenprall** einsetzt:
   über drei Sekunden laufen zwei Stoßwellen kurz hintereinander über den
   Boden, dazu ein erster Lichtblitz und ein zweiter, leiserer Nachhall,
   Funken, die hochschlagen und ausglühen, **Staub, der aufsteigt und über dem
@@ -567,8 +570,11 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   **Ein schmales Band über der Karte** nennt, solange der Zusammenprall
   läuft, beide Seiten mit Wappenfarbe, Namen und der Zahl der eingesetzten
   Mann, dazu den Anlass (der Name des belagerten Orts, oder ein Schwert für
-  ein offenes Feld) – und einen Knopf **„⏭ Überspringen"** für jeden, der die
-  Länge nicht abwarten will. Direkt danach kehrt die Kamera zu der Neigung
+  ein offenes Feld) – dazu zwei Knöpfe für zwei verschiedene Arten von Eile:
+  **„⏩ Beschleunigen"** rafft denselben Ablauf auf etwa ein Drittel seiner
+  Länge, ohne ihn zu verschlucken – wer zusehen will, sieht noch etwas –, und
+  **„⏭ Überspringen"** beendet ihn auf der Stelle, für wen auch das nicht
+  schnell genug ist. Direkt danach kehrt die Kamera zu der Neigung
   zurück, die vor dem Angriff galt, und der **Schlachtbericht** nennt, was die
   Schlacht wirklich gekostet hat.
 - **Vier Schiffsarten, bis zu drei je Fraktion**: die **Quinquereme** mit Turm

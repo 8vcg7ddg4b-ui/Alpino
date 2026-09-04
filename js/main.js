@@ -38,8 +38,8 @@ import { rulerFor, TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera, cameraState, propsDebug, hideTent,
   cityDebug,
-  isAnimating, effectsDebug, rotateCamera, resetCameraOrientation, panCameraRelative,
-  skipBattleClash,
+  isAnimating, effectsDebug, armyDebug, rotateCamera, resetCameraOrientation, panCameraRelative,
+  skipBattleClash, setBattleSpeed,
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
   setBordersVisible, areBordersVisible,
   setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled, captureFrame,
@@ -1617,6 +1617,11 @@ function hideBattleHud() {
   if (battleHudEl) battleHudEl.classList.add('hidden');
 }
 
+// Wie sehr "beschleunigt" den Zusammenprall rafft - schnell genug, dass die
+// Länge nicht mehr stört, aber nicht so schnell, dass von den Schlachtreihen
+// selbst nichts mehr zu sehen bliebe.
+const BATTLE_FAST_FACTOR = 3.2;
+
 function showBattleHud({ report, angreiferFraktion, verteidigerFraktion }) {
   if (!battleHudEl) return;
   const summe = (units) => Object.values(units || {}).reduce((s, n) => s + (n || 0), 0);
@@ -1630,11 +1635,23 @@ function showBattleHud({ report, angreiferFraktion, verteidigerFraktion }) {
     ${seite(angreiferFraktion, report.attackerEngaged)}
     <span class="battle-hud-vs">${report.cityName ? `bei ${escapeText(report.cityName)}` : '⚔'}</span>
     ${seite(verteidigerFraktion, report.defenderEngaged)}
+    <button id="battleHudFast" class="battle-hud-skip" type="button">⏩ Beschleunigen</button>
     <button id="battleHudSkip" class="battle-hud-skip" type="button">⏭ Überspringen</button>
   `;
   battleHudEl.classList.remove('hidden');
   const skip = document.getElementById('battleHudSkip');
   if (skip) skip.addEventListener('click', () => skipBattleClash());
+  // Jede Schlacht beginnt wieder in normaler Geschwindigkeit - der Knopf
+  // schaltet nur für diesen einen Zusammenprall um, kein Dauerzustand.
+  let schnell = false;
+  const fast = document.getElementById('battleHudFast');
+  if (fast) {
+    fast.addEventListener('click', () => {
+      schnell = !schnell;
+      setBattleSpeed(schnell ? BATTLE_FAST_FACTOR : 1);
+      fast.textContent = schnell ? '▶ Normal' : '⏩ Beschleunigen';
+    });
+  }
 }
 
 function onBattleHud(info) {
@@ -2810,6 +2827,7 @@ window.__zoomCamera = zoomCamera;
 window.__cameraState = cameraState;
 window.__propsDebug = propsDebug;
 window.__cityDebug = cityDebug;
+window.__armyDebug = armyDebug;
 // Und der Spielstand selbst: ein Prüflauf soll eine Armee auswählen können,
 // ohne die richtige Stelle auf dem Bildschirm zu treffen.
 window.__spqrState = () => state;
