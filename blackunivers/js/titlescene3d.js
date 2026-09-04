@@ -7,7 +7,7 @@
 // Fällt WebGL aus, bleibt die gezeichnete Tafel: `main.js` legt sie darunter
 // und blendet sie nur weg, wenn diese Szene wirklich läuft.
 import { shipModel, SHIP_LENGTH } from './ships3d.js';
-import { factionProfile } from './data.js';
+import { factionProfile, RIVAL_OF } from './data.js';
 
 let renderer, scene, camera, canvas;
 let running = false;
@@ -15,11 +15,22 @@ let frame = null;
 let hero = null;
 let heroPivot = null;
 let flight = [];
+// Das Gefecht im Startbild: die eigene Rotte, der Gegner, Leuchtspuren,
+// Torpedos und das, was davon übrig bleibt.
+let friends = [];
+let foes = [];
+let tracers = [];
+let bursts = [];
+let torpedoes = [];
+let nextTracer = 0;
+let nextTorpedo = 2.5;
 let nebulaLayers = [];
 let planet = null;
 let rimLight = null;
 let keyLight = null;
 let currentFaction = null;
+let currentProfile = null;
+let rivalProfile = null;
 let clock = 0;
 const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
 
@@ -231,6 +242,7 @@ export function setTitleFaction(factionId) {
   if (!scene || currentFaction === factionId) return;
   currentFaction = factionId;
   const profile = factionProfile(factionId);
+  currentProfile = profile;
 
   while (heroPivot.children.length) heroPivot.remove(heroPivot.children[0]);
   flight = [];
@@ -253,6 +265,47 @@ export function setTitleFaction(factionId) {
     f.userData.height = [3.4, 5.2, 1.6][i];
     heroPivot.add(f);
     flight.push(f);
+  }
+
+  // --- Das Gefecht ---------------------------------------------------------
+  // Um den Träger herum wird gekämpft: die eigene Rotte gegen die Jäger der
+  // Gegenseite. Beide fliegen Bahnen, keine Kreise auf der Stelle.
+  const rivalId = RIVAL_OF[factionId] || (factionId === 'kilrathi' ? 'confed' : 'kilrathi');
+  const rival = factionProfile(rivalId);
+  rivalProfile = rival;
+  friends = [];
+  foes = [];
+  tracers = [];
+  torpedoes = [];
+  bursts = [];
+  const wingScale = 2.4 / SHIP_LENGTH.jaeger;
+  for (let i = 0; i < 4; i++) {
+    const f = shipModel(profile.kind, i === 3 ? 'bomber' : 'jaeger', profile.color, profile.accent,
+      { scale: i === 3 ? 2.9 / SHIP_LENGTH.bomber : wingScale });
+    f.userData = {
+      centre: new THREE.Vector3(9 + i * 1.2, 4 + i * 1.8, 2 - i * 1.6),
+      radius: 4.5 + i * 1.1,
+      speed: 0.55 + i * 0.12,
+      phase: i * 1.7,
+      tilt: 0.3 + i * 0.15,
+      yaw: 0,
+      bomber: i === 3,
+    };
+    heroPivot.add(f);
+    friends.push(f);
+  }
+  for (let i = 0; i < 4; i++) {
+    const f = shipModel(rival.kind, 'jaeger', rival.color, rival.accent, { scale: wingScale });
+    f.userData = {
+      centre: new THREE.Vector3(11 + i * 1.4, 6 - i * 1.4, -1 + i * 1.8),
+      radius: 5.5 + i * 0.9,
+      speed: -0.62 - i * 0.1,
+      phase: 2.4 + i * 1.3,
+      tilt: -0.25 - i * 0.12,
+      yaw: 0,
+    };
+    heroPivot.add(f);
+    foes.push(f);
   }
 
   const globe = planet.getObjectByName('globe');
@@ -312,6 +365,125 @@ function loop() {
       9 + f.userData.lane - t * 0.9);
     f.rotation.set(0.06, Math.PI / 2 - 0.3, Math.sin(clock * 0.8 + f.userData.offset) * 0.24);
     f.visible = t > -1 && t < 11;
+  }
+
+  // Die Jäger fliegen ihre Bahnen um den Träger - Nase in Flugrichtung, in
+  // die Kurve gelegt.
+  const _p = new THREE.Vector3();
+  const flyWing = (list) => {
+    for (const f of list) {
+      const d = f.userData;
+      _p.copy(f.position);
+      const a = clock * d.speed * 2.2 + d.phase;
+      f.position.set(
+        d.centre.x + Math.cos(a) * d.radius,
+        d.centre.y + Math.sin(a * 1.4 + d.phase) * 2.2,
+        d.centre.z + Math.sin(a) * d.radius * 0.8,
+      );
+      const dx = f.position.x - _p.x;
+      const dz = f.position.z - _p.z;
+      if (dx * dx + dz * dz > 1e-6) {
+        const want = Math.atan2(dx, dz);
+        let delta = want - d.yaw;
+        while (delta > Math.PI) delta -= Math.PI * 2;
+        while (delta < -Math.PI) delta += Math.PI * 2;
+        d.yaw += delta * 0.2;
+        f.rotation.y = d.yaw;
+        f.rotation.z = Math.max(-0.7, Math.min(0.7, -delta * 12));
+      }
+    }
+  };
+  flyWing(friends);
+  flyWing(foes);
+
+  // Leuchtspuren: alle paar Zehntel eine Salve zwischen zwei Maschinen.
+  if (clock > nextTracer && friends.length && foes.length) {
+    nextTracer = clock + 0.12 + Math.random() * 0.25;
+    const shooterIsFriend = Math.random() < 0.5;
+    const from = (shooterIsFriend ? friends : foes)[Math.floor(Math.random() * 4) % (shooterIsFriend ? friends.length : foes.length)];
+    const to = (shooterIsFriend ? foes : friends)[Math.floor(Math.random() * 4) % (shooterIsFriend ? foes.length : friends.length)];
+    if (from && to) {
+      const colour = shooterIsFriend ? currentProfile.accent : rivalProfile.accent;
+      const geo = new THREE.BufferGeometry().setFromPoints([from.position.clone(), to.position.clone()]);
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({
+        color: colour, transparent: true, opacity: 0.95,
+      }));
+      scene.add(line);
+      tracers.push({ line, until: clock + 0.16 });
+    }
+  }
+  for (let i = tracers.length - 1; i >= 0; i--) {
+    if (clock < tracers[i].until) continue;
+    scene.remove(tracers[i].line);
+    tracers[i].line.geometry.dispose();
+    tracers[i].line.material.dispose();
+    tracers.splice(i, 1);
+  }
+
+  // Torpedos: der Bomber der eigenen Rotte stößt auf ein Ziel zu, das
+  // Geschoss zieht seine Spur und geht am Ende hoch.
+  if (clock > nextTorpedo && friends.length && foes.length) {
+    nextTorpedo = clock + 3.5 + Math.random() * 2.5;
+    const bomber = friends.find((f) => f.userData.bomber) || friends[0];
+    const target = foes[Math.floor(Math.random() * foes.length)];
+    if (bomber && target) {
+      const torp = new THREE.Group();
+      const head = new THREE.Mesh(
+        new THREE.ConeGeometry(0.16, 0.8, 6),
+        new THREE.MeshBasicMaterial({ color: 0xfff2d6 }),
+      );
+      head.rotation.x = Math.PI / 2;
+      const glow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.34, 8, 6),
+        new THREE.MeshBasicMaterial({ color: currentProfile.accent, transparent: true, opacity: 0.6 }),
+      );
+      const trail = new THREE.Mesh(
+        new THREE.ConeGeometry(0.2, 2.6, 6, 1, true),
+        new THREE.MeshBasicMaterial({ color: currentProfile.accent, transparent: true, opacity: 0.35 }),
+      );
+      trail.rotation.x = -Math.PI / 2;
+      trail.position.z = -1.6;
+      torp.add(head, glow, trail);
+      torp.position.copy(bomber.position);
+      heroPivot.add(torp);
+      torpedoes.push({
+        mesh: torp,
+        from: bomber.position.clone(),
+        target,
+        born: clock,
+        life: 1.6,
+      });
+    }
+  }
+  for (let i = torpedoes.length - 1; i >= 0; i--) {
+    const t = torpedoes[i];
+    const k = Math.min(1, (clock - t.born) / t.life);
+    t.mesh.position.lerpVectors(t.from, t.target.position, k);
+    t.mesh.lookAt(t.target.position);
+    if (k >= 1) {
+      // Einschlag: ein Ball aus Licht, der aufgeht und vergeht.
+      const burst = new THREE.Mesh(
+        new THREE.SphereGeometry(0.6, 10, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffd7a0, transparent: true, opacity: 0.95 }),
+      );
+      burst.position.copy(t.target.position);
+      heroPivot.add(burst);
+      bursts.push({ mesh: burst, born: clock });
+      heroPivot.remove(t.mesh);
+      torpedoes.splice(i, 1);
+    }
+  }
+  for (let i = bursts.length - 1; i >= 0; i--) {
+    const b = bursts[i];
+    const k = (clock - b.born) / 0.7;
+    b.mesh.scale.setScalar(1 + k * 5);
+    b.mesh.material.opacity = Math.max(0, 0.95 - k);
+    if (k >= 1) {
+      heroPivot.remove(b.mesh);
+      b.mesh.geometry.dispose();
+      b.mesh.material.dispose();
+      bursts.splice(i, 1);
+    }
   }
 
   for (const layer of nebulaLayers) {

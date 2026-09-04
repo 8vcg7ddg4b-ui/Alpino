@@ -2,7 +2,9 @@
 // Es gibt keinen zweiten Bildschirm: gekämpft wird dort, wo die Flotten
 // stehen. Der Bericht aus `combat.js` ist die Partitur - jede Runde wird
 // geflogen: Anflug, Laserfäden, Torpedos gegen den Schild, Wracks.
-import { sceneHandles, worldOfTile, TILE_SIZE, flashTile, glideTo, zoomTo, cameraState } from './scene3d.js';
+import {
+  sceneHandles, worldOfTile, TILE_SIZE, flashTile, glideTo, zoomTo, cameraState, setCamera,
+} from './scene3d.js';
 import { factionProfile, ROLE_SHORT } from './data.js';
 import { shipModel, SHIP_LENGTH } from './ships3d.js';
 import { sfx } from './audio.js';
@@ -87,6 +89,95 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Wie ein Schiff im Gefecht fliegt: schwere Kiele halten die Linie und
+// drehen kaum, Jäger kreisen eng und schnell.
+const FLIGHT_STYLE = {
+  jaeger: { radius: 4.2, speed: 1.35 },
+  bomber: { radius: 3.4, speed: 0.9 },
+  korvette: { radius: 2.6, speed: 0.62 },
+  kreuzer: { radius: 1.8, speed: 0.42 },
+  traeger: { radius: 1.1, speed: 0.26 },
+  marines: { radius: 3.0, speed: 0.8 },
+  wache: { radius: 2.4, speed: 0.7 },
+};
+
+function setupFlight(ship, role, heading) {
+  const style = FLIGHT_STYLE[role] || FLIGHT_STYLE.jaeger;
+  ship.userData.role = role;
+  ship.userData.phase = Math.random() * Math.PI * 2;
+  ship.userData.radius = style.radius * (0.8 + Math.random() * 0.4);
+  ship.userData.speed = style.speed * (0.85 + Math.random() * 0.3);
+  ship.userData.yaw = heading;
+  ship.userData.runUntil = 0;
+  ship.rotation.y = heading;
+}
+
+// Ein Anflug: das Schiff zieht in einer Welle auf den Gegner zu und wieder
+// zurück auf seinen Platz.
+function attackRun(ship, target, clock, span = 2.6) {
+  ship.userData.runFrom = clock.t;
+  ship.userData.runUntil = clock.t + span;
+  ship.userData.runTarget = target.position.clone();
+}
+
+// --- Torpedos -------------------------------------------------------------
+// Bomber schießen nicht, sie stoßen zu: ein Torpedo braucht seine Zeit,
+// zieht eine Spur und geht am Ende hoch. Das ist der Grund, warum Bomber
+// mitfliegen - und warum Jäger sie abfangen sollen.
+const torpedoes = [];
+
+function launchTorpedo(group, from, to, colour, onHit) {
+  const body = new THREE.Mesh(
+    new THREE.ConeGeometry(0.16, 0.9, 6),
+    new THREE.MeshBasicMaterial({ color: 0xfff0d0 }),
+  );
+  body.rotation.x = Math.PI / 2;
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.42, 8, 6),
+    new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.55 }),
+  );
+  const trail = new THREE.Mesh(
+    new THREE.ConeGeometry(0.22, 3.2, 6, 1, true),
+    new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.3 }),
+  );
+  trail.rotation.x = -Math.PI / 2;
+  trail.position.z = -1.9;
+  const torp = new THREE.Group();
+  torp.add(body, glow, trail);
+  torp.position.copy(from);
+  torp.lookAt(to);
+  group.add(torp);
+
+  const start = performance.now();
+  const dur = 900 + from.distanceTo(to) * 18;
+  const target = to.clone();
+  const entry = {
+    mesh: torp,
+    step() {
+      const t = Math.min(1, (performance.now() - start) / dur);
+      torp.position.lerpVectors(from, target, t);
+      // Ein Torpedo läuft nicht schnurgerade: er zieht leicht nach.
+      torp.position.y += Math.sin(t * Math.PI) * 1.2;
+      torp.lookAt(target);
+      if (t >= 1) {
+        entry.done = true;
+        group.remove(torp);
+        if (onHit) onHit(target);
+      }
+    },
+    done: false,
+  };
+  torpedoes.push(entry);
+  return entry;
+}
+
+function stepTorpedoes() {
+  for (let i = torpedoes.length - 1; i >= 0; i--) {
+    torpedoes[i].step();
+    if (torpedoes[i].done) torpedoes.splice(i, 1);
+  }
+}
+
 // --- Die Vorstellung -----------------------------------------------------
 // `report` ist der fertige Bericht; hier wird er nur noch gezeigt. Das Spiel
 // wartet darauf, aber es hängt nicht davon ab: wer abbricht, bekommt sofort
@@ -107,9 +198,12 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
 
   // Der Blick geht auf das Feld, auf dem gekämpft wird - und geht heran:
   // ein Gefecht sieht man sich aus der Nähe an.
-  const zoomBefore = cameraState().zoom;
+  // Die Kamera geht nah heran und flacher: ein Gefecht sieht man von der
+  // Seite, nicht von oben auf eine Landkarte.
+  const camBefore = cameraState();
   await glideTo(report.col, report.row, 380 / speed);
-  await zoomTo(Math.max(zoomBefore, 2.8), 420 / speed);
+  setCamera({ polar: 1.02 });
+  await zoomTo(4.0, 520 / speed);
 
   // Die beiden Seiten stellen sich gegenüber auf: Angreifer kommt von
   // Westen, Verteidiger hält die Stellung.
@@ -129,7 +223,7 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
       origin.z + Math.sin(angle) * TILE_SIZE * 1.5,
     );
     f.position.copy(f.userData.home);
-    f.userData.phase = Math.random() * Math.PI * 2;
+    setupFlight(f, attackerRoles[i], Math.PI / 2);
     g.add(f);
     attackers.push(f);
   }
@@ -143,7 +237,7 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
       origin.z + Math.sin(angle) * TILE_SIZE * 1.5,
     );
     f.position.copy(f.userData.home);
-    f.userData.phase = Math.random() * Math.PI * 2;
+    setupFlight(f, defenderRoles[i], -Math.PI / 2);
     g.add(f);
     defenders.push(f);
   }
@@ -162,35 +256,83 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
 
   const clock = { t: 0 };
   let live = true;
+
+  // Jedes Schiff fliegt seine eigene Bahn: eine langsame Ellipse um seinen
+  // Platz im Verband, dazu ein Anflug, wenn es an der Reihe ist. Die Nase
+  // zeigt immer dorthin, wo es hinfliegt - kein Zappeln, kein Rückwärtsflug.
+  const _prev = new THREE.Vector3();
+  const _next = new THREE.Vector3();
+  function station(ship, t) {
+    const d = ship.userData;
+    const a = t * d.speed + d.phase;
+    return _next.set(
+      d.home.x + Math.cos(a) * d.radius * 0.8,
+      d.home.y + Math.sin(a * 0.7 + d.phase) * 1.6,
+      d.home.z + Math.sin(a) * d.radius,
+    );
+  }
+  function flyShip(ship, t) {
+    const d = ship.userData;
+    _prev.copy(ship.position);
+    station(ship, t);
+    // Läuft ein Anflug, wird die Bahn zum Gegner hin verschoben und wieder
+    // zurück - eine Welle, kein Sprung.
+    if (d.runUntil && t < d.runUntil) {
+      const span = d.runUntil - d.runFrom;
+      const k = Math.sin(((t - d.runFrom) / span) * Math.PI);
+      _next.x += (d.runTarget.x - d.home.x) * k * 0.72;
+      _next.y += (d.runTarget.y - d.home.y) * k * 0.72;
+      _next.z += (d.runTarget.z - d.home.z) * k * 0.72;
+    }
+    ship.position.copy(_next);
+    // Kurs aus der tatsächlichen Bewegung: so fliegt kein Schiff seitwärts.
+    const dx = ship.position.x - _prev.x;
+    const dz = ship.position.z - _prev.z;
+    if (dx * dx + dz * dz > 1e-6) {
+      const want = Math.atan2(dx, dz);
+      let delta = want - d.yaw;
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+      d.yaw += delta * 0.14;
+      ship.rotation.y = d.yaw;
+      ship.rotation.z = Math.max(-0.55, Math.min(0.55, -delta * 14));
+    }
+  }
+
   const swirl = () => {
     if (!live) return;
-    clock.t += 0.05 * speed;
-    for (const f of attackers) {
-      f.position.x = f.userData.home.x + Math.sin(clock.t + f.userData.phase) * 2.4;
-      f.position.z = f.userData.home.z + Math.cos(clock.t * 0.8 + f.userData.phase) * 2.2;
-      f.position.y = f.userData.home.y + Math.sin(clock.t * 1.3 + f.userData.phase) * 0.6;
-      // Rollen um die eigene Achse: das Modell blickt nach vorn, also liegt
-      // die Rolle auf X.
-      f.rotation.x = Math.sin(clock.t + f.userData.phase) * 0.45;
-      f.rotation.y = Math.PI / 2 + Math.sin(clock.t * 0.6 + f.userData.phase) * 0.35;
-    }
-    for (const f of defenders) {
-      f.position.x = f.userData.home.x + Math.cos(clock.t * 0.9 + f.userData.phase) * 2.2;
-      f.position.z = f.userData.home.z + Math.sin(clock.t + f.userData.phase) * 2.4;
-      f.position.y = f.userData.home.y + Math.cos(clock.t * 1.1 + f.userData.phase) * 0.6;
-      f.rotation.x = Math.cos(clock.t + f.userData.phase) * 0.45;
-      f.rotation.y = -Math.PI / 2 + Math.cos(clock.t * 0.7 + f.userData.phase) * 0.35;
-    }
+    // Deutlich langsamer als vorher: die Verbände fliegen, sie flirren nicht.
+    clock.t += 0.016 * speed;
+    for (const f of attackers) flyShip(f, clock.t);
+    for (const f of defenders) flyShip(f, clock.t);
+    stepTorpedoes();
     if (render) render();
     requestAnimationFrame(swirl);
   };
   requestAnimationFrame(swirl);
 
-  // Runde für Runde: Salven, Treffer, Verluste.
+  // Runde für Runde: Anflüge, Salven, Torpedos, Verluste.
   for (const round of report.rounds) {
     if (cancelled) break;
     if (onRound) onRound(round);
-    const shots = 6;
+
+    // Wer greift in dieser Runde an? Zwei bis drei Maschinen je Seite ziehen
+    // einen Anflug; der Rest hält die Linie.
+    const runners = [];
+    for (const [side, foes] of [[attackers, defenders], [defenders, attackers]]) {
+      const many = Math.min(3, Math.max(1, Math.round(side.length / 3)));
+      for (let i = 0; i < many; i++) {
+        const ship = side[Math.floor(Math.random() * side.length)];
+        const foe = foes[Math.floor(Math.random() * foes.length)];
+        if (!ship || !foe || runners.includes(ship)) continue;
+        attackRun(ship, foe, clock, 2.4 + Math.random());
+        runners.push(ship);
+      }
+    }
+
+    // Die Salven: ruhiger getaktet als früher, dafür trifft man mit dem Auge
+    // mit, wer auf wen schießt.
+    const shots = 5;
     for (let s = 0; s < shots; s++) {
       if (cancelled) break;
       const a = attackers[Math.floor(Math.random() * attackers.length)];
@@ -200,12 +342,37 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
         const back = makeLaser(d.position, a.position, defenderColour);
         g.add(laser, back);
         sfx.laser();
-        setTimeout(() => { g.remove(laser); g.remove(back); }, 120 / speed);
+        setTimeout(() => { g.remove(laser); g.remove(back); }, 150 / speed);
       }
-      await wait(70 / speed);
+      await wait(150 / speed);
     }
 
-    // Torpedos gegen den Schild - sie sind der Grund, warum Bomber mitfliegen.
+    // Die Torpedos: jeder Bomber im Verband stößt einmal zu - gegen den
+    // Schild, wenn eine Welt dahintersteht, sonst gegen den schwersten Kiel
+    // auf der anderen Seite.
+    for (const [side, foes, colour, profile] of [
+      [attackers, defenders, attackerColour, attackerProfile],
+      [defenders, attackers, defenderColour, defenderProfile],
+    ]) {
+      const bombers = side.filter((sh) => sh.userData.role === 'bomber');
+      for (const bomber of bombers.slice(0, 2)) {
+        if (cancelled) break;
+        const aim = shieldMesh && side === attackers
+          ? shieldMesh
+          : foes.slice().sort((x, y) => (FLIGHT_STYLE[y.userData.role].radius < FLIGHT_STYLE[x.userData.role].radius ? 1 : -1))[0];
+        if (!aim) continue;
+        sfx.torpedo();
+        launchTorpedo(g, bomber.position.clone(), aim.position.clone(), colour, (at) => {
+          const burst = makeBurst(at, 0xffd08a, 2.4);
+          g.add(burst);
+          sfx.treffer();
+          setTimeout(() => g.remove(burst), 420 / speed);
+        });
+        await wait(220 / speed);
+      }
+    }
+
+    // Der Schild unter Beschuss.
     if (shieldMesh) {
       const remaining = Math.max(0, 1 - (round.shieldDown || 0) / 100);
       shieldMesh.material.opacity = 0.06 + remaining * 0.26;
@@ -213,7 +380,7 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
         sfx.schild();
         const hit = makeBurst(shieldMesh.position, 0x9fe4ff, 3.2);
         g.add(hit);
-        setTimeout(() => g.remove(hit), 260 / speed);
+        setTimeout(() => g.remove(hit), 320 / speed);
       }
       if (remaining <= 0.01) {
         shieldMesh.visible = false;
@@ -227,7 +394,7 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
     const lossD = sumLosses(round.lossesDefender);
     await removeSome(g, attackers, lossA / Math.max(1, sumUnits(report.attacker.units) + lossA), speed);
     await removeSome(g, defenders, lossD / Math.max(1, sumUnits(report.defender.units) + lossD), speed);
-    await wait(200 / speed);
+    await wait(320 / speed);
   }
 
   // Der Ausgang: der Verlierer zieht ab, der Sieger bleibt und dreht eine
@@ -246,7 +413,8 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
 
   live = false;
   clearGroup();
-  await zoomTo(zoomBefore, 380 / speed);
+  setCamera({ polar: camBefore.polar });
+  await zoomTo(camBefore.zoom, 420 / speed);
   running = false;
   if (render) render();
 }
@@ -261,7 +429,7 @@ async function removeSome(g, list, share, speed) {
     g.remove(f);
     sfx.treffer();
     setTimeout(() => g.remove(burst), 300 / speed);
-    await wait(50 / speed);
+    await wait(90 / speed);
   }
 }
 

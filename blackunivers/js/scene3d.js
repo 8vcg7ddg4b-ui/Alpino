@@ -1720,21 +1720,31 @@ export function pickTile(clientX, clientY) {
   pointerVec.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointerVec, camera);
 
-  // Zuerst die Fangkörper an Welten und Verbänden: wer auf ein Schiff oder
-  // einen Planeten zeigt, meint dessen Feld - und nicht die Platte dahinter.
+  // Zwei Antworten kommen in Frage: das Feld, auf das der Strahl fällt, und
+  // das Feld eines Objekts, das im Weg steht. Steht auf dem Feld unter dem
+  // Zeiger selbst etwas - eine Welt, ein Verband -, dann ist es gemeint;
+  // sonst gilt das Objekt, auf das man zeigt.
   const hits = raycaster.intersectObjects(pickTargets, false);
+  let viaObject = null;
   for (const hit of hits) {
     const tile = hit.object.userData.tile;
     if (!tile) continue;
     if (hit.object.parent && hit.object.parent.visible === false) continue;
-    return { col: tile.col, row: tile.row };
+    viaObject = { col: tile.col, row: tile.row };
+    break;
   }
 
   const point = new THREE.Vector3();
-  if (!raycaster.ray.intersectPlane(mapPlane, point)) return null;
-  const { col, row } = tileOfWorld(point.x, point.z);
-  if (col < 0 || row < 0 || col >= GRID_COLS || row >= GRID_ROWS) return null;
-  return { col, row };
+  const onPlane = raycaster.ray.intersectPlane(mapPlane, point)
+    ? tileOfWorld(point.x, point.z) : null;
+  const valid = (t) => t && t.col >= 0 && t.row >= 0 && t.col < GRID_COLS && t.row < GRID_ROWS;
+  if (valid(onPlane) && stateRef) {
+    const busy = systemAt(stateRef, onPlane.col, onPlane.row)
+      || fleetsAt(stateRef, onPlane.col, onPlane.row).length;
+    if (busy) return onPlane;
+  }
+  if (viaObject) return viaObject;
+  return valid(onPlane) ? onPlane : null;
 }
 
 // Wo ein Feld auf dem Bildschirm liegt - für Beschriftungen im HUD.

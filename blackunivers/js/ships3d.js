@@ -83,6 +83,20 @@ function engine(mat, glowColour, radius, length, x, y, z, flame = 1) {
   return g;
 }
 
+// Ein Glutball hinter der Düse: er trägt weiter als das Rohr selbst und
+// macht aus einem Schiff im Dunkeln ein fliegendes Schiff.
+function engineGlow(colour, radius, x, y, z) {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 8, 6),
+    new THREE.MeshBasicMaterial({
+      color: colour, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending,
+    }),
+  );
+  mesh.position.set(x, y, z);
+  mesh.name = 'flamme';
+  return mesh;
+}
+
 // Positionslichter: rot backbord, grün steuerbord - auch im Weltraum.
 function runningLights(group, halfWidth, z) {
   const red = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), glowMaterial(0xff5a4a));
@@ -122,6 +136,19 @@ function terranFighter(colour, accent) {
   }
   g.add(engine(dark, accent, 0.17, 0.42, -0.24, -0.02, -0.95));
   g.add(engine(dark, accent, 0.17, 0.42, 0.24, -0.02, -0.95));
+  g.add(engineGlow(accent, 0.17, -0.24, -0.02, -1.24));
+  g.add(engineGlow(accent, 0.17, 0.24, -0.02, -1.24));
+  // Kanzelrahmen und ein Streifen über dem Rücken.
+  g.add(box(dark, 0.3, 0.05, 0.06, 0, 0.3, 0.5));
+  g.add(box(glowMaterial(accent, 0.6), 0.06, 0.02, 1.1, 0, 0.19, -0.1));
+  // Flügellichter.
+  const port = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), glowMaterial(0xff5a4a));
+  port.position.set(-1.3, 0.04, -0.1);
+  port.name = 'licht';
+  const stbd = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), glowMaterial(0x5affa0));
+  stbd.position.set(1.3, 0.04, -0.1);
+  stbd.name = 'licht';
+  g.add(port, stbd);
   return g;
 }
 
@@ -140,6 +167,11 @@ function terranBomber(colour, accent) {
     g.add(engine(dark, accent, 0.16, 0.4, side * 0.2, -0.02, -1.2, 0.8));
   }
   g.add(box(glowMaterial(0x9fd4ff, 0.5), 0.4, 0.22, 0.5, 0, 0.3, 0.7));
+  for (const side of [-1, 1]) {
+    g.add(engineGlow(accent, 0.2, side * 0.55, -0.02, -1.5));
+    g.add(engineGlow(accent, 0.2, side * 0.2, -0.02, -1.5));
+  }
+  runningLights(g, 1.24, -0.2);
   return g;
 }
 
@@ -183,6 +215,7 @@ function terranCruiser(colour, accent) {
     g.add(box(glowMaterial(accent, 0.5), 0.03, 0.08, 3.0, side * 0.59, 0.06, 0.2));
     g.add(engine(dark, accent, 0.24, 0.6, side * 0.3, 0.12, -2.6, 1.2));
     g.add(engine(dark, accent, 0.24, 0.6, side * 0.3, -0.28, -2.6, 1.2));
+    g.add(engineGlow(accent, 0.4, side * 0.3, -0.08, -3.1));
   }
   runningLights(g, 1.0, 2.4);
   return g;
@@ -214,6 +247,8 @@ function terranCarrier(colour, accent) {
     }
     g.add(engine(dark, accent, 0.3, 0.7, side * 0.45, -0.2, -3.9, 1.3));
     g.add(engine(dark, accent, 0.22, 0.6, side * 1.15, -0.2, -3.8, 1.0));
+    g.add(engineGlow(accent, 0.5, side * 0.45, -0.2, -4.5));
+    g.add(engineGlow(accent, 0.38, side * 1.15, -0.2, -4.35));
   }
   // Der Bug ist gekantet, nicht abgeschnitten: zwei Keile führen den Rumpf
   // zusammen.
@@ -299,6 +334,16 @@ function kilrathiFighter(colour, accent) {
     g.add(box(dark, 0.05, 0.05, 0.44, side * 1.46, 0.14, 0.72));
   }
   g.add(engine(dark, accent, 0.18, 0.4, 0, 0, -0.72));
+  g.add(engineGlow(accent, 0.2, 0, 0, -1.02));
+  // Kammstreifen über der Kanzel.
+  g.add(box(glowMaterial(accent, 0.55), 0.05, 0.02, 0.7, 0, 0.24, -0.1));
+  const port = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), glowMaterial(0xff5a4a));
+  port.position.set(-1.5, 0.14, 0.55);
+  port.name = 'licht';
+  const stbd = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), glowMaterial(0x5affa0));
+  stbd.position.set(1.5, 0.14, 0.55);
+  stbd.name = 'licht';
+  g.add(port, stbd);
   return g;
 }
 
@@ -315,6 +360,7 @@ function kilrathiBomber(colour, accent) {
     g.add(box(hull, 1.1, 0.1, 0.8, side * 0.8, -0.05, -0.1, [0, side * 0.3, side * 0.18]));
     g.add(box(dark, 0.16, 0.16, 0.9, side * 1.2, -0.14, 0.1));  // Torpedoklaue
     g.add(engine(dark, accent, 0.19, 0.45, side * 0.34, 0, -1.2, 0.9));
+    g.add(engineGlow(accent, 0.21, side * 0.34, 0, -1.55));
   }
   return g;
 }
@@ -374,6 +420,8 @@ function kilrathiCarrier(colour, accent) {
     }
     g.add(engine(dark, accent, 0.36, 0.8, side * 0.6, -0.1, -3.6, 1.3));
     g.add(engine(dark, accent, 0.24, 0.6, side * 1.5, -0.3, -3.4, 1.0));
+    g.add(engineGlow(accent, 0.56, side * 0.6, -0.1, -4.2));
+    g.add(engineGlow(accent, 0.4, side * 1.5, -0.3, -3.95));
   }
   // Rippen über dem Rückenkamm - der Klanträger trägt sein Skelett außen.
   for (let i = 0; i < 5; i++) {

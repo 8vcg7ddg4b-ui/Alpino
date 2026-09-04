@@ -28,6 +28,19 @@ zwei Sonnen, oder das eigene Flugdeck mit Landebahn und Positionslichtern.
 Bevor der erste Zug fällt, meldet sich der Erste Offizier:
 **„Ich grüße Sie an Bord. Die Karte liegt auf dem Tisch."**
 
+## Was im Gefecht zu sehen ist
+
+Die Kamera geht nah heran und flacher - ein Gefecht sieht man von der Seite,
+nicht von oben auf eine Landkarte. Die Verbände fliegen **langsam und
+geführt**: jedes Schiff hat seine Bahn um seinen Platz im Verband, schwere
+Kiele halten die Linie, Jäger kreisen eng, und wer an der Reihe ist, zieht
+einen **Anflug** auf den Gegner und wieder zurück. Die Nase zeigt dabei immer
+dorthin, wo das Schiff hinfliegt.
+
+Bomber schießen nicht, sie **stoßen zu**: Ein Torpedo braucht seine Zeit,
+zieht eine Spur und geht am Ziel hoch - gegen den Planetenschild, wenn eine
+Welt dahintersteht, sonst gegen den schwersten Kiel der Gegenseite.
+
 ## Der Vorspann
 
 Vor dem Startbild läuft ein kurzer Film (`video/vorspann.mp4`, dazu eine
@@ -38,8 +51,11 @@ steht man nicht vor einer schwarzen Wand - das Startbild kommt trotzdem.
 
 ## Das Startbild
 
-Es ist kein Bild, sondern eine laufende Szene: der **Träger der gewählten
-Flagge** treibt vor einer Nebelbank, eine **Rotte Jäger** zieht durch das Bild,
+Es ist kein Bild, sondern ein **Gefecht**: der **Träger der gewählten Flagge**
+treibt vor einer Nebelbank, darüber jagen die eigene Rotte und die Jäger des
+Erzfeindes einander - mit Leuchtspuren zwischen den Maschinen, Torpedos, die
+ihre Bahn ziehen, und Einschlägen, die aufgehen und vergehen. Eine **Rotte
+Jäger** zieht durch das Bild,
 darunter steht ein Planet mit Ring, und die Kamera folgt dem Mauszeiger ein
 Stück weit. Wer in der Auswahl eine andere Flagge anklickt, sieht sofort deren
 Schiff: der Bengal weicht dem Snakeir, das Blau dem Rot des Klans.
