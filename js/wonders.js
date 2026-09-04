@@ -31,9 +31,13 @@ const SNAP_RANGE = 2;
 // Auf welchem Grund ein Bauwerk steht, wenn es sich sein Feld mit einer Stadt
 // teilt. 'fels' ist ein Burgberg über den Dächern - beim Kapitol und bei der
 // Akropolis ist genau das der historische Ort. Alles andere steht neben dem
-// Ort auf ebenem Grund: die Pyramiden liegen auf der Wüstenterrasse westlich
-// des Nils, nicht auf einem Sockel mitten in Memphis.
+// Ort auf ebenem Grund.
 const AUF_FELS = new Set(['kapitol', 'akropolis']);
+
+// Welche Bauwerke nicht dort stehen, wo ihre Länge und Breite sie hinstellen
+// würde, sondern auf dem Feld ihres nächstgelegenen Orts: die Pyramiden
+// gehören sichtbar zu Memphis, nicht auf eine leere Wüstenterrasse daneben.
+const IN_STADT = new Set(['gizeh']);
 
 const WONDER_DEFS = [
   {
@@ -224,7 +228,7 @@ function freieEcke(map, col, row) {
 export function placeWonders(map, cities) {
   const placed = [];
   for (const def of WONDER_DEFS) {
-    const spot = snapToLand(map, colOfLon(def.lon), rowOfLat(def.lat));
+    let spot = snapToLand(map, colOfLon(def.lon), rowOfLat(def.lat));
     if (!spot) continue;
     let home = null;
     let bestDistance = Infinity;
@@ -234,6 +238,10 @@ export function placeWonders(map, cities) {
       bestDistance = distance;
       home = city;
     }
+    // Steht das Bauwerk in der Liste IN_STADT, zieht es auf das Feld seines
+    // Orts um - sichtbar zugehörig statt auf der Karte für sich allein.
+    // Ohne einen Ort in Reichweite bleibt es, wo Länge und Breite es hinlegen.
+    if (IN_STADT.has(def.id) && home) spot = { col: home.col, row: home.row };
     placed.push({
       id: def.id,
       name: def.name,

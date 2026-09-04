@@ -13,7 +13,7 @@ import {
   buyBuilding, canBuildBuilding, buildCamp, campStatus,
   layAmbush, ambushStatus, armyVisibleTo,
   besiegeCity, siegeStatus,
-  stoneTargets, upgradeRoad, buildSiegeEngine,
+  stoneTargets, upgradeRoad, gravelTargets, upgradeToGravel, buildSiegeEngine,
 } from './actions.js';
 import { borderViolation } from './territory.js';
 import {
@@ -428,9 +428,11 @@ function aiRoads(state, faction, savingForFleet) {
   if (savingForFleet) return false;
   const plan = roadPlan(state, faction);
   if (!plan) {
-    // Ist alles angeschlossen, wird ausgebaut: eine Steinstraße bringt ein
-    // Heer doppelt so schnell an die Grenze wie ein gefahrener Weg.
-    aiStoneRoads(state, faction);
+    // Ist alles angeschlossen, wird ausgebaut: erst Kies auf dem Karrenweg,
+    // dann - wo eine Verwaltung steht - das Pflaster obendrauf. Eine
+    // Steinstraße bringt ein Heer doppelt so schnell an die Grenze wie ein
+    // gefahrener Weg.
+    if (!aiGravelRoads(state, faction)) aiStoneRoads(state, faction);
     return false;
   }
   if (faction.gold >= plan.estimate + AI_ROAD_TREASURY) {
@@ -443,6 +445,23 @@ function aiRoads(state, faction, savingForFleet) {
 // Der Ausbau ist Luxus: er wird bezahlt, wenn ohnehin Gold da ist, und immer
 // nur eine Strecke auf einmal.
 const AI_STONE_TREASURY = 500;
+// Kies ist der billigere der beiden Ausbauten und braucht keine Verwaltung -
+// entsprechend niedriger die Schwelle, ab der die KI ihn sich leistet.
+const AI_GRAVEL_TREASURY = 250;
+
+function aiGravelRoads(state, faction) {
+  if ((state.roadProjects || []).some((p) => p.factionId === faction.id)) return false;
+  if (faction.gold < AI_GRAVEL_TREASURY) return false;
+  for (const city of state.cities) {
+    if (city.factionId !== faction.id) continue;
+    const ziele = gravelTargets(state, city);
+    if (!ziele.length) continue;
+    const ziel = ziele[0];
+    if (faction.gold < ziel.cost + AI_GRAVEL_TREASURY) continue;
+    return upgradeToGravel(state, city.id, ziel.cityId).ok;
+  }
+  return false;
+}
 
 function aiStoneRoads(state, faction) {
   if ((state.roadProjects || []).some((p) => p.factionId === faction.id)) return false;

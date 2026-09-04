@@ -8,7 +8,8 @@ import {
   shipTypesOf, shipTypeByKey,
   SHIP_COST, NAVAL_MOVEMENT, SEA_MOVE_COST, ZOC_EXTRA_COST, ROAD_MOVE_COST, RECRUIT_BATCH,
   recruitPopCost, RECRUIT_MIN_POPULATION,
-  STONE_ROAD_MOVE_COST, roadLevelOf, roadStepCost,
+  STONE_ROAD_MOVE_COST, GRAVEL_ROAD_MOVE_COST, ROAD_EARTH, ROAD_GRAVEL, ROAD_STONE,
+  roadLevelOf, roadStepCost, roadLevelName,
   CAMP_NAME, CAMP_COST, CAMP_DEFENCE,
   TRANSPORT_NAME, transportCount,
   tacticsFor, tacticByKey, tacticEffect,
@@ -45,7 +46,7 @@ import {
   engineSummary, movementAllowance,
   campStatus, campSiegeTarget, ambushStatus,
   recruitStatus, trainingStatus, trainingQueue,
-  buildingPrice, buildingRuined, wallRuined, stoneTargets,
+  buildingPrice, buildingRuined, wallRuined, stoneTargets, gravelTargets,
 } from './actions.js';
 import {
   calendarOfTurn, weatherAt, weatherInfo, zoneOf, zoneName, TURNS_PER_SEASON,
@@ -1139,13 +1140,35 @@ function stoneHTML(state, city, player) {
     </div>`;
 }
 
+// Der Ausbau zur Kiesstraße: kein Amt nötig, nur ein Karrenweg, der schon
+// liegt. Kein schnellerer Marsch, aber die Vorstufe zum Pflaster.
+function gravelHTML(state, city, player) {
+  const ziele = gravelTargets(state, city);
+  if (!ziele.length) return '';
+  return `
+    <p class="road-head">🪨 Ausbau zur Kiesstraße <span class="muted">· Vorstufe zur
+      Steinstraße, ohne schnelleren Marsch</span></p>
+    <div class="road-row">
+      ${ziele.map((t) => {
+    const tooPoor = player.gold < t.cost;
+    return `<button class="road-btn" data-gravel="${t.cityId}" ${tooPoor ? 'disabled' : ''}>
+          nach ${escapeHTML(t.name)}
+          <small>${t.cost} Gold · ${t.length} Felder · ${t.turns} Runden${
+  tooPoor ? ' · zu wenig Gold' : ''}</small>
+        </button>`;
+  }).join('')}
+    </div>`;
+}
+
 function roadHTML(state, city, isMine, player) {
   const project = roadProjectOf(state, city.id);
   if (project) {
     const done = project.turns - project.turnsLeft;
     const other = project.fromId === city.id ? project.toName : project.fromName;
-    const stein = (project.level || 1) >= 2;
-    return `<p class="wall-line wall-building">${stein ? '🧱 Steinstraße' : '🛣️ Straße'}
+    const stufe = project.level || ROAD_EARTH;
+    const label = stufe >= ROAD_STONE ? '🧱 Steinstraße'
+      : stufe >= ROAD_GRAVEL ? '🪨 Kiesstraße' : '🛣️ Straße';
+    return `<p class="wall-line wall-building">${label}
       nach ${escapeHTML(other)} im Bau –
       noch ${project.turnsLeft} ${project.turnsLeft === 1 ? 'Runde' : 'Runden'}
       <span class="wall-track"><span class="wall-fill" style="width:${(done / project.turns) * 100}%"></span></span>
@@ -1154,8 +1177,9 @@ function roadHTML(state, city, isMine, player) {
   if (!isMine || citySieged(state, city)) return '';
 
   const targets = roadTargets(state, city);
+  const kies = gravelTargets(state, city);
   const stein = stoneTargets(state, city);
-  if (!targets.length && !stein.length) {
+  if (!targets.length && !kies.length && !stein.length) {
     return `<p class="wall-line muted">🛣️ Alle nahen Orte sind an das Straßennetz
       angeschlossen${city.forum ? ' und ausgebaut' : ''}.</p>`;
   }
@@ -1173,6 +1197,7 @@ function roadHTML(state, city, isMine, player) {
         </button>`;
       }).join('')}
     </div>` : ''}
+    ${gravelHTML(state, city, player)}
     ${stoneHTML(state, city, player)}`;
 }
 
@@ -1265,10 +1290,11 @@ function terrainFactsHTML(state, col, row) {
     const gelaende = tileMoveCost(tile);
     const stride = stufe ? roadStepCost(stufe) : gelaende;
     const saved = stufe && gelaende > stride
-      ? ` (${stufe >= 2 ? 'Steinstraße' : 'Straße'} statt ${gelaende})` : '';
+      ? ` (${roadLevelName(stufe)} statt ${gelaende})` : '';
+    const iconStufe = stufe >= ROAD_STONE ? '🧱 ' : stufe >= ROAD_GRAVEL ? '🪨 ' : stufe ? '🛣️ ' : '';
     facts.push(['Bewegungskosten', tileImpassable(tile)
       ? 'unpassierbar'
-      : `${stufe >= 2 ? '🧱 ' : stufe ? '🛣️ ' : ''}${stride} `
+      : `${iconStufe}${stride} `
         + `${stride === 1 ? 'Punkt' : 'Punkte'} je Feld${saved}`]);
     facts.push(['Verteidigung', def.defense > 0
       ? `+${Math.round(def.defense * 15)}% für den Verteidiger`
@@ -2061,7 +2087,9 @@ export function renderUI(state, handlers) {
       panel.querySelectorAll('.road-btn').forEach((btn) => {
         btn.addEventListener('click', () => (btn.dataset.stone
           ? handlers.onUpgradeRoad(city.id, btn.dataset.stone)
-          : handlers.onBuildRoad(city.id, btn.dataset.target)));
+          : btn.dataset.gravel
+            ? handlers.onUpgradeGravel(city.id, btn.dataset.gravel)
+            : handlers.onBuildRoad(city.id, btn.dataset.target)));
       });
       panel.querySelectorAll('.trade-btn:not([disabled])').forEach((btn) => {
         btn.addEventListener('click', () => handlers.onOpenTrade(city.id, btn.dataset.target));

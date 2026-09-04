@@ -16,7 +16,8 @@ import {
   AMPHIBIOUS_ATTACK_MULTIPLIER, SEA_UNIT_SCALE, SHIP_ROLE, WARSHIP_BATCH,
   TRANSPORT_NAME, transportCount, shipTypesOf,
   ROAD_TARGET_CHOICES, roadCost, roadTurns,
-  ROAD_EARTH, ROAD_STONE, roadLevelOf, stoneRoadCost, stoneRoadTurns,
+  ROAD_EARTH, ROAD_GRAVEL, ROAD_STONE, roadLevelOf, gravelRoadCost, gravelRoadTurns,
+  stoneRoadCost, stoneRoadTurns,
   MINE_RANGE, MINE_ORE, MINE_MIN_ORE, mineIncome,
   HUNT_RANGE, HUNT_GAME, HUNT_MIN_GAME, huntIncome, FISHERY_INCOME,
   SIEGE_ENGINES, siegeEngineDef, SIEGE_ENGINE_MAX, SIEGE_ENGINE_MOVE,
@@ -1516,10 +1517,80 @@ export function roadTargets(state, city) {
   return targets.slice(0, ROAD_TARGET_CHOICES);
 }
 
+// --- Ausbau zur Kiesstraße --------------------------------------------------
+// Der erste Ausbau eines Karrenwegs braucht keine Verwaltung - Kies schütten
+// kann jeder Ort, auch ohne Forum. Erst das Pflaster danach setzt eines
+// voraus.
+export function gravelTargets(state, city) {
+  if (!city || city.factionId === 'neutral') return [];
+  const busy = new Set();
+  for (const project of state.roadProjects || []) {
+    busy.add(project.fromId);
+    busy.add(project.toId);
+  }
+  if (busy.has(city.id)) return [];
+  const targets = [];
+  for (const other of state.cities) {
+    if (other.id === city.id || other.factionId !== city.factionId) continue;
+    if (busy.has(other.id)) continue;
+    if (!roadConnected(state, city, other)) continue;
+    const route = landRoute(state.map, city, other, state.roads);
+    if (!route) continue;
+    const length = tilesToPave(state, route, ROAD_GRAVEL);
+    if (length === 0) continue;
+    targets.push({
+      cityId: other.id,
+      name: other.name,
+      length,
+      cost: gravelRoadCost(length),
+      turns: gravelRoadTurns(length),
+      route,
+    });
+  }
+  targets.sort((a, b) => a.length - b.length);
+  return targets.slice(0, ROAD_TARGET_CHOICES);
+}
+
+export function upgradeToGravel(state, cityId, targetCityId) {
+  const city = state.cities.find((c) => c.id === cityId);
+  const target = state.cities.find((c) => c.id === targetCityId);
+  if (!city || !target || city.id === target.id) return { ok: false };
+  if (city.factionId !== target.factionId) return { ok: false, reason: 'fremd' };
+  if (roadProjectOf(state, city.id) || roadProjectOf(state, target.id)) {
+    return { ok: false, reason: 'building' };
+  }
+  if (citySieged(state, city) || citySieged(state, target)) {
+    return { ok: false, reason: 'siege' };
+  }
+  const faction = factionById(state, city.factionId);
+  if (!faction || faction.isNeutral) return { ok: false };
+  const angebot = gravelTargets(state, city).find((t) => t.cityId === target.id);
+  if (!angebot) return { ok: false, reason: 'zuweit' };
+  if (faction.gold < angebot.cost) return { ok: false, reason: 'gold' };
+
+  faction.gold -= angebot.cost;
+  state.roadProjects.push({
+    fromId: city.id,
+    toId: target.id,
+    fromName: city.name,
+    toName: target.name,
+    factionId: city.factionId,
+    route: angebot.route.map((t) => ({ col: t.col, row: t.row })),
+    length: angebot.length,
+    turnsLeft: angebot.turns,
+    turns: angebot.turns,
+    level: ROAD_GRAVEL,
+  });
+  logOwn(state, faction.id, `Ausbau zur Kiesstraße ${city.name} – ${target.name} begonnen `
+    + `(${angebot.length} Felder, ${angebot.turns} Runden, ${angebot.cost} Gold).`);
+  return { ok: true, ...angebot };
+}
+
 // --- Ausbau zur Steinstraße ------------------------------------------------
-// Ausgebaut wird, was schon liegt: eine bestehende Verbindung zu einem eigenen
-// Ort. Das setzt eine Verwaltung voraus - eine Steinstraße ist Vermessung,
-// Fronarbeit und Abrechnung, kein Trampelpfad.
+// Ausgebaut wird, was schon liegt: eine bestehende Kiesstraße zu einem
+// eigenen Ort. Das setzt eine Verwaltung voraus - eine Steinstraße ist
+// Vermessung, Fronarbeit und Abrechnung, kein Trampelpfad - und einen
+// Unterbau, der schon steht: gepflastert wird erst, was schon beschottert ist.
 export function stoneTargets(state, city) {
   if (!city || city.factionId === 'neutral' || !city.forum) return [];
   const busy = new Set();
@@ -1535,6 +1606,9 @@ export function stoneTargets(state, city) {
     if (!roadConnected(state, city, other)) continue;
     const route = landRoute(state.map, city, other, state.roads);
     if (!route) continue;
+    // Erst Kies, dann Pflaster: ein Feld, das noch nicht beschottert ist,
+    // macht die ganze Strecke für den Ausbau zur Steinstraße ungeeignet.
+    if (tilesToPave(state, route, ROAD_GRAVEL) > 0) continue;
     const length = tilesToPave(state, route, ROAD_STONE);
     if (length === 0) continue;
     targets.push({
@@ -1658,7 +1732,9 @@ export function advanceRoadConstruction(state) {
     finished.push(project);
     logOwn(state, project.factionId, stufe >= ROAD_STONE
       ? `🧱 Die Steinstraße ${project.fromName} – ${project.toName} ist fertig.`
-      : `🛣️ Die Straße ${project.fromName} – ${project.toName} ist fertig.`);
+      : stufe >= ROAD_GRAVEL
+        ? `🪨 Die Kiesstraße ${project.fromName} – ${project.toName} ist fertig.`
+        : `🛣️ Die Straße ${project.fromName} – ${project.toName} ist fertig.`);
   }
   return finished;
 }

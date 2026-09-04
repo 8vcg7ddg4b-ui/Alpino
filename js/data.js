@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.54.1';
+export const GAME_VERSION = '1.55.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -2009,15 +2009,29 @@ export function tradeSizeFactor(size) {
 }
 
 // --- Straßenbau ----------------------------------------------------------
-// Eine gepflasterte Straße kostet zwei Drittel dessen, was offene Ebene
-// kostet, und ein Drittel dessen, was Wald, Hügel oder Wüste kosten: ein Heer
-// kommt auf ihr die Hälfte weiter als querfeldein (9 Felder statt 6 je Runde)
-// und zehrt dabei weniger. Zieht es über die ganze Halbinsel, braucht es
-// trotzdem mehr als eine Runde. Gebaut wird von Ort zu Ort, bezahlt nach Länge.
+// Ein Karrenweg kostet zwei Drittel dessen, was offene Ebene kostet, und ein
+// Drittel dessen, was Wald, Hügel oder Wüste kosten: ein Heer kommt auf ihm
+// die Hälfte weiter als querfeldein (9 Felder statt 6 je Runde) und zehrt
+// dabei weniger. Zieht es über die ganze Halbinsel, braucht es trotzdem mehr
+// als eine Runde. Gebaut wird von Ort zu Ort, bezahlt nach Länge - die erste
+// von drei Ausbaustufen, die Kiesstraße und die gepflasterte Straße folgen
+// als spätere Ausbauten derselben Verbindung.
 export const ROAD_MOVE_COST = 2;
 export const ROAD_COST_PER_TILE = 30;
 export const ROAD_TURNS_PER_TILE = 0.4;
 export const ROAD_MIN_TURNS = 2;
+
+// --- Die Kiesstraße ---------------------------------------------------------
+// Die Zwischenstufe zwischen dem gefahrenen Karrenweg und der gepflasterten
+// Straße: eine Schicht Kies auf dem festgetretenen Untergrund, ohne Wölbung
+// und Gräben. Ein Heer marschiert auf ihr nicht schneller als auf dem
+// Karrenweg - der Unterbau ist erst der halbe Weg zur Steinstraße, nicht
+// schon ihre Geschwindigkeit. Wer aufschottert, zahlt beim Pflastern danach
+// nur noch den Rest.
+export const GRAVEL_ROAD_MOVE_COST = 2;
+export const GRAVEL_COST_PER_TILE = 22;
+export const GRAVEL_TURNS_PER_TILE = 0.3;
+export const GRAVEL_MIN_TURNS = 2;
 
 // --- Die Steinstraße -------------------------------------------------------
 // Was Rom von einem Weg unterscheidet: Unterbau aus Schotter, Wölbung, Gräben
@@ -2027,13 +2041,23 @@ export const ROAD_MIN_TURNS = 2;
 //
 // Gebaut wird sie nicht ins Leere: ausgebaut wird eine Straße, die schon
 // liegt, und nur von einem Ort mit Verwaltung aus - Vermessung, Fronarbeit,
-// Abrechnung.
+// Abrechnung. Zur Steinstraße wird nur, was schon Kiesstraße ist - der
+// Unterbau steht dann schon, und es fehlt nur noch das Pflaster.
 export const STONE_ROAD_MOVE_COST = 1;
 export const STONE_COST_PER_TILE = 45;
 export const STONE_TURNS_PER_TILE = 0.5;
 export const STONE_MIN_TURNS = 2;
 export const ROAD_EARTH = 1;
-export const ROAD_STONE = 2;
+export const ROAD_GRAVEL = 2;
+export const ROAD_STONE = 3;
+
+export function gravelRoadCost(length) {
+  return Math.round(length * GRAVEL_COST_PER_TILE);
+}
+
+export function gravelRoadTurns(length) {
+  return Math.max(GRAVEL_MIN_TURNS, Math.round(length * GRAVEL_TURNS_PER_TILE));
+}
 
 export function stoneRoadCost(length) {
   return Math.round(length * STONE_COST_PER_TILE);
@@ -2052,7 +2076,19 @@ export function roadLevelOf(value) {
 }
 
 export function roadStepCost(level) {
-  return level >= ROAD_STONE ? STONE_ROAD_MOVE_COST : ROAD_MOVE_COST;
+  if (level >= ROAD_STONE) return STONE_ROAD_MOVE_COST;
+  if (level >= ROAD_GRAVEL) return GRAVEL_ROAD_MOVE_COST;
+  return ROAD_MOVE_COST;
+}
+
+// Der Name einer Ausbaustufe, für Anzeige und Baumeldung - dieselben drei
+// Stufen überall, damit Seitenleiste, Karte und Protokoll nicht auseinander-
+// laufen.
+export function roadLevelName(level) {
+  if (level >= ROAD_STONE) return 'gepflasterte Straße';
+  if (level >= ROAD_GRAVEL) return 'Kiesstraße';
+  if (level >= ROAD_EARTH) return 'Karrenweg';
+  return 'offenes Land';
 }
 // Wie viele Bauziele eine Stadt hat: die beiden nächstgelegenen eigenen Orte,
 // zu denen noch keine Straße führt. Weiter reicht kein Straßenbau von einem

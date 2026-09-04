@@ -156,6 +156,15 @@ Wetter. Gezeigt wird immer das Wetter dort, wo die Kamera steht – fährt man i
 Winter nach Norden, fängt es an zu schneien. Die Optik lässt sich in den
 Einstellungen abschalten; die Regeln gelten weiter.
 
+**Dieselben vier Klimazonen bestimmen auch, was auf der Karte wächst.** Ein
+Wald ist im Norden ein anderer als am Mittelmeer: In Nordeuropa stehen
+schlanke, dunkle **Fichten**, in Mitteleuropa rundkronige **Laubbäume**, am
+Mittelmeer schmale, hochgezogene **Zypressen**, und im Wüstengürtel – wo
+überhaupt etwas wächst, meist am Nil oder in den Oasen der Küstenebene –
+**Palmen** mit ihrem Wedelschopf. Die Art hängt am Breitengrad des Feldes, wie
+beim Wetter, nicht am Zufall: ein und dasselbe Waldfeld trägt immer dieselbe
+Baumart, in Nordafrika genauso wie an der Nordsee.
+
 ## Startbildschirm
 
 ### Der Vorspann: das Studio-Logo
@@ -1597,17 +1606,27 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   der Mitte. Mehr als zwei Wege trägt ein Ort nicht. Fällt ein Ende an den
   Feind oder reißt die Verbindung, endet der Weg. Die Reichsübersicht führt den
   Handel als eigene Spalte, und die KI handelt ebenfalls.
+- **Ausbau zur Kiesstraße**: Die Zwischenstufe zwischen dem gefahrenen
+  Karrenweg und dem Pflaster – eine Schicht Kies auf dem festgetretenen
+  Untergrund, ohne Wölbung und Gräben. **22 Gold je Feld**, gut ein Drittel
+  einer Runde je Feld, kein schnellerer Marsch – der Gewinn ist der Unterbau,
+  nicht das Tempo: wer erst aufschottert, zahlt beim Pflastern danach nur noch
+  den Rest. Anders als die Steinstraße braucht sie **keine Verwaltung** – Kies
+  schütten kann jeder Ort. Auf der Karte liegt sie als **mattgraues Band**
+  zwischen Erdweg und Basaltpflaster. Die KI schottert auf, sobald ihr Netz
+  steht, schon für einen kleineren Notgroschen als beim Pflastern.
 - **Ausbau zur Steinstraße**: Was Rom von einem Weg unterscheidet, ist der
   Unterbau: Schotter, Wölbung, Gräben zu beiden Seiten, oben Basaltplatten.
-  Eine bestehende Verbindung lässt sich deshalb **ausbauen** – **45 Gold je
-  Feld**, eine halbe Runde je Feld, und danach kostet ein Feld nur noch
-  **einen** Bewegungspunkt statt zwei: ein Heer marschiert auf der Steinstraße
-  **doppelt so weit** wie auf dem gefahrenen Weg, achtzehn Felder je Runde
-  statt neun. Ausgebaut wird nur, was schon liegt, und nur von einem Ort mit
-  **Verwaltung** aus – eine Steinstraße ist Vermessung, Fronarbeit und
-  Abrechnung, kein Trampelpfad. Auf der Karte liegt sie als **helles
-  Basaltband** statt als erdfarbener Weg, und das Feldfenster nennt die Stufe.
-  Die KI baut aus, sobald ihr Netz steht und Gold übrig ist.
+  Gepflastert wird deshalb nur eine Verbindung, die schon **durchgehend
+  beschottert** ist – **45 Gold je Feld**, eine halbe Runde je Feld, und
+  danach kostet ein Feld nur noch **einen** Bewegungspunkt statt zwei: ein
+  Heer marschiert auf der Steinstraße **doppelt so weit** wie auf dem
+  Karrenweg, achtzehn Felder je Runde statt neun. Ausgebaut wird nur, was
+  schon liegt, und nur von einem Ort mit **Verwaltung** aus – eine
+  Steinstraße ist Vermessung, Fronarbeit und Abrechnung, kein Trampelpfad.
+  Auf der Karte liegt sie als **helles Basaltband** statt als erdfarbener Weg
+  oder Kiesband, und das Feldfenster nennt die Stufe. Die KI baut aus, sobald
+  ihr Netz steht und Gold übrig ist.
 - **Straßenbau**: Von Anfang an möglich – jede eigene
   Stadt bietet die nächstgelegenen eigenen Orte
   an, zu denen noch keine Straße führt – mit Preis (30 Gold je Feld), Länge und
@@ -2009,21 +2028,26 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   Im Kampf rechnet jede Seite mit ihren eigenen Werten – ein Legionär hält
   anders stand als ein Falxträger, auch wenn beide „Fußvolk" heißen.
 - **Die Weltwunder der Antike stehen auf der Karte**, jedes an seinem echten
-  Ort. Von den klassischen sieben liegen sechs im Kartenausschnitt: die
-  **Pyramiden von Gizeh**, der **Leuchtturm von Alexandria**, der **Koloss von
-  Rhodos**, das **Mausoleum von Halikarnassos**, der **Artemistempel von
-  Ephesos** und die **Zeusstatue von Olympia**. Die Hängenden Gärten von
-  Babylon lägen bei 44,4° O – gut zwei Grad östlich des Kartenrands; sie an den
-  Rand zu rücken wäre geografisch falsch, deshalb fehlen sie. Dazu kommen fünf
-  weitere Wahrzeichen: der **Parthenon** auf der Akropolis, das **Orakel von
-  Delphi**, der **Tempel des Jupiter Optimus Maximus** auf dem Kapitol, die
-  **Säulen des Herakles** an der Meerenge von Gibraltar und der **Steinkreis von
-  Stonehenge**.
+  Ort. Seit die Karte nach Osten reicht, liegen alle klassischen sieben im
+  Kartenausschnitt: die **Pyramiden von Gizeh**, die **Hängenden Gärten von
+  Babylon**, der **Leuchtturm von Alexandria**, der **Koloss von Rhodos**, das
+  **Mausoleum von Halikarnassos**, der **Artemistempel von Ephesos** und die
+  **Zeusstatue von Olympia**. Dazu kommen fünf weitere Wahrzeichen: der
+  **Parthenon** auf der Akropolis, das **Orakel von Delphi**, der **Tempel des
+  Jupiter Optimus Maximus** auf dem Kapitol, die **Säulen des Herakles** an der
+  Meerenge von Gibraltar und der **Steinkreis von Stonehenge**.
 
   Gebaut werden sie nicht – sie standen schon. Wer den nächstgelegenen Ort hält,
   hält das Bauwerk: ein Weltwunder bringt 15 Gold je Runde, ein Wahrzeichen 6.
   Fällt die Stadt, fällt das Bauwerk mit ihr, und das Protokoll sagt es beiden
   Seiten. Ein Rechtsklick auf das Feld nennt Bauwerk, Bauzeit und Besitzer.
+
+  Die meisten stehen für sich, an ihrem eigenen historischen Fleck; ein
+  Bauwerk, das sich sein Feld mit einer Stadt teilt, weicht an den Rand aus,
+  auf einen Burgberg (Kapitol, Akropolis) oder ebenerdig daneben. Die
+  **Pyramiden von Gizeh** stehen als einzige absichtlich **auf dem Feld ihres
+  Orts**: sie gehören sichtbar zu Memphis, statt für sich allein auf einer
+  leeren Wüstenterrasse danebenzustehen.
 - **Karthago hält Karthago Nova in Iberien** – die Stadt an der spanischen
   Südostküste mit den Silberminen im Rücken, und dort steht ein eigenes Heer
   von 270 Mann: von Afrika aus wäre der Brückenkopf nicht zu halten.

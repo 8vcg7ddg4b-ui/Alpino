@@ -21,7 +21,7 @@ import {
   buildSiegeEngine,
   resetMovement, checkVictory, disbandArmyIntoCity, buyCityWalls,
   advanceWallConstruction, recoverArmies, embarkArmy, applyWeather, advanceWeather,
-  buyRoad, upgradeRoad, advanceRoadConstruction, buildFleet,
+  buyRoad, upgradeRoad, upgradeToGravel, advanceRoadConstruction, buildFleet,
   buyBuilding, advanceConstruction, mineIncomeOf,
   advanceTraining, cancelTraining,
   updateSieges, applySiegeAttrition, siegeInfo, buildCamp, breakCamp, besiegeCity,
@@ -37,7 +37,7 @@ import {
 } from './diplomacy.js';
 import { rulerFor, TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
-  initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera,
+  initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera, propsDebug,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
   setBordersVisible, areBordersVisible,
@@ -1930,6 +1930,12 @@ function refresh() {
       (ok ? sfx.wallBuy : sfx.denied)();
       refresh();
     },
+    onUpgradeGravel: (cityId, targetId) => {
+      pushUndo();
+      const ok = upgradeToGravel(state, cityId, targetId).ok;
+      (ok ? sfx.wallBuy : sfx.denied)();
+      refresh();
+    },
     onOpenTrade: (cityId, targetId) => {
       pushUndo();
       const ok = openTradeRoute(state, cityId, targetId).ok;
@@ -2952,6 +2958,11 @@ window.__audioProbe = audioProbe;
 // Augenblick aus? Nur für die Prüfläufe.
 window.__mapProbe = () => ({ marching: isAnimating() });
 window.__mapFrame = captureFrame;
+// Damit ein Prüflauf die Kamera gezielt auf ein Feld setzen kann, statt sich
+// dorthin zu ziehen.
+window.__centerOn = centerOn;
+window.__zoomCamera = zoomCamera;
+window.__propsDebug = propsDebug;
 // Und der Spielstand selbst: ein Prüflauf soll eine Armee auswählen können,
 // ohne die richtige Stelle auf dem Bildschirm zu treffen.
 window.__spqrState = () => state;

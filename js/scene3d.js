@@ -7,6 +7,8 @@ import { atWar } from './diplomacy.js';
 import { seaLane } from './actions.js';
 import { territoryMap, claimableTile } from './territory.js';
 import { emblemSVG } from './emblems.js';
+import { climateBand } from './weather.js';
+import { latOfRow } from './geodata.js';
 
 export const TILE_SIZE = 6;
 const ELEV_SCALE = 2.9;
@@ -340,6 +342,63 @@ export function zoomCamera(factor) {
   applyCamera();
 }
 
+// Baumarten je Klimazone: dieselben vier Bänder wie beim Wetter (weather.js) -
+// im Norden Fichten, in der Mitte Laubbäume, am Mittelmeer Zypressen, im
+// Wüstengürtel Palmen. Jede Art hat ihre eigene Stamm- und Kronengeometrie,
+// aber bleibt im Maßstab der Häuser: ein Baum ist etwa doppelt so hoch wie ein
+// Haus, nicht höher als ein ganzes Dorf (siehe TREE_HEIGHT weiter unten -
+// hier absichtlich als Zahl wiederholt, weil diese Tabelle vor ihrer
+// Definition im Quelltext steht).
+const TREE_H = 2.2;
+
+// Der Wedelschopf einer Palme: sechs schmale Blätter, die vom selben Punkt
+// ausgehen und schräg nach außen und unten fallen - eine einzige, feste
+// Geometrie wie beim Erzhaufen, damit sie sich weiter über InstancedMesh
+// zeichnen lässt.
+function frondClusterGeometry() {
+  const blatt = new THREE.BoxGeometry(0.055, 1, 0.16);
+  blatt.translate(0, 0.5, 0);
+  const zahl = 6;
+  const teile = [];
+  for (let i = 0; i < zahl; i++) {
+    teile.push(shapePart(blatt, 0, 0, 0, -1.05, (i / zahl) * Math.PI * 2, 0, 1, TREE_H * 0.5, 1));
+  }
+  const g = mergeShapes(teile);
+  blatt.dispose();
+  return g;
+}
+
+const TREE_KINDS = {
+  nord: {
+    trunk: () => new THREE.CylinderGeometry(0.08, 0.12, TREE_H * 0.30, 6),
+    leaf: () => new THREE.ConeGeometry(TREE_H * 0.20, TREE_H * 0.95, 7),
+    trunkColor: '#5b3a22', leafColor: '#2b5c33',
+    trunkY: (TREE_H * 0.30) / 2,
+    leafY: TREE_H * 0.30 + (TREE_H * 0.95) * 0.47,
+  },
+  mitte: {
+    trunk: () => new THREE.CylinderGeometry(0.11, 0.16, TREE_H * 0.34, 6),
+    leaf: () => new THREE.IcosahedronGeometry(TREE_H * 0.30, 0),
+    trunkColor: '#5b3a22', leafColor: '#4f8a3a', leafFlat: true,
+    trunkY: (TREE_H * 0.34) / 2,
+    leafY: (TREE_H * 0.34) * 0.8 + TREE_H * 0.30,
+  },
+  sued: {
+    trunk: () => new THREE.CylinderGeometry(0.055, 0.08, TREE_H * 0.16, 6),
+    leaf: () => new THREE.ConeGeometry(TREE_H * 0.125, TREE_H * 1.25, 6),
+    trunkColor: '#5b3a22', leafColor: '#2d5a45',
+    trunkY: (TREE_H * 0.16) / 2,
+    leafY: (TREE_H * 0.16) * 0.3 + (TREE_H * 1.25) / 2,
+  },
+  wueste: {
+    trunk: () => new THREE.CylinderGeometry(0.07, 0.10, TREE_H * 0.85, 6),
+    leaf: () => frondClusterGeometry(),
+    trunkColor: '#8a6b3d', leafColor: '#7a9c4a',
+    trunkY: (TREE_H * 0.85) / 2,
+    leafY: (TREE_H * 0.85) * 0.94,
+  },
+};
+
 // Props are collected as plain transforms first and drawn as instanced meshes
 // afterwards. On a map this size there are thousands of them, and one draw
 // call per tree would cost more than everything else on screen put together.
@@ -352,10 +411,11 @@ function collectTree(props, col, row, rng, streuung = 0.4) {
   const topY = groundY(col + jx, row + jz) - 0.1;
   const x = worldX(col) + jx * TILE_SIZE;
   const z = worldZ(row) + jz * TILE_SIZE;
-  // Stamm und Krone stehen im Maßstab der Häuser: ein Baum ist etwa doppelt
-  // so hoch wie ein Haus, nicht höher als ein ganzes Dorf.
-  props.trunks.push({ x, y: topY + 0.35 * scale, z, s: scale, r: 0 });
-  props.leaves.push({ x, y: topY + 1.45 * scale, z, s: scale, r: rng() * Math.PI });
+  // Welche Art hier steht, entscheidet die Klimazone, nicht der Zufall.
+  const kind = climateBand(latOfRow(row)).key;
+  const def = TREE_KINDS[kind];
+  props.trunks[kind].push({ x, y: topY + def.trunkY * scale, z, s: scale, r: 0 });
+  props.leaves[kind].push({ x, y: topY + def.leafY * scale, z, s: scale, r: rng() * Math.PI });
 }
 
 // Peaks scale with how high the underlying crest already is, so a tile on the
@@ -506,16 +566,18 @@ function buildProps(props) {
     }),
     props.oreVein
   );
-  addInstanced(
-    new THREE.CylinderGeometry(0.11, 0.15, TREE_HEIGHT * 0.32, 6),
-    new THREE.MeshStandardMaterial({ color: '#5b3a22', roughness: 1 }),
-    props.trunks
-  );
-  addInstanced(
-    new THREE.ConeGeometry(TREE_HEIGHT * 0.27, TREE_HEIGHT * 0.72, 7),
-    new THREE.MeshStandardMaterial({ color: '#2f6b34', roughness: 0.9 }),
-    props.leaves
-  );
+  for (const [kind, def] of Object.entries(TREE_KINDS)) {
+    addInstanced(
+      def.trunk(),
+      new THREE.MeshStandardMaterial({ color: def.trunkColor, roughness: 1 }),
+      props.trunks[kind]
+    );
+    addInstanced(
+      def.leaf(),
+      new THREE.MeshStandardMaterial({ color: def.leafColor, roughness: 0.9, flatShading: !!def.leafFlat }),
+      props.leaves[kind]
+    );
+  }
   const peakGeometry = new THREE.ConeGeometry(0.5, 1, 6);
   addInstanced(
     peakGeometry,
@@ -1515,6 +1577,25 @@ function colorFor(type, rng) {
   return c;
 }
 
+// Ein Blick in die Requisiten - nur für die Prüfläufe: welche Instanzgruppen
+// stehen auf der Karte, in welcher Farbe, und wie viele Punkte trägt jede.
+export function propsDebug() {
+  if (!propsGroup) return [];
+  const matrix = new THREE.Matrix4();
+  const pos = new THREE.Vector3();
+  return propsGroup.children.map((m) => {
+    m.getMatrixAt(0, matrix);
+    matrix.decompose(pos, new THREE.Quaternion(), new THREE.Vector3());
+    return {
+      color: `#${m.material.color.getHexString()}`,
+      count: m.count,
+      vertices: m.geometry.attributes.position.count,
+      firstCol: Math.round(pos.x / TILE_SIZE + mapCols / 2),
+      firstRow: Math.round(pos.z / TILE_SIZE + mapRows / 2),
+    };
+  });
+}
+
 // Builds a single smooth, vertex-colored heightmap mesh for the whole map
 // (one vertex per tile centre, so slopes blend naturally between tiles),
 // a translucent sea surface, decorative props, and roads between cities.
@@ -1523,7 +1604,11 @@ export function buildMap(state) {
   mapRows = state.map.rows;
   currentMap = state.map;
   currentRoads = state.roads || {};
-  const props = { trunks: [], leaves: [], rockPeaks: [], snowPeaks: [], oreRock: [], oreVein: [] };
+  const leereBaumarten = () => Object.fromEntries(Object.keys(TREE_KINDS).map((k) => [k, []]));
+  const props = {
+    trunks: leereBaumarten(), leaves: leereBaumarten(),
+    rockPeaks: [], snowPeaks: [], oreRock: [], oreVein: [],
+  };
   propsGroup = new THREE.Group();
   propsGroup.name = 'Requisiten';
   roadsGroup = new THREE.Group();
@@ -3321,7 +3406,7 @@ function roadPolylines(roads, stufe) {
   const graph = new Map();
   const gehoert = (key) => {
     const l = roadLevelOf(roads[key]);
-    return l ? Math.min(2, l) : 0;
+    return l ? Math.min(3, l) : 0;
   };
   const kante = (a, b) => {
     if (!graph.has(a)) graph.set(a, []);
@@ -3354,12 +3439,12 @@ function buildRoadNetwork(state) {
     child.material.dispose();
   }
   const roads = state.roads || {};
-  // Zwei Bänder: der gefahrene Weg in Erdfarbe, die Steinstraße in hellem
-  // Basalt.
-  const bahnen = { 1: [], 2: [] };
+  // Drei Bänder: der Karrenweg in Erdfarbe, die Kiesstraße in mattem Grau,
+  // die gepflasterte Straße in hellem Basalt.
+  const bahnen = { 1: [], 2: [], 3: [] };
   const half = ROAD_HALF;
 
-  for (const stufe of [1, 2]) {
+  for (const stufe of [1, 2, 3]) {
     for (const zug of roadPolylines(roads, stufe)) {
       const pfad = resamplePath(roundPath(zug, ROAD_ROUND, ROAD_ROUND_STUFEN), ROAD_STEP);
       pushRibbon(bahnen[stufe], pfad, pfad.map(() => half), ROAD_LIFT, ROAD_SKIRT);
@@ -3376,19 +3461,25 @@ function buildRoadNetwork(state) {
     if (!allein) continue;
     const x = worldX(col);
     const z = worldZ(row);
-    pushBand(bahnen[Math.min(2, stufe)], x - half, z, x + half, z, half, ROAD_LIFT, ROAD_SKIRT);
+    pushBand(bahnen[Math.min(3, stufe)], x - half, z, x + half, z, half, ROAD_LIFT, ROAD_SKIRT);
   }
 
+  const ROAD_LOOK = {
+    1: { color: '#94764b', roughness: 1 },
+    2: { color: '#a99e88', roughness: 0.85 },
+    3: { color: '#b8b0a1', roughness: 0.7 },
+  };
   for (const [stufe, positions] of Object.entries(bahnen)) {
     if (!positions.length) continue;
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
     geometry.computeVertexNormals();
+    const look = ROAD_LOOK[stufe];
     const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
       // Etwas dunkler als früher: eine helle Bahn quer über die grüne Karte
       // zog den Blick stärker auf sich als die Orte, die sie verbindet.
-      color: Number(stufe) >= 2 ? '#b8b0a1' : '#94764b',
-      roughness: Number(stufe) >= 2 ? 0.7 : 1,
+      color: look.color,
+      roughness: look.roughness,
       side: THREE.DoubleSide,
     }));
     mesh.frustumCulled = false;

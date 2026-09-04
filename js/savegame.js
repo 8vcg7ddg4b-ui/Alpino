@@ -20,7 +20,10 @@ const SAVE_KEY = 'spqr.spielstand';
 // älteren Form wird verworfen statt halb geladen - eine Karte, deren Raster
 // sich seither verschoben hat, träfe sonst auf Städte, die nicht mehr auf ihr
 // Feld passen.
-const SAVE_VERSION = 1;
+// Auf 2, seit die Straßenstufen eine dritte Stufe bekamen: eine gespeicherte
+// 2 bedeutete vorher Steinstraße, jetzt Kiesstraße - ohne den Sprung läse ein
+// alter Spielstand seine eigenen Straßen falsch, statt sie zu verwerfen.
+const SAVE_VERSION = 2;
 
 function readEntry() {
   try {
