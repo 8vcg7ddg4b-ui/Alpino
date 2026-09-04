@@ -90,3 +90,68 @@ const ICONS = {
   eye: '<path d="M2 12 C5 7 9 5 12 5 C15 5 19 7 22 12 C19 17 15 19 12 19 C9 19 5 17 2 12 Z" /><circle cx="12" cy="12" r="3" />',
   target: '<circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="M12 1 V4 M12 20 V23 M1 12 H4 M20 12 H23" />',
 };
+
+// --- Wappen auf Leinwand --------------------------------------------------
+// Dieselben Zeichen wie oben, nur mit Strichen auf eine Leinwand gezogen: so
+// stehen sie neben dem Namen einer Welt auf der Karte, ohne dass ein Bild
+// nachgeladen werden muss.
+export function drawFactionGlyph(g, id, x, y, r, color) {
+  g.save();
+  g.translate(x, y);
+  g.scale(r / 50, r / 50);
+  g.strokeStyle = color;
+  g.fillStyle = color;
+  g.lineWidth = 9;
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  g.beginPath();
+  switch (id) {
+    case 'confed':
+      // Die geteilten Schwingen über dem Stern.
+      g.moveTo(0, -46); g.lineTo(0, 40);
+      g.moveTo(0, -22); g.bezierCurveTo(-26, -30, -40, -18, -46, -4);
+      g.moveTo(0, -22); g.bezierCurveTo(26, -30, 40, -18, 46, -4);
+      g.moveTo(-16, 26); g.lineTo(0, 6); g.lineTo(16, 26);
+      break;
+    case 'kilrathi':
+      // Die Klaue im Ring.
+      g.arc(0, 0, 42, 0, Math.PI * 2);
+      g.moveTo(-24, -22); g.bezierCurveTo(-12, -4, -8, 12, -12, 32);
+      g.moveTo(-4, -28); g.bezierCurveTo(8, -8, 12, 10, 8, 34);
+      g.moveTo(18, -24); g.bezierCurveTo(30, -6, 32, 10, 26, 28);
+      break;
+    case 'borderworlds':
+      // Der offene Ring mit dem Stern.
+      g.arc(0, 0, 40, -Math.PI * 0.35, Math.PI * 1.15);
+      g.moveTo(0, -20); g.lineTo(7, -3); g.lineTo(25, -1); g.lineTo(11, 10);
+      g.lineTo(16, 27); g.lineTo(0, 17); g.lineTo(-16, 27); g.lineTo(-11, 10);
+      g.lineTo(-25, -1); g.lineTo(-7, -3); g.closePath();
+      break;
+    case 'landreich':
+      // Anker und Querbalken.
+      g.moveTo(0, -40); g.lineTo(0, 38);
+      g.moveTo(-24, -14); g.lineTo(24, -14);
+      g.moveTo(-28, 12); g.bezierCurveTo(-18, 38, 18, 38, 28, 12);
+      g.moveTo(-12, -34); g.lineTo(0, -46); g.lineTo(12, -34);
+      break;
+    case 'firekka':
+      // Die aufsteigende Schwinge über dem Nest.
+      g.moveTo(-42, 20); g.bezierCurveTo(-20, -14, -8, -30, 0, -44);
+      g.bezierCurveTo(8, -30, 20, -14, 42, 20);
+      g.moveTo(-26, 34); g.bezierCurveTo(-12, 24, 12, 24, 26, 34);
+      break;
+    case 'nephilim':
+      g.arc(0, 0, 14, 0, Math.PI * 2);
+      g.moveTo(38, 0); g.arc(0, 0, 38, 0, Math.PI * 2);
+      break;
+    default:
+      // Unabhängige: die Waage.
+      g.moveTo(0, -34); g.lineTo(0, -12);
+      g.moveTo(-30, -12); g.lineTo(30, -12);
+      g.moveTo(-30, -12); g.lineTo(-40, 12); g.lineTo(-20, 12); g.closePath();
+      g.moveTo(30, -12); g.lineTo(20, 12); g.lineTo(40, 12); g.closePath();
+      break;
+  }
+  g.stroke();
+  g.restore();
+}

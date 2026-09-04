@@ -5,6 +5,7 @@ const KEY = 'blackunivers.settings.v1';
 
 const DEFAULTS = {
   vorspann: true,
+  grenzen: true,
   musik: true,
   klang: true,
   kiHaltung: 'normal',
@@ -82,6 +83,7 @@ export function settingsHTML() {
       ${row('klang', 'Klang', 'Funk, Triebwerke, Treffer', toggle('klang'))}
       ${row('bruecke', 'Brücke zeigen', 'Der Raum um den Holotisch. Aus: nur die Karte.', toggle('bruecke'))}
       ${row('sternenstaub', 'Sternenstaub', 'Der Hintergrund hinter der Karte', toggle('sternenstaub'))}
+      ${row('grenzen', 'Grenzen', 'Die Reiche als Fläche und Linie auf der Karte', toggle('grenzen'))}
       ${row('hilfslinien', 'Hilfslinien', 'Raster, Reichweiten, Fluglinien', toggle('hilfslinien'))}
       ${row('nebelnaehe', 'Nebel verbirgt', 'Im Nebel sieht man nur, wer daneben steht', toggle('nebelnaehe'))}
       ${row('flugtempo', 'Flugtempo', 'Wie schnell Flotten über die Karte ziehen', choice('flugtempo', ['langsam', 'normal', 'schnell', 'sofort']))}

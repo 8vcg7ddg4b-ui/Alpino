@@ -31,6 +31,7 @@ import {
   centerOnFaction, zoomCamera, setOpeningView, setMapMode, getMapMode, northOnScreen,
   animateFleet, glideTo, isAnimating, setBridgeVisible, setStarsVisible, setGuidesVisible,
   flashTile, captureFrame, tileToScreen, pickTile, setCamera,
+  setBordersVisible, areBordersVisible,
 } from './scene3d.js';
 import { playBattle, stopBattle } from './battle3d.js';
 import { setupInput } from './input.js';
@@ -92,12 +93,12 @@ function refreshScene() {
 
 function refreshUI() {
   if (!state) return;
-  $('topBar').innerHTML = topBarHTML(state);
+  $('topBar').innerHTML = topBarHTML(state, {
+    borders: areBordersVisible(),
+    mapMode: getMapMode(),
+  });
   $('feed').innerHTML = logFeedHTML(state, 6);
   renderSelectionPanel();
-  const offers = state.diplomacy.offers.length;
-  const diploBtn = $('btnDiplo');
-  if (diploBtn) diploBtn.classList.toggle('alert', offers > 0);
 }
 
 function renderSelectionPanel() {
@@ -503,6 +504,28 @@ function handleAction(action, el) {
       report(renounceTreaty(state, state.playerFactionId, el.dataset.id));
       openSheet('diplomatie');
       break;
+    case 'sheet':
+      openSheet(el.dataset.sheet);
+      break;
+    case 'toggle-borders': {
+      const next = !areBordersVisible();
+      setBordersVisible(next);
+      toast(next ? 'Grenzen der Reiche werden gezeigt.' : 'Grenzen aus.');
+      break;
+    }
+    case 'toggle-mapmode': {
+      const next = getMapMode() === 'normal' ? 'besitz' : 'normal';
+      setMapMode(next);
+      toast(next === 'besitz' ? 'Karte nach Flaggen' : 'Karte nach Welten');
+      break;
+    }
+    case 'to-menu':
+      confirmModal('Zurück zum Startbild',
+        '<p>Der Feldzug wird gespeichert und du kommst zurück ins Startbild.</p>',
+        'Zurück', 'Weiterspielen').then((ok) => {
+        if (ok) { saveGame(state); backToTitle(); }
+      });
+      break;
     case 'victory-continue':
       $('victoryModal').classList.add('hidden');
       break;
@@ -648,6 +671,7 @@ function applySettingsToGame() {
   setBridgeVisible(getSetting('bruecke'));
   setStarsVisible(getSetting('sternenstaub'));
   setGuidesVisible(getSetting('hilfslinien'));
+  setBordersVisible(getSetting('grenzen'));
 }
 
 async function beginGame(newState, { opening = true } = {}) {
@@ -774,26 +798,8 @@ function wireStartScreen() {
 function wireGameChrome() {
   $('endTurnBtn').onclick = endTurn;
   $('nextFleetBtn').onclick = nextFleet;
-  $('btnEmpire').onclick = () => openSheet('reich');
-  $('btnDiplo').onclick = () => openSheet('diplomatie');
-  $('btnTech').onclick = () => openSheet('technik');
-  $('btnChron').onclick = () => openSheet('chronik');
-  $('btnSettings').onclick = () => openSheet('einstellungen');
   $('sheetClose').onclick = closeSheet;
   $('battleClose').onclick = () => $('battleModal').classList.add('hidden');
-  $('btnMapMode').onclick = () => {
-    const next = getMapMode() === 'normal' ? 'besitz' : 'normal';
-    setMapMode(next);
-    $('btnMapMode').classList.toggle('on', next === 'besitz');
-    toast(next === 'besitz' ? 'Karte nach Flaggen' : 'Karte nach Welten');
-    refreshScene();
-  };
-  $('btnMenu').onclick = async () => {
-    const ok = await confirmModal('Zurück zum Startbild',
-      '<p>Der Feldzug wird gespeichert und du kommst zurück ins Startbild.</p>',
-      'Zurück', 'Weiterspielen');
-    if (ok) { saveGame(state); backToTitle(); }
-  };
 
   // Alle Schaltflächen in den Tafeln laufen über einen Draht.
   document.addEventListener('click', (ev) => {

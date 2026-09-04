@@ -13,6 +13,8 @@ import {
   fleetTotalCount, factionById, systemAt, hasSeen, fleetsAt,
 } from './state.js';
 import { shipModel, flagshipRole, SHIP_LENGTH } from './ships3d.js';
+import { drawFactionGlyph } from './emblems.js';
+import { territoryMap } from './territory.js';
 
 export const TILE_SIZE = 6;
 const MAP_W = GRID_COLS * TILE_SIZE;
@@ -29,6 +31,7 @@ let bridgeVisible = true;
 let starsVisible = true;
 let animating = false;
 let ceilingMesh = null;
+let bordersVisible = true;
 
 // Die Kamera kreist um ihr Ziel. Azimut dreht sie um den Tisch, Polar ist die
 // Höhe über der Tischplatte - flach heißt: man sieht die Brücke.
@@ -277,6 +280,92 @@ function buildNebulaVolumes(state) {
   }
 }
 
+// --- Grenzen ------------------------------------------------------------
+// Die Fläche in der Farbe der Flagge und die Linie dort, wo zwei Reiche
+// aneinanderstoßen. Beides liegt flach auf der Platte, knapp über der Karte.
+let territoryGroup = null;
+let territoryStamp = null;
+
+function buildTerritory(state) {
+  const { owner, edges, stamp } = territoryMap(state);
+  const seenStamp = `${stamp}|${Object.keys(state.seen).length}`;
+  if (territoryGroup && territoryStamp === seenStamp) return;
+  territoryStamp = seenStamp;
+  if (territoryGroup) {
+    mapGroup.remove(territoryGroup);
+    territoryGroup.traverse((node) => {
+      if (node.geometry) node.geometry.dispose();
+      if (node.material) node.material.dispose();
+    });
+  }
+  territoryGroup = new THREE.Group();
+  territoryGroup.name = 'territorium';
+  territoryGroup.visible = bordersVisible;
+  mapGroup.add(territoryGroup);
+
+  // Die Fläche: ein Feld je Instanz, eingefärbt nach Flagge. Was niemand
+  // gesehen hat, bleibt leer.
+  const tiles = [];
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const id = owner[row * GRID_COLS + col];
+      if (!id || id === 'neutral') continue;
+      if (!hasSeen(state, col, row)) continue;
+      tiles.push({ col, row, id });
+    }
+  }
+  if (tiles.length) {
+    const geo = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
+    const mat = new THREE.MeshBasicMaterial({
+      transparent: true, opacity: 0.17, depthWrite: false, side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.InstancedMesh(geo, mat, tiles.length);
+    const dummy = new THREE.Object3D();
+    const colour = new THREE.Color();
+    tiles.forEach((tile, i) => {
+      const { x, z } = worldOfTile(tile.col, tile.row);
+      dummy.position.set(x, 1.05, z);
+      dummy.rotation.set(-Math.PI / 2, 0, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, colour.set(factionProfile(tile.id).color));
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    territoryGroup.add(mesh);
+  }
+
+  // Die Linie: jede Kante ein Strich in der Farbe des Reiches, das dort
+  // endet.
+  const points = [];
+  const colors = [];
+  const half = TILE_SIZE / 2;
+  const colour = new THREE.Color();
+  for (const edge of edges) {
+    if (!hasSeen(state, edge.col, edge.row)) continue;
+    if (edge.factionId === 'neutral') continue;
+    const { x, z } = worldOfTile(edge.col, edge.row);
+    let a;
+    let b;
+    if (edge.side === 'ost') { a = [x + half, z - half]; b = [x + half, z + half]; }
+    else if (edge.side === 'west') { a = [x - half, z - half]; b = [x - half, z + half]; }
+    else if (edge.side === 'sued') { a = [x - half, z + half]; b = [x + half, z + half]; }
+    else { a = [x - half, z - half]; b = [x + half, z - half]; }
+    points.push(a[0], 1.9, a[1], b[0], 1.9, b[1]);
+    colour.set(factionProfile(edge.factionId).color);
+    colors.push(colour.r, colour.g, colour.b, colour.r, colour.g, colour.b);
+  }
+  if (points.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.9,
+    }));
+    territoryGroup.add(lines);
+  }
+}
+
 // --- Der Kartentisch und die Brücke -------------------------------------
 function buildTable() {
   const rimMat = new THREE.MeshStandardMaterial({ color: 0x1a2230, metalness: 0.7, roughness: 0.45 });
@@ -490,6 +579,86 @@ function buildBridge(state) {
     mullion.rotation.y = -angle;
     bridgeGroup.add(mullion);
   }
+  // --- Die Tür ------------------------------------------------------------
+  // Jeder Raum hat einen Ausgang. Dieser hier ist ein Schott mit zwei
+  // Flügeln, Rahmen und Warnlicht - geöffnet wird er nicht: der Feldzug wird
+  // an diesem Tisch geführt.
+  const doorAngle = Math.PI * 0.5;
+  const doorW = 74;
+  const doorH = 116;
+  const doorR = BRIDGE_RADIUS - 3;
+  const doorGroup = new THREE.Group();
+  doorGroup.position.set(Math.cos(doorAngle) * doorR, -66 + doorH / 2, Math.sin(doorAngle) * doorR);
+  doorGroup.rotation.y = -doorAngle + Math.PI / 2;
+
+  // Die Nische: dunkler als das Schott, damit die Tür Tiefe bekommt.
+  doorGroup.add(new THREE.Mesh(
+    new THREE.BoxGeometry(doorW + 12, doorH + 12, 6),
+    new THREE.MeshStandardMaterial({ color: 0x0c131c, metalness: 0.4, roughness: 0.8 }),
+  ));
+  // Zwei Flügel mit einer Fuge in der Mitte.
+  for (const side of [-1, 1]) {
+    const leaf = new THREE.Mesh(
+      new THREE.BoxGeometry(doorW / 2 - 1.2, doorH, 4),
+      new THREE.MeshStandardMaterial({ color: 0x223143, metalness: 0.65, roughness: 0.45 }),
+    );
+    leaf.position.set(side * (doorW / 4 + 0.6), 0, 3);
+    doorGroup.add(leaf);
+    // Griffleiste und Streben auf dem Flügel.
+    const bar = new THREE.Mesh(
+      new THREE.BoxGeometry(doorW / 2 - 10, 3, 1.6),
+      new THREE.MeshStandardMaterial({ color: 0x36465c, metalness: 0.8, roughness: 0.3 }),
+    );
+    bar.position.set(side * (doorW / 4 + 0.6), -8, 5.2);
+    doorGroup.add(bar);
+  }
+  // Der Rahmen ringsum.
+  for (const [w, h, x, y] of [[doorW + 14, 5, 0, doorH / 2 + 3], [doorW + 14, 5, 0, -doorH / 2 - 3],
+    [5, doorH + 12, -doorW / 2 - 5, 0], [5, doorH + 12, doorW / 2 + 5, 0]]) {
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: 0x415670, metalness: 0.8, roughness: 0.3,
+      emissive: 0x16273a, emissiveIntensity: 0.7,
+    });
+    doorGroup.add(new THREE.Mesh(new THREE.BoxGeometry(w, h, 8), frameMat).translateX(x).translateY(y).translateZ(2));
+  }
+  // Warnlicht und Kennung über der Tür.
+  const lamp = new THREE.Mesh(
+    new THREE.BoxGeometry(26, 4, 2),
+    new THREE.MeshBasicMaterial({ color: 0xffb765, transparent: true, opacity: 0.9 }),
+  );
+  lamp.position.set(0, doorH / 2 + 12, 4);
+  doorGroup.add(lamp);
+  const sign = new THREE.Mesh(
+    new THREE.PlaneGeometry(64, 15),
+    new THREE.MeshBasicMaterial({
+      map: paintCanvas(256, 64, (g) => {
+        g.fillStyle = '#0a121c';
+        g.fillRect(0, 0, 256, 64);
+        g.fillStyle = '#8fc4ff';
+        g.font = '600 34px "Chakra Petch", system-ui, sans-serif';
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillText('FLUGDECK', 128, 34);
+      }),
+      transparent: true,
+    }),
+  );
+  sign.position.set(0, doorH / 2 + 22, 4);
+  doorGroup.add(sign);
+  // Die Lichtschwelle: ein Streifen im Deck vor der Tür.
+  const sill = new THREE.Mesh(
+    new THREE.PlaneGeometry(doorW + 16, 26),
+    new THREE.MeshBasicMaterial({ color: 0xffb765, transparent: true, opacity: 0.16 }),
+  );
+  sill.rotation.x = -Math.PI / 2;
+  sill.position.set(Math.cos(doorAngle) * (doorR - 18), -65, Math.sin(doorAngle) * (doorR - 18));
+  sill.rotation.z = -doorAngle + Math.PI / 2;
+  bridgeGroup.add(sill);
+  const doorLight = new THREE.PointLight(0xffb765, 0.5, 320, 2);
+  doorLight.position.set(Math.cos(doorAngle) * (doorR - 40), -20, Math.sin(doorAngle) * (doorR - 40));
+  bridgeGroup.add(doorLight);
+  bridgeGroup.add(doorGroup);
+
   // Der Schein, den das Fenster ins Deck wirft.
   const spill = new THREE.PointLight(new THREE.Color(profile.color), 0.6, 900, 2);
   spill.position.set(
@@ -614,8 +783,8 @@ function buildViewportTexture(state, profile) {
 // Bild auf gleichbleibende Bildschirmgröße gerechnet und weichen einander
 // aus. So bleiben sie an ihrem Ort und trotzdem lesbar.
 const labelCache = new Map();
-function labelSprite(text, { size = 34, color = '#e6f0ff', weight = 600, glow = null } = {}) {
-  const key = `${text}|${size}|${color}|${weight}|${glow}`;
+function labelSprite(text, { size = 34, color = '#e6f0ff', weight = 600, glow = null, faction = null } = {}) {
+  const key = `${text}|${size}|${color}|${weight}|${glow}|${faction}`;
   let entry = labelCache.get(key);
   if (!entry) {
     const scale = 2;                       // doppelt gezeichnet, damit es scharf bleibt
@@ -624,7 +793,10 @@ function labelSprite(text, { size = 34, color = '#e6f0ff', weight = 600, glow = 
     const probe = cv.getContext('2d');
     const font = `${weight} ${size * scale}px "Chakra Petch", "Eurostile", "Bahnschrift", system-ui, sans-serif`;
     probe.font = font;
-    const w = Math.ceil(probe.measureText(text).width) + pad * 2;
+    // Links vom Namen steht das Wappen der Flagge - so sieht man, wem die
+    // Welt gehört, ohne die Farbe deuten zu müssen.
+    const glyphSize = faction ? size * scale * 1.3 : 0;
+    const w = Math.ceil(probe.measureText(text).width) + pad * 2 + glyphSize;
     const h = size * scale + pad * 1.1;
     cv.width = w;
     cv.height = h;
@@ -641,8 +813,13 @@ function labelSprite(text, { size = 34, color = '#e6f0ff', weight = 600, glow = 
     }
     g.shadowColor = 'rgba(0,0,0,0.95)';
     g.shadowBlur = 6 * scale;
+    const left = pad + (glow ? 6 * scale : 0);
+    if (faction) {
+      drawFactionGlyph(g, faction, left + glyphSize * 0.45, h / 2, glyphSize * 0.5,
+        factionProfile(faction).accent || factionProfile(faction).color);
+    }
     g.fillStyle = color;
-    g.fillText(text, pad + (glow ? 6 * scale : 0), h / 2 + 1);
+    g.fillText(text, left + glyphSize, h / 2 + 1);
     const tex = new THREE.CanvasTexture(cv);
     tex.needsUpdate = true;
     entry = { tex, w: w / scale, h: h / scale };
@@ -722,6 +899,8 @@ export function buildMap(state) {
   mapGroup.clear();
   holoGroup.clear();
   fogMesh = null;
+  territoryGroup = null;
+  territoryStamp = null;
   if (mapTexture) mapTexture.dispose();
   mapTexture = drawMapTexture(state);
   mapMaterial = new THREE.MeshBasicMaterial({ map: mapTexture });
@@ -845,6 +1024,7 @@ function buildSystems(state) {
     const label = labelSprite(text, {
       size: sys.capital ? 21 : 18,
       glow: factionProfile(sys.factionId).color,
+      faction: sys.factionId,
     });
     // Der Anker sitzt über dem Feld, die Schrift hängt darunter - so steht
     // sie unter der Welt, gleich aus welcher Richtung man schaut.
@@ -878,6 +1058,26 @@ export function updateSystems(state) {
   for (const sys of state.systems) {
     const group = systemMeshes.get(sys.id);
     if (!group) continue;
+    // Nach einer Eroberung trägt der Name das neue Wappen.
+    if (group.userData.labelFor !== sys.factionId) {
+      group.userData.labelFor = sys.factionId;
+      const old = group.getObjectByName('label');
+      if (old) {
+        forgetLabels(old);
+        group.remove(old);
+      }
+      const work = sys.greatWork ? GREAT_WORKS.find((w) => w.id === sys.greatWork) : null;
+      const label = labelSprite(`${sys.name}${sys.capital ? ' ★' : ''}${work ? ' ◆' : ''}`, {
+        size: sys.capital ? 21 : 18,
+        glow: factionProfile(sys.factionId).color,
+        faction: sys.factionId,
+      });
+      label.position.set(0, 1.2, 0);
+      label.center.set(0.5, 1);
+      label.name = 'label';
+      group.add(label);
+      registerLabel(label, systemRank(sys));
+    }
     const profile = factionProfile(sys.factionId);
     const seen = hasSeen(state, sys.col, sys.row);
     const colour = new THREE.Color(profile.color);
@@ -1096,6 +1296,7 @@ export function syncEntities(state, view = {}) {
     fleetMeshes.delete(id);
   }
   updateSystems(state);
+  buildTerritory(state);
   updateFogOfWar(state);
   drawOverlay(state, view);
 }
@@ -1362,6 +1563,11 @@ export function setMapMode(mode) {
 export function getMapMode() { return mapMode; }
 
 export function setGuidesVisible(on) { guidesVisible = !!on; }
+export function setBordersVisible(on) {
+  bordersVisible = !!on;
+  if (territoryGroup) territoryGroup.visible = bordersVisible;
+}
+export function areBordersVisible() { return bordersVisible; }
 export function setStarsVisible(on) {
   starsVisible = !!on;
   if (starGroup) starGroup.visible = starsVisible;

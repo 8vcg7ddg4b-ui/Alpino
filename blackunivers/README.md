@@ -134,6 +134,15 @@ weiter die Kamera zurückgeht, desto weniger Namen bleiben; aus der Ferne
 stehen nur noch Sol, Vega, Kilrah und ihresgleichen. Die Stärke einer Flotte
 steht als Schild über dem Verband.
 
+Jeder Name trägt das **Wappen seiner Flagge** - man sieht, wem eine Welt
+gehört, ohne die Farbe deuten zu müssen.
+
+**Grenzen:** Jede Welt greift in den Raum um sich aus, große weiter als kleine,
+Hauptwelten am weitesten; ein Feld gehört der Welt, die ihm am nächsten liegt.
+Daraus wird eine Fläche in der Farbe der Flagge und eine Linie dort, wo zwei
+Reiche aneinanderstoßen. Ein Zeichen in der Kopfleiste schaltet beides ab und
+an, und im Reichsfenster steht, wie viele Felder das eigene Reich hält.
+
 Angeklickt wird, was man sieht: an jeder Welt und jedem Verband sitzt ein
 unsichtbarer Fangkörper. Wer auf einen Planeten oder ein Schiff zeigt, wählt
 dessen Feld - und nicht das Feld dahinter, auf das der Strahl sonst fiele.
@@ -224,6 +233,7 @@ geöffnet wurde.
 | Klick auf blaues Feld | Hinfliegen |
 | Klick auf rotes Feld | Angreifen (mit Vorschau, bevor es ernst wird) |
 | Pfeiltasten | Schwenken · `Q`/`E` drehen · `R` Kamera zurücksetzen |
+| Kopfleiste | Reich, Diplomatie, Technik, Chronik, Grenzen, Flaggen, Einstellungen, Menü - als Zeichen |
 | Leertaste / Eingabe | Zug beenden |
 | `N` | Nächste Flotte mit Bewegung · `H` nach Hause |
 | `I` / `D` / `T` / `C` | Reich · Diplomatie · Technik · Chronik |
@@ -254,6 +264,7 @@ Fehlt die Datei, springt der eingebaute Synthesizer-Marsch ein.
 | `js/pilots.js` | Herrscher, Eigenschaften, Asse |
 | `js/ships3d.js` | Die Schiffsmodelle: Rapier, Broadsword, Bengal, Dralthi, Fralthi, Snakeir |
 | `js/titlescene3d.js` | Das Startbild in Echtzeit: Träger, Rotte, Nebel, Planet |
+| `js/territory.js` | Wem der Raum gehört: Reichweiten der Welten, Flächen, Grenzlinien |
 | `js/scene3d.js` | Die Darstellung: Holotisch, Brücke, Karte, Flotten, Nebel des Krieges |
 | `js/battle3d.js` | Das Gefecht auf der Karte |
 | `js/ui.js` | Kopfleiste, Tafeln, Berichte |

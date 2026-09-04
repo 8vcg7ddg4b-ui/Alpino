@@ -21,6 +21,7 @@ import {
 import { systemIncome, upkeepOf, canBuildRole, sensorRangeOf } from './actions.js';
 import { emblemSVG, iconSVG } from './emblems.js';
 import { sectorOfTile } from './starchart.js';
+import { territorySize } from './territory.js';
 import { aceBonusText } from './pilots.js';
 import { battleRoundsHTML } from './battle3d.js';
 
@@ -40,7 +41,7 @@ function stars(exp) {
 }
 
 // --- Kopfleiste -----------------------------------------------------------
-export function topBarHTML(state) {
+export function topBarHTML(state, view = {}) {
   const me = playerFaction(state);
   const profile = factionProfile(me.id);
   const cal = calendarOfTurn(state.turn);
@@ -73,10 +74,30 @@ export function topBarHTML(state) {
       ${iconSVG('tech', { size: 18 })}
       <span><strong>${me.tech.triebwerke}/${me.tech.waffen}/${me.tech.schilde}</strong><small>${research}</small></span>
     </div>
+    <nav class="tb-tools" aria-label="Fenster">
+      ${toolButton('reich', 'system', 'Das Reich (I)')}
+      ${toolButton('diplomatie', 'diplomacy', 'Diplomatie (D)', state.diplomacy.offers.length ? 'alert' : '')}
+      ${toolButton('technik', 'tech', 'Technik (T)')}
+      ${toolButton('chronik', 'chronicle', 'Chronik (C)')}
+      <span class="tb-sep"></span>
+      <button class="tb-tool ${view.borders ? 'on' : ''}" data-action="toggle-borders"
+        title="Grenzen der Reiche anzeigen">${iconSVG('target', { size: 18 })}</button>
+      <button class="tb-tool ${view.mapMode === 'besitz' ? 'on' : ''}" data-action="toggle-mapmode"
+        title="Karte nach Flaggen einfärben">${iconSVG('eye', { size: 18 })}</button>
+      ${toolButton('einstellungen', 'gear', 'Einstellungen')}
+      <button class="tb-tool" data-action="to-menu" title="Zurück zum Startbild">${iconSVG('book', { size: 18 })}</button>
+    </nav>
     <div class="tb-turn">
       <strong>Zug ${state.turn}</strong>
       <small>${cal.month} ${cal.year}</small>
     </div>`;
+}
+
+// Ein Fenster als Zeichen in der Kopfleiste - Name steht im Tooltip, damit
+// die Leiste schmal bleibt.
+function toolButton(sheet, icon, title, extra = '') {
+  return `<button class="tb-tool ${extra}" data-action="sheet" data-sheet="${sheet}"
+    title="${title}" aria-label="${title}">${iconSVG(icon, { size: 18 })}</button>`;
 }
 
 // --- Auswahltafel ---------------------------------------------------------
@@ -326,6 +347,7 @@ export function empireHTML(state) {
         <div><span>Unterhalt</span><strong class="bad">−${num(upkeep)}</strong></div>
         <div><span>Bevölkerung</span><strong>${num(totalPopulation(state, me.id))} Mio</strong></div>
         <div><span>Systeme</span><strong>${systems.length}</strong></div>
+        <div><span>Raum</span><strong>${num(territorySize(state, me.id))} Felder</strong></div>
         <div><span>Flotten</span><strong>${fleets.length}</strong></div>
       </div>
       ${works.length ? `<p class="work">${works.map((w) => `<strong>${w.name}</strong> – ${w.effect}`).join('<br>')}</p>` : ''}

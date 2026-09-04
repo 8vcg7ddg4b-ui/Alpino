@@ -167,9 +167,10 @@ if (hasConfirm) {
 }
 
 console.log('Tafeln öffnen …');
-for (const [btn, name] of [['#btnEmpire', '06-reich'], ['#btnDiplo', '07-diplomatie'],
-  ['#btnTech', '08-technik'], ['#btnChron', '09-chronik'], ['#btnSettings', '10-einstellungen']]) {
-  await page.click(btn);
+// Die Fenster hängen als Zeichen in der Kopfleiste.
+for (const [sheet, name] of [['reich', '06-reich'], ['diplomatie', '07-diplomatie'],
+  ['technik', '08-technik'], ['chronik', '09-chronik'], ['einstellungen', '10-einstellungen']]) {
+  await page.click(`[data-action="sheet"][data-sheet="${sheet}"]`);
   await page.waitForTimeout(400);
   await shot(name);
   await page.click('#sheetClose');

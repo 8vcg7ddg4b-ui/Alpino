@@ -29,7 +29,7 @@
    technische Schrift: Titel, Überschriften, Schalter, Zahlenfelder. */
 h1, h2, h3, h4,
 .title-name, .title-kicker, .title-year, .mp-text strong,
-.top-tools button, .btn-primary, .btn-ghost, .turn-controls button,
+.btn-primary, .btn-ghost, .turn-controls button,
 .tb-names strong, .tb-stat strong, .tb-turn strong, .tb-turn small,
 .panel-stats span, .panel-stats strong, .panel-block h4, .ph-title strong,
 .build-btn, .list th, .battle-rounds th, .em-summary span, .em-summary strong,
@@ -450,7 +450,7 @@ button {
   right: 0;
   display: flex;
   align-items: center;
-  gap: clamp(10px, 2vw, 28px);
+  gap: clamp(8px, 1.4vw, 22px);
   padding: 8px clamp(12px, 2vw, 24px);
   background: linear-gradient(180deg, rgba(4, 8, 16, 0.94), rgba(4, 8, 16, 0.55));
   border-bottom: 1px solid var(--line-soft);
@@ -465,7 +465,7 @@ button {
 .tb-names small, .tb-stat small, .tb-turn small { color: var(--muted); font-size: 0.7rem; }
 .tb-stat { display: flex; align-items: center; gap: 8px; color: var(--blue); }
 .tb-stat strong { color: var(--text); font-size: 0.94rem; }
-.tb-turn { margin-left: auto; text-align: right; }
+.tb-turn { margin-left: 14px; text-align: right; }
 .tb-turn strong { color: var(--amber); letter-spacing: 0.1em; }
 
 /* Zug beenden und Flottenwechsel stehen oben rechts unter der Kopfleiste. */
@@ -479,33 +479,39 @@ button {
 }
 .turn-controls .btn-primary { box-shadow: 0 0 24px rgba(80, 150, 240, 0.25); }
 
-.top-tools {
-  position: absolute;
-  z-index: 6;
-  top: 96px;
-  right: clamp(10px, 2vw, 20px);
+/* Die Fenster des Spiels stehen als Zeichen in der Kopfleiste. */
+.tb-tools {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  pointer-events: auto;
 }
-.top-tools button {
-  padding: 7px 12px;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  background: rgba(8, 15, 26, 0.86);
-  border: 1px solid var(--line-soft);
+.tb-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line-soft);
+  margin: 0 4px;
+}
+.tb-tool {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 30px;
+  padding: 0;
   color: var(--muted);
+  background: rgba(8, 15, 26, 0.7);
+  border: 1px solid var(--line-soft);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
 }
-.top-tools button:hover { color: var(--text); border-color: var(--blue); }
-.top-tools button.on { color: var(--amber); border-color: var(--amber); }
-.top-tools button.alert {
+.tb-tool:hover { color: var(--text); border-color: var(--blue); }
+.tb-tool.on { color: var(--amber); border-color: var(--amber); }
+.tb-tool.alert {
   color: var(--amber);
   border-color: var(--amber);
   animation: pulse 1.6s infinite;
 }
+
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 0 rgba(255, 190, 92, 0); }
   50% { box-shadow: 0 0 14px rgba(255, 190, 92, 0.5); }
@@ -734,7 +740,7 @@ button.mini.good { color: var(--green); }
 .sheet {
   position: absolute;
   z-index: 10;
-  top: 96px;
+  top: 100px;
   right: clamp(8px, 2vw, 20px);
   bottom: 28px;
   width: min(560px, 92vw);
@@ -1025,6 +1031,7 @@ button.tactic.on { color: var(--amber); border-color: var(--amber); background: 
   .title-left { width: min(400px, 92vw); }
   .side-panel { width: min(340px, 88vw); bottom: 120px; }
   .feed { display: none; }
-  .top-tools { top: 86px; right: 8px; }
-  .turn-controls { top: 48px; right: 8px; }
+  .turn-controls { top: 46px; right: 8px; }
+  .tb-tools { gap: 2px; }
+  .tb-tool { width: 28px; height: 26px; }
 }
