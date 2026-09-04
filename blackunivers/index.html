@@ -158,18 +158,34 @@
 
     <header id="topBar" class="top-bar"></header>
 
+    <!-- Was in diesem Zug noch offen ist. Jeder Punkt führt mit einem Klick
+         zur Sache selbst. -->
+    <div id="todoBar" class="todo-bar"></div>
+
     <!-- Der Zug wird oben rechts beendet, dort, wo auch Zug und Datum
          stehen - und nicht am unteren Rand. -->
     <div class="turn-controls">
-      <button id="nextFleetBtn" class="btn-ghost" title="Nächste Flotte (N)">Nächste Flotte</button>
-      <button id="endTurnBtn" class="btn-primary" title="Zug beenden (Leertaste)">Zug beenden</button>
+      <button id="nextFleetBtn" class="btn-ghost" data-tip="Nächste Flotte mit Bewegung (N)">Nächste Flotte</button>
+      <button id="endTurnBtn" class="btn-primary" data-tip="Zug beenden (Leertaste)">Zug beenden</button>
     </div>
+
+    <!-- Was unter dem Zeiger liegt - ohne Klick, ohne Warten. -->
+    <div id="hoverCard" class="hover-card hidden"></div>
 
     <aside id="selectionPanel" class="side-panel hidden">
       <div id="panelBody"></div>
     </aside>
 
     <div id="feed" class="feed"></div>
+
+    <!-- Die Übersichtskarte: das ganze Sternenfeld auf einen Blick, ein
+         Klick springt hin. -->
+    <div id="miniWrap" class="mini-wrap">
+      <canvas id="miniMap" class="mini-map" width="264" height="150"
+        title="Übersicht – Klick springt hin"></canvas>
+      <button id="miniToggle" class="mini-toggle" type="button"
+        data-tip="Übersichtskarte ein- und ausblenden (Ü)">Übersicht</button>
+    </div>
 
     <div id="compassRose" class="compass" aria-hidden="true">
       <svg viewBox="0 0 60 60">
@@ -182,6 +198,7 @@
 
     <div id="turnBanner" class="turn-banner hidden"></div>
     <div id="toast" class="toast hidden"></div>
+    <div id="tipBox" class="tip-box hidden"></div>
 
     <div id="sheet" class="sheet hidden">
       <header>

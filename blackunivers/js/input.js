@@ -8,6 +8,7 @@ export function setupInput(canvas, handlers = {}) {
     onTileClick: () => {}, onTileHover: () => {}, onTileContext: () => {},
     onEndTurn: () => {}, onCancel: () => {}, onNextFleet: () => {},
     onCenterHome: () => {}, onSheet: () => {}, onRender: () => {},
+    onToggleBorders: () => {}, onToggleMapMode: () => {}, onToggleMini: () => {},
     ...handlers,
   };
 
@@ -48,8 +49,10 @@ export function setupInput(canvas, handlers = {}) {
       return;
     }
     if (!dragging) {
+      // Die Stelle wandert mit: die Karte am Zeiger soll dort stehen, wo der
+      // Zeiger ist, nicht dort, wo er einmal war.
       const tile = pickTile(ev.clientX, ev.clientY);
-      H.onTileHover(tile);
+      H.onTileHover(tile, { x: ev.clientX, y: ev.clientY });
       return;
     }
     const dx = ev.clientX - lastPointer.x;
@@ -80,7 +83,7 @@ export function setupInput(canvas, handlers = {}) {
   canvas.addEventListener('pointermove', pointerMove);
   canvas.addEventListener('pointerup', pointerUp);
   canvas.addEventListener('pointercancel', pointerUp);
-  canvas.addEventListener('pointerleave', () => { H.onTileHover(null); });
+  canvas.addEventListener('pointerleave', () => { H.onTileHover(null, null); });
   canvas.addEventListener('contextmenu', (ev) => {
     ev.preventDefault();
     const tile = pickTile(ev.clientX, ev.clientY);
@@ -120,6 +123,12 @@ export function setupInput(canvas, handlers = {}) {
       case 'd': case 'D': H.onSheet('diplomatie'); break;
       case 't': case 'T': H.onSheet('technik'); break;
       case 'c': case 'C': H.onSheet('chronik'); break;
+      case 'b': case 'B': H.onToggleBorders(); break;
+      case 'm': case 'M': H.onToggleMapMode(); break;
+      case 'ü': case 'Ü': H.onToggleMini(); break;
+      // Die Hilfe liegt auf der Taste, auf der sie jeder sucht.
+      case 'F1': ev.preventDefault(); H.onSheet('hilfe'); break;
+      case '?': H.onSheet('hilfe'); break;
       default: break;
     }
   });

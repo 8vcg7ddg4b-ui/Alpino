@@ -286,20 +286,56 @@ geöffnet wurde.
 
 ## Steuerung
 
+Die Regel: **Was zählt, steht da. Was nicht dasteht, ist einen Klick weit weg.**
+
+**Die Kopfleiste** ist nicht nur Anzeige, sondern Bedienung: Kasse, Systeme,
+Flotten und Technik sind Schaltflächen. Ein Klick auf die Kasse öffnet das
+Reich, einer auf die Flotten springt zur nächsten mit Bewegung, einer auf die
+Technik die Forschungstafel. Die Zeichen rechts führen zu Reich, Diplomatie,
+Technik, Chronik, Grenzen, Flaggenansicht, **Hilfe**, Einstellungen und Menü –
+jedes erklärt sich beim Überfahren **sofort**, ohne die Sekunde, die der
+Browser sonst wartet.
+
+**Die Aufgabenleiste** darunter sagt, was in diesem Zug noch offen ist, und
+jeder Punkt führt mit einem Klick zur Sache selbst:
+
+| Punkt | Ein Klick bringt dich … |
+| --- | --- |
+| *n Flotten haben noch Bewegung* | zur nächsten Flotte, Karte fährt mit |
+| *n Werften ohne Auftrag* | zur nächsten leeren Werft, Bautafel offen |
+| *Keine Forschung in Arbeit* | in die Technik |
+| *n Angebote liegen vor* | in die Diplomatie |
+| *Welt steht unter Druck* | zur belagerten oder blockierten Welt |
+
+Ist nichts mehr offen, steht dort **„Alles erledigt – Zug beenden"**. Der
+Knopf oben rechts trägt dieselbe Nachricht: `Zug beenden (2)` heißt, zwei
+Flotten warten noch.
+
+**Die Karte unter dem Zeiger**: Wer über eine Welt fährt, sieht ohne Klick
+Name, Flagge, Ertrag, Schild und Wache; über einer Flotte Name, Flagge,
+Maschinen und Moral; über leerem Raum die Art des Feldes und den Sprungpunkt.
+
+**Die Übersichtskarte** unten rechts zeigt das ganze Sternenfeld: Welten in
+der Farbe ihrer Flagge, eigene Verbände als helle Punkte, dazu der Rahmen
+dessen, was gerade im Bild ist. Ein Klick hinein springt dorthin – niemand
+muss quer über die Karte ziehen. `Ü` klappt sie weg.
+
 | Eingabe | Wirkung |
 | --- | --- |
 | Linke Maustaste ziehen | Karte schwenken |
 | Rechte Maustaste ziehen | Kamera drehen und neigen (nach unten: hinunter zur Brücke) |
-| Mausrad, `+` / `−` | Zoomen |
+| Mausrad, `+` / `−` | Zoomen · Doppelklick holt ein Feld in die Mitte |
 | Klick auf eigene Flotte | Auswählen – blaue Felder sind erreichbar, rote Rauten sind Ziele |
-| Klick auf blaues Feld | Hinfliegen |
+| Klick auf blaues Feld | Hinfliegen (der Weg wird beim Überfahren gezeigt) |
 | Klick auf rotes Feld | Angreifen (mit Vorschau, bevor es ernst wird) |
+| Klick in die Übersichtskarte | Dorthin springen |
 | Pfeiltasten | Schwenken · `Q`/`E` drehen · `R` Kamera zurücksetzen |
-| Kopfleiste | Reich, Diplomatie, Technik, Chronik, Grenzen, Flaggen, Einstellungen, Menü - als Zeichen |
 | Leertaste / Eingabe | Zug beenden |
 | `N` | Nächste Flotte mit Bewegung · `H` nach Hause |
 | `I` / `D` / `T` / `C` | Reich · Diplomatie · Technik · Chronik |
-| `Esc` | Auswahl aufheben, Tafel schließen |
+| `B` / `M` / `Ü` | Grenzen · Flaggenansicht · Übersichtskarte |
+| `F1` oder `?` | Steuerung und Hilfe – alles auf einer Tafel |
+| `Esc` | Auswahl aufheben · Tafel schließen · Gefecht überspringen |
 
 ## Aufbau des Codes
 

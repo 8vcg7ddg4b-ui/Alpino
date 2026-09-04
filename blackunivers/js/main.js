@@ -10,8 +10,9 @@ import { SCENARIOS, DEFAULT_SCENARIO_ID, scenarioById } from './scenarios.js';
 import {
   createInitialState, playerFaction, factionById, systemAt, systemById, fleetById,
   fleetsAt, fleetsOf, systemsOf, fleetTotalCount, movementMaxFor, capitalOf, logMsg,
-  resetIds,
+  resetIds, hasSeen,
 } from './state.js';
+import { GRID_COLS, GRID_ROWS } from './starchart.js';
 import {
   resetMovement, moveFleet, attackTile, raiseFleet, reinforceFleet, disbandIntoSystem,
   mergeFleets, buildShip, cancelTraining, buyBuilding, buildShield, startResearch,
@@ -30,13 +31,14 @@ import {
   initScene, buildMap, syncEntities, render as drawScene, resize, centerOn,
   centerOnFaction, zoomCamera, setOpeningView, setMapMode, getMapMode, northOnScreen,
   animateFleet, glideTo, isAnimating, setBridgeVisible, setStarsVisible, setGuidesVisible,
-  flashTile, captureFrame, tileToScreen, pickTile, setCamera,
+  flashTile, captureFrame, tileToScreen, pickTile, setCamera, cameraState,
   setBordersVisible, areBordersVisible,
 } from './scene3d.js';
 import { playBattle, stopBattle } from './battle3d.js';
 import { setupInput } from './input.js';
 import {
-  topBarHTML, fleetPanelHTML, systemPanelHTML, tileInfoHTML, empireHTML, diplomacyHTML,
+  topBarHTML, todoHTML, idleYards, helpHTML, hoverCardHTML,
+  fleetPanelHTML, systemPanelHTML, tileInfoHTML, empireHTML, diplomacyHTML,
   techHTML, chronicleHTML, logFeedHTML, battleReportHTML, battlePreviewHTML,
   factionChoiceHTML, scenarioChoiceHTML, victoryHTML, briefingHTML, noticeFromNews, num,
 } from './ui.js';
@@ -98,7 +100,91 @@ function refreshUI() {
     mapMode: getMapMode(),
   });
   $('feed').innerHTML = logFeedHTML(state, 6);
+  // Die Aufgabenleiste: was in diesem Zug noch offen ist.
+  const todo = $('todoBar');
+  if (todo) todo.innerHTML = todoHTML(state);
+  // Der Knopf sagt, worauf er noch wartet - das erspart den Blick auf die Liste.
+  const waiting = fleetsOf(state, state.playerFactionId).filter((f) => f.movement > 0).length;
+  const endBtn = $('endTurnBtn');
+  if (endBtn) {
+    endBtn.textContent = waiting ? `Zug beenden (${waiting})` : 'Zug beenden';
+    endBtn.classList.toggle('warten', waiting > 0);
+    endBtn.dataset.tip = waiting
+      ? `${waiting} ${waiting === 1 ? 'Flotte hat' : 'Flotten haben'} noch Bewegung · Leertaste`
+      : 'Alles erledigt – Zug beenden (Leertaste)';
+  }
+  drawMiniMap();
   renderSelectionPanel();
+}
+
+// --- Die Übersichtskarte --------------------------------------------------
+// Das ganze Sternenfeld in einem Kasten: Welten in der Farbe ihrer Flagge,
+// eigene Verbände als helle Punkte, dazu der Rahmen dessen, was gerade im
+// Bild ist. Ein Klick springt hin.
+function miniPoint(canvas, col, row) {
+  const pad = 6;
+  return {
+    x: pad + (col / (GRID_COLS - 1)) * (canvas.width - pad * 2),
+    y: pad + (row / (GRID_ROWS - 1)) * (canvas.height - pad * 2),
+  };
+}
+
+function drawMiniMap() {
+  const canvas = $('miniMap');
+  if (!canvas || !state || canvas.offsetParent === null) return;
+  const g = canvas.getContext('2d');
+  if (!g) return;
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  g.fillStyle = 'rgba(8, 16, 28, 0.9)';
+  g.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Der Ausschnitt, den die Kamera gerade zeigt.
+  const cam = cameraState();
+  const view = miniPoint(canvas, cam.col, cam.row);
+  const span = Math.max(8, 34 / Math.max(0.4, cam.zoom));
+  const halfW = (span / (GRID_COLS - 1)) * (canvas.width - 12);
+  const halfH = (span / (GRID_ROWS - 1)) * (canvas.height - 12) * 0.6;
+  g.strokeStyle = 'rgba(140, 190, 255, 0.5)';
+  g.lineWidth = 1;
+  g.strokeRect(view.x - halfW, view.y - halfH, halfW * 2, halfH * 2);
+
+  for (const sys of state.systems) {
+    const p = miniPoint(canvas, sys.col, sys.row);
+    const seen = hasSeen(state, sys.col, sys.row) || sys.factionId === state.playerFactionId;
+    g.fillStyle = seen ? factionProfile(sys.factionId).color : 'rgba(120, 150, 190, 0.35)';
+    const r = sys.capital ? 3.6 : 2.4;
+    g.beginPath();
+    g.arc(p.x, p.y, r, 0, Math.PI * 2);
+    g.fill();
+    if (sys.capital && seen) {
+      g.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      g.lineWidth = 1;
+      g.stroke();
+    }
+  }
+  for (const fleet of state.fleets) {
+    if (fleet.factionId !== state.playerFactionId
+      && !(visibility && visibility.fleets.has(fleet.id))) continue;
+    const p = miniPoint(canvas, fleet.col, fleet.row);
+    g.fillStyle = fleet.factionId === state.playerFactionId
+      ? '#eaf3ff' : factionProfile(fleet.factionId).color;
+    g.fillRect(p.x - 1.6, p.y - 1.6, 3.2, 3.2);
+  }
+}
+
+// Ein Klick in die Übersicht springt an die Stelle.
+function miniMapJump(ev) {
+  const canvas = $('miniMap');
+  if (!canvas || !state) return;
+  const box = canvas.getBoundingClientRect();
+  const pad = 6;
+  const fx = ((ev.clientX - box.left) / box.width) * canvas.width;
+  const fy = ((ev.clientY - box.top) / box.height) * canvas.height;
+  const col = ((fx - pad) / (canvas.width - pad * 2)) * (GRID_COLS - 1);
+  const row = ((fy - pad) / (canvas.height - pad * 2)) * (GRID_ROWS - 1);
+  centerOn(Math.round(col), Math.round(row));
+  draw();
+  drawMiniMap();
 }
 
 function renderSelectionPanel() {
@@ -218,7 +304,8 @@ async function onTileClick(tile, mods = {}) {
   if (mods.double) centerOn(col, row);
 }
 
-function onTileHover(tile) {
+function onTileHover(tile, point = null) {
+  showHoverCard(tile, point);
   if (!state || !tile || !selection.fleetId) { hoverPath = null; return; }
   const fleet = fleetById(state, selection.fleetId);
   if (!fleet || fleet.factionId !== state.playerFactionId) return;
@@ -226,6 +313,24 @@ function onTileHover(tile) {
   const changed = JSON.stringify(path) !== JSON.stringify(hoverPath);
   hoverPath = path;
   if (changed) refreshScene();
+}
+
+// Die kleine Karte am Zeiger: sie zeigt, was dort liegt, ohne dass man
+// klicken muss. Sie weicht dem Rand aus und verschwindet, sobald der Zeiger
+// die Karte verlässt.
+function showHoverCard(tile, point) {
+  const card = $('hoverCard');
+  if (!card) return;
+  if (!state || !tile || !point) { card.classList.add('hidden'); return; }
+  const html = hoverCardHTML(state, tile.col, tile.row, visibility ? visibility.fleets : null);
+  if (!html) { card.classList.add('hidden'); return; }
+  card.innerHTML = html;
+  card.classList.remove('hidden');
+  const box = card.getBoundingClientRect();
+  const x = Math.min(window.innerWidth - box.width - 12, point.x + 18);
+  const y = Math.min(window.innerHeight - box.height - 12, point.y + 16);
+  card.style.left = `${Math.max(8, x)}px`;
+  card.style.top = `${Math.max(8, y)}px`;
 }
 
 async function doMove(fleet, col, row) {
@@ -364,6 +469,7 @@ function openSheet(name) {
     technik: ['Technik', () => techHTML(state)],
     chronik: ['Chronik', () => chronicleHTML(state)],
     einstellungen: ['Einstellungen', () => settingsHTML()],
+    hilfe: ['Steuerung und Hilfe', () => helpHTML()],
   };
   const view = views[name];
   if (!view) return;
@@ -504,6 +610,15 @@ function handleAction(action, el) {
     case 'renounce-treaty':
       report(renounceTreaty(state, state.playerFactionId, el.dataset.id));
       openSheet('diplomatie');
+      break;
+    case 'next-fleet':
+      nextFleet();
+      break;
+    case 'next-yard':
+      nextYard();
+      break;
+    case 'help':
+      openSheet('hilfe');
       break;
     case 'sheet':
       openSheet(el.dataset.sheet);
@@ -702,7 +817,10 @@ async function beginGame(newState, { opening = true } = {}) {
         if (home) { centerOn(home.col, home.row); draw(); }
       },
       onSheet: openSheet,
-      onRender: (needsResize) => { if (needsResize) resize(); draw(); },
+      onToggleBorders: () => { handleAction('toggle-borders'); },
+      onToggleMapMode: () => { handleAction('toggle-mapmode'); },
+      onToggleMini: () => toggleMiniMap(),
+      onRender: (needsResize) => { if (needsResize) resize(); draw(); drawMiniMap(); },
     });
     sceneReady = true;
   }
@@ -736,6 +854,22 @@ async function beginGame(newState, { opening = true } = {}) {
     centerOnFaction(state);
     draw();
   }
+}
+
+// Die Werften ohne Auftrag der Reihe nach: ein Klick, eine Werft, und die
+// Bautafel steht schon offen.
+let lastYardId = null;
+function nextYard() {
+  if (!state) return;
+  const yards = idleYards(state);
+  if (!yards.length) { toast('Alle Werften haben Arbeit.'); return; }
+  const idx = yards.findIndex((sys) => sys.id === lastYardId);
+  const next = yards[(idx + 1) % yards.length];
+  lastYardId = next.id;
+  closeSheet();
+  selectSystem(next);
+  centerOn(next.col, next.row);
+  draw();
 }
 
 function nextFleet() {
@@ -802,6 +936,17 @@ function wireGameChrome() {
   $('sheetClose').onclick = closeSheet;
   $('battleClose').onclick = () => $('battleModal').classList.add('hidden');
 
+  // Übersichtskarte: Klick springt hin, der Schalter klappt sie weg.
+  const mini = $('miniMap');
+  if (mini) mini.onclick = miniMapJump;
+  const miniBtn = $('miniToggle');
+  if (miniBtn) {
+    miniBtn.onclick = () => { toggleMiniMap(); sfx.klick(); };
+  }
+
+  // Sprechblasen ohne Wartezeit: alles mit `data-tip` erklärt sich sofort.
+  wireTips();
+
   // Alle Schaltflächen in den Tafeln laufen über einen Draht.
   document.addEventListener('click', (ev) => {
     const el = ev.target.closest('[data-action]');
@@ -826,6 +971,51 @@ function wireGameChrome() {
       if (body) body.innerHTML = settingsHTML();
     }
   });
+}
+
+// --- Sprechblasen ---------------------------------------------------------
+// Der Browser lässt seinen eigenen Tooltip eine Sekunde warten. Das ist eine
+// Sekunde zu lang, wenn acht Zeichen nebeneinander in der Leiste stehen.
+function wireTips() {
+  const tip = $('tipBox');
+  if (!tip) return;
+  let current = null;
+  const place = (ev) => {
+    const box = tip.getBoundingClientRect();
+    const x = Math.min(window.innerWidth - box.width - 10, ev.clientX + 14);
+    const y = ev.clientY + 20 + box.height > window.innerHeight
+      ? ev.clientY - box.height - 12 : ev.clientY + 20;
+    tip.style.left = `${Math.max(8, x)}px`;
+    tip.style.top = `${Math.max(8, y)}px`;
+  };
+  document.addEventListener('pointerover', (ev) => {
+    const el = ev.target.closest ? ev.target.closest('[data-tip]') : null;
+    if (!el) {
+      if (current) { current = null; tip.classList.add('hidden'); }
+      return;
+    }
+    if (el === current) return;
+    current = el;
+    tip.textContent = el.dataset.tip;
+    tip.classList.remove('hidden');
+    place(ev);
+  });
+  document.addEventListener('pointermove', (ev) => {
+    if (current && !tip.classList.contains('hidden')) place(ev);
+  });
+  document.addEventListener('pointerdown', () => {
+    current = null;
+    tip.classList.add('hidden');
+  });
+}
+
+// Die Übersichtskarte lässt sich wegklappen - manche wollen den Blick frei.
+function toggleMiniMap(force = null) {
+  const wrap = $('miniWrap');
+  if (!wrap) return;
+  const zu = force == null ? !wrap.classList.contains('zu') : force;
+  wrap.classList.toggle('zu', zu);
+  if (!zu) drawMiniMap();
 }
 
 // --- Der Vorspann ---------------------------------------------------------
@@ -941,6 +1131,7 @@ function boot() {
     pick: (x, y) => pickTile(x, y),
     zoom: (v) => zoomCamera(v),
     camera: (opts) => setCamera(opts),
+    cameraNow: () => cameraState(),
     // Womit ein Prüflauf nachsehen kann, was das Spiel gerade denkt.
     debug: () => ({
       selection: { ...selection },

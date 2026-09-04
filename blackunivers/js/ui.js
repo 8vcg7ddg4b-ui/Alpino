@@ -57,23 +57,27 @@ export function topBarHTML(state, view = {}) {
       <span class="tb-emblem">${emblemSVG(profile.emblem, { size: 30, color: profile.color })}</span>
       <span class="tb-names"><strong>${me.short}</strong><small>${me.ruler.name}</small></span>
     </div>
-    <div class="tb-stat" title="Kredits in der Kriegskasse">
+    <button class="tb-stat" data-action="sheet" data-sheet="reich"
+      data-tip="Kriegskasse und Unterhalt · öffnet das Reich (I)">
       ${iconSVG('credits', { size: 18 })}
       <span><strong>${num(me.credits)}</strong>
       <small class="${net >= 0 ? 'good' : 'bad'}">${net >= 0 ? '+' : ''}${num(net)} je Zug</small></span>
-    </div>
-    <div class="tb-stat" title="Systeme im Reich">
+    </button>
+    <button class="tb-stat" data-action="sheet" data-sheet="reich"
+      data-tip="Systeme im Reich · ${VICTORY_SYSTEMS} bedeuten den Sieg (I)">
       ${iconSVG('system', { size: 18 })}
       <span><strong>${systems.length}</strong><small>von ${VICTORY_SYSTEMS} zum Sieg</small></span>
-    </div>
-    <div class="tb-stat" title="Flotten im Feld">
+    </button>
+    <button class="tb-stat" data-action="next-fleet"
+      data-tip="Flotten im Feld · springt zur nächsten mit Bewegung (N)">
       ${iconSVG('fleet', { size: 18 })}
       <span><strong>${fleetsOf(state, me.id).length}</strong><small>Flotten</small></span>
-    </div>
-    <div class="tb-stat" title="Forschung">
+    </button>
+    <button class="tb-stat" data-action="sheet" data-sheet="technik"
+      data-tip="Triebwerke / Waffen / Schilde · öffnet die Technik (T)">
       ${iconSVG('tech', { size: 18 })}
       <span><strong>${me.tech.triebwerke}/${me.tech.waffen}/${me.tech.schilde}</strong><small>${research}</small></span>
-    </div>
+    </button>
     <nav class="tb-tools" aria-label="Fenster">
       ${toolButton('reich', 'system', 'Das Reich (I)')}
       ${toolButton('diplomatie', 'diplomacy', 'Diplomatie (D)', state.diplomacy.offers.length ? 'alert' : '')}
@@ -81,11 +85,13 @@ export function topBarHTML(state, view = {}) {
       ${toolButton('chronik', 'chronicle', 'Chronik (C)')}
       <span class="tb-sep"></span>
       <button class="tb-tool ${view.borders ? 'on' : ''}" data-action="toggle-borders"
-        title="Grenzen der Reiche anzeigen">${iconSVG('target', { size: 18 })}</button>
+        data-tip="Grenzen der Reiche anzeigen (B)">${iconSVG('target', { size: 18 })}</button>
       <button class="tb-tool ${view.mapMode === 'besitz' ? 'on' : ''}" data-action="toggle-mapmode"
-        title="Karte nach Flaggen einfärben">${iconSVG('eye', { size: 18 })}</button>
+        data-tip="Karte nach Flaggen einfärben (M)">${iconSVG('eye', { size: 18 })}</button>
+      ${toolButton('hilfe', 'book', 'Steuerung und Hilfe (F1)')}
       ${toolButton('einstellungen', 'gear', 'Einstellungen')}
-      <button class="tb-tool" data-action="to-menu" title="Zurück zum Startbild">${iconSVG('book', { size: 18 })}</button>
+      <button class="tb-tool" data-action="to-menu"
+        data-tip="Zurück zum Startbild">${iconSVG('play', { size: 18 })}</button>
     </nav>
     <div class="tb-turn">
       <strong>Zug ${state.turn}</strong>
@@ -97,7 +103,180 @@ export function topBarHTML(state, view = {}) {
 // die Leiste schmal bleibt.
 function toolButton(sheet, icon, title, extra = '') {
   return `<button class="tb-tool ${extra}" data-action="sheet" data-sheet="${sheet}"
-    title="${title}" aria-label="${title}">${iconSVG(icon, { size: 18 })}</button>`;
+    data-tip="${title}" aria-label="${title}">${iconSVG(icon, { size: 18 })}</button>`;
+}
+
+// --- Die Aufgabenleiste ---------------------------------------------------
+// Was in diesem Zug noch offen ist - und jeder Punkt ist ein Klick auf die
+// Sache selbst. Wer nicht weiß, was er tun soll, liest hier nach; wer es
+// weiß, sieht auf einen Blick, dass nichts liegen bleibt.
+export function todoList(state) {
+  const me = playerFaction(state);
+  const items = [];
+
+  const movers = fleetsOf(state, me.id).filter((f) => f.movement > 0);
+  if (movers.length) {
+    items.push({
+      key: 'flotten', icon: 'fleet', action: 'next-fleet',
+      text: `${movers.length} ${movers.length === 1 ? 'Flotte hat' : 'Flotten haben'} noch Bewegung`,
+      hint: 'Zur nächsten springen (N)',
+    });
+  }
+
+  // Eine Werft ohne Auftrag ist verlorene Zeit - sie wird namentlich genannt.
+  const idle = systemsOf(state, me.id)
+    .filter((sys) => (sys.buildings.werft && sys.buildings.werft.level > 0) && !sys.training.length);
+  if (idle.length) {
+    items.push({
+      key: 'werften', icon: 'yard', action: 'next-yard',
+      text: idle.length === 1 ? `Werft ${idle[0].name} ohne Auftrag`
+        : `${idle.length} Werften ohne Auftrag`,
+      hint: idle.length === 1 ? `${idle[0].name} ansehen und bauen`
+        : 'Der Reihe nach ansehen und bauen',
+    });
+  }
+
+  if (!me.research) {
+    items.push({
+      key: 'forschung', icon: 'tech', action: 'sheet', sheet: 'technik',
+      text: 'Keine Forschung in Arbeit',
+      hint: 'Technik wählen (T)',
+    });
+  }
+
+  if (state.diplomacy.offers.length) {
+    items.push({
+      key: 'angebote', icon: 'diplomacy', action: 'sheet', sheet: 'diplomatie', alert: true,
+      text: `${state.diplomacy.offers.length} ${state.diplomacy.offers.length === 1
+        ? 'Angebot liegt vor' : 'Angebote liegen vor'}`,
+      hint: 'Diplomatie öffnen (D)',
+    });
+  }
+
+  // Belagerte oder blockierte eigene Welten: das gehört auf den Tisch.
+  const bedraengt = systemsOf(state, me.id).filter((sys) => sys.siege || sys.blockade);
+  if (bedraengt.length) {
+    items.push({
+      key: 'not', icon: 'siege', action: 'goto-system', id: bedraengt[0].id, alert: true,
+      text: bedraengt.length === 1 ? `${bedraengt[0].name} steht unter Druck`
+        : `${bedraengt.length} Welten stehen unter Druck`,
+      hint: 'Hinschauen',
+    });
+  }
+  return items;
+}
+
+// Die Werften ohne Auftrag - `main.js` geht sie der Reihe nach durch.
+export function idleYards(state) {
+  return systemsOf(state, state.playerFactionId)
+    .filter((sys) => (sys.buildings.werft && sys.buildings.werft.level > 0) && !sys.training.length);
+}
+
+export function todoHTML(state) {
+  const items = todoList(state);
+  if (!items.length) {
+    return `<div class="todo-done">${iconSVG('star', { size: 15 })}
+      <span>Alles erledigt – <strong>Zug beenden</strong> (Leertaste)</span></div>`;
+  }
+  return items.map((it) => `<button class="todo-item ${it.alert ? 'alert' : ''}"
+    data-action="${it.action}"
+    ${it.sheet ? `data-sheet="${it.sheet}"` : ''}
+    ${it.id ? `data-id="${it.id}"` : ''}
+    data-tip="${it.hint}">
+    ${iconSVG(it.icon, { size: 15 })}<span>${it.text}</span>
+  </button>`).join('');
+}
+
+// --- Die Karte unter dem Zeiger ------------------------------------------
+// Was dort liegt, steht sofort da - ohne Klick, ohne Warten. Nur das
+// Wichtigste: Name, Flagge, Stärke.
+export function hoverCardHTML(state, col, row, visibleFleets = null) {
+  const tile = tileOf(state, col, row);
+  if (!tile) return '';
+  const sys = systemAt(state, col, row);
+  const here = fleetsAt(state, col, row).filter((f) => f.factionId === state.playerFactionId
+    || !visibleFleets || visibleFleets.has(f.id));
+  const parts = [];
+  if (sys) {
+    const p = factionProfile(sys.factionId);
+    const seen = hasSeen(state, sys.col, sys.row) || sys.factionId === state.playerFactionId;
+    parts.push(`<div class="hc-line" style="--faction:${p.color}">
+      <b>${sys.name}${sys.capital ? ' ★' : ''}</b>
+      <small>${p.short} · ${sizeTier(sys.size).label}</small>
+    </div>`);
+    if (seen) {
+      parts.push(`<div class="hc-stats">
+        <span>Ertrag <b>${num(systemIncome(state, sys))}</b></span>
+        <span>Schild <b>${shieldInfo(sys.shield.level).name}</b></span>
+        <span>Wache <b>${garrisonTotal(sys)}</b></span>
+      </div>`);
+    }
+  }
+  for (const f of here) {
+    const p = factionProfile(f.factionId);
+    parts.push(`<div class="hc-line" style="--faction:${p.color}">
+      <b>${f.name}</b>
+      <small>${p.short} · ${fleetTotalCount(f)} Maschinen · Moral ${Math.round(f.morale)}</small>
+    </div>`);
+  }
+  if (!parts.length) {
+    parts.push(`<div class="hc-line">
+      <b>${TILE_LABELS[tile.type]}</b>
+      <small>${tile.zoneName || sectorOfTile(col, row).name}${tile.jump ? ` · Sprungpunkt ${tile.jump.name}` : ''}</small>
+    </div>`);
+  }
+  return parts.join('');
+}
+
+// --- Steuerung und Hilfe --------------------------------------------------
+// Alles, was man wissen muss, auf einer Tafel - einen Klick entfernt.
+export function helpHTML() {
+  const keys = [
+    ['Linke Maustaste', 'Karte ziehen · Klick wählt aus'],
+    ['Rechte Maustaste ziehen', 'Kamera drehen und neigen – nach unten geht der Blick auf die Brücke'],
+    ['Mausrad · + / −', 'Näher heran, weiter weg'],
+    ['Doppelklick', 'Feld in die Mitte holen'],
+    ['Rechtsklick auf ein Feld', 'Dorthin blicken'],
+    ['Pfeiltasten', 'Schwenken · mit Umschalt schneller'],
+    ['Q / E', 'Drehen · R stellt die Kamera zurück'],
+  ];
+  const orders = [
+    ['Klick auf eigene Flotte', 'Auswählen – blaue Felder sind erreichbar, rote Rauten sind Ziele'],
+    ['Klick auf blaues Feld', 'Hinfliegen (der Weg wird beim Überfahren gezeigt)'],
+    ['Klick auf rotes Feld', 'Angreifen – mit Vorschau, bevor es ernst wird'],
+    ['Klick auf eigene Welt', 'Bauen, ausbauen, Schild verstärken, Flotte aufstellen'],
+    ['N', 'Nächste Flotte mit Bewegung · H zur Hauptwelt'],
+    ['Leertaste / Eingabe', 'Zug beenden'],
+    ['Esc', 'Auswahl aufheben · Tafel schließen · Gefecht überspringen'],
+  ];
+  const sheets = [
+    ['I', 'Das Reich: Kassen, Welten, Bauplätze'],
+    ['D', 'Diplomatie: Verträge, Geschenke, Krieg und Frieden'],
+    ['T', 'Technik: Triebwerke, Waffen, Schilde'],
+    ['C', 'Chronik: was bisher geschah'],
+    ['B / M', 'Grenzen ein- und ausblenden · Karte nach Flaggen einfärben'],
+    ['F1 oder ?', 'Diese Tafel'],
+  ];
+  const table = (rows) => `<table class="list keys"><tbody>${rows.map(([k, v]) => `
+    <tr><td class="k"><kbd>${k}</kbd></td><td>${v}</td></tr>`).join('')}</tbody></table>`;
+  return `
+    <p class="hint">Alles, was zählt, steht oben in der Leiste oder liegt einen Klick
+      entfernt. Die Aufgabenleiste darunter sagt, was in diesem Zug noch offen ist –
+      jeder Punkt darin führt direkt zur Sache.</p>
+    <div class="panel-block"><h4>So läuft ein Zug</h4>
+      <ol class="tight">
+        <li>Flotten bewegen und angreifen – <kbd>N</kbd> geht sie der Reihe nach durch.</li>
+        <li>Werften beschicken: eigene Welt anklicken, Schiff oder Ausbau wählen.</li>
+        <li>Forschung setzen, wenn nichts läuft – <kbd>T</kbd>.</li>
+        <li>Angebote beantworten – <kbd>D</kbd>.</li>
+        <li><kbd>Leertaste</kbd>: Zug beenden. Der Rest der Galaxis zieht nach.</li>
+      </ol>
+    </div>
+    <div class="panel-block"><h4>Befehle</h4>${table(orders)}</div>
+    <div class="panel-block"><h4>Kamera</h4>${table(keys)}</div>
+    <div class="panel-block"><h4>Tafeln und Ansicht</h4>${table(sheets)}</div>
+    <p class="hint">Ziel des Feldzugs: ${VICTORY_SYSTEMS} Systeme halten – oder als
+      Letzter noch stehen.</p>`;
 }
 
 // --- Auswahltafel ---------------------------------------------------------

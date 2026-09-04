@@ -186,12 +186,56 @@ if (hasConfirm) {
 console.log('Tafeln öffnen …');
 // Die Fenster hängen als Zeichen in der Kopfleiste.
 for (const [sheet, name] of [['reich', '06-reich'], ['diplomatie', '07-diplomatie'],
-  ['technik', '08-technik'], ['chronik', '09-chronik'], ['einstellungen', '10-einstellungen']]) {
-  await page.click(`[data-action="sheet"][data-sheet="${sheet}"]`);
+  ['technik', '08-technik'], ['chronik', '09-chronik'], ['hilfe', '09b-hilfe'],
+  ['einstellungen', '10-einstellungen']]) {
+  await page.click(`.tb-tool[data-action="sheet"][data-sheet="${sheet}"]`);
   await page.waitForTimeout(400);
   await shot(name);
   await page.click('#sheetClose');
   await page.waitForTimeout(150);
+}
+
+// Die Aufgabenleiste: sie muss sagen, was noch offen ist, und jeder Punkt
+// muss mit einem Klick zur Sache führen.
+console.log('Karte unter dem Zeiger …');
+// Über einer Welt muss sofort dastehen, was dort liegt - ohne Klick.
+const solPoint = await page.evaluate(() => {
+  const s = window.__blackUniversState;
+  const sys = s.systems.find((x) => x.factionId === s.playerFactionId);
+  window.__bu.centerOn(sys.col, sys.row);
+  window.__bu.draw();
+  return window.__bu.tileToScreen(sys.col, sys.row);
+});
+await page.mouse.move(box.x + solPoint.x, box.y + solPoint.y, { steps: 6 });
+await page.waitForTimeout(350);
+const cardShown = await page.locator('#hoverCard:not(.hidden)').count();
+if (!cardShown) problems.push('Die Karte unter dem Zeiger erscheint nicht.');
+else await shot('05e2-zeigerkarte');
+
+console.log('Aufgabenleiste und Übersicht …');
+const todos = await page.locator('#todoBar .todo-item, #todoBar .todo-done').count();
+if (!todos) problems.push('Die Aufgabenleiste ist leer.');
+else console.log(`  ${todos} Punkte in der Aufgabenleiste`);
+const firstTodo = page.locator('#todoBar .todo-item').first();
+if (await firstTodo.count()) {
+  await firstTodo.click();
+  await page.waitForTimeout(500);
+  await shot('05f-aufgabenleiste');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+}
+// Die Übersichtskarte: ein Klick hinein springt an die Stelle.
+const camBefore = await page.evaluate(() => window.__bu.cameraNow());
+const miniBox = await page.locator('#miniMap').boundingBox();
+if (!miniBox) problems.push('Die Übersichtskarte fehlt.');
+else {
+  await page.mouse.click(miniBox.x + miniBox.width * 0.25, miniBox.y + miniBox.height * 0.3);
+  await page.waitForTimeout(300);
+  const camAfter = await page.evaluate(() => window.__bu.cameraNow());
+  if (Math.abs(camAfter.col - camBefore.col) < 1 && Math.abs(camAfter.row - camBefore.row) < 1) {
+    problems.push('Der Klick in die Übersichtskarte springt nicht.');
+  }
+  await shot('05g-uebersicht');
 }
 
 console.log('Fünf Züge …');

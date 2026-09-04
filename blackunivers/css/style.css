@@ -675,7 +675,8 @@ button.mini.good { color: var(--green); }
   position: absolute;
   z-index: 6;
   right: clamp(8px, 1.5vw, 18px);
-  bottom: clamp(14px, 3vh, 28px);
+  /* Über der Übersichtskarte, nicht darauf. */
+  bottom: 200px;
   width: min(320px, 40vw);
   display: flex;
   flex-direction: column;
@@ -1024,6 +1025,172 @@ button.tactic.on { color: var(--amber); border-color: var(--amber); background: 
 .memo h4 { color: var(--amber); }
 .rules p { font-size: 0.84rem; }
 
+/* --- Die Werte in der Kopfleiste sind Schalter -------------------------- */
+/* Wer auf die Kasse tippt, will ins Reich; wer auf die Flotten tippt, will
+   zur nächsten. Also sind es Schaltflächen, und sie sehen auch so aus. */
+button.tb-stat {
+  /* Die Leiste selbst nimmt keine Klicks an, damit man durch sie hindurch
+     auf die Karte greifen kann - die Schalter darin sehr wohl. */
+  pointer-events: auto;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  padding: 3px 8px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+button.tb-stat:hover {
+  border-color: var(--line);
+  background: rgba(110, 170, 240, 0.08);
+}
+
+/* Der Zug-beenden-Knopf sagt, worauf er wartet. Steht noch etwas offen,
+   bleibt er ruhig; ist alles erledigt, leuchtet er. */
+#endTurnBtn.warten {
+  border-color: var(--line);
+  background: rgba(20, 34, 54, 0.9);
+  color: var(--text);
+}
+
+/* --- Die Aufgabenleiste ------------------------------------------------- */
+/* Sie steht unter der Kopfleiste in der Mitte: was in diesem Zug noch offen
+   ist, jeder Punkt ein Klick auf die Sache selbst. */
+.todo-bar {
+  position: absolute;
+  z-index: 7;
+  top: 46px;
+  /* Zwischen Auswahltafel und Zugsteuerung - sie gerät nie unter die eine
+     und nie unter die andere. */
+  left: 404px;
+  right: 360px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.todo-item, .todo-done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(6, 12, 22, 0.86);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.todo-item { cursor: pointer; }
+.todo-item svg, .todo-done svg { flex: none; color: var(--blue); }
+.todo-item:hover {
+  border-color: var(--blue);
+  background: rgba(30, 60, 100, 0.9);
+}
+.todo-item.alert { border-color: var(--amber); }
+.todo-item.alert svg { color: var(--amber); }
+.todo-done {
+  color: var(--muted);
+  border-color: var(--line-soft);
+}
+.todo-done svg { color: var(--green); }
+.todo-done strong { color: var(--text); }
+
+/* --- Was unter dem Zeiger liegt ---------------------------------------- */
+.hover-card {
+  position: absolute;
+  z-index: 8;
+  pointer-events: none;
+  min-width: 180px;
+  max-width: 300px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--faction, var(--blue));
+  background: rgba(4, 9, 16, 0.94);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+  font-size: 0.78rem;
+}
+.hc-line { display: flex; flex-direction: column; line-height: 1.25; }
+.hc-line + .hc-line { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--line-soft); }
+.hc-line b { font-family: var(--font-display); color: var(--faction, var(--text)); }
+.hc-line small { color: var(--muted); font-size: 0.72rem; }
+.hc-stats {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.hc-stats b { color: var(--text); }
+
+/* --- Die Übersichtskarte ------------------------------------------------ */
+/* Unten rechts, unter den Meldungen: das ganze Sternenfeld auf einmal. Ein
+   Klick springt hin, damit niemand quer über die Karte ziehen muss. */
+.mini-wrap {
+  position: absolute;
+  z-index: 6;
+  right: clamp(8px, 1.5vw, 18px);
+  bottom: clamp(14px, 3vh, 28px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.mini-map {
+  display: block;
+  width: 264px;
+  height: 150px;
+  border: 1px solid var(--line);
+  background: rgba(4, 9, 16, 0.86);
+  cursor: crosshair;
+}
+.mini-toggle {
+  align-self: flex-end;
+  padding: 3px 10px;
+  border: 1px solid var(--line-soft);
+  background: rgba(4, 9, 16, 0.86);
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.mini-toggle:hover { color: var(--text); border-color: var(--blue); }
+.mini-wrap.zu .mini-map { display: none; }
+
+/* --- Sprechblasen ------------------------------------------------------- */
+/* Kein Warten auf den Tooltip des Browsers: die Erklärung steht sofort da. */
+.tip-box {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  background: rgba(4, 9, 16, 0.96);
+  color: var(--text);
+  font-size: 0.74rem;
+  max-width: 280px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Tastenkürzel in der Hilfe ------------------------------------------ */
+.list.keys td.k { width: 40%; }
+kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: rgba(110, 170, 240, 0.08);
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  color: var(--text);
+}
+
 /* Läuft ein Gefecht, tritt die Bedienung zurück: das Bild gehört den
    Schiffen. Nichts wird ausgeblendet, nur zurückgenommen - man soll sehen,
    dass die Brücke weiterarbeitet. */
@@ -1031,6 +1198,8 @@ body.gefecht-laeuft .top-bar,
 body.gefecht-laeuft .turn-controls,
 body.gefecht-laeuft .side-panel,
 body.gefecht-laeuft .feed,
+body.gefecht-laeuft .todo-bar,
+body.gefecht-laeuft .mini-wrap,
 body.gefecht-laeuft .compass {
   opacity: 0.12;
   pointer-events: none;
@@ -1153,4 +1322,8 @@ body.gefecht-laeuft .top-bar { opacity: 0.2; }
   .battle-hud .bh-side { min-width: 78px; }
   .battle-hud .bh-name { font-size: 0.66rem; }
   .battle-hud .bh-strength { font-size: 0.95rem; }
+  .todo-bar { top: 40px; left: 8px; right: 8px; gap: 4px; }
+  .todo-item, .todo-done { font-size: 0.68rem; padding: 4px 8px; }
+  .mini-map { width: 180px; height: 104px; }
+  .hover-card { display: none; }
 }
