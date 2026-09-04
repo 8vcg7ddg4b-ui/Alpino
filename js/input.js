@@ -1,10 +1,10 @@
 import { computeReachable, tileKey } from './pathfind.js';
-import { armyAt, cityAt, playerFaction } from './state.js';
+import { armyAt, cityAt, playerFaction, factionById } from './state.js';
 import { moveArmy, previewTileCombat, moveWarning, besiegeCity } from './actions.js';
 import {
   pickTile, groundPointAt, panCameraByWorld, panCameraRelative, panCameraByScreen,
   zoomCamera, rotateCamera,
-  animateArmyPath, playBattleClash, isAnimating, flyCameraTo,
+  animateArmyPath, playBattleClash, isAnimating, flyCameraTo, cameraState,
 } from './scene3d.js';
 import { sfx, startMarch, stopMarch } from './audio.js';
 
@@ -18,9 +18,14 @@ const PAN_KEYS = {
 // Spieler von Hand zoomen kann (siehe `flyCameraTo`) - erst so stehen die
 // Heere selbst im Bild, nicht nur die Gegend, in der gefochten wird. Der
 // Schwenk braucht spürbar länger als ein bloßes Zucken, sonst ist er vorbei,
-// ehe man hinschaut.
+// ehe man hinschaut. Die Neigung sinkt dabei auf eine flachere, strategische
+// Warte ab - näher an Augenhöhe als der steile Kartenblick, aber noch weit
+// von ihm entfernt, kein Blick aus der Truppe selbst. Danach kehrt sie
+// wieder zu der Neigung zurück, die vor dem Angriff galt.
 const BATTLE_ZOOM = 7.5;
 const BATTLE_PAN_DURATION = 1.1;
+const BATTLE_POLAR = 0.44;
+const BATTLE_POLAR_RESTORE = 0.8;
 
 function selectArmy(state, army) {
   state.selectedArmyId = army.id;
@@ -62,7 +67,7 @@ function toNdc(canvas, clientX, clientY) {
   };
 }
 
-export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction, onPreviewAttack, onInspect, onConfirmBorder) {
+export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction, onPreviewAttack, onInspect, onConfirmBorder, onBattleHud) {
   // Pointer events cover mouse, pen and touch in one path. Two simultaneous
   // pointers mean a pinch: the distance between them zooms, the angle between
   // them turns the map.
@@ -248,6 +253,7 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
     const reports = outcome.reports || [];
 
     const settle = () => {
+      if (onBattleHud) onBattleHud(null);
       if (survivor && survivor.movement > 0) {
         selectArmy(state, survivor);
       } else {
@@ -266,6 +272,17 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
         settle();
         return;
       }
+      const schlacht = reports[reports.length - 1];
+      // Die Feldzeichen beider Seiten, für die Schlachtreihen und das
+      // Schlacht-HUD - der Bericht selbst führt Buch darüber, wer da focht.
+      const angreiferFraktion = factionById(state, schlacht.attackerFactionId);
+      const verteidigerFraktion = factionById(state, schlacht.defenderFactionId);
+      // Von wo das Heer kam, bestimmt, wohin die beiden Reihen einander
+      // zugewandt werden - der vorletzte Wegpunkt vor dem Ziel, oder der
+      // Ausgangspunkt selbst, wenn es nur ein Feld weit ging.
+      const anmarsch = entry.path.length > 1 ? entry.path[entry.path.length - 2] : origin;
+      if (onBattleHud) onBattleHud({ report: schlacht, angreiferFraktion, verteidigerFraktion });
+      const startPolar = cameraState().polar;
       // Der Blick zieht erst zur Stelle, dann setzt der Zusammenprall ein -
       // ein Angriff wird auf der großen Karte ausgetragen, nicht irgendwo
       // außerhalb des Bildausschnitts.
@@ -273,8 +290,21 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
         sfx.clash();
         // Ob auf See gefochten wurde, sagt der Bericht selbst.
         const zurSee = reports.some((r) => r.naval);
-        playBattleClash(col, row, settle, { naval: zurSee });
-      });
+        playBattleClash(col, row, () => {
+          // Erst die Neigung zurück zur gewohnten Warte, dann erst der
+          // Bericht - sonst öffnete er sich noch mitten im Rückschwenk.
+          const jetzt = cameraState();
+          flyCameraTo(jetzt.col, jetzt.row, jetzt.zoom, BATTLE_POLAR_RESTORE, settle, startPolar);
+        }, {
+          naval: zurSee,
+          attackerColor: angreiferFraktion ? angreiferFraktion.color : undefined,
+          defenderColor: verteidigerFraktion ? verteidigerFraktion.color : undefined,
+          attackerUnits: schlacht.attackerEngaged,
+          defenderUnits: schlacht.defenderEngaged,
+          approachCol: anmarsch.col,
+          approachRow: anmarsch.row,
+        });
+      }, BATTLE_POLAR);
     });
     onChange();
   }

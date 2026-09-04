@@ -541,21 +541,36 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   mehr wert ist als ein Ort.
   Der **Schlachtbericht nennt beide Ordnungen**.
 - **Der Kampf auf der großen Karte**: Ein Angriff wird nicht in einem eigenen
-  Fenster nachgestellt, sondern dort ausgetragen, wo er stattfindet. Sobald der
-  Marsch endet und es zum Gefecht kommt, zieht die Kamera in einem gut eine
-  Sekunde langen Schwenk **näher heran, als der Spieler von Hand zoomen
-  kann** – so nah, dass die Heere selbst im Bild stehen, nicht nur die Gegend,
-  in der gefochten wird –, ehe der **Zusammenprall** einsetzt. Seit das eigene
-  Schlachtfenster entfallen ist, trägt dieser eine Augenblick das ganze
-  Gewicht des Ereignisses und bekommt entsprechend Zeit: über drei Sekunden
-  laufen zwei Stoßwellen kurz hintereinander über den Boden, dazu ein erster
-  Lichtblitz und ein zweiter, leiserer Nachhall, Funken, die hochschlagen und
-  ausglühen, **Staub, der aufsteigt und über dem Feld hängen bleibt** statt
-  gleich mit den Funken zu verschwinden (zur See ist es Gischt statt Staub),
-  und ein kurzer, rasch abklingender **Ruck der Kamera** im Moment des
-  Aufpralls. Der Blick springt nicht dorthin, er zieht dorthin. Was die
-  Schlacht wirklich gekostet hat, steht wie gewohnt im **Schlachtbericht**
-  danach.
+  Fenster nachgestellt, sondern dort ausgetragen, wo er stattfindet – mit
+  erkennbaren Truppen, dem Ort und seinen Befestigungen, aus einer
+  strategischen Warte, nicht aus der Kartenübersicht.
+  Sobald der Marsch endet und es zum Gefecht kommt, zieht die Kamera in einem
+  gut eine Sekunde langen Schwenk **näher heran, als der Spieler von Hand
+  zoomen kann**, und ihre Neigung sinkt auf eine flachere, dramatischere Warte
+  ab – näher an Augenhöhe als der steile Kartenblick, aber kein Blick aus der
+  Truppe selbst. So stehen die Heere im Bild, nicht nur die Gegend, in der
+  gefochten wird, und bei einem Sturm auf einen Ort auch seine **Mauern,
+  Türme und Tore**, in dem Ausbauzustand, den die Stadt tatsächlich hat.
+  **Zwei Schlachtreihen treten einander gegenüber** – dieselben Gestalten wie
+  im Marschzug und im Wachkreis vor dem Lager (Fußvolk mit Schild und Speer,
+  Reiterei mit Lanze, Schützen mit Bogen), nur zu einer Front aufgestellt statt
+  zu einer Marschordnung, in der Farbe ihrer Fraktion und im Verhältnis ihrer
+  Gattungen zueinander, wie es der Bericht für diese Schlacht ausweist. Sie
+  rücken ein kurzes Stück aufeinander zu, ehe der **Zusammenprall** einsetzt:
+  über drei Sekunden laufen zwei Stoßwellen kurz hintereinander über den
+  Boden, dazu ein erster Lichtblitz und ein zweiter, leiserer Nachhall,
+  Funken, die hochschlagen und ausglühen, **Staub, der aufsteigt und über dem
+  Feld hängen bleibt** statt gleich mit den Funken zu verschwinden (zur See
+  ist es Gischt statt Staub), und ein kurzer, rasch abklingender **Ruck der
+  Kamera** im Moment des Aufpralls. Der Blick springt nicht dorthin, er zieht
+  dorthin.
+  **Ein schmales Band über der Karte** nennt, solange der Zusammenprall
+  läuft, beide Seiten mit Wappenfarbe, Namen und der Zahl der eingesetzten
+  Mann, dazu den Anlass (der Name des belagerten Orts, oder ein Schwert für
+  ein offenes Feld) – und einen Knopf **„⏭ Überspringen"** für jeden, der die
+  Länge nicht abwarten will. Direkt danach kehrt die Kamera zu der Neigung
+  zurück, die vor dem Angriff galt, und der **Schlachtbericht** nennt, was die
+  Schlacht wirklich gekostet hat.
 - **Vier Schiffsarten, bis zu drei je Fraktion**: die **Quinquereme** mit Turm
   und Enterbrücke (50/52, 220 Gold) – schwer und im Rammstoß überlegen; die
   **Triere**, das Arbeitspferd jeder Flotte (46/45, 190 Gold) – wendig genug zum
@@ -2265,8 +2280,9 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   ziehen und was geschieht, wenn sie Land finden
 - `js/ai.js` – einfache KI (Wirtschaft + Angriffsverhalten)
 - `js/scene3d.js` – Three.js-Szene: instanziertes 3D-Gelände, Städte/Armeen als
-  3D-Objekte, isometrische Kamera (Pan/Zoom, auch der Schwenk zum
-  Kampfgeschehen bei einem Angriff), Raycasting-Feldauswahl
+  3D-Objekte, isometrische Kamera (Pan/Zoom, auch der Schwenk samt flacherer
+  Neigung zum Kampfgeschehen bei einem Angriff), die Schlachtreihen und der
+  Zusammenprall auf der Karte, Raycasting-Feldauswahl
 - `js/vendor/three.min.js` – lokal eingebundenes Three.js (MIT-Lizenz, r149)
 - `js/weather.js` – Kalender, Klimazonen, Wettertypen und ihre Regelwirkung
 - `js/anthems.js` – die Partituren der neunzehn Fraktionen: Leitern, Grundtöne,

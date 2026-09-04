@@ -834,6 +834,72 @@ html, body {
 }
 .report-walls { color: var(--gold); }
 
+/* Das Schlacht-HUD: steht oben über der Karte, solange der Zusammenprall
+   selbst läuft - zwei Seiten mit Namen und Mannzahl, dazwischen der Anlass,
+   und ein Knopf, der den Augenblick überspringt. Dieselbe Bühne wie #toast,
+   aber breiter und mit fester Struktur statt freiem Fließtext. */
+#battleHud {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(680px, calc(100% - 32px));
+  background: rgba(20, 15, 10, 0.92);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.86rem;
+  color: var(--text);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  z-index: 9;
+}
+.battle-hud-side {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+.battle-hud-side:last-of-type { flex-direction: row-reverse; }
+.battle-hud-side strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.battle-hud-side small { color: var(--muted); white-space: nowrap; }
+.battle-hud-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.battle-hud-vs {
+  flex: none;
+  color: var(--gold);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.battle-hud-skip {
+  flex: none;
+  margin-left: auto;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.battle-hud-skip:hover { border-color: var(--gold); color: var(--gold); }
+@media (max-width: 720px) {
+  #battleHud { flex-wrap: wrap; justify-content: center; gap: 8px 14px; }
+  .battle-hud-skip { margin-left: 0; }
+}
+
 #logPanel { display: flex; flex-direction: column; gap: 6px; }
 .log-line {
   font-size: 0.78rem;

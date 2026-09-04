@@ -353,7 +353,7 @@ export function zoomCamera(factor) {
 }
 
 export function cameraState() {
-  return { col: cam.col, row: cam.row, zoom: cam.zoom };
+  return { col: cam.col, row: cam.row, zoom: cam.zoom, polar: cam.polar, azimuth: cam.azimuth };
 }
 
 // Der Blick springt nicht zur Schlacht, er zieht dorthin: ein weicher Schwenk
@@ -363,11 +363,16 @@ export function cameraState() {
 // dort wird nach oben nicht auf `MAX_ZOOM` gedeckelt - der Schwenk zu einer
 // Schlacht darf näher heran, als der Spieler von Hand kommt, genau wie die
 // Eröffnung weiter hinaus darf, als er selbst zoomen könnte.
-export function flyCameraTo(col, row, zoom, duration = 0.6, onComplete) {
+// `polar` ist optional: bleibt er aus, ändert der Schwenk nur Ort und Zoom,
+// nicht die Neigung - so nutzt ihn jeder Aufrufer außer der Schlacht selbst.
+export function flyCameraTo(col, row, zoom, duration = 0.6, onComplete, polar) {
   const startCol = cam.col;
   const startRow = cam.row;
   const startZoom = cam.zoom;
+  const startPolar = cam.polar;
   const zielZoom = Math.max(MIN_ZOOM, zoom);
+  const zielPolar = polar === undefined
+    ? startPolar : Math.max(MIN_POLAR, Math.min(MAX_POLAR, polar));
   effects.push({
     elapsed: 0,
     duration,
@@ -378,6 +383,7 @@ export function flyCameraTo(col, row, zoom, duration = 0.6, onComplete) {
       cam.col = startCol + (col - startCol) * eased;
       cam.row = startRow + (row - startRow) * eased;
       cam.zoom = startZoom + (zielZoom - startZoom) * eased;
+      cam.polar = startPolar + (zielPolar - startPolar) * eased;
       applyCamera();
     },
     dispose() {},
@@ -7061,9 +7067,56 @@ export function effectsDebug() {
 // bei dieser Länge bleibt Zeit, überhaupt hinzusehen, ehe der Bericht kommt.
 const CLASH_DURATION = 3.2;
 
+// Wie viele Gestalten eine Schlachtreihe zeigt - dieselbe Rechnung wie bei
+// der Kolonne, nur eine eigene Reihe: die Schlacht ist jetzt das, was der
+// Spieler von einem Heer zu sehen bekommt, nicht mehr nur sein Zeltlager.
+function battleLineCount(units) {
+  const gesamt = COLUMN_ROLES.reduce((sum, r) => sum + ((units && units[r]) || 0), 0);
+  return Math.max(6, Math.min(16, Math.round(gesamt / 45) + 5));
+}
+
+// Eine Schlachtreihe: dieselben Gattungsformen wie Kolonne und Wache, hier zu
+// einer breiten Front aufgestellt statt zu einer Marschordnung oder einem
+// Wachkreis. Blickt lokal nach +X - wer sie aufstellt, dreht die ganze Gruppe
+// dorthin, wo der Gegner steht.
+function buildBattleLine(units, color) {
+  const group = new THREE.Group();
+  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: true });
+  const formen = marcherShapes();
+  const count = battleLineCount(units);
+  const roles = columnRoles(units || {}, count);
+  const cols = Math.max(3, Math.min(7, Math.round(Math.sqrt(count * 2.4))));
+  for (let i = 0; i < roles.length; i++) {
+    const reihe = Math.floor(i / cols);
+    const spalte = i % cols;
+    const inDieserReihe = Math.min(cols, roles.length - reihe * cols);
+    const mann = new THREE.Mesh(formen[roles[i]], material);
+    mann.userData.sharedGeom = true;
+    mann.position.set(-reihe * 0.42, 0, (spalte - (inDieserReihe - 1) / 2) * 0.4);
+    group.add(mann);
+  }
+  group.userData = { material };
+  return group;
+}
+
+// Welcher Zusammenprall gerade läuft - für den Überspringen-Knopf im
+// Schlacht-HUD. Es kann immer nur einer laufen, ein neuer Angriff setzt erst
+// ein, wenn der vorige abgeschlossen ist.
+let activeClash = null;
+
+// Der Spieler will nicht jedes Mal die volle Länge abwarten: Überspringen
+// lässt beide Effekte (Zusammenprall und Kamera-Ruck) auf der Stelle enden -
+// derselbe Weg, den sie ohnehin am Ende ihrer Laufzeit nähmen, nur sofort.
+export function skipBattleClash() {
+  if (!activeClash) return;
+  for (const effect of activeClash) effect.elapsed = effect.duration;
+  activeClash = null;
+}
+
 // A clash where the armies actually meet: two shockwave rings race outward
 // along the ground moments apart, sparks are thrown up and fall back, dust
-// billows and drifts, and the camera itself takes a brief, decaying jolt.
+// billows and drifts, two battle lines of recognisable troops face off, and
+// the camera itself takes a brief, decaying jolt.
 export function playBattleClash(col, row, onComplete, options = {}) {
   if (!scene) {
     if (onComplete) onComplete();
@@ -7076,6 +7129,43 @@ export function playBattleClash(col, row, onComplete, options = {}) {
   const group = new THREE.Group();
   group.position.copy(centre);
   scene.add(group);
+
+  // Zwei Schlachtreihen, einander zugewandt - der Angreifer auf der Seite, von
+  // der er kam, der Verteidiger deutlich zu ihm hin gerückt. Bei einem Ort
+  // steht sonst genau dort, wo der Verteidiger eigentlich stünde, die Mauer
+  // und dahinter ein ganzes Häusergeviert - die Reihe muss vor die Mauer
+  // heraustreten, um überhaupt zu sehen zu sein, nicht auf halbem Weg im Tor
+  // stehen bleiben. Ohne Angaben zum Anmarsch oder zu den Truppen bleibt es
+  // beim bloßen Zusammenprall - so ruft es die Vorschau-Anzeige und jeder
+  // ältere Aufruf ohnehin nicht auf.
+  let attackerLine = null;
+  let defenderLine = null;
+  if (options.attackerUnits && options.defenderUnits
+    && options.approachCol !== undefined && options.approachRow !== undefined) {
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const aCol = lerp(options.approachCol, col, 0.34);
+    const aRow = lerp(options.approachRow, row, 0.34);
+    const dCol = lerp(col, options.approachCol, 0.42);
+    const dRow = lerp(row, options.approachRow, 0.42);
+    const attackerPos = new THREE.Vector3(worldX(aCol), groundY(aCol, aRow), worldZ(aRow));
+    const defenderPos = new THREE.Vector3(worldX(dCol), groundY(dCol, dRow), worldZ(dRow));
+    const dx = attackerPos.x - defenderPos.x;
+    const dz = attackerPos.z - defenderPos.z;
+    // Die Grundform blickt nach lokal +X; um diese Achse auf eine
+    // Weltrichtung (dx, dz) zu drehen, muss die Gruppe um genau diesen Winkel
+    // gedreht werden (Rotation um die Hochachse in Three.js).
+    const facing = (ddx, ddz) => Math.atan2(-ddz, ddx);
+
+    attackerLine = buildBattleLine(options.attackerUnits, options.attackerColor || '#c0392b');
+    attackerLine.position.copy(attackerPos).sub(centre);
+    attackerLine.rotation.y = facing(-dx, -dz);
+    group.add(attackerLine);
+
+    defenderLine = buildBattleLine(options.defenderUnits, options.defenderColor || '#3f6fa8');
+    defenderLine.position.copy(defenderPos).sub(centre);
+    defenderLine.rotation.y = facing(dx, dz);
+    group.add(defenderLine);
+  }
 
   // Additiv gemischt, damit Ring, Blitz und Funken selbst gegen helles
   // Gelände als Licht aufleuchten statt als bloß eingefärbte Fläche zu
@@ -7163,11 +7253,28 @@ export function playBattleClash(col, row, onComplete, options = {}) {
     });
   }
 
-  effects.push({
+  const mainEffect = {
     elapsed: 0,
     duration: CLASH_DURATION,
     onComplete,
     update(t, dt) {
+      // Die Schlachtreihen: rasch eingeblendet, ein kurzes Stück aufeinander
+      // zu, dann stehen sie im Handgemenge, ehe sie mit dem Rest verblassen.
+      if (attackerLine && defenderLine) {
+        const vor = Math.min(1, t * 4);
+        const advance = (1 - (1 - vor) ** 2) * 0.55;
+        const opacity = t < 0.06 ? t / 0.06 : t > 0.82 ? Math.max(0, 1 - (t - 0.82) / 0.18) : 1;
+        for (const [line, sign] of [[attackerLine, -1], [defenderLine, 1]]) {
+          const vorwaerts = new THREE.Vector3(advance * sign, 0, 0)
+            .applyEuler(new THREE.Euler(0, line.rotation.y, 0));
+          line.position.x = line.userData.baseX ?? (line.userData.baseX = line.position.x);
+          line.position.z = line.userData.baseZ ?? (line.userData.baseZ = line.position.z);
+          line.position.x += vorwaerts.x;
+          line.position.z += vorwaerts.z;
+          line.userData.material.opacity = opacity;
+        }
+      }
+
       // Der Knall zuerst: hell auf, rasch wieder weg, ehe die Stoßwelle
       // selbst Fahrt aufnimmt.
       core.scale.setScalar(1 + Math.min(1, t * 5) * 1.3);
@@ -7223,19 +7330,25 @@ export function playBattleClash(col, row, onComplete, options = {}) {
     },
     dispose() {
       group.traverse((child) => {
-        if (child.geometry) child.geometry.dispose();
+        // Die Gestalten der Schlachtreihen teilen sich ihre Geometrie mit
+        // jeder Kolonne und jeder Wache im Spiel (`marcherShapes()`, einmal
+        // gebaut und immer wieder verwendet) - die darf hier nicht mitgehen,
+        // nur ihr eigenes Material.
+        if (child.geometry && !child.userData.sharedGeom) child.geometry.dispose();
         if (child.material) child.material.dispose();
       });
       scene.remove(group);
+      if (activeClash) activeClash = null;
     },
-  });
+  };
+  effects.push(mainEffect);
 
   // Der kurze Ruck der Kamera im Augenblick des Anpralls - er klingt ab,
   // bevor die Kamera je merklich von der Stelle steht, an der sie stand.
   const shakeCol = cam.col;
   const shakeRow = cam.row;
   const shakeRng = seededRandomFactory(col * 401 + row * 89 + 3);
-  effects.push({
+  const shakeEffect = {
     elapsed: 0,
     duration: 0.4,
     update(t) {
@@ -7250,7 +7363,9 @@ export function playBattleClash(col, row, onComplete, options = {}) {
       applyCamera();
     },
     dispose() {},
-  });
+  };
+  effects.push(shakeEffect);
+  activeClash = [mainEffect, shakeEffect];
   startAnimationLoop();
 }
 

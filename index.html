@@ -376,6 +376,10 @@
         <div id="weatherVeil" data-effect="clear" aria-hidden="true"></div>
         <div id="mapHint">Ziehen verschiebt · Mausrad gedrückt schwenkt die Kamera (mit Umschalt verschiebt sie) · Rechtsklick zeigt das Feld · <kbd>Leertaste</kbd> beendet die Runde</div>
         <div id="toast" class="hidden"></div>
+        <!-- Das Schlacht-HUD: steht nur, solange der Zusammenprall selbst auf
+             der Karte läuft - wer da aufeinandertrifft, wie viele Mann auf
+             jeder Seite, und ein Knopf, der den Augenblick überspringt. -->
+        <div id="battleHud" class="hidden" role="status"></div>
         <!-- Rechtsklick auf ein Feld: nachschlagen, ohne etwas auszuwählen. -->
         <div id="tileInfo" class="hidden" role="dialog" aria-label="Feldauskunft">
           <button id="tileInfoClose" class="ti-close" aria-label="Schließen">×</button>

@@ -39,6 +39,7 @@ import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera, cameraState, propsDebug, hideTent,
   cityDebug,
   isAnimating, effectsDebug, rotateCamera, resetCameraOrientation, panCameraRelative,
+  skipBattleClash,
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
   setBordersVisible, areBordersVisible,
   setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled, captureFrame,
@@ -1606,6 +1607,40 @@ function hideBorderWarning() {
   pendingBorder = null;
 }
 
+// --- Das Schlacht-HUD ------------------------------------------------------
+// Steht über der Karte, solange der Zusammenprall selbst läuft: wer da
+// aufeinandertrifft, wie viele Mann auf jeder Seite engagiert sind, und ein
+// Knopf, der den Augenblick überspringt, für wen die Länge nicht sein muss.
+const battleHudEl = document.getElementById('battleHud');
+
+function hideBattleHud() {
+  if (battleHudEl) battleHudEl.classList.add('hidden');
+}
+
+function showBattleHud({ report, angreiferFraktion, verteidigerFraktion }) {
+  if (!battleHudEl) return;
+  const summe = (units) => Object.values(units || {}).reduce((s, n) => s + (n || 0), 0);
+  const seite = (fraktion, units) => `
+    <span class="battle-hud-side">
+      <span class="battle-hud-dot" style="background:${fraktion ? fraktion.color : '#888'}"></span>
+      <strong>${escapeText(fraktion ? fraktion.name : '?')}</strong>
+      <small>${summe(units).toLocaleString('de-DE')} Mann</small>
+    </span>`;
+  battleHudEl.innerHTML = `
+    ${seite(angreiferFraktion, report.attackerEngaged)}
+    <span class="battle-hud-vs">${report.cityName ? `bei ${escapeText(report.cityName)}` : '⚔'}</span>
+    ${seite(verteidigerFraktion, report.defenderEngaged)}
+    <button id="battleHudSkip" class="battle-hud-skip" type="button">⏭ Überspringen</button>
+  `;
+  battleHudEl.classList.remove('hidden');
+  const skip = document.getElementById('battleHudSkip');
+  if (skip) skip.addEventListener('click', () => skipBattleClash());
+}
+
+function onBattleHud(info) {
+  if (info) showBattleHud(info); else hideBattleHud();
+}
+
 function showBorderWarning(warnung, confirm) {
   if (!borderOverlay || !state) { confirm(); return; }
   const body = document.getElementById('borderBody');
@@ -2468,7 +2503,7 @@ function enterGame(resumed) {
   // Input holds no reference to `state` itself, so it reads through a getter -
   // undo swaps the object wholesale.
   setupInput(canvas, () => state, refresh, showBattleReport, pushUndo, showBattlePreview,
-    showTileInfo, showBorderWarning);
+    showTileInfo, showBorderWarning, onBattleHud);
   document.getElementById('endTurnBtn').addEventListener('click', endTurn);
   undoBtn.addEventListener('click', undoLastAction);
   observeMapSize();
