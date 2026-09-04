@@ -542,13 +542,14 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   Der **Schlachtbericht nennt beide Ordnungen**.
 - **Der Kampf auf der großen Karte**: Ein Angriff wird nicht in einem eigenen
   Fenster nachgestellt, sondern dort ausgetragen, wo er stattfindet. Sobald der
-  Marsch endet und es zum Gefecht kommt, zieht die Kamera in einem weichen
-  Schwenk zum Kampffeld heran – näher, aber ohne die Übersicht über die Karte
-  zu verlassen –, ehe der **Zusammenprall** einsetzt. Seit das eigene
+  Marsch endet und es zum Gefecht kommt, zieht die Kamera in einem gut eine
+  Sekunde langen Schwenk **näher heran, als der Spieler von Hand zoomen
+  kann** – so nah, dass die Heere selbst im Bild stehen, nicht nur die Gegend,
+  in der gefochten wird –, ehe der **Zusammenprall** einsetzt. Seit das eigene
   Schlachtfenster entfallen ist, trägt dieser eine Augenblick das ganze
-  Gewicht des Ereignisses und ist entsprechend groß gebaut: zwei Stoßwellen
-  laufen kurz hintereinander über den Boden, dazu ein erster Lichtblitz und
-  ein zweiter, leiserer Nachhall, dreißig Funken, die hochschlagen und
+  Gewicht des Ereignisses und bekommt entsprechend Zeit: über drei Sekunden
+  laufen zwei Stoßwellen kurz hintereinander über den Boden, dazu ein erster
+  Lichtblitz und ein zweiter, leiserer Nachhall, Funken, die hochschlagen und
   ausglühen, **Staub, der aufsteigt und über dem Feld hängen bleibt** statt
   gleich mit den Funken zu verschwinden (zur See ist es Gischt statt Staub),
   und ein kurzer, rasch abklingender **Ruck der Kamera** im Moment des

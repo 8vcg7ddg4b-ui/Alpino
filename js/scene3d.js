@@ -359,12 +359,15 @@ export function cameraState() {
 // Der Blick springt nicht zur Schlacht, er zieht dorthin: ein weicher Schwenk
 // über `duration` Sekunden, danach `onComplete` - so setzt der Zusammenprall
 // erst ein, wenn die Kamera wirklich angekommen ist, statt mitten im Schwenk.
-// `zoom` ist das Ziel selbst, kein Vielfaches wie bei `zoomCamera`.
+// `zoom` ist das Ziel selbst, kein Vielfaches wie bei `zoomCamera`. Anders als
+// dort wird nach oben nicht auf `MAX_ZOOM` gedeckelt - der Schwenk zu einer
+// Schlacht darf näher heran, als der Spieler von Hand kommt, genau wie die
+// Eröffnung weiter hinaus darf, als er selbst zoomen könnte.
 export function flyCameraTo(col, row, zoom, duration = 0.6, onComplete) {
   const startCol = cam.col;
   const startRow = cam.row;
   const startZoom = cam.zoom;
-  const zielZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+  const zielZoom = Math.max(MIN_ZOOM, zoom);
   effects.push({
     elapsed: 0,
     duration,
@@ -7054,8 +7057,9 @@ export function effectsDebug() {
 // Zusammenprall selbst zu sehen bekommt - er trägt jetzt das ganze Gewicht
 // des Ereignisses, nicht mehr nur den kurzen Anstoß zu einem Schaubild.
 // Länger, größer, mit einem zweiten, nachhallenden Stoß und Staub, der über
-// dem Feld hängen bleibt, statt gleich mit den Funken zu verschwinden.
-const CLASH_DURATION = 2.1;
+// dem Feld hängen bleibt, statt gleich mit den Funken zu verschwinden. Erst
+// bei dieser Länge bleibt Zeit, überhaupt hinzusehen, ehe der Bericht kommt.
+const CLASH_DURATION = 3.2;
 
 // A clash where the armies actually meet: two shockwave rings race outward
 // along the ground moments apart, sparks are thrown up and fall back, dust
@@ -7085,7 +7089,7 @@ export function playBattleClash(col, row, onComplete, options = {}) {
   // Eine helle Kernscheibe für den ersten Sekundenbruchteil - der eigentliche
   // "Knall", ehe die Stoßwelle selbst zu sehen ist.
   const core = new THREE.Mesh(
-    new THREE.CircleGeometry(1, 24),
+    new THREE.CircleGeometry(0.6, 24),
     new THREE.MeshBasicMaterial({
       color: naval ? '#eaf7ff' : '#fff4d6', transparent: true,
       side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -7094,13 +7098,13 @@ export function playBattleClash(col, row, onComplete, options = {}) {
   core.rotation.x = -Math.PI / 2;
   core.position.y = 0.22;
   group.add(core);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.9, 48), ringMat());
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 1.15, 48), ringMat());
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.25;
   group.add(ring);
   // Der zweite Stoß: dasselbe noch einmal, eine halbe Sekunde später und
   // etwas kleiner - der Nachhall, wenn die zweite Reihe nachrückt.
-  const ring2 = new THREE.Mesh(new THREE.RingGeometry(0.75, 1.55, 48), ringMat());
+  const ring2 = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.95, 48), ringMat());
   ring2.rotation.x = -Math.PI / 2;
   ring2.position.y = 0.25;
   group.add(ring2);
@@ -7113,7 +7117,7 @@ export function playBattleClash(col, row, onComplete, options = {}) {
   const sparks = [];
   for (let i = 0; i < 34; i++) {
     const spark = new THREE.Mesh(
-      new THREE.TetrahedronGeometry(0.32 + rng() * 0.3),
+      new THREE.TetrahedronGeometry(0.24 + rng() * 0.22),
       new THREE.MeshBasicMaterial({
         color: naval
           ? (rng() < 0.5 ? '#e8f4ff' : '#7fb2d8')
@@ -7122,14 +7126,14 @@ export function playBattleClash(col, row, onComplete, options = {}) {
       })
     );
     const angle = rng() * Math.PI * 2;
-    const speed = 6.5 + rng() * 9.5;
+    const speed = 4.5 + rng() * 6;
     spark.position.set(0, 0.6, 0);
     group.add(spark);
     sparks.push({
       mesh: spark,
       vx: Math.cos(angle) * speed,
       vz: Math.sin(angle) * speed,
-      vy: 7 + rng() * 7.5,
+      vy: 5 + rng() * 5.5,
       spin: (rng() - 0.5) * 12,
     });
   }
@@ -7142,20 +7146,20 @@ export function playBattleClash(col, row, onComplete, options = {}) {
   const dustCount = naval ? 11 : 16;
   for (let i = 0; i < dustCount; i++) {
     const puff = new THREE.Mesh(
-      new THREE.SphereGeometry(0.75 + rng() * 0.7, 8, 6),
+      new THREE.SphereGeometry(0.5 + rng() * 0.5, 8, 6),
       new THREE.MeshBasicMaterial({ color: dustColor, transparent: true, opacity: 0 })
     );
     const angle = rng() * Math.PI * 2;
-    const reach = 0.4 + rng() * 1.8;
+    const reach = 0.3 + rng() * 1.2;
     puff.position.set(Math.cos(angle) * reach * 0.3, 0.2, Math.sin(angle) * reach * 0.3);
     group.add(puff);
     dust.push({
       mesh: puff,
-      vx: Math.cos(angle) * (0.7 + rng() * 1.1),
-      vz: Math.sin(angle) * (0.7 + rng() * 1.1),
-      vy: 0.6 + rng() * 0.8,
+      vx: Math.cos(angle) * (0.5 + rng() * 0.8),
+      vz: Math.sin(angle) * (0.5 + rng() * 0.8),
+      vy: 0.5 + rng() * 0.6,
       delay: rng() * 0.3,
-      growth: 1.3 + rng() * 1.6,
+      growth: 0.8 + rng() * 1.0,
     });
   }
 
@@ -7166,16 +7170,16 @@ export function playBattleClash(col, row, onComplete, options = {}) {
     update(t, dt) {
       // Der Knall zuerst: hell auf, rasch wieder weg, ehe die Stoßwelle
       // selbst Fahrt aufnimmt.
-      core.scale.setScalar(1 + Math.min(1, t * 5) * 2.2);
+      core.scale.setScalar(1 + Math.min(1, t * 5) * 1.3);
       core.material.opacity = Math.max(0, 0.9 * (1 - t * 5));
 
       const eased = Math.min(1, t * 1.1);
-      ring.scale.setScalar(1 + eased * 9);
+      ring.scale.setScalar(1 + eased * 4.3);
       ring.material.opacity = Math.max(0, 0.95 * (1 - eased));
 
       const t2 = Math.max(0, t - 0.42);
       const eased2 = Math.min(1, t2 * 1.3);
-      ring2.scale.setScalar(1 + eased2 * 7.5);
+      ring2.scale.setScalar(1 + eased2 * 3.6);
       ring2.material.opacity = t2 > 0 ? Math.max(0, 0.75 * (1 - eased2)) : 0;
 
       // Zwei Lichtstöße statt einem: der Anprall, und der Nachhall des

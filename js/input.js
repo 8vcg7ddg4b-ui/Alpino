@@ -14,9 +14,13 @@ const PAN_KEYS = {
 };
 
 // Wie nah die Kamera an einen Angriff heranzieht, und wie lange der Schwenk
-// dorthin dauert, bevor der Zusammenprall selbst einsetzt.
-const BATTLE_ZOOM = 3.2;
-const BATTLE_PAN_DURATION = 0.6;
+// dorthin dauert, bevor der Zusammenprall selbst einsetzt. Näher als der
+// Spieler von Hand zoomen kann (siehe `flyCameraTo`) - erst so stehen die
+// Heere selbst im Bild, nicht nur die Gegend, in der gefochten wird. Der
+// Schwenk braucht spürbar länger als ein bloßes Zucken, sonst ist er vorbei,
+// ehe man hinschaut.
+const BATTLE_ZOOM = 7.5;
+const BATTLE_PAN_DURATION = 1.1;
 
 function selectArmy(state, army) {
   state.selectedArmyId = army.id;
