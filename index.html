@@ -463,12 +463,6 @@
     <div class="report-box">
       <button id="reportClose" class="report-close" title="Schließen">✕</button>
       <div id="reportBody"></div>
-      <!-- Auch eine Schlacht, in die man nicht selbst hineingezogen ist -
-           ein Angriff auf die eigenen Orte -, lässt sich ansehen. Der Knopf
-           steht unter jedem Bericht, zu dem es etwas zu zeigen gibt. -->
-      <div class="report-actions">
-        <button id="reportWatch" class="preview-watch">🎬 Die Schlacht ansehen</button>
-      </div>
     </div>
   </div>
 
@@ -478,44 +472,9 @@
       <div id="previewBody"></div>
       <div class="preview-actions">
         <button id="previewCancel" class="preview-cancel">Abbrechen</button>
-        <!-- Vor der Schlacht die Frage, ob man ihr zusehen will. Wer nur den
-             Ausgang wissen will, drückt den Knopf daneben. -->
-        <button id="previewWatch" class="preview-watch hidden">🎬 Angreifen und zusehen</button>
         <!-- Der zweite Weg über die Mauer: sich davorlegen und warten. -->
         <button id="previewSiege" class="preview-siege hidden">⛺ Einschließen</button>
         <button id="previewAttack" class="preview-attack">⚔️ Angreifen</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Die Frage allein, für den Fall, dass die Kampfvorschau abgeschaltet ist:
-       zugesehen wird trotzdem nur, wenn man es will. -->
-  <div id="watchAsk" class="hidden">
-    <div class="report-box preview-box watch-ask-box">
-      <h2 class="report-title">🎬 Der Schlacht zusehen?</h2>
-      <p class="emp-note" id="watchAskText"></p>
-      <p class="emp-note muted">Gezeigt wird, was ohnehin ausgerechnet ist – der
-        Ausgang steht schon fest und ändert sich dadurch nicht.</p>
-      <div class="preview-actions">
-        <button id="watchAskNo" class="preview-cancel">Nur den Bericht</button>
-        <button id="watchAskYes" class="preview-attack">🎬 Zusehen</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Das Schaubild der Schlacht: eigene Leinwand, eigener Renderer. -->
-  <div id="battleStage" class="hidden">
-    <div class="stage-box">
-      <header class="stage-head">
-        <span class="stage-side stage-attacker" id="stageAttacker"></span>
-        <span class="stage-vs" id="stageRound">Aufmarsch</span>
-        <span class="stage-side stage-defender" id="stageDefender"></span>
-      </header>
-      <canvas id="battleCanvas"></canvas>
-      <p class="stage-note" id="stageNote"></p>
-      <div class="preview-actions">
-        <button id="stageSkip" class="preview-cancel">Überspringen</button>
-        <button id="stageDone" class="preview-attack">📜 Zum Bericht</button>
       </div>
     </div>
   </div>

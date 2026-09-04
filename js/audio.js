@@ -524,68 +524,6 @@ export const sfx = {
     });
   }, { key: 'clash', gap: 0.5, duck: 0.5 }),
 
-  // Der Hagel: erst das Sirren von hundert Sehnen, dann der Flug, zuletzt das
-  // Prasseln auf Schilde und Boden. Ein einzelner Pfeil klingt nach nichts -
-  // die Salve lebt davon, dass die Einschläge ungleich fallen.
-  volley: () => play((c, t) => {
-    noiseBurst(c, t, {
-      duration: 0.22, gain: 0.2, frequency: 1900, q: 1.2, attack: 0.004,
-    });
-    // Der Flug: ein rauschendes Aufsteigen und Abfallen über den Köpfen.
-    noiseBurst(c, t + 0.06, {
-      duration: 0.62, gain: 0.15, frequency: 2600, q: 0.8, attack: 0.22,
-    });
-    for (let i = 0; i < 14; i++) {
-      const at = t + 0.52 + Math.random() * 0.3;
-      noiseBurst(c, at, {
-        duration: 0.09, gain: 0.11, frequency: 1200 + Math.random() * 2200,
-        q: 4, attack: 0.001,
-      });
-    }
-    // Ein paar Einschläge treffen Holz statt Eisen: dumpf, tief, kurz.
-    for (let i = 0; i < 4; i++) {
-      noiseBurst(c, t + 0.55 + Math.random() * 0.26, {
-        duration: 0.14, gain: 0.13, frequency: 320, q: 1.4, type: 'lowpass',
-        attack: 0.002,
-      });
-    }
-  }, { key: 'volley', gap: 0.5, duck: 0.4 }),
-
-  // Der Zusammenprall einer Runde: dasselbe Handwerk wie beim ersten Aufeinander-
-  // treffen, nur kürzer und leiser. Er fällt je Runde einmal; in voller Stärke
-  // wäre er nach drei Runden nicht mehr auszuhalten.
-  melee: () => play((c, t) => {
-    noiseBurst(c, t, { duration: 0.3, gain: 0.24, frequency: 170, q: 0.7, type: 'lowpass' });
-    for (let i = 0; i < 5; i++) {
-      const at = t + 0.03 + i * 0.062 + Math.random() * 0.03;
-      const hoehe = 2300 + Math.random() * 2400;
-      noiseBurst(c, at, { duration: 0.13, gain: 0.1, frequency: hoehe, q: 6, attack: 0.001 });
-      tone(c, at, { frequency: hoehe * 1.5, duration: 0.08, gain: 0.022, type: 'square' });
-    }
-    noiseBurst(c, t + 0.08, {
-      duration: 0.5, gain: 0.08, frequency: 720, q: 0.9, attack: 0.16,
-    });
-  }, { key: 'melee', gap: 0.7, duck: 0.3 }),
-
-  // Der Widder am Tor: ein Balken gegen Eichenholz. Tief, gedeckt, mit dem
-  // Nachhall des Torflügels, der in seinen Angeln schwingt.
-  ram: () => play((c, t) => {
-    noiseBurst(c, t, {
-      duration: 0.42, gain: 0.42, frequency: 190, q: 1.1, type: 'lowpass', attack: 0.003,
-    });
-    tone(c, t, { frequency: 74, duration: 0.5, gain: 0.24, type: 'sine', slideTo: 44, attack: 0.004 });
-    tone(c, t + 0.03, { frequency: 148, duration: 0.34, gain: 0.09, type: 'triangle', slideTo: 96 });
-    noiseBurst(c, t + 0.05, { duration: 0.28, gain: 0.07, frequency: 900, q: 1.6 });
-  }, { key: 'ram', gap: 0.5, duck: 0.45 }),
-
-  // Das Horn am Ende der Schlacht: ein langer Ruf über dem Feld, kein Fanfaren-
-  // stück. Wer gewonnen hat, sagt der Bericht.
-  battleHorn: () => play((c, t) => {
-    brass(c, t, { frequency: 147, duration: 1.4, gain: 0.18, brightness: 3.4, attack: 0.14 });
-    brass(c, t + 0.12, { frequency: 220, duration: 1.5, gain: 0.15, brightness: 3.8, attack: 0.16 });
-    brass(c, t + 0.72, { frequency: 294, duration: 1.5, gain: 0.16, brightness: 4.2, attack: 0.12 });
-  }, { key: 'battleHorn', gap: 1.5, duck: 0.6 }),
-
   recruit: () => play((c, t) => {
     noiseBurst(c, t, { duration: 0.1, gain: 0.22, frequency: 3400, q: 5, attack: 0.001 });
     tone(c, t, { frequency: 1180, duration: 0.3, gain: 0.09, type: 'triangle' });

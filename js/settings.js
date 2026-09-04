@@ -16,15 +16,6 @@ export const SETTINGS = [
     fallback: true,
   },
   {
-    key: 'battleView',
-    label: 'Schlacht in 3D verfolgen',
-    help: 'Ein eigenes Fenster zeigt den Verlauf der Schlacht. Der Ausgang steht '
-      + 'vorher fest und ändert sich dadurch nicht.',
-    type: 'choice',
-    options: [['fragen', 'jedes Mal fragen'], ['immer', 'immer zusehen'], ['nie', 'nie']],
-    fallback: 'fragen',
-  },
-  {
     key: 'marchSpeed',
     label: 'Marschgeschwindigkeit',
     help: 'Wie schnell Armeen über die Karte ziehen.',

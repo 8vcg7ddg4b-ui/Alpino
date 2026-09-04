@@ -58,7 +58,7 @@ function toNdc(canvas, clientX, clientY) {
   };
 }
 
-export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction, onPreviewAttack, onInspect, onConfirmBorder, onWatchBattle) {
+export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAction, onPreviewAttack, onInspect, onConfirmBorder) {
   // Pointer events cover mouse, pen and touch in one path. Two simultaneous
   // pointers mean a pinch: the distance between them zooms, the angle between
   // them turns the map.
@@ -262,12 +262,6 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
         settle();
         return;
       }
-      // Wer der Schlacht zusehen will, bekommt sie im eigenen Fenster gezeigt -
-      // dann bleibt der kurze Zusammenprall auf der Karte aus, sonst sähe man
-      // dasselbe zweimal. Das Fenster meldet sich selbst zurück, wenn es fertig
-      // ist; sagt es ab, geht es wie bisher weiter.
-      const schlacht = reports[reports.length - 1];
-      if (onWatchBattle && onWatchBattle(schlacht, settle)) return;
       // Der Blick zieht erst zur Stelle, dann setzt der Zusammenprall ein -
       // ein Angriff wird auf der großen Karte ausgetragen, nicht irgendwo
       // außerhalb des Bildausschnitts.

@@ -1918,8 +1918,6 @@ kbd {
 /* Die Grenzwarnung liegt wie die Kampfvorschau über allem: es ist dieselbe
    Art von Entscheidung, nur ohne Schlacht - noch. */
 #battlePreview,
-#watchAsk,
-#battleStage,
 #borderWarn {
   position: fixed;
   inset: 0;
@@ -1932,17 +1930,6 @@ kbd {
 }
 
 .preview-box { width: min(720px, 100%); }
-.watch-ask-box { width: min(520px, 100%); }
-
-/* Der Knopf, mit dem man der Schlacht zusieht - dieselbe Form wie der Angriff,
-   aber in Blau: es ist keine zweite Entscheidung über den Angriff, sondern
-   eine darüber, ob man ihn sieht. */
-.preview-watch {
-  background: linear-gradient(#2f5f8f, #24466d);
-  border: 1px solid var(--border);
-  color: #dceaff;
-}
-.preview-watch:hover { background: linear-gradient(#3a739f, #2b537c); border-color: var(--gold); }
 
 .preview-siege {
   background: linear-gradient(#6d5a2f, #4f4122);
@@ -1950,54 +1937,6 @@ kbd {
   color: #f2e3bf;
 }
 .preview-siege:hover { background: linear-gradient(#836d38, #5e4d29); border-color: var(--gold); }
-
-/* --- Das Schaubild der Schlacht ----------------------------------------- */
-.stage-box {
-  width: min(980px, 100%);
-  background: var(--panel);
-  border: 1px solid var(--gold);
-  border-radius: 10px;
-  padding: 14px 16px 16px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
-}
-.stage-head {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 10px;
-  font-size: 0.9rem;
-}
-.stage-side { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stage-defender { text-align: right; }
-.stage-side strong { font-size: 0.95rem; }
-.stage-side small { color: var(--muted); }
-.stage-vs {
-  flex: none;
-  color: var(--gold);
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-#battleCanvas {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: 56vh;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #1c1712;
-}
-.stage-note {
-  margin: 10px 0 0;
-  min-height: 1.3em;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-.stage-note.stage-win { color: var(--gold); }
-@media (max-width: 620px) {
-  .stage-head { font-size: 0.8rem; }
-  #battleCanvas { max-height: 44vh; }
-}
 
 .mod-notes { display: flex; flex-wrap: wrap; gap: 6px; }
 .mod-note {
@@ -2168,16 +2107,6 @@ kbd {
 
 .tactic-warn { color: #d98a5a; font-size: 0.75rem; }
 .tactic-ok { color: #8fbf6a; font-size: 0.75rem; }
-
-/* Der Knopf unter einem Schlachtbericht: dieselbe Zeile wie in der Vorschau,
-   nur ohne den Abbrechen-Knopf daneben. */
-.report-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-}
 
 .preview-actions {
   display: flex;

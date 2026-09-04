@@ -11,7 +11,6 @@ import {
   diplomacyHTML, setDiploTab, setFactionSort, getFactionSort, noticeFromNews,
 } from './ui.js';
 import { setupInput } from './input.js';
-import { playBattle, stopBattle } from './battle3d.js';
 import { computeReachable } from './pathfind.js';
 import { aiTakeAllTurns } from './ai.js';
 import { pirateFleets } from './piraten.js';
@@ -1495,25 +1494,13 @@ function undoLastAction() {
   refresh();
 }
 
-// Welcher Bericht gerade offen ist - der Knopf darunter zeigt genau diese
-// Schlacht.
-let offenerBericht = null;
-
 function showBattleReport(reportOrId) {
   if (!state) return;
   const report = typeof reportOrId === 'string'
     ? state.battleReports.find((r) => r.id === reportOrId)
     : reportOrId;
   if (!report) return;
-  offenerBericht = report;
   document.getElementById('reportBody').innerHTML = battleReportHTML(state, report);
-  // Anzusehen gibt es etwas, wo überhaupt gefochten wurde: ein Ort, der
-  // kampflos fiel, hat kein Schaubild.
-  const knopf = document.getElementById('reportWatch');
-  if (knopf) {
-    knopf.classList.toggle('hidden',
-      !(report.rounds && report.rounds.length) || getSetting('battleView') === 'nie');
-  }
   reportOverlay.classList.remove('hidden');
 }
 
@@ -1548,179 +1535,23 @@ function showBattlePreview(preview, confirm, siegeConfirm) {
   // erklärt würde oder wo statt des Sturms auch eine Belagerung offensteht,
   // geht das Fenster in jedem Fall auf.
   if (!getSetting('battlePreview') && !preview.declareWarOn && !siegeConfirm) {
-    // Ohne Vorschau bleibt die Frage nach dem Zusehen - sie gehört nicht zur
-    // Prognose, sondern zum Angriff.
-    askWatch(preview, confirm);
+    confirm();
     return;
   }
   vorschauZug = { armyId: preview.armyId, col: preview.col, row: preview.row };
   document.getElementById('previewBody').innerHTML = battlePreviewHTML(state, preview);
   const attackBtn = document.getElementById('previewAttack');
-  const modus = getSetting('battleView');
-  const zusehen = preview.unopposed ? null : modus;
   attackBtn.textContent = preview.declareWarOn
     ? (preview.unopposed ? '⚔️ Einnehmen – und den Krieg erklären'
       : '⚔️ Angreifen – und den Krieg erklären')
-    : preview.unopposed ? '🚩 Einnehmen'
-      : zusehen === 'immer' ? '🎬 Angreifen und zusehen' : '⚔️ Angreifen';
-  // Der zweite Knopf steht nur da, wo es etwas zu sehen gibt: ein Ort ohne
-  // Verteidiger wird eingenommen, nicht gefochten.
-  const watchBtn = document.getElementById('previewWatch');
-  if (watchBtn) watchBtn.classList.toggle('hidden', zusehen !== 'fragen');
-  // Und der dritte nur, wo sich statt des Sturms auch belagern ließe.
+    : preview.unopposed ? '🚩 Einnehmen' : '⚔️ Angreifen';
+  // Der zweite Knopf steht nur da, wo sich statt des Sturms auch belagern ließe.
   const siegeBtn = document.getElementById('previewSiege');
   if (siegeBtn) siegeBtn.classList.toggle('hidden', !siegeConfirm);
   pendingSiege = siegeConfirm || null;
-  // Immer-Zusehen ist eine Einstellung, keine Frage: dann trägt schon der
-  // Angriffsknopf die Antwort.
-  watchNext = zusehen === 'immer';
   pendingAttack = confirm;
   previewOverlay.classList.remove('hidden');
   attackBtn.focus();
-}
-
-// --- Der Schlacht zusehen -------------------------------------------------
-// Vor jedem Angriff steht die Frage, danach das Schaubild. Beides ist bewusst
-// getrennt vom Kampf selbst: gerechnet wurde die Schlacht schon, gezeigt wird
-// nur, was herausgekommen ist. Wer nicht zusieht, verpasst keine Entscheidung.
-const stageOverlay = document.getElementById('battleStage');
-const watchAskOverlay = document.getElementById('watchAsk');
-// Ob die nächste Schlacht gezeigt werden soll - gesetzt in dem Augenblick, in
-// dem der Spieler den Angriff bestätigt.
-let watchNext = false;
-let stageDone = null;
-let stageReport = null;
-
-function wantsWatch() {
-  return getSetting('battleView') !== 'nie' && watchNext;
-}
-
-// Die Frage allein, wenn die Kampfvorschau abgeschaltet ist. Sie ruft
-// `weiter` in jedem Fall auf - die Antwort entscheidet nur, ob dabei
-// zugesehen wird.
-function askWatch(preview, weiter) {
-  const modus = getSetting('battleView');
-  if (modus === 'nie') { watchNext = false; weiter(); return; }
-  if (modus === 'immer') { watchNext = true; weiter(); return; }
-  if (!watchAskOverlay) { watchNext = false; weiter(); return; }
-  const text = document.getElementById('watchAskText');
-  if (text) {
-    const ziel = preview && preview.cityName ? preview.cityName
-      : preview && preview.naval ? 'die feindliche Flotte' : 'das feindliche Heer';
-    text.textContent = `Der Angriff auf ${ziel} wird gleich ausgefochten.`;
-  }
-  const schliessen = (zusehen) => {
-    watchAskOverlay.classList.add('hidden');
-    watchNext = zusehen;
-    weiter();
-  };
-  const ja = document.getElementById('watchAskYes');
-  const nein = document.getElementById('watchAskNo');
-  if (ja) ja.onclick = () => schliessen(true);
-  if (nein) nein.onclick = () => schliessen(false);
-  watchAskOverlay.classList.remove('hidden');
-  if (ja) ja.focus();
-}
-
-function closeStage(weiter) {
-  stopBattle();
-  if (stageOverlay) stageOverlay.classList.add('hidden');
-  const run = weiter ? stageDone : null;
-  stageDone = null;
-  stageReport = null;
-  watchNext = false;
-  if (run) run();
-}
-
-// Öffnet das Schaubild zu einem Bericht - gleich, ob man selbst angegriffen
-// hat oder angegriffen worden ist. Gibt zurück, ob es übernommen hat; sagt es
-// nein, läuft alles weiter wie ohne Fenster.
-function zeigeSchlacht(report, weiter) {
-  if (!stageOverlay || !state || !report) return false;
-  const canvas = document.getElementById('battleCanvas');
-  if (!canvas) return false;
-  const angreifer = factionById(state, report.attackerFactionId);
-  const verteidiger = factionById(state, report.defenderFactionId);
-  const mann = (units) => Object.values(units || {})
-    .reduce((sum, n) => sum + (n || 0), 0);
-  const kopf = (id, faction, units) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.innerHTML = `<strong>${escapeText(faction ? faction.name : '?')}</strong>
-      <small> · ${mann(units).toLocaleString('de-DE')} Mann</small>`;
-    el.style.color = faction ? faction.color : '';
-  };
-  kopf('stageAttacker', angreifer, report.attackerEngaged);
-  kopf('stageDefender', verteidiger, report.defenderEngaged);
-  const runde = document.getElementById('stageRound');
-  const notiz = document.getElementById('stageNote');
-  if (runde) runde.textContent = 'Aufmarsch';
-  if (notiz) {
-    notiz.className = 'stage-note';
-    notiz.textContent = report.cityName
-      ? `Vor ${report.cityName}${(report.wallMultiplier || 1) > 1 ? ', hinter der Mauer' : ''}.`
-      : 'Im offenen Feld.';
-  }
-  const fertig = document.getElementById('stageDone');
-  if (fertig) fertig.disabled = true;
-
-  stageDone = weiter;
-  stageReport = report;
-  stageOverlay.classList.remove('hidden');
-  sfx.clash();
-
-  playBattle(canvas, report, {
-    attackerColor: angreifer ? angreifer.color : '#c0392b',
-    defenderColor: verteidiger ? verteidiger.color : '#3f6fa8',
-    onRound: (r) => {
-      if (runde) runde.textContent = `Runde ${r.nummer} von ${r.von}`;
-      if (notiz) {
-        notiz.textContent = `${r.volley ? 'Eröffnungssalve · ' : ''}`
-          + `${r.angreifer.toLocaleString('de-DE')} gegen `
-          + `${r.verteidiger.toLocaleString('de-DE')} Mann stehen noch.`;
-      }
-      // Je Runde ein Klang: fliegt eine Salve, hört man erst den Hagel und den
-      // Zusammenprall danach; sonst nur den Zusammenprall. Der erste Aufprall
-      // ist beim Öffnen des Schaubilds schon gelaufen (sfx.clash), darum
-      // beginnt der Rundenklang mit der zweiten Runde.
-      if (r.volley) {
-        sfx.volley();
-        window.setTimeout(() => sfx.melee(), 620);
-      } else if (r.nummer > 1) {
-        sfx.melee();
-      }
-    },
-    // Der Widder schlägt in seinem eigenen Takt gegen das Tor.
-    onRam: () => sfx.ram(),
-    // Gibt das Gerät keinen zweiten WebGL-Zusammenhang her, bleibt das
-    // Schaubild zu. Das ist kein Fehler des Feldzugs, und gesagt wird es
-    // trotzdem - sonst stünde da nur ein schwarzes Fenster.
-    onUnavailable: () => {
-      closeStage(false);
-      showToast('Das Schaubild braucht eine zweite 3D-Ansicht, und dieses Gerät '
-        + 'gibt keine her. Der Schlachtbericht steht trotzdem bereit.');
-    },
-    onEnd: () => {
-      const sieger = report.outcome === 'attacker' ? angreifer : verteidiger;
-      if (runde) runde.textContent = 'Entschieden';
-      if (notiz) {
-        notiz.className = 'stage-note stage-win';
-        // "Sieger: Rom" passt auf jeden Namen; "Rom behauptet das Feld" wäre
-        // bei "Sarmaten" oder "Griechen" schon kein Deutsch mehr.
-        notiz.textContent = `Sieger: ${sieger ? sieger.name : '?'} · ${report.endedBy}.`;
-      }
-      if (fertig) { fertig.disabled = false; fertig.focus(); }
-      // Das Horn über dem Feld, wenn es entschieden ist.
-      sfx.battleHorn();
-    },
-  });
-  return true;
-}
-
-// Vor dem eigenen Angriff: nur zeigen, wenn danach gefragt wurde.
-function watchBattle(report, weiter) {
-  if (!wantsWatch()) return false;
-  return zeigeSchlacht(report, weiter);
 }
 
 // --- Die Schlachtordnung --------------------------------------------------
@@ -1754,26 +1585,6 @@ function setupTacticPickers() {
   });
 }
 setupTacticPickers();
-
-function setupBattleStage() {
-  const skip = document.getElementById('stageSkip');
-  if (skip) skip.addEventListener('click', () => closeStage(true));
-  const done = document.getElementById('stageDone');
-  if (done) done.addEventListener('click', () => closeStage(true));
-  // Aus dem Bericht heraus: die Schlacht ansehen und danach zum Bericht
-  // zurück. So lässt sich auch ein fremder Angriff auf die eigenen Orte
-  // nachsehen - der wird gefochten, während man anderswo ist.
-  const ansehen = document.getElementById('reportWatch');
-  if (ansehen) {
-    ansehen.addEventListener('click', () => {
-      const report = offenerBericht;
-      if (!report) return;
-      hideBattleReport();
-      if (!zeigeSchlacht(report, () => showBattleReport(report))) showBattleReport(report);
-    });
-  }
-}
-setupBattleStage();
 
 // --- Grenzverletzung ------------------------------------------------------
 // Ein Schritt über eine fremde Grenze ist eine Kriegserklärung, und niemand
@@ -1839,11 +1650,9 @@ function setupBorderWarning() {
 }
 setupBorderWarning();
 
-function confirmPendingAttack(zusehen = false) {
+function confirmPendingAttack() {
   const run = pendingAttack;
   hideBattlePreview();
-  // Erst die Antwort merken, dann angreifen: das Schaubild fragt gleich danach.
-  watchNext = !!zusehen;
   if (run) run();
 }
 
@@ -2659,7 +2468,7 @@ function enterGame(resumed) {
   // Input holds no reference to `state` itself, so it reads through a getter -
   // undo swaps the object wholesale.
   setupInput(canvas, () => state, refresh, showBattleReport, pushUndo, showBattlePreview,
-    showTileInfo, showBorderWarning, watchBattle);
+    showTileInfo, showBorderWarning);
   document.getElementById('endTurnBtn').addEventListener('click', endTurn);
   undoBtn.addEventListener('click', undoLastAction);
   observeMapSize();
@@ -2725,10 +2534,7 @@ reportOverlay.addEventListener('click', (e) => {
   if (e.target === reportOverlay) hideBattleReport();
 });
 
-document.getElementById('previewAttack').addEventListener('click',
-  () => confirmPendingAttack(getSetting('battleView') === 'immer'));
-const previewWatchBtn = document.getElementById('previewWatch');
-if (previewWatchBtn) previewWatchBtn.addEventListener('click', () => confirmPendingAttack(true));
+document.getElementById('previewAttack').addEventListener('click', confirmPendingAttack);
 const previewSiegeBtn = document.getElementById('previewSiege');
 if (previewSiegeBtn) {
   previewSiegeBtn.addEventListener('click', () => {
@@ -2755,9 +2561,6 @@ window.addEventListener('keydown', (e) => {
   // und solange es offen stand, ging kein Tastenkürzel mehr.
   else if (diploOverlay && !diploOverlay.classList.contains('hidden')) hideDiplomacy();
   else if (!settingsOverlay.classList.contains('hidden')) hideSettings();
-  // Esc auf dem Schaubild überspringt die Schlacht - der Bericht kommt
-  // trotzdem, es wurde ja gefochten.
-  else if (stageOverlay && !stageOverlay.classList.contains('hidden')) closeStage(true);
   else if (borderOverlay && !borderOverlay.classList.contains('hidden')) hideBorderWarning();
   else if (!previewOverlay.classList.contains('hidden')) hideBattlePreview();
   else if (!reportOverlay.classList.contains('hidden')) hideBattleReport();
@@ -2786,7 +2589,7 @@ const SHORTCUT_BUTTONS = {
 const OVERLAY_IDS = [
   'heraldOverlay', 'eventOverlay', 'empireOverlay', 'diploOverlay',
   'diploNewsOverlay', 'settingsOverlay', 'battlePreview', 'battleReport',
-  'borderWarn', 'quitOverlay', 'gameOverOverlay', 'battleStage', 'watchAsk',
+  'borderWarn', 'quitOverlay', 'gameOverOverlay',
 ];
 
 function anyOverlayOpen() {
