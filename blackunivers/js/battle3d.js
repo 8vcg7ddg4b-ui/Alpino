@@ -9,7 +9,7 @@ import {
   setBattleMode,
 } from './scene3d.js';
 import { factionProfile, ROLE_SHORT } from './data.js';
-import { shipModel, SHIP_LENGTH } from './ships3d.js';
+import { shipModel, torpedoModel, SHIP_LENGTH } from './ships3d.js';
 import { sfx } from './audio.js';
 
 let running = false;
@@ -196,11 +196,11 @@ function explode(g, pos, { size = 2.4, colour = 0xffc27a, shards = 7, life = 0.8
   core.scale.setScalar(size * 0.35);
   const shell = new THREE.Mesh(
     sharedGeo('boom', () => new THREE.SphereGeometry(1, 12, 10)),
-    glowMaterial(colour, 0.75),
+    glowMaterial(colour, 0.5),
   );
   shell.position.copy(pos);
   const wave = new THREE.Mesh(
-    sharedGeo('wave', () => new THREE.RingGeometry(0.72, 1, 28)),
+    sharedGeo('wave', () => new THREE.RingGeometry(0.86, 1, 32)),
     glowMaterial(colour, 0.7),
   );
   wave.position.copy(pos);
@@ -216,7 +216,7 @@ function explode(g, pos, { size = 2.4, colour = 0xffc27a, shards = 7, life = 0.8
     core.scale.setScalar(size * (0.35 + k * 0.9));
     core.material.opacity = Math.max(0, 1 - k * 2.2);
     shell.scale.setScalar(size * (0.5 + k * 2.1));
-    shell.material.opacity = Math.max(0, 0.75 * (1 - k));
+    shell.material.opacity = Math.max(0, 0.5 * (1 - k * 1.15));
     wave.scale.setScalar(size * (0.6 + k * 3.4));
     wave.material.opacity = Math.max(0, 0.7 * (1 - k * 1.3));
     if (k >= 1) { kill(core); kill(shell); kill(wave); e.done = true; }
@@ -293,69 +293,99 @@ function fireBolt(g, from, targetShip, colour, onHit) {
 // mitfliegen - und warum Jäger sie abfangen sollen.
 const torpedoes = [];
 
-function launchTorpedo(g, from, to, colour, onHit) {
-  const body = new THREE.Mesh(
-    sharedGeo('torpBody', () => {
-      const c = new THREE.ConeGeometry(0.2, 1.2, 8);
-      c.rotateX(Math.PI / 2);
-      return c;
-    }),
-    new THREE.MeshBasicMaterial({ color: 0xfff2d8 }),
-  );
-  const glow = new THREE.Mesh(
-    sharedGeo('torpGlow', () => new THREE.SphereGeometry(0.5, 10, 8)),
-    glowMaterial(colour, 0.6),
-  );
-  const trail = new THREE.Mesh(
-    sharedGeo('torpTrail', () => {
-      const c = new THREE.ConeGeometry(0.3, 4.4, 8, 1, true);
-      c.rotateX(Math.PI / 2);
-      return c;
-    }),
-    glowMaterial(colour, 0.28),
-  );
-  trail.position.z = -2.4;
-  const torp = new THREE.Group();
-  torp.add(body, glow, trail);
+function launchTorpedo(g, from, to, colour, onHit, targetShip = null) {
+  // Der Körper kommt aus der Werft wie jedes andere Schiff: Suchkopf,
+  // Leuchtring, Flossen, Triebwerk.
+  const torp = torpedoModel(colour);
+  torp.scale.setScalar(1.05);
   torp.position.copy(from);
   torp.lookAt(to);
   g.add(torp);
+  const flame = torp.getObjectByName('flamme');
+
+  // Der Startblitz am Rohr.
+  muzzleFlash(g, from.clone(), colour);
+  muzzleFlash(g, from.clone(), 0xfff2d0);
+
+  // Die Spur: ein Band aus den letzten Stellungen, das hinter dem Torpedo
+  // herzieht und verglüht. Es sagt mehr über die Bahn als jede Fahne.
+  const POINTS = 26;
+  const trailGeo = new THREE.BufferGeometry();
+  const trailPos = new Float32Array(POINTS * 3);
+  for (let i = 0; i < POINTS; i++) {
+    trailPos[i * 3] = from.x;
+    trailPos[i * 3 + 1] = from.y;
+    trailPos[i * 3 + 2] = from.z;
+  }
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+  const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({
+    color: colour, transparent: true, opacity: 0.8,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  g.add(trail);
 
   const start = from.clone();
   const target = to.clone();
-  const dur = (1.5 + start.distanceTo(target) * 0.03);
+  const dur = (1.6 + start.distanceTo(target) * 0.03);
   let t = 0;
   let puff = 0;
   const entry = {
     step(dt) {
       t += dt;
       const k = Math.min(1, t / dur);
+      // Ein Torpedo läuft dem Ziel nach: die Bahn wird nachgeführt, solange
+      // das Ziel noch fliegt.
+      if (targetShip && targetShip.parent) target.lerp(targetShip.position, Math.min(1, dt * 1.2));
       torp.position.lerpVectors(start, target, k);
-      // Ein Torpedo läuft nicht schnurgerade: er steigt an und fällt ins Ziel.
-      torp.position.y += Math.sin(k * Math.PI) * 1.8;
+      // Er läuft nicht schnurgerade: erst steigen, dann ins Ziel fallen.
+      torp.position.y += Math.sin(k * Math.PI) * 2.2;
+      torp.position.x += Math.sin(t * 3.1) * 0.35 * (1 - k);
       torp.lookAt(target);
-      glow.scale.setScalar(0.9 + Math.sin(t * 24) * 0.25);
-      // Rauchfahne: alle paar Zehntel ein Fleck, der zurückbleibt.
+      // Um die Längsachse rollt er langsam - daran erkennt man ihn.
+      torp.rotateZ(dt * 2.4);
+      if (flame) {
+        const pulse = 0.85 + Math.sin(t * 30) * 0.25;
+        flame.scale.set(pulse, pulse, 1 + Math.sin(t * 21) * 0.4);
+      }
+      // Die Spur nachschieben: vorn die neue Stellung, hinten fällt eine raus.
+      const arr = trailGeo.attributes.position.array;
+      for (let i = POINTS - 1; i > 0; i--) {
+        arr[i * 3] = arr[(i - 1) * 3];
+        arr[i * 3 + 1] = arr[(i - 1) * 3 + 1];
+        arr[i * 3 + 2] = arr[(i - 1) * 3 + 2];
+      }
+      arr[0] = torp.position.x;
+      arr[1] = torp.position.y;
+      arr[2] = torp.position.z;
+      trailGeo.attributes.position.needsUpdate = true;
+      // Rauch: alle paar Zehntel ein Fleck, der zurückbleibt und aufgeht.
       puff += dt;
-      if (puff > 0.09) {
+      if (puff > 0.11) {
         puff = 0;
         const p = new THREE.Mesh(
           sharedGeo('puff', () => new THREE.SphereGeometry(0.34, 6, 5)),
-          glowMaterial(colour, 0.35),
+          glowMaterial(colour, 0.32),
         );
         p.position.copy(torp.position);
         g.add(p);
         let pt = 0;
         addEffect((d2, e2) => {
           pt += d2;
-          p.scale.setScalar(1 + pt * 2.2);
-          p.material.opacity = Math.max(0, 0.35 * (1 - pt / 0.5));
-          if (pt >= 0.5) { kill(p); e2.done = true; }
+          p.scale.setScalar(1 + pt * 2.4);
+          p.material.opacity = Math.max(0, 0.32 * (1 - pt / 0.6));
+          if (pt >= 0.6) { kill(p); e2.done = true; }
         });
       }
       if (k >= 1) {
         entry.done = true;
         kill(torp);
+        // Die Spur verglüht noch einen Augenblick nach.
+        let ft = 0;
+        addEffect((d2, e2) => {
+          ft += d2;
+          trail.material.opacity = Math.max(0, 0.8 * (1 - ft / 0.45));
+          if (ft >= 0.45) { kill(trail); e2.done = true; }
+        });
         if (onHit) onHit(target);
       }
     },
@@ -730,10 +760,10 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
           if (!torpedoRun) { hud.note('Torpedos los'); torpedoRun = true; }
           sfx.torpedo();
           launchTorpedo(g, bomber.position.clone(), aim.position.clone(), colour, (at) => {
-            explode(g, at, { size: 3.2, colour: 0xffd08a, shards: 8, life: 0.9 });
+            explode(g, at, { size: 3.4, colour: 0xffd08a, shards: 10, life: 1 });
             sfx.explosion();
-            shake(0.7);
-          });
+            shake(0.8);
+          }, aim === shieldMesh ? null : aim);
           await wait(420 / speed);
         }
       }

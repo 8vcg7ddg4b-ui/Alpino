@@ -50,6 +50,16 @@ if (introShown) {
 await page.waitForTimeout(400);
 await shot('01-startbild');
 
+// Die Musik soll ohne Zutun anlaufen - genau das wird hier nachgesehen.
+await page.waitForTimeout(1200);
+const musik = await page.evaluate(() => {
+  const el = document.getElementById('themeAudio');
+  return el ? { paused: el.paused, zeit: el.currentTime } : null;
+});
+if (!musik) problems.push('Kein Musikelement im Dokument.');
+else if (musik.paused) problems.push('Die Musik ist beim Start nicht von selbst angelaufen.');
+else console.log(`  Musik läuft von selbst (${musik.zeit.toFixed(1)} s)`);
+
 console.log('Fraktionswahl …');
 await page.click('#startGameBtn');
 await page.waitForSelector('#setupScreen:not(.hidden)');
@@ -218,8 +228,18 @@ await page.waitForTimeout(500);
 await shot('12-bruecke');
 
 console.log('Fortsetzen nach Neuladen …');
-await page.reload({ waitUntil: 'networkidle' });
+// Kein `networkidle`: seit die Musik von selbst anläuft, hält der laufende
+// Ton die Verbindung offen, und das Netz wird nie still.
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForFunction(() => window.__blackUniversReady === true, { timeout: 20000 });
 await page.waitForTimeout(700);
+// Nach dem Neuladen läuft der Vorspann erneut - erst wegklicken, dann sieht
+// man das Startbild mit dem gespeicherten Feldzug.
+if (await page.locator('#intro').count()) {
+  await page.click('#introSkip').catch(() => {});
+  await page.waitForSelector('#intro', { state: 'detached', timeout: 8000 }).catch(() => {});
+}
+await page.waitForTimeout(500);
 const canContinue = await page.locator('#continueGameBtn:not(.hidden)').count();
 if (!canContinue) {
   problems.push('Nach dem Neuladen wird kein gespeicherter Feldzug angeboten.');

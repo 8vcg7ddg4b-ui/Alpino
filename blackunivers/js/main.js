@@ -51,7 +51,7 @@ import {
   AI_STANCE_VALUES, MARCH_SPEED_FACTORS,
 } from './settings.js';
 import {
-  unlockAudio, sfx, startTheme, stopTheme, setMusicEnabled, setSfxEnabled,
+  unlockAudio, sfx, startTheme, stopTheme, setMusicEnabled, setSfxEnabled, autostartMusic,
   playFanfare, startEngine, stopEngine, setMusicScene, THEME_TITLE,
 } from './audio.js';
 import { saveGame, loadGame, clearSaveGame, saveGameSummary } from './savegame.js';
@@ -918,14 +918,11 @@ function boot() {
     if (sceneReady) { resize(); draw(); }
     if (isTitleSceneRunning()) resizeTitleScene();
   });
-  // Musik startet beim ersten Klick - vorher lässt der Browser keinen Ton zu.
-  // Solange der Vorspann läuft, bleibt sie aus.
-  const kick = () => {
-    unlockAudio();
-    if (introDone && getSetting('musik')) startTheme();
-    window.removeEventListener('pointerdown', kick);
-  };
-  window.addEventListener('pointerdown', kick);
+  // Die Musik besorgt sich ihren Start selbst: ein ausgelöster Klick beim
+  // Programmstart, danach ein Pulsschlag und ein Netz aus Lauschern, das die
+  // erste echte Handlung abfängt. Solange der Vorspann läuft, bleibt sie aus -
+  // der Film bringt seinen eigenen Ton mit.
+  autostartMusic(() => introDone && getSetting('musik'));
 
   // Zuerst der Film, dann das Startbild - und erst danach die Musik: der
   // Vorspann bringt seinen eigenen Ton mit.

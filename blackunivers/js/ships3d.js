@@ -62,6 +62,16 @@ function engine(mat, glowColour, radius, length, x, y, z, flame = 1) {
   const tube = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.86, length, 8), mat);
   tube.rotation.x = Math.PI / 2;
   g.add(tube);
+  // Der Kranz um die Düsenmündung: er gibt dem Rohr Tiefe, statt es flach
+  // abzuschneiden.
+  const bell = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * 1.15, radius * 0.9, length * 0.3, 8, 1, true),
+    mat,
+  );
+  bell.rotation.x = Math.PI / 2;
+  bell.position.z = -length / 2 - length * 0.14;
+  bell.name = 'zier';
+  g.add(bell);
   const disc = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.82, 10), glowMaterial(glowColour));
   disc.position.z = -length / 2 - 0.01;
   disc.rotation.y = Math.PI;
@@ -108,6 +118,180 @@ function runningLights(group, halfWidth, z) {
   group.add(red, green);
 }
 
+// Eine Platte: eine Spur heller als der Rumpf. Große Flächen wirken damit
+// wie zusammengesetzte Schiffe und nicht wie ein Block.
+function plateMaterial(colour) {
+  const hue = new THREE.Color(colour).lerp(new THREE.Color(0x1c2532), 0.62);
+  return new THREE.MeshStandardMaterial({
+    color: hue, metalness: 0.58, roughness: 0.44, flatShading: true,
+  });
+}
+
+// Ein Geschützturm: Sockel, drehbarer Kopf, Doppelrohr. Er ersetzt überall
+// den Würfel mit dem Stäbchen - aus der Nähe ist das der Unterschied
+// zwischen Schiff und Modellbaukasten.
+function turret(hull, dark, size, x, y, z, aim = 0) {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(size * 0.62, size * 0.74, size * 0.34, 8), dark,
+  );
+  g.add(base);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(size * 1.0, size * 0.5, size * 0.86), hull);
+  head.position.y = size * 0.4;
+  g.add(head);
+  const barrels = new THREE.Mesh(
+    new THREE.BoxGeometry(size * 0.5, size * 0.14, size * 1.5), dark,
+  );
+  barrels.position.set(0, size * 0.44, size * 0.9);
+  g.add(barrels);
+  g.position.set(x, y, z);
+  g.rotation.y = aim;
+  g.name = 'zier';
+  return g;
+}
+
+// Ein Kühler: eine dünne Platte mit glühender Kante. Große Schiffe müssen
+// ihre Wärme irgendwo loswerden, und man sieht es ihnen an.
+function radiator(colour, plate, w, h, x, y, z, tilt = 0) {
+  const g = new THREE.Group();
+  // Dunkel wie ein kaltes Blech - nur die Kante glüht. Sonst hängt ein
+  // heller Fleck am Schiff, wo eine Flosse sein soll.
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, w), darkMaterial());
+  g.add(panel);
+  for (let i = 0; i < 3; i++) {
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(0.07, h * 0.9, 0.03), plate);
+    rib.position.z = (i - 1) * (w / 3.2);
+    g.add(rib);
+  }
+  const edge = new THREE.Mesh(
+    new THREE.BoxGeometry(0.07, 0.05, w * 0.9), glowMaterial(colour, 0.55),
+  );
+  edge.position.y = -h / 2;
+  g.add(edge);
+  g.position.set(x, y, z);
+  g.rotation.z = tilt;
+  g.name = 'zier';
+  return g;
+}
+
+// Ein Mast mit Rahmenantenne und Blinkfeuer - die Silhouette, an der man ein
+// Kriegsschiff von einem Frachter unterscheidet.
+function mast(dark, height, x, y, z) {
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.05, height, 5), dark,
+  );
+  pole.position.y = height / 2;
+  g.add(pole);
+  const array = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.28, 0.05), dark);
+  array.position.y = height * 0.72;
+  g.add(array);
+  const strobe = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), glowMaterial(0xff5a4a));
+  strobe.position.y = height;
+  strobe.name = 'licht';
+  g.add(strobe);
+  g.position.set(x, y, z);
+  g.name = 'zier';
+  return g;
+}
+
+// Ein Kanonenrohr mit Mündung - für Jäger, wo ein Kasten zu grob wäre.
+function cannon(dark, glowColour, radius, length, x, y, z) {
+  const g = new THREE.Group();
+  const tube = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius * 1.25, length, 6), dark,
+  );
+  tube.rotation.x = Math.PI / 2;
+  g.add(tube);
+  const muzzle = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * 1.5, radius * 1.5, length * 0.12, 6), dark,
+  );
+  muzzle.rotation.x = Math.PI / 2;
+  muzzle.position.z = length * 0.42;
+  g.add(muzzle);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.8, 6, 5), glowMaterial(glowColour, 0.7));
+  tip.position.z = length * 0.5;
+  tip.name = 'licht';
+  g.add(tip);
+  g.position.set(x, y, z);
+  g.name = 'zier';
+  return g;
+}
+
+// --- Der Torpedo ----------------------------------------------------------
+// Er hängt unter den Bombern und fliegt im Gefecht allein: Stahlkörper,
+// Suchkopf mit glühendem Ring, vier Flossen, ein Triebwerk, das eine Fahne
+// zieht. Blickrichtung +Z wie bei allen Modellen; ein Torpedo misst eine
+// Modelleinheit.
+export function torpedoModel(colour = 0xffd08a, { armed = true } = {}) {
+  const g = new THREE.Group();
+  const steel = new THREE.MeshStandardMaterial({
+    color: 0x49525f, metalness: 0.85, roughness: 0.32, flatShading: true,
+  });
+  const dark = darkMaterial();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.72, 10), steel);
+  body.rotation.x = Math.PI / 2;
+  g.add(body);
+  // Suchkopf: eine Spitze mit einem Leuchtring dahinter.
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.34, 10), steel);
+  head.rotation.x = Math.PI / 2;
+  head.position.z = 0.53;
+  g.add(head);
+  const ring = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.135, 0.135, 0.06, 10), glowMaterial(colour, 0.9),
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.z = 0.34;
+  g.add(ring);
+  const seeker = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 5), glowMaterial(0xfff2d0, 0.9));
+  seeker.position.z = 0.7;
+  g.add(seeker);
+  // Vier Flossen im Kreuz, leicht angestellt.
+  for (let i = 0; i < 4; i++) {
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.26, 0.3), dark);
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    fin.position.set(Math.cos(a) * 0.14, Math.sin(a) * 0.14, -0.28);
+    fin.rotation.z = a - Math.PI / 2;
+    g.add(fin);
+  }
+  // Ein Band um den Bauch: Kennzeichnung und Gurt zugleich.
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.07, 10), dark);
+  belt.rotation.x = Math.PI / 2;
+  belt.position.z = 0.02;
+  g.add(belt);
+  // Das Triebwerk am Heck.
+  const bell = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.13, 0.09, 0.16, 8, 1, true), dark,
+  );
+  bell.rotation.x = Math.PI / 2;
+  bell.position.z = -0.42;
+  g.add(bell);
+  if (armed) {
+    const flame = new THREE.Mesh(
+      new THREE.ConeGeometry(0.1, 0.8, 8, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: colour, transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }),
+    );
+    flame.rotation.x = -Math.PI / 2;
+    flame.position.z = -0.88;
+    flame.name = 'flamme';
+    g.add(flame);
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 8, 6),
+      new THREE.MeshBasicMaterial({
+        color: colour, transparent: true, opacity: 0.75,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }),
+    );
+    glow.position.z = -0.5;
+    glow.name = 'flamme';
+    g.add(glow);
+  }
+  return g;
+}
+
 // --- Terranische Werften -------------------------------------------------
 
 // Rapier: schmaler Rumpf, gepfeilte Flächen, zwei Düsen. Der Jäger, den die
@@ -115,9 +299,14 @@ function runningLights(group, halfWidth, z) {
 function terranFighter(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent);
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 0.5, 0.34, 1.7, 0, 0, 0.1));
   g.add(nose(hull, 0.26, 0.95, 0, 0, 1.35));
+  // Rückenplatte und Bugblech: zwei Töne machen aus einem Kasten ein Schiff.
+  const spine = box(plate, 0.38, 0.06, 1.2, 0, 0.18, -0.15);
+  spine.name = 'zier';
+  g.add(spine);
   // Kanzel
   const canopy = box(glowMaterial(0x9fd4ff, 0.55), 0.28, 0.2, 0.55, 0, 0.19, 0.5);
   g.add(canopy);
@@ -129,15 +318,29 @@ function terranFighter(colour, accent) {
   // Leitwerk
   g.add(box(hull, 0.07, 0.42, 0.4, 0, 0.24, -0.7));
   for (const side of [-1, 1]) {
-    // Lufteinlauf und Raketenschiene unter der Fläche
+    // Lufteinlauf, Kanone und eine Rakete unter der Fläche
     g.add(box(dark, 0.16, 0.16, 0.5, side * 0.34, -0.06, -0.25));
-    g.add(box(dark, 0.06, 0.06, 0.62, side * 0.86, -0.12, 0.05));
-    g.add(nose(dark, 0.05, 0.22, side * 0.86, -0.12, 0.42, 5));
+    g.add(cannon(dark, accent, 0.035, 0.66, side * 0.86, -0.1, 0.2));
+    const rocket = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.36, 6), dark);
+    rocket.rotation.x = Math.PI / 2;
+    rocket.position.set(side * 0.56, -0.12, 0.1);
+    rocket.name = 'zier';
+    g.add(rocket);
+    g.add(nose(dark, 0.05, 0.18, side * 0.56, -0.12, 0.34, 5));
   }
   g.add(engine(dark, accent, 0.17, 0.42, -0.24, -0.02, -0.95));
   g.add(engine(dark, accent, 0.17, 0.42, 0.24, -0.02, -0.95));
   g.add(engineGlow(accent, 0.17, -0.24, -0.02, -1.24));
   g.add(engineGlow(accent, 0.17, 0.24, -0.02, -1.24));
+  // Im Sitz sitzt jemand: eine dunkle Andeutung hinter dem Glas, die aus
+  // dem Jäger ein geflogenes Schiff macht.
+  const pilot = box(dark, 0.13, 0.13, 0.14, 0, 0.15, 0.42);
+  pilot.name = 'zier';
+  g.add(pilot);
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 5), glowMaterial(0xdce9fb, 0.8));
+  helm.position.set(0, 0.24, 0.44);
+  helm.name = 'zier';
+  g.add(helm);
   // Kanzelrahmen und ein Streifen über dem Rücken.
   g.add(box(dark, 0.3, 0.05, 0.06, 0, 0.3, 0.5));
   g.add(box(glowMaterial(accent, 0.6), 0.06, 0.02, 1.1, 0, 0.19, -0.1));
@@ -156,10 +359,22 @@ function terranFighter(colour, accent) {
 function terranBomber(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.5, rough: 0.5 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 0.78, 0.52, 2.1, 0, 0, 0));
   g.add(nose(hull, 0.38, 0.9, 0, 0, 1.5, 6));
   g.add(box(dark, 0.5, 0.2, 1.2, 0, -0.34, 0.1));
+  // Die Wanne steht offen: zwei Torpedos hängen sichtbar darin. Wer einen
+  // Broadsword anfliegen sieht, weiß, was gleich kommt.
+  for (const side of [-1, 1]) {
+    const torp = torpedoModel(accent, { armed: false });
+    torp.scale.setScalar(0.8);
+    torp.position.set(side * 0.17, -0.46, 0.2);
+    torp.name = 'zier';
+    g.add(torp);
+  }
+  // Ein Kinnturm unter der Kanzel.
+  g.add(turret(plate, dark, 0.2, 0, -0.32, 1.05));
   for (const side of [-1, 1]) {
     g.add(box(hull, 0.9, 0.1, 0.9, side * 0.8, 0.04, -0.2));
     g.add(box(hull, 0.09, 0.5, 0.5, side * 1.14, 0.3, -0.6));
@@ -167,9 +382,15 @@ function terranBomber(colour, accent) {
     g.add(engine(dark, accent, 0.16, 0.4, side * 0.2, -0.02, -1.2, 0.8));
   }
   g.add(box(glowMaterial(0x9fd4ff, 0.5), 0.4, 0.22, 0.5, 0, 0.3, 0.7));
+  // Rückenturm zwischen den Leitwerken - der Broadsword wehrt sich nach
+  // hinten, dafür fliegt er überhaupt heim.
+  g.add(turret(plate, dark, 0.22, 0, 0.34, -0.5));
   for (const side of [-1, 1]) {
     g.add(engineGlow(accent, 0.2, side * 0.55, -0.02, -1.5));
     g.add(engineGlow(accent, 0.2, side * 0.2, -0.02, -1.5));
+    const strake = box(plate, 0.06, 0.16, 1.4, side * 0.42, 0.24, -0.2);
+    strake.name = 'zier';
+    g.add(strake);
   }
   runningLights(g, 1.24, -0.2);
   return g;
@@ -179,13 +400,16 @@ function terranBomber(colour, accent) {
 function terranCorvette(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.68, rough: 0.35 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 0.9, 0.62, 3.4, 0, 0, 0));
   g.add(nose(hull, 0.44, 1.1, 0, 0, 2.25, 6));
   g.add(box(hull, 0.6, 0.34, 1.0, 0, 0.44, -0.4));
+  g.add(box(glowMaterial(0xbfe4ff, 0.55), 0.44, 0.1, 0.24, 0, 0.5, 0.05));
+  g.add(mast(dark, 0.7, 0, 0.6, -0.9));
   for (const side of [-1, 1]) {
-    g.add(box(dark, 0.24, 0.24, 0.24, side * 0.5, 0.36, 0.7));
-    g.add(box(dark, 0.06, 0.06, 0.5, side * 0.5, 0.36, 0.95));
+    g.add(turret(plate, dark, 0.22, side * 0.42, 0.34, 0.8));
+    g.add(radiator(accent, plate, 1.0, 0.36, side * 0.5, -0.32, -1.1, side * 0.7));
     g.add(box(hull, 0.34, 0.1, 1.1, side * 0.66, -0.08, -0.6, [0, 0, side * 0.25]));
     g.add(box(glowMaterial(accent, 0.5), 0.03, 0.07, 2.2, side * 0.46, 0.04, 0.2));
   }
@@ -200,6 +424,7 @@ function terranCorvette(colour, accent) {
 function terranCruiser(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.7, rough: 0.32 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 1.15, 0.8, 4.6, 0, 0, 0));
   g.add(box(hull, 2.0, 0.5, 1.1, 0, 0.05, 2.5));          // Hammerkopf
@@ -208,15 +433,16 @@ function terranCruiser(colour, accent) {
   g.add(box(glowMaterial(0xbfe4ff, 0.45), 0.5, 0.14, 0.3, 0, 0.78, 0.15));
   for (const side of [-1, 1]) {
     for (const z of [1.4, 0.2, -1.4]) {
-      g.add(box(dark, 0.3, 0.26, 0.3, side * 0.42, 0.5, z));
-      g.add(box(dark, 0.07, 0.07, 0.6, side * 0.42, 0.52, z + 0.4));
+      g.add(turret(plate, dark, 0.26, side * 0.42, 0.44, z, side * 0.2));
     }
+    g.add(radiator(accent, plate, 1.4, 0.46, side * 0.68, -0.44, -1.5, side * 0.7));
     g.add(box(hull, 0.5, 0.14, 1.6, side * 0.82, -0.12, -1.0, [0, 0, side * 0.2]));
     g.add(box(glowMaterial(accent, 0.5), 0.03, 0.08, 3.0, side * 0.59, 0.06, 0.2));
     g.add(engine(dark, accent, 0.24, 0.6, side * 0.3, 0.12, -2.6, 1.2));
     g.add(engine(dark, accent, 0.24, 0.6, side * 0.3, -0.28, -2.6, 1.2));
     g.add(engineGlow(accent, 0.4, side * 0.3, -0.08, -3.1));
   }
+  g.add(mast(dark, 0.9, 0, 0.82, -1.3));
   runningLights(g, 1.0, 2.4);
   return g;
 }
@@ -226,6 +452,7 @@ function terranCruiser(colour, accent) {
 function terranCarrier(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.66, rough: 0.4 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 1.7, 1.0, 7.2, 0, -0.25, 0));
   g.add(box(dark, 1.3, 0.5, 1.2, 0, -0.25, 3.7));         // Hangarmaul
@@ -243,8 +470,10 @@ function terranCarrier(colour, accent) {
     g.add(box(hull, 0.3, 0.24, 2.6, side * 1.4, 0.1, 0.4));
     g.add(box(glowMaterial(accent, 0.55), 0.04, 0.1, 4.4, side * 0.86, 0.1, 0));
     for (const z of [2.0, -0.4, -2.2]) {
-      g.add(box(dark, 0.24, 0.2, 0.28, side * 1.35, 0.42, z));
+      g.add(turret(plate, dark, 0.2, side * 1.35, 0.42, z, side * 0.5));
     }
+    // Kühlerflügel an den Flanken, weit ausgestellt.
+    g.add(radiator(accent, plate, 1.7, 0.55, side * 1.12, -0.62, -1.7, side * 0.75));
     g.add(engine(dark, accent, 0.3, 0.7, side * 0.45, -0.2, -3.9, 1.3));
     g.add(engine(dark, accent, 0.22, 0.6, side * 1.15, -0.2, -3.8, 1.0));
     g.add(engineGlow(accent, 0.5, side * 0.45, -0.2, -4.5));
@@ -277,6 +506,19 @@ function terranCarrier(colour, accent) {
     light.name = 'licht';
     g.add(light);
   }
+  // Der Hangar leuchtet von innen: eine Fläche tief im Maul, damit das Tor
+  // nicht wie ein schwarzes Loch wirkt.
+  g.add(box(glowMaterial(0xffc98a, 0.35), 1.0, 0.4, 0.06, 0, -0.25, 3.9));
+  // Schräges Landedeck und Fangseile.
+  const angled = box(glowMaterial(accent, 0.5), 0.36, 0.02, 3.4, 0.55, 0.44, 1.0, [0, 0.09, 0]);
+  angled.name = 'zier';
+  g.add(angled);
+  for (let i = 0; i < 4; i++) {
+    const wire = box(dark, 1.9, 0.02, 0.05, -0.2, 0.44, -1.2 - i * 0.5);
+    wire.name = 'zier';
+    g.add(wire);
+  }
+  g.add(mast(dark, 1.1, 0.86, 1.2, -1.35));
   // Sensorschüssel und Mastspitze auf der Insel.
   const dish = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), dark);
   dish.rotation.set(-0.5, 0, 0);
@@ -296,14 +538,25 @@ function terranCarrier(colour, accent) {
 function terranTransport(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.45, rough: 0.6 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 1.0, 0.8, 2.6, 0, 0, 0));
   g.add(box(dark, 0.8, 0.6, 0.3, 0, -0.05, 1.42));
   g.add(box(hull, 0.5, 0.3, 0.6, 0, 0.5, 0.7));
+  // Kanzelband, Sturmklappe und ein Turm über der Luke: ein Landungsschiff
+  // fliegt dorthin, wo geschossen wird.
+  g.add(box(glowMaterial(0x9fd4ff, 0.55), 0.42, 0.14, 0.16, 0, 0.56, 0.98));
+  g.add(box(plate, 0.86, 0.1, 0.5, 0, -0.36, 1.2, [0.5, 0, 0]));
+  g.add(turret(plate, dark, 0.18, 0, 0.42, -0.5));
   for (const side of [-1, 1]) {
     g.add(box(dark, 0.22, 0.5, 1.4, side * 0.65, 0, -0.3));
     g.add(engine(dark, accent, 0.2, 0.45, side * 0.65, 0, -1.35, 0.8));
+    // Streben und Ladeluken an der Flanke.
+    const rib = box(plate, 0.08, 0.5, 0.2, side * 0.52, 0.05, 0.4);
+    rib.name = 'zier';
+    g.add(rib);
   }
+  runningLights(g, 0.78, 0.9);
   return g;
 }
 
@@ -329,9 +582,19 @@ function kilrathiFighter(colour, accent) {
   canopy.scale.set(1, 0.7, 1.2);
   canopy.position.set(0, 0.16, 0.24);
   g.add(canopy);
+  // Der Kilrathi im Sitz: eine Andeutung hinter dem bernsteinfarbenen Glas.
+  const pilot = box(dark, 0.14, 0.13, 0.14, 0, 0.13, 0.2);
+  pilot.name = 'zier';
+  g.add(pilot);
   for (const side of [-1, 1]) {
     // Neutronenkanonen an den Spitzen
-    g.add(box(dark, 0.05, 0.05, 0.44, side * 1.46, 0.14, 0.72));
+    g.add(cannon(dark, accent, 0.035, 0.5, side * 1.46, 0.14, 0.74));
+    // Klauenrippen auf dem Flügel.
+    for (let i = 0; i < 2; i++) {
+      const rib = box(dark, 0.04, 0.06, 0.34, side * (0.7 + i * 0.34), 0.06, 0.16);
+      rib.name = 'zier';
+      g.add(rib);
+    }
   }
   g.add(engine(dark, accent, 0.18, 0.4, 0, 0, -0.72));
   g.add(engineGlow(accent, 0.2, 0, 0, -1.02));
@@ -351,17 +614,34 @@ function kilrathiFighter(colour, accent) {
 function kilrathiBomber(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.5, rough: 0.5 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), hull);
   body.scale.set(1.1, 0.7, 1.9);
   g.add(body);
   g.add(nose(hull, 0.3, 0.8, 0, 0, 1.3, 5));
+  // Kanzel mit Rahmen - der Paktahn fliegt mit zwei Mann.
+  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), glowMaterial(0xffc98a, 0.5));
+  canopy.scale.set(1, 0.7, 1.5);
+  canopy.position.set(0, 0.26, 0.5);
+  g.add(canopy);
+  g.add(box(dark, 0.3, 0.05, 0.05, 0, 0.4, 0.5));
+  // Rückenturm und Kammstreifen.
+  g.add(turret(plate, dark, 0.2, 0, 0.3, -0.6));
+  g.add(box(glowMaterial(accent, 0.55), 0.05, 0.03, 0.9, 0, 0.36, -0.1));
   for (const side of [-1, 1]) {
     g.add(box(hull, 1.1, 0.1, 0.8, side * 0.8, -0.05, -0.1, [0, side * 0.3, side * 0.18]));
-    g.add(box(dark, 0.16, 0.16, 0.9, side * 1.2, -0.14, 0.1));  // Torpedoklaue
+    // In der Klaue hängt ein Torpedo, offen und geladen.
+    g.add(box(dark, 0.16, 0.16, 0.9, side * 1.2, -0.14, 0.1));
+    const torp = torpedoModel(accent, { armed: false });
+    torp.scale.setScalar(0.75);
+    torp.position.set(side * 1.2, -0.3, 0.16);
+    torp.name = 'zier';
+    g.add(torp);
     g.add(engine(dark, accent, 0.19, 0.45, side * 0.34, 0, -1.2, 0.9));
     g.add(engineGlow(accent, 0.21, side * 0.34, 0, -1.55));
   }
+  runningLights(g, 1.3, -0.1);
   return g;
 }
 
@@ -369,15 +649,20 @@ function kilrathiBomber(colour, accent) {
 function kilrathiCorvette(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.6, rough: 0.42 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 0.8, 0.5, 3.2, 0, 0, 0, [0, 0, 0]));
   g.add(nose(hull, 0.45, 1.6, 0, 0, 2.3, 4));
   g.add(box(hull, 0.12, 0.5, 2.0, 0, 0.45, -0.3));            // Kamm
+  // Ein glühendes Auge am Bug: das Kennzeichen kilrathischer Klingen.
+  g.add(box(glowMaterial(accent, 0.7), 0.3, 0.06, 0.5, 0, 0.1, 1.7));
   for (const side of [-1, 1]) {
     g.add(box(hull, 0.6, 0.1, 1.2, side * 0.6, -0.12, -0.8, [0, 0, side * 0.35]));
-    g.add(box(dark, 0.18, 0.18, 0.22, side * 0.35, 0.3, 0.9));
+    g.add(turret(plate, dark, 0.2, side * 0.35, 0.28, 0.9, side * -0.3));
+    g.add(radiator(accent, plate, 0.9, 0.34, side * 0.46, -0.3, -0.9, side * 0.7));
     g.add(engine(dark, accent, 0.2, 0.5, side * 0.28, -0.05, -1.8, 1.1));
   }
+  runningLights(g, 0.7, 0.6);
   return g;
 }
 
@@ -385,6 +670,7 @@ function kilrathiCorvette(colour, accent) {
 function kilrathiCruiser(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.62, rough: 0.4 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 1.3, 0.85, 4.4, 0, 0, 0));
   g.add(nose(hull, 0.7, 2.2, 0, 0, 3.2, 4));
@@ -393,11 +679,13 @@ function kilrathiCruiser(colour, accent) {
   for (const side of [-1, 1]) {
     g.add(box(hull, 0.9, 0.14, 1.8, side * 0.9, -0.1, -0.9, [0, 0, side * 0.3]));
     for (const z of [1.2, -0.6]) {
-      g.add(box(dark, 0.28, 0.24, 0.3, side * 0.45, 0.5, z));
-      g.add(box(dark, 0.07, 0.07, 0.55, side * 0.45, 0.52, z + 0.4));
+      g.add(turret(plate, dark, 0.26, side * 0.45, 0.44, z, side * 0.25));
     }
+    g.add(radiator(accent, plate, 1.3, 0.44, side * 0.74, -0.46, -1.6, side * 0.7));
     g.add(engine(dark, accent, 0.26, 0.62, side * 0.36, 0, -2.5, 1.2));
+    g.add(engineGlow(accent, 0.34, side * 0.36, 0, -3.0));
   }
+  g.add(box(glowMaterial(accent, 0.7), 0.4, 0.08, 0.7, 0, 0.1, 2.4));
   runningLights(g, 0.85, 2.0);
   return g;
 }
@@ -406,6 +694,7 @@ function kilrathiCruiser(colour, accent) {
 function kilrathiCarrier(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.6, rough: 0.45 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 2.0, 1.2, 6.4, 0, 0, 0));
   g.add(nose(hull, 1.0, 2.6, 0, 0, 4.4, 4));
@@ -416,8 +705,9 @@ function kilrathiCarrier(colour, accent) {
   for (const side of [-1, 1]) {
     g.add(box(hull, 1.4, 0.2, 2.6, side * 1.4, -0.2, -0.6, [0, 0, side * 0.28]));
     for (const z of [1.8, 0.2, -1.6]) {
-      g.add(box(dark, 0.3, 0.3, 0.34, side * 0.8, 0.66, z));
+      g.add(turret(plate, dark, 0.28, side * 0.8, 0.6, z, side * 0.35));
     }
+    g.add(radiator(accent, plate, 1.6, 0.5, side * 1.15, -0.78, -1.9, side * 0.7));
     g.add(engine(dark, accent, 0.36, 0.8, side * 0.6, -0.1, -3.6, 1.3));
     g.add(engine(dark, accent, 0.24, 0.6, side * 1.5, -0.3, -3.4, 1.0));
     g.add(engineGlow(accent, 0.56, side * 0.6, -0.1, -4.2));
@@ -436,6 +726,10 @@ function kilrathiCarrier(colour, accent) {
     g.add(box(hull, 0.16, 1.1, 1.6, side * 1.9, 0.4, -1.4, [0, 0, side * 0.2]));
     g.add(box(glowMaterial(accent, 0.6), 0.05, 0.08, 1.4, side * 2.05, 0.92, -1.4));
   }
+  // Der Schlund glüht von innen - ein Klanträger holt seine Staffeln ein,
+  // ohne das Licht auszumachen.
+  g.add(box(glowMaterial(0xffc98a, 0.4), 1.1, 0.5, 0.06, 0, -0.35, 3.2));
+  g.add(mast(dark, 1.0, 0, 2.0, -2.4));
   // Kommandoblister auf dem Rücken.
   const blister = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 8), hull);
   blister.scale.set(1, 0.6, 1.4);
@@ -449,13 +743,20 @@ function kilrathiCarrier(colour, accent) {
 function kilrathiTransport(colour, accent) {
   const g = new THREE.Group();
   const hull = hullMaterial(colour, accent, { metal: 0.45, rough: 0.6 });
+  const plate = plateMaterial(colour);
   const dark = darkMaterial();
   g.add(box(hull, 1.1, 0.9, 2.4, 0, 0, 0));
   g.add(nose(hull, 0.6, 1.2, 0, 0, 1.7, 4));
   g.add(box(hull, 0.14, 0.5, 1.6, 0, 0.68, -0.2));
+  g.add(box(glowMaterial(accent, 0.6), 0.26, 0.06, 0.4, 0, 0.06, 1.5));
+  g.add(turret(plate, dark, 0.18, 0, 0.5, 0.5));
   for (const side of [-1, 1]) {
     g.add(engine(dark, accent, 0.22, 0.5, side * 0.4, 0, -1.35, 0.9));
+    const pod = box(plate, 0.16, 0.4, 1.0, side * 0.6, -0.05, -0.2);
+    pod.name = 'zier';
+    g.add(pod);
   }
+  runningLights(g, 0.72, 0.4);
   return g;
 }
 
@@ -475,7 +776,17 @@ function firekkanFighter(colour, accent) {
     }
   }
   g.add(box(hull, 0.06, 0.4, 0.5, 0, 0.28, -0.6));
+  // Die Firekka bauen keine Kanzeln: sie sehen hinaus. Ein Augenband am Bug,
+  // dazu leuchtende Federkanten.
+  g.add(box(glowMaterial(0xffe1a0, 0.75), 0.22, 0.07, 0.16, 0, 0.14, 0.52));
+  for (const side of [-1, 1]) {
+    const quill = box(glowMaterial(accent, 0.5), 0.7, 0.02, 0.04, side * 0.62, 0.02, -0.2,
+      [0, side * 0.28, side * 0.14]);
+    quill.name = 'zier';
+    g.add(quill);
+  }
   g.add(engine(darkMaterial(), accent, 0.13, 0.3, 0, 0, -0.85, 0.7));
+  g.add(engineGlow(accent, 0.14, 0, 0, -1.05));
   return g;
 }
 
@@ -522,6 +833,23 @@ function nephilimShip(colour, accent, scale = 1) {
   const core = new THREE.Mesh(new THREE.SphereGeometry(0.2 * scale, 8, 6), glowMaterial(accent, 0.8));
   core.position.z = 0.3 * scale;
   g.add(core);
+  // Adern über der Haut und zwei Beißzangen am Bug - der Schwarm ist
+  // gewachsen, und man sieht ihm an, dass er lebt.
+  for (const side of [-1, 1]) {
+    const vein = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02 * scale, 0.02 * scale, 1.6 * scale, 4),
+      glowMaterial(accent, 0.55),
+    );
+    vein.rotation.set(Math.PI / 2, 0, side * 0.16);
+    vein.position.set(side * 0.3 * scale, 0.25 * scale, 0.1 * scale);
+    vein.name = 'zier';
+    g.add(vein);
+    const fang = new THREE.Mesh(new THREE.ConeGeometry(0.09 * scale, 0.8 * scale, 5), skin);
+    fang.rotation.set(Math.PI / 2, 0, side * 0.3);
+    fang.position.set(side * 0.26 * scale, -0.14 * scale, 1.5 * scale);
+    fang.name = 'zier';
+    g.add(fang);
+  }
   return g;
 }
 
@@ -573,7 +901,8 @@ export const SHIP_LENGTH = {
 
 // Ein Modell für Fraktionsart und Rolle. Es wird einmal gebaut und danach
 // geklont: Geometrie und Werkstoff teilen sich alle Kopien.
-// `detail: 'low'` lässt Schleppfahnen und Positionslichter weg. Das kostet
+// `detail: 'low'` lässt Schleppfahnen, Positionslichter und Kleinzeug weg.
+// Auf der Karte sieht man davon nichts, im Gefecht alles. Das kostet
 // wenig Bild und viel Rechenzeit - im Gefecht fliegen zwei Dutzend Schiffe
 // gleichzeitig, und durchsichtige Flächen sind das Teuerste daran.
 export function shipModel(kind, role, colour, accent, { scale = 1, detail = 'full' } = {}) {
@@ -589,7 +918,7 @@ export function shipModel(kind, role, colour, accent, { scale = 1, detail = 'ful
   if (detail === 'low') {
     const drop = [];
     clone.traverse((node) => {
-      if (node.name === 'flamme' || node.name === 'licht') drop.push(node);
+      if (node.name === 'flamme' || node.name === 'licht' || node.name === 'zier') drop.push(node);
     });
     for (const node of drop) node.parent.remove(node);
   }

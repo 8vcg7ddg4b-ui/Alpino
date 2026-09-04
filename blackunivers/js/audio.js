@@ -315,18 +315,34 @@ function playDrum(at, strong) {
 
 const BEAT = 0.42;
 
+// Gibt zurück, ob das Stück wirklich losgelaufen ist - das weiß erst das
+// Versprechen aus `play()`, denn ein Browser darf jederzeit ablehnen.
 export function startTheme() {
-  if (!musicOn) return;
+  if (!musicOn) return Promise.resolve(false);
   const el = themeAudio();
   if (el) {
-    // Der Browser lässt Ton erst nach einer Handlung zu; scheitert das
-    // Abspielen, versucht es der nächste Klick erneut.
     const promise = el.play();
-    if (promise && promise.catch) promise.catch(() => {});
     fadeTo(themeVolume, 1600);
-    return;
+    if (promise && promise.then) {
+      return promise.then(() => true).catch(() => {
+        try { el.pause(); } catch (err) { /* schon aus */ }
+        return false;
+      });
+    }
+    return Promise.resolve(!el.paused);
   }
   startSynthTheme();
+  return Promise.resolve(isMusicAudible());
+}
+
+// Läuft gerade wirklich Musik? Beim Stück fragt man das Element, beim
+// Synthesizer den Klangzustand - ein angehaltener Klangraum ist stumm,
+// auch wenn der Takt zählt.
+export function isMusicAudible() {
+  if (!musicOn) return false;
+  const el = themeAudio();
+  if (el) return !el.paused && !el.ended;
+  return !!themeTimer && !!ctx && ctx.state === 'running';
 }
 
 export function stopTheme() {
@@ -392,4 +408,65 @@ export function audioProbe() {
     musik: musicOn,
     klang: sfxOn,
   };
+}
+
+
+// --- Musik ohne Zutun -----------------------------------------------------
+// Browser lassen Ton erst nach einer Handlung des Nutzers zu. Damit trotzdem
+// niemand erst einen Knopf suchen muss, wird der Klick hier selbst besorgt:
+// ein ausgelöster Klick beim Start (den manche Browser gelten lassen), ein
+// Pulsschlag, der es immer wieder versucht, und ein Netz aus Lauschern, das
+// die allererste echte Handlung abfängt - Zeiger, Taste, Rad, Berührung.
+let autostartTimer = null;
+let autostartStop = null;
+
+export function autostartMusic(isReady = () => true) {
+  stopMusicAutostart();
+  if (typeof window === 'undefined') return;
+  const gestures = ['pointerdown', 'pointerup', 'click', 'keydown', 'touchend', 'wheel'];
+  let tries = 0;
+
+  const done = () => {
+    stopMusicAutostart();
+  };
+
+  const attempt = () => {
+    if (!musicOn || !isReady()) return;
+    if (isMusicAudible()) { done(); return; }
+    unlockAudio();
+    const p = startTheme();
+    if (p && p.then) p.then((ok) => { if (ok) done(); });
+  };
+
+  const onGesture = () => { attempt(); };
+  for (const name of gestures) {
+    window.addEventListener(name, onGesture, { capture: true, passive: true });
+  }
+  autostartStop = () => {
+    for (const name of gestures) window.removeEventListener(name, onGesture, { capture: true });
+    autostartStop = null;
+  };
+
+  // Der Puls: alle drei Viertelsekunden ein neuer Versuch, zwei Minuten lang.
+  // Kommt der Ton vorher, hört er von selbst auf zu klopfen.
+  autostartTimer = setInterval(() => {
+    tries += 1;
+    attempt();
+    if (tries > 160) { clearInterval(autostartTimer); autostartTimer = null; }
+  }, 750);
+
+  attempt();
+  // Der Klick, den sonst der Nutzer machen müsste. Wo er zählt, läuft die
+  // Musik sofort; wo nicht, kostet er nichts.
+  try {
+    const ev = new MouseEvent('click', { bubbles: false, cancelable: true, view: window });
+    document.documentElement.dispatchEvent(ev);
+  } catch (err) { /* dann eben nicht */ }
+  attempt();
+}
+
+export function stopMusicAutostart() {
+  if (autostartTimer) clearInterval(autostartTimer);
+  autostartTimer = null;
+  if (autostartStop) autostartStop();
 }

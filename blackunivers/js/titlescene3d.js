@@ -6,7 +6,7 @@
 //
 // Fällt WebGL aus, bleibt die gezeichnete Tafel: `main.js` legt sie darunter
 // und blendet sie nur weg, wenn diese Szene wirklich läuft.
-import { shipModel, SHIP_LENGTH } from './ships3d.js';
+import { shipModel, torpedoModel, SHIP_LENGTH } from './ships3d.js';
 import { factionProfile, RIVAL_OF } from './data.js';
 
 let renderer, scene, camera, canvas;
@@ -427,31 +427,18 @@ function loop() {
     const bomber = friends.find((f) => f.userData.bomber) || friends[0];
     const target = foes[Math.floor(Math.random() * foes.length)];
     if (bomber && target) {
-      const torp = new THREE.Group();
-      const head = new THREE.Mesh(
-        new THREE.ConeGeometry(0.16, 0.8, 6),
-        new THREE.MeshBasicMaterial({ color: 0xfff2d6 }),
-      );
-      head.rotation.x = Math.PI / 2;
-      const glow = new THREE.Mesh(
-        new THREE.SphereGeometry(0.34, 8, 6),
-        new THREE.MeshBasicMaterial({ color: currentProfile.accent, transparent: true, opacity: 0.6 }),
-      );
-      const trail = new THREE.Mesh(
-        new THREE.ConeGeometry(0.2, 2.6, 6, 1, true),
-        new THREE.MeshBasicMaterial({ color: currentProfile.accent, transparent: true, opacity: 0.35 }),
-      );
-      trail.rotation.x = -Math.PI / 2;
-      trail.position.z = -1.6;
-      torp.add(head, glow, trail);
+      // Derselbe Torpedo wie im Gefecht - Suchkopf, Flossen, Triebwerk.
+      const torp = torpedoModel(currentProfile.accent);
+      torp.scale.setScalar(0.95);
       torp.position.copy(bomber.position);
       heroPivot.add(torp);
       torpedoes.push({
         mesh: torp,
+        flame: torp.getObjectByName('flamme'),
         from: bomber.position.clone(),
         target,
         born: clock,
-        life: 1.6,
+        life: 1.8,
       });
     }
   }
@@ -459,7 +446,14 @@ function loop() {
     const t = torpedoes[i];
     const k = Math.min(1, (clock - t.born) / t.life);
     t.mesh.position.lerpVectors(t.from, t.target.position, k);
+    // Er steigt an und fällt ins Ziel, rollt dabei um die Längsachse.
+    t.mesh.position.y += Math.sin(k * Math.PI) * 0.9;
     t.mesh.lookAt(t.target.position);
+    t.mesh.rotateZ(clock * 2.2);
+    if (t.flame) {
+      const pulse = 0.85 + Math.sin(clock * 28) * 0.25;
+      t.flame.scale.set(pulse, pulse, 1 + Math.sin(clock * 19) * 0.4);
+    }
     if (k >= 1) {
       // Einschlag: ein Ball aus Licht, der aufgeht und vergeht.
       const burst = new THREE.Mesh(
@@ -470,6 +464,10 @@ function loop() {
       heroPivot.add(burst);
       bursts.push({ mesh: burst, born: clock });
       heroPivot.remove(t.mesh);
+      t.mesh.traverse((n) => {
+        if (n.geometry) n.geometry.dispose();
+        if (n.material) n.material.dispose();
+      });
       torpedoes.splice(i, 1);
     }
   }

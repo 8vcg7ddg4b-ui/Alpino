@@ -43,10 +43,13 @@ Der Ablauf ist bewusst **langsam zum Mitlesen**:
 2. **Feuergefecht** – jedes Geschoss läuft sichtbar von Rohr zu Rumpf, mit
    Mündungsblitz am Geschütz und Funkenschlag am Ziel. Man sieht, wer wen
    aufs Korn nimmt.
-3. **Torpedos** – Bomber schießen nicht, sie **stoßen zu**: Ein Torpedo
-   braucht seine anderthalb Sekunden, zieht eine Rauchfahne und geht am Ziel
-   hoch - gegen den Planetenschild, wenn eine Welt dahintersteht, sonst gegen
-   den schwersten Kiel der Gegenseite.
+3. **Torpedos** – Bomber schießen nicht, sie **stoßen zu**: ein Stahlkörper
+   mit Suchkopf, glühendem Zielring, vier Flossen und einem Triebwerk, das
+   flackert. Er verlässt das Rohr mit einem Startblitz, rollt um die
+   Längsachse, läuft dem Ziel nach, zieht ein Leuchtband und eine Rauchfahne
+   hinter sich her und geht nach knapp zwei Sekunden hoch - gegen den
+   Planetenschild, wenn eine Welt dahintersteht, sonst gegen den schwersten
+   Kiel der Gegenseite.
 4. **Schild** – die Kuppel wird Runde für Runde dünner; fällt sie, geht sie
    mit einer Druckwelle auf.
 5. **Verluste** – kein Schiff verschwindet auf Zuruf. Es bricht aus der
@@ -137,12 +140,22 @@ die Jägerstaffel allein. Zwei Begleiter fliegen daneben, wenn die Flotte auch
 Jäger führt. Fällt das Flaggschiff, bekommt die Flotte ein neues Gesicht.
 
 Die Modelle sind gebaut, nicht geladen: der Bengal-Träger mit Flugdeck,
-Landebahn, Insel und offenem Hangarmaul; der Rapier mit gepfeilten Flächen und
-zwei Düsen; der Dralthi als fliegender Flügel ohne Rumpf; der Snakeir als
-Klinge mit Rückenkamm; die Firekkaner mit gefächerten Schwingen; der Schwarm
-gewachsen statt gebaut. Der Rumpf trägt die Farbe der Flagge gedämpft, hell
-wird nur, was leuchtet - Düsen, Landebahn, Kennstreifen. Im Gefecht fliegen
-dieselben Silhouetten, in klein.
+Landebahn, schrägem Landedeck, Fangseilen, Insel, Mast und offenem, von innen
+glühendem Hangarmaul; der Rapier mit gepfeilten Flächen, Kanonenrohren,
+Unterflügelrakete und einem Piloten im Sitz; der Dralthi als fliegender Flügel
+ohne Rumpf; der Snakeir als Klinge mit Rückenkamm; die Firekkaner mit
+gefächerten Schwingen und leuchtenden Federkanten; der Schwarm gewachsen statt
+gebaut, mit Adern und Beißzangen.
+
+Aus der Nähe zählt das Kleinzeug: **Geschütztürme** mit Sockel, drehbarem Kopf
+und Doppelrohr statt Würfel mit Stäbchen, **Kühlerflügel** mit glühender Kante
+an den Flanken der großen Kiele, **Masten** mit Rahmenantenne und Blinkfeuer,
+**Düsenkränze**, die den Rohren Tiefe geben, und eine zweite, hellere
+Plattenfarbe, damit große Flächen nicht wie ein Block wirken. Bomber tragen
+ihre **Torpedos sichtbar**: zwei in der Wanne des Broadsword, zwei in den
+Klauen des Paktahn. Der Rumpf trägt die Farbe der Flagge gedämpft, hell wird
+nur, was leuchtet - Düsen, Landebahn, Kennstreifen. Auf der weiten Karte fällt
+das Kleinzeug weg, im Gefecht ist alles da.
 
 ### Verbände
 
@@ -297,6 +310,14 @@ Oszillatoren. Die **Musik ist eine Aufnahme**: „Black Hull Directive"
 (`audio/black-hull-directive.mp3`) läuft im Startbild und tritt im Feldzug
 hinter die Meldungen zurück; sie lässt sich in den Einstellungen abschalten.
 Fehlt die Datei, springt der eingebaute Synthesizer-Marsch ein.
+
+Sie **startet von selbst**. Browser lassen Ton erst nach einer Handlung des
+Nutzers zu - deshalb besorgt sich das Spiel den Klick: ein ausgelöster Klick
+beim Programmstart (den manche Browser gelten lassen), danach ein Pulsschlag,
+der es alle drei Viertelsekunden erneut versucht, und ein Netz aus Lauschern
+auf Zeiger, Taste, Rad und Berührung, das die allererste echte Handlung
+abfängt. Läuft der Ton, hört alles davon von selbst wieder auf. Solange der
+Vorspann läuft, bleibt die Musik aus - der Film bringt seinen eigenen Ton mit.
 
 | Datei | Inhalt |
 | --- | --- |
