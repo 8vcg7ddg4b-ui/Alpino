@@ -51,35 +51,36 @@ function bezierPoint(p0, p1, p2, t) {
   return { x, y, angle: (Math.atan2(dy, dx) * 180) / Math.PI };
 }
 
-// Ein Zweig: der Stängel als Kurve, darauf vier Blätter im Wechsel links und
+// Ein Zweig: der Stängel als Kurve, darauf sechs Blätter im Wechsel links und
 // rechts, fast am Stängel entlang statt quer dazu - so liegen Lorbeerblätter
 // wirklich, dachziegelartig übereinander, nicht wie Speichen an einem Rad.
-// Zwei frühere Fassungen fächerten sie zu weit auf: aus der Nähe ein Zweig,
-// aus der Ferne - und diese Zeile steht nur klein über dem Titel - ein
-// Gewirr aus Zacken.
+// Frühere Fassungen machten die Blätter zu schmal: lang und dünn liest sich
+// aus der Ferne - und diese Zeile steht nur klein über dem Titel - als
+// Zickzack aus Zacken, nicht als Laub. Breiter und kürzer, wie ein echtes
+// Lorbeerblatt, bleibt es auch klein noch ein Blatt.
 function branch(p0, p1, p2, mirror) {
   const f = (v) => v.toFixed(1);
   const stem = `M ${f(p0[0])} ${f(p0[1])} Q ${f(p1[0])} ${f(p1[1])} ${f(p2[0])} ${f(p2[1])}`;
   let leaves = '';
-  const steps = 4;
+  const steps = 6;
   for (let i = 0; i < steps; i++) {
-    const t = 0.16 + (i / (steps - 1)) * 0.72;
+    const t = 0.12 + (i / (steps - 1)) * 0.76;
     const { x, y, angle } = bezierPoint(p0, p1, p2, t);
     // Zur Spitze hin kleiner - am Ansatz ein kräftiges Blatt, an der Spitze
     // ein junger Trieb.
-    const grow = 1 - t * 0.42;
-    const len = 25 * grow;
-    const wid = 5 * grow;
+    const grow = 1 - t * 0.38;
+    const len = 20 * grow;
+    const wid = 8.5 * grow;
     // Quer zum Stängel versetzt, damit die Blätter nicht auf der Mittellinie
     // aufeinanderliegen - abwechselnd links und rechts davon.
     const rad = (angle * Math.PI) / 180;
     const nx = -Math.sin(rad);
     const ny = Math.cos(rad);
     const seite = (i % 2 === 0 ? 1 : -1) * (mirror ? -1 : 1);
-    const off = 3.2 * grow;
+    const off = 2.6 * grow;
     const lx = x + nx * off * seite;
     const ly = y + ny * off * seite;
-    leaves += `<path d="${leafPath(lx, ly, angle + 15 * seite, len, wid)}"/>`;
+    leaves += `<path d="${leafPath(lx, ly, angle + 9 * seite, len, wid)}"/>`;
   }
   return `<path d="${stem}" fill="none" stroke-width="1.8"/>${leaves}`;
 }

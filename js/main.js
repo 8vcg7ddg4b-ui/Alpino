@@ -38,7 +38,7 @@ import { rulerFor, TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
   initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera, cameraState, propsDebug, hideTent,
   cityDebug,
-  isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
+  isAnimating, effectsDebug, rotateCamera, resetCameraOrientation, panCameraRelative,
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
   setBordersVisible, areBordersVisible,
   setWeatherSource, setWeatherReporter, setWeatherVisualsEnabled, captureFrame,
@@ -2766,6 +2766,7 @@ window.__audioProbe = audioProbe;
 // Dasselbe für die Karte: läuft gerade ein Marsch, und wie sieht sie in diesem
 // Augenblick aus? Nur für die Prüfläufe.
 window.__mapProbe = () => ({ marching: isAnimating() });
+window.__effectsDebug = effectsDebug;
 window.__mapFrame = captureFrame;
 // Damit ein Prüflauf die Kamera gezielt auf ein Feld setzen kann, statt sich
 // dorthin zu ziehen.

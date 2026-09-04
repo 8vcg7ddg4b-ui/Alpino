@@ -212,6 +212,19 @@ laufen, wenn das Spielskript selbst nie startet. Endet der Film von selbst
 Die CSS-Animation bleibt daneben bestehen – fällt dieses Skript aus, blendet
 sich der Vorspann trotzdem nach ein paar Sekunden von selbst aus.
 
+**Ein zweiter Knopf unten links, „🔊 Für Musik klicken", fragt offen nach dem
+Klick, den kein Skript ihm abnehmen kann.** Kein Browser lässt Ton vor einer
+echten Nutzereingabe zu – das ist eine Sicherheitsvorgabe des Browsers selbst,
+kein Verhalten des Spiels, und kein Trick kommt daran vorbei. Vorher hing das
+Spiel nur stillschweigend am nächsten beliebigen Klick; wer den ganzen
+Vorspann über nur zusah, ohne selbst zu klicken, hörte gar nichts, und woran
+das lag, stand nirgends. Jetzt steht die Bitte da, wo sie hingehört. Der Knopf
+selbst tut nichts – er unterbricht nur, dass derselbe Klick auch den Vorspann
+überspringt (`ev.stopPropagation()`); die Freigabe besorgt derselbe globale
+Klick-Fänger in `main.js`, der jeden Klick im Fenster ohnehin schon abfängt.
+Ist der Ton frei, meldet der Knopf „🔊 Musik läuft" und bleibt stehen, statt zu
+verschwinden – ein zweiter Klick auf denselben Fleck soll nichts mehr auslösen.
+
 In der Leiste unten steht die **Spielversion**; sie kommt aus `GAME_VERSION`
 in `js/data.js` und wird mit `package.json` gleichgehalten, damit Anzeige und
 Auslieferung nicht auseinanderlaufen.
@@ -531,10 +544,17 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   Fenster nachgestellt, sondern dort ausgetragen, wo er stattfindet. Sobald der
   Marsch endet und es zum Gefecht kommt, zieht die Kamera in einem weichen
   Schwenk zum Kampffeld heran – näher, aber ohne die Übersicht über die Karte
-  zu verlassen –, ehe der **Zusammenprall** einsetzt: ein kurzer Ausbruch aus
-  Staub, Funken und Kampfgetöse genau auf dem Feld, um das gefochten wird. Der
-  Blick springt nicht dorthin, er zieht dorthin. Was die Schlacht wirklich
-  gekostet hat, steht wie gewohnt im **Schlachtbericht** danach.
+  zu verlassen –, ehe der **Zusammenprall** einsetzt. Seit das eigene
+  Schlachtfenster entfallen ist, trägt dieser eine Augenblick das ganze
+  Gewicht des Ereignisses und ist entsprechend groß gebaut: zwei Stoßwellen
+  laufen kurz hintereinander über den Boden, dazu ein erster Lichtblitz und
+  ein zweiter, leiserer Nachhall, dreißig Funken, die hochschlagen und
+  ausglühen, **Staub, der aufsteigt und über dem Feld hängen bleibt** statt
+  gleich mit den Funken zu verschwinden (zur See ist es Gischt statt Staub),
+  und ein kurzer, rasch abklingender **Ruck der Kamera** im Moment des
+  Aufpralls. Der Blick springt nicht dorthin, er zieht dorthin. Was die
+  Schlacht wirklich gekostet hat, steht wie gewohnt im **Schlachtbericht**
+  danach.
 - **Vier Schiffsarten, bis zu drei je Fraktion**: die **Quinquereme** mit Turm
   und Enterbrücke (50/52, 220 Gold) – schwer und im Rammstoß überlegen; die
   **Triere**, das Arbeitspferd jeder Flotte (46/45, 190 Gold) – wendig genug zum

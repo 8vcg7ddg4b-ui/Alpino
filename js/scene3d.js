@@ -7045,10 +7045,21 @@ export function isAnimating() {
   return armyAnimations.size > 0 || effects.length > 0;
 }
 
-const CLASH_DURATION = 1.35;
+export function effectsDebug() {
+  return { marching: armyAnimations.size, effects: effects.length };
+}
 
-// A clash where the armies actually meet: a shockwave ring races outward along
-// the ground, sparks are thrown up and fall back, and a light flares and dies.
+// Seit die Schlacht nicht mehr in einem eigenen Fenster nachgestellt wird,
+// ist dieser eine Augenblick auf der Karte alles, was der Spieler vom
+// Zusammenprall selbst zu sehen bekommt - er trägt jetzt das ganze Gewicht
+// des Ereignisses, nicht mehr nur den kurzen Anstoß zu einem Schaubild.
+// Länger, größer, mit einem zweiten, nachhallenden Stoß und Staub, der über
+// dem Feld hängen bleibt, statt gleich mit den Funken zu verschwinden.
+const CLASH_DURATION = 2.1;
+
+// A clash where the armies actually meet: two shockwave rings race outward
+// along the ground moments apart, sparks are thrown up and fall back, dust
+// billows and drifts, and the camera itself takes a brief, decaying jolt.
 export function playBattleClash(col, row, onComplete, options = {}) {
   if (!scene) {
     if (onComplete) onComplete();
@@ -7062,43 +7073,89 @@ export function playBattleClash(col, row, onComplete, options = {}) {
   group.position.copy(centre);
   scene.add(group);
 
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.6, 1.15, 40),
+  // Additiv gemischt, damit Ring, Blitz und Funken selbst gegen helles
+  // Gelände als Licht aufleuchten statt als bloß eingefärbte Fläche zu
+  // versinken - ein Zusammenprall muss auch auf sandiger Ebene oder hellem
+  // Wasser als Ereignis auffallen, nicht nur auf dunklem Grund.
+  const ringMat = () => new THREE.MeshBasicMaterial({
+    color: naval ? '#cfe9ff' : '#ffd98a',
+    transparent: true, side: THREE.DoubleSide, depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  // Eine helle Kernscheibe für den ersten Sekundenbruchteil - der eigentliche
+  // "Knall", ehe die Stoßwelle selbst zu sehen ist.
+  const core = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 24),
     new THREE.MeshBasicMaterial({
-      color: naval ? '#cfe9ff' : '#ffd98a',
-      transparent: true, side: THREE.DoubleSide, depthWrite: false,
+      color: naval ? '#eaf7ff' : '#fff4d6', transparent: true,
+      side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
     })
   );
+  core.rotation.x = -Math.PI / 2;
+  core.position.y = 0.22;
+  group.add(core);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.9, 48), ringMat());
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.25;
   group.add(ring);
+  // Der zweite Stoß: dasselbe noch einmal, eine halbe Sekunde später und
+  // etwas kleiner - der Nachhall, wenn die zweite Reihe nachrückt.
+  const ring2 = new THREE.Mesh(new THREE.RingGeometry(0.75, 1.55, 48), ringMat());
+  ring2.rotation.x = -Math.PI / 2;
+  ring2.position.y = 0.25;
+  group.add(ring2);
 
-  const flash = new THREE.PointLight(naval ? '#9fd8ff' : '#ffb347', 0, 26);
-  flash.position.y = 2.4;
+  const flash = new THREE.PointLight(naval ? '#9fd8ff' : '#ffb347', 0, 40);
+  flash.position.y = 3;
   group.add(flash);
 
   const rng = seededRandomFactory(col * 977 + row * 131 + 7);
   const sparks = [];
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < 34; i++) {
     const spark = new THREE.Mesh(
-      new THREE.TetrahedronGeometry(0.24 + rng() * 0.2),
+      new THREE.TetrahedronGeometry(0.32 + rng() * 0.3),
       new THREE.MeshBasicMaterial({
         color: naval
           ? (rng() < 0.5 ? '#e8f4ff' : '#7fb2d8')
           : (rng() < 0.5 ? '#ffd27a' : '#e8663d'),
-        transparent: true,
+        transparent: true, blending: THREE.AdditiveBlending,
       })
     );
     const angle = rng() * Math.PI * 2;
-    const speed = 5 + rng() * 7;
+    const speed = 6.5 + rng() * 9.5;
     spark.position.set(0, 0.6, 0);
     group.add(spark);
     sparks.push({
       mesh: spark,
       vx: Math.cos(angle) * speed,
       vz: Math.sin(angle) * speed,
-      vy: 5 + rng() * 6,
+      vy: 7 + rng() * 7.5,
       spin: (rng() - 0.5) * 12,
+    });
+  }
+
+  // Staub, der aufsteigt und über dem Feld hängen bleibt, statt mit den
+  // Funken gleich wieder zu verschwinden - bei einer Seeschlacht ist es
+  // Gischt statt Staub, heller und kürzer.
+  const dustColor = naval ? '#e4f1fb' : '#cbb281';
+  const dust = [];
+  const dustCount = naval ? 11 : 16;
+  for (let i = 0; i < dustCount; i++) {
+    const puff = new THREE.Mesh(
+      new THREE.SphereGeometry(0.75 + rng() * 0.7, 8, 6),
+      new THREE.MeshBasicMaterial({ color: dustColor, transparent: true, opacity: 0 })
+    );
+    const angle = rng() * Math.PI * 2;
+    const reach = 0.4 + rng() * 1.8;
+    puff.position.set(Math.cos(angle) * reach * 0.3, 0.2, Math.sin(angle) * reach * 0.3);
+    group.add(puff);
+    dust.push({
+      mesh: puff,
+      vx: Math.cos(angle) * (0.7 + rng() * 1.1),
+      vz: Math.sin(angle) * (0.7 + rng() * 1.1),
+      vy: 0.6 + rng() * 0.8,
+      delay: rng() * 0.3,
+      growth: 1.3 + rng() * 1.6,
     });
   }
 
@@ -7107,10 +7164,24 @@ export function playBattleClash(col, row, onComplete, options = {}) {
     duration: CLASH_DURATION,
     onComplete,
     update(t, dt) {
-      const eased = Math.min(1, t * 1.5);
-      ring.scale.setScalar(1 + eased * 7);
-      ring.material.opacity = Math.max(0, 0.85 * (1 - eased));
-      flash.intensity = t < 0.28 ? 5.5 * (1 - t / 0.28) : 0;
+      // Der Knall zuerst: hell auf, rasch wieder weg, ehe die Stoßwelle
+      // selbst Fahrt aufnimmt.
+      core.scale.setScalar(1 + Math.min(1, t * 5) * 2.2);
+      core.material.opacity = Math.max(0, 0.9 * (1 - t * 5));
+
+      const eased = Math.min(1, t * 1.1);
+      ring.scale.setScalar(1 + eased * 9);
+      ring.material.opacity = Math.max(0, 0.95 * (1 - eased));
+
+      const t2 = Math.max(0, t - 0.42);
+      const eased2 = Math.min(1, t2 * 1.3);
+      ring2.scale.setScalar(1 + eased2 * 7.5);
+      ring2.material.opacity = t2 > 0 ? Math.max(0, 0.75 * (1 - eased2)) : 0;
+
+      // Zwei Lichtstöße statt einem: der Anprall, und der Nachhall des
+      // zweiten Treffens kurz danach.
+      flash.intensity = t < 0.28 ? 9 * (1 - t / 0.28)
+        : (t > 0.42 && t < 0.68) ? 4.5 * (1 - (t - 0.42) / 0.26) : 0;
 
       for (const s of sparks) {
         s.vy -= 22 * dt;
@@ -7125,7 +7196,25 @@ export function playBattleClash(col, row, onComplete, options = {}) {
           s.vx *= 0.7;
           s.vz *= 0.7;
         }
-        s.mesh.material.opacity = Math.max(0, 1 - t * 1.15);
+        s.mesh.material.opacity = Math.max(0, 1 - t * 1.1);
+      }
+
+      for (const d of dust) {
+        const dt2 = t - d.delay;
+        if (dt2 <= 0) continue;
+        d.mesh.position.x += d.vx * dt;
+        d.mesh.position.y += d.vy * dt;
+        d.mesh.position.z += d.vz * dt;
+        d.vy *= 0.985;
+        const grown = 1 + dt2 * d.growth;
+        d.mesh.scale.setScalar(grown);
+        // Rasch ein, langsam wieder aus - Staub setzt sich nicht ab wie ein
+        // Funke, er verweht. `life` läuft von 0 bis 1 über den Rest der
+        // Lebenszeit, die diesem Staubfetzen nach seiner eigenen Verzögerung
+        // noch bleibt - beides in derselben, auf die Dauer normierten Einheit
+        // wie `t` selbst, sonst bliebe die Deckkraft weit unter ihrem Ziel.
+        const life = dt2 / (1 - d.delay);
+        d.mesh.material.opacity = life < 0.2 ? (life / 0.2) * 0.5 : Math.max(0, 0.5 * (1 - (life - 0.2) / 0.8));
       }
     },
     dispose() {
@@ -7135,6 +7224,28 @@ export function playBattleClash(col, row, onComplete, options = {}) {
       });
       scene.remove(group);
     },
+  });
+
+  // Der kurze Ruck der Kamera im Augenblick des Anpralls - er klingt ab,
+  // bevor die Kamera je merklich von der Stelle steht, an der sie stand.
+  const shakeCol = cam.col;
+  const shakeRow = cam.row;
+  const shakeRng = seededRandomFactory(col * 401 + row * 89 + 3);
+  effects.push({
+    elapsed: 0,
+    duration: 0.4,
+    update(t) {
+      const power = Math.max(0, 1 - t / 0.4) ** 1.6 * 0.1;
+      cam.col = shakeCol + (shakeRng() - 0.5) * power;
+      cam.row = shakeRow + (shakeRng() - 0.5) * power;
+      applyCamera();
+    },
+    onComplete: () => {
+      cam.col = shakeCol;
+      cam.row = shakeRow;
+      applyCamera();
+    },
+    dispose() {},
   });
   startAnimationLoop();
 }
