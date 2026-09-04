@@ -241,41 +241,164 @@ function drawMapTexture(state) {
   return tex;
 }
 
-// Die Nebelschwaden über der Platte: flache Bänder, die im Nebel stehen und
-// an den Kanten der Karte beschnitten sind.
-const nebulaVolumes = [];
-function buildNebulaVolumes(state) {
-  nebulaVolumes.length = 0;
-  const byZone = new Map();
-  for (const tile of state.map.tiles) {
-    if (tile.type !== TILE_TYPES.NEBULA || !tile.zoneName) continue;
-    const entry = byZone.get(tile.zoneName) || { name: tile.zoneName, cols: 0, rows: 0, n: 0, dens: 0 };
-    entry.cols += tile.col;
-    entry.rows += tile.row;
-    entry.dens += tile.density;
-    entry.n += 1;
-    byZone.set(tile.zoneName, entry);
+// --- Nebel, Trümmer, Strahlung in echt ----------------------------------
+// Bisher waren die Bänke flache Scheiben und die Trümmerfelder nur Punkte in
+// der Kartentextur. Jetzt steht beides über der Platte: Nebelschwaden als
+// Schwebeteilchen, die immer zur Kamera schauen, und Brocken als Körper, die
+// man aus jedem Winkel sieht.
+let fieldsGroup = null;
+let fieldsStamp = null;
+let cloudTex = null;
+
+function cloudTexture() {
+  if (cloudTex) return cloudTex;
+  cloudTex = paintCanvas(128, 128, (g) => {
+    const grd = g.createRadialGradient(64, 64, 2, 64, 64, 62);
+    grd.addColorStop(0, 'rgba(255,255,255,0.55)');
+    grd.addColorStop(0.35, 'rgba(255,255,255,0.22)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 128, 128);
+    // Ein wenig Struktur, damit die Schwaden nicht wie Kreise aussehen.
+    for (let i = 0; i < 26; i++) {
+      const x = 20 + Math.random() * 88;
+      const y = 20 + Math.random() * 88;
+      const r = 6 + Math.random() * 22;
+      const sub = g.createRadialGradient(x, y, 1, x, y, r);
+      sub.addColorStop(0, 'rgba(255,255,255,0.16)');
+      sub.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = sub;
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+    }
+  });
+  return cloudTex;
+}
+
+function buildSpaceFields(state) {
+  const stamp = `${Object.keys(state.seen).length}`;
+  if (fieldsGroup && fieldsStamp === stamp) return;
+  fieldsStamp = stamp;
+  if (fieldsGroup) {
+    holoGroup.remove(fieldsGroup);
+    fieldsGroup.traverse((node) => {
+      if (node.geometry) node.geometry.dispose();
+      if (node.material && node.material.dispose) node.material.dispose();
+    });
   }
-  for (const zone of byZone.values()) {
-    const col = zone.cols / zone.n;
-    const row = zone.rows / zone.n;
-    const spread = Math.sqrt(zone.n) * TILE_SIZE * 0.9;
-    const { x, z } = worldOfTile(col, row);
-    for (let layer = 0; layer < 3; layer++) {
-      const geo = new THREE.CircleGeometry(spread * (1 - layer * 0.18), 28);
-      const mat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(0x7a5cd6).lerp(new THREE.Color(0x2a1d66), layer / 3),
-        transparent: true,
-        opacity: 0.1 + (zone.dens / zone.n) * 0.08,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.position.set(x, 2 + layer * 5, z);
-      mesh.userData.tile = { col: Math.round(col), row: Math.round(row) };
-      nebulaVolumes.push(mesh);
-      holoGroup.add(mesh);
+  fieldsGroup = new THREE.Group();
+  fieldsGroup.name = 'raumfelder';
+  holoGroup.add(fieldsGroup);
+
+  const rnd = (seed) => {
+    let x = Math.sin(seed) * 43758.5453;
+    return x - Math.floor(x);
+  };
+
+  // --- Nebel: Schwaden über der Bank -------------------------------------
+  const nebulaMat = new THREE.SpriteMaterial({
+    map: cloudTexture(),
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    opacity: 0.5,
+  });
+  const rocks = [];
+  const radiation = [];
+  for (const tile of state.map.tiles) {
+    if (!hasSeen(state, tile.col, tile.row)) continue;
+    const { x, z } = worldOfTile(tile.col, tile.row);
+    const seed = tile.col * 73.13 + tile.row * 31.7;
+    if (tile.type === TILE_TYPES.NEBULA) {
+      // Je dichter die Bank, desto mehr Schwaden - und nur auf jedem zweiten
+      // Feld, sonst steht die halbe Karte im Rauch.
+      const count = tile.density > 0.55 ? 2 : tile.density > 0.3 ? 1 : (rnd(seed) > 0.6 ? 1 : 0);
+      for (let i = 0; i < count; i++) {
+        const sprite = new THREE.Sprite(nebulaMat.clone());
+        const size = TILE_SIZE * (1.6 + rnd(seed + i * 3.1) * 2.2);
+        sprite.scale.set(size, size, 1);
+        sprite.position.set(
+          x + (rnd(seed + i) - 0.5) * TILE_SIZE * 1.6,
+          4 + rnd(seed + i * 7.7) * 16,
+          z + (rnd(seed + i * 2.3) - 0.5) * TILE_SIZE * 1.6,
+        );
+        sprite.material.color.set(new THREE.Color(0x6f4fd6).lerp(
+          new THREE.Color(0x2f7fc0), rnd(seed + i * 5.5) * 0.35,
+        ));
+        sprite.material.opacity = 0.13 + tile.density * 0.2;
+        sprite.userData.drift = 0.2 + rnd(seed + i * 11.3) * 0.6;
+        fieldsGroup.add(sprite);
+      }
+    } else if (tile.type === TILE_TYPES.ASTEROIDS) {
+      // Vier bis sieben Brocken je Feld, in verschiedenen Höhen.
+      const count = 4 + Math.floor(rnd(seed) * 4);
+      for (let i = 0; i < count; i++) {
+        rocks.push({
+          x: x + (rnd(seed + i * 1.7) - 0.5) * TILE_SIZE * 0.95,
+          y: 1.5 + rnd(seed + i * 4.3) * 9,
+          z: z + (rnd(seed + i * 3.9) - 0.5) * TILE_SIZE * 0.95,
+          s: 0.35 + rnd(seed + i * 6.1) * 1.15,
+          rx: rnd(seed + i * 8.9) * Math.PI,
+          ry: rnd(seed + i * 12.7) * Math.PI,
+          shade: 0.55 + rnd(seed + i * 2.9) * 0.45,
+        });
+      }
+    } else if (tile.type === TILE_TYPES.RADIATION) {
+      if (rnd(seed) > 0.45) radiation.push({ x, z, seed });
+    }
+  }
+
+  // --- Trümmer: echte Körper, nicht nur Punkte ---------------------------
+  if (rocks.length) {
+    const geo = new THREE.IcosahedronGeometry(1, 0);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xb9ad99, roughness: 0.95, metalness: 0.08, flatShading: true,
+    });
+    const mesh = new THREE.InstancedMesh(geo, mat, rocks.length);
+    const dummy = new THREE.Object3D();
+    const colour = new THREE.Color();
+    rocks.forEach((rock, i) => {
+      dummy.position.set(rock.x, rock.y, rock.z);
+      dummy.rotation.set(rock.rx, rock.ry, rock.rx * 0.5);
+      dummy.scale.set(rock.s, rock.s * (0.7 + rock.shade * 0.5), rock.s * 0.9);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, colour.setRGB(rock.shade * 0.62, rock.shade * 0.56, rock.shade * 0.48));
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.name = 'truemmer';
+    fieldsGroup.add(mesh);
+  }
+
+  // --- Strahlung: ein heißer Schein über dem Feld ------------------------
+  for (const spot of radiation) {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: cloudTexture(),
+      color: 0xffa54f,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      opacity: 0.3,
+    }));
+    const size = TILE_SIZE * (1.4 + rnd(spot.seed) * 1.4);
+    sprite.scale.set(size, size, 1);
+    sprite.position.set(spot.x, 4 + rnd(spot.seed * 3.3) * 8, spot.z);
+    sprite.userData.pulse = rnd(spot.seed * 5.1) * Math.PI * 2;
+    fieldsGroup.add(sprite);
+  }
+}
+
+// Nebel treibt, Strahlung pulst - langsam, damit die Karte ruhig bleibt.
+function animateFields(time) {
+  if (!fieldsGroup) return;
+  for (const node of fieldsGroup.children) {
+    if (node.userData.drift) {
+      node.position.x += Math.sin(time * 0.00007 * node.userData.drift) * 0.006;
+      node.position.y += Math.cos(time * 0.00005 * node.userData.drift) * 0.004;
+    } else if (node.userData.pulse !== undefined) {
+      node.material.opacity = 0.22 + Math.sin(time * 0.0012 + node.userData.pulse) * 0.1;
     }
   }
 }
@@ -901,11 +1024,12 @@ export function buildMap(state) {
   fogMesh = null;
   territoryGroup = null;
   territoryStamp = null;
+  fieldsGroup = null;
+  fieldsStamp = null;
   if (mapTexture) mapTexture.dispose();
   mapTexture = drawMapTexture(state);
   mapMaterial = new THREE.MeshBasicMaterial({ map: mapTexture });
   buildTable();
-  buildNebulaVolumes(state);
   buildJumpPoints(state);
   buildSystems(state);
   buildBridge(state);
@@ -1228,6 +1352,18 @@ export function syncEntities(state, view = {}) {
     }
     if (!mesh) {
       mesh = fleetMesh(fleet);
+      // Ein neuer Verband liegt nicht auf Nordkurs, sondern schaut dorthin,
+      // wo es etwas zu tun gibt: zur nächsten fremden Welt.
+      const foe = state.systems
+        .filter((sys) => sys.factionId !== fleet.factionId)
+        .sort((a, b) => (Math.abs(a.col - fleet.col) + Math.abs(a.row - fleet.row))
+          - (Math.abs(b.col - fleet.col) + Math.abs(b.row - fleet.row)))[0];
+      if (foe) {
+        const here = worldOfTile(fleet.col, fleet.row);
+        const there = worldOfTile(foe.col, foe.row);
+        mesh.rotation.y = Math.atan2(there.x - here.x, there.z - here.z);
+        mesh.userData.heading = mesh.rotation.y;
+      }
       fleetMeshes.set(fleet.id, mesh);
       entityGroup.add(mesh);
       const grab = mesh.getObjectByName('grab');
@@ -1297,6 +1433,7 @@ export function syncEntities(state, view = {}) {
   }
   updateSystems(state);
   buildTerritory(state);
+  buildSpaceFields(state);
   updateFogOfWar(state);
   drawOverlay(state, view);
 }
@@ -1417,12 +1554,6 @@ export function updateFogOfWar(state) {
   }
   fogMesh.count = i;
   fogMesh.instanceMatrix.needsUpdate = true;
-  // Nebelbänke, die nie jemand angeflogen hat, leuchten auch nicht: sonst
-  // stünde die schönste Bank der Karte über unerforschtem Raum.
-  for (const mesh of nebulaVolumes) {
-    const t = mesh.userData.tile;
-    mesh.visible = hasSeen(state, t.col, t.row);
-  }
 }
 
 // Ein kurzes Aufblitzen auf einem Feld - für Treffer, Funde, Meldungen.
@@ -1631,6 +1762,7 @@ export function resize() {
 
 export function render() {
   if (!renderer || !scene || !camera) return;
+  animateFields(performance.now());
   layoutLabels();
   renderer.render(scene, camera);
 }
@@ -1653,56 +1785,119 @@ export function isAnimating() {
 // Eine Flotte zieht nicht von Feld zu Feld, sie fliegt: das Modell wandert
 // den Weg entlang, dreht sich in die Flugrichtung, und am Sprungpunkt
 // verschwindet es und kommt drüben wieder heraus.
-export function animateFleet(fleetId, path, { speed = 1, onStep = null } = {}) {
+function tileWorldPoint(step) {
+  const { x, z } = worldOfTile(step.col, step.row);
+  return new THREE.Vector3(x, 0, z);
+}
+
+// Ein Flugabschnitt: der Verband folgt einer weichen Kurve durch die
+// Feldmitten, statt von Ecke zu Ecke zu knicken - und seine Nase zeigt dabei
+// immer dorthin, wo er hinfliegt.
+function flyCurve(mesh, points, speed) {
   return new Promise((resolve) => {
-    const mesh = fleetMeshes.get(fleetId);
-    if (!mesh || !path || path.length < 2) { resolve(); return; }
-    animating = true;
-    mesh.userData.animating = true;
-    let index = 0;
-    const stepTime = 320 / Math.max(0.2, speed);
-    let start = performance.now();
-    const from = new THREE.Vector3();
-    const to = new THREE.Vector3();
-    const setLeg = () => {
-      const a = worldOfTile(path[index].col, path[index].row);
-      const b = worldOfTile(path[index + 1].col, path[index + 1].row);
-      from.set(a.x, 0, a.z);
-      to.set(b.x, 0, b.z);
-      mesh.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
-      start = performance.now();
-    };
-    setLeg();
+    const pts = points.map(tileWorldPoint);
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.4);
+    const length = Math.max(1, curve.getLength());
+    const duration = Math.max(260, (length * 24) / Math.max(0.2, speed));
+    const start = performance.now();
+    const pos = new THREE.Vector3();
+    const tangent = new THREE.Vector3();
+    let yaw = mesh.rotation.y;
     const tick = () => {
-      const t = Math.min(1, (performance.now() - start) / stepTime);
-      const jump = !!path[index + 1].jump;
-      if (jump) {
-        // Der Sprung: die Flotte wird klein, verschwindet und steht drüben.
-        mesh.scale.setScalar(t < 0.5 ? 1 - t * 1.8 : (t - 0.5) * 1.8);
-        mesh.position.copy(t < 0.5 ? from : to);
-      } else {
-        mesh.position.lerpVectors(from, to, t);
-        mesh.position.y = Math.sin(t * Math.PI) * 2.2;
-      }
-      if (t >= 1) {
-        mesh.scale.setScalar(1);
-        mesh.position.copy(to);
-        mesh.position.y = 0;
-        index += 1;
-        if (onStep) onStep(path[index]);
-        if (index >= path.length - 1) {
-          animating = false;
-          mesh.userData.animating = false;
-          resolve();
-          return;
-        }
-        setLeg();
-      }
+      const t = Math.min(1, (performance.now() - start) / duration);
+      curve.getPointAt(t, pos);
+      curve.getTangentAt(t, tangent);
+      mesh.position.set(pos.x, Math.sin(t * Math.PI) * 1.2, pos.z);
+      // Kurs weich nachziehen und in die Kurve legen: ein Verband dreht
+      // nicht auf der Stelle.
+      const want = Math.atan2(tangent.x, tangent.z);
+      let delta = want - yaw;
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+      yaw += delta * 0.22;
+      mesh.rotation.y = yaw;
+      mesh.rotation.z = Math.max(-0.45, Math.min(0.45, -delta * 5));
       render();
+      if (t >= 1) {
+        mesh.rotation.z = 0;
+        mesh.rotation.y = want;
+        mesh.userData.heading = want;
+        resolve();
+        return;
+      }
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   });
+}
+
+// Der Sprungpunkt: klein werden, verschwinden, drüben wieder herauskommen.
+function jumpLeg(mesh, target, speed) {
+  return new Promise((resolve) => {
+    const to = tileWorldPoint(target);
+    const from = mesh.position.clone();
+    const duration = 620 / Math.max(0.2, speed);
+    const start = performance.now();
+    const tick = () => {
+      const t = Math.min(1, (performance.now() - start) / duration);
+      if (t < 0.5) {
+        mesh.scale.setScalar(Math.max(0.02, 1 - t * 2));
+        mesh.position.copy(from);
+      } else {
+        mesh.scale.setScalar(Math.max(0.02, (t - 0.5) * 2));
+        mesh.position.copy(to);
+      }
+      render();
+      if (t >= 1) {
+        mesh.scale.setScalar(1);
+        mesh.position.copy(to);
+        resolve();
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+// --- Der Flug -------------------------------------------------------------
+// Eine Flotte zieht nicht von Feld zu Feld, sie fliegt: eine Kurve durch die
+// Felder ihres Weges, unterbrochen nur dort, wo ein Sprungpunkt sie
+// versetzt.
+export function animateFleet(fleetId, path, { speed = 1, onStep = null } = {}) {
+  const mesh = fleetMeshes.get(fleetId);
+  if (!mesh || !path || path.length < 2) return Promise.resolve();
+  animating = true;
+  mesh.userData.animating = true;
+
+  // In Abschnitte zerlegen: ein Sprung unterbricht den Flug.
+  const segments = [];
+  let current = [path[0]];
+  for (let i = 1; i < path.length; i++) {
+    if (path[i].jump) {
+      segments.push({ points: current, jumpTo: path[i] });
+      current = [path[i]];
+    } else {
+      current.push(path[i]);
+    }
+  }
+  segments.push({ points: current, jumpTo: null });
+
+  const run = async () => {
+    for (const seg of segments) {
+      if (seg.points.length > 1) await flyCurve(mesh, seg.points, speed);
+      if (seg.jumpTo) {
+        await jumpLeg(mesh, seg.jumpTo, speed);
+        if (onStep) onStep(seg.jumpTo);
+      }
+    }
+    const last = path[path.length - 1];
+    if (onStep) onStep(last);
+    mesh.userData.animating = false;
+    animating = false;
+    render();
+  };
+  return run();
 }
 
 // Der Blick auf ein Feld, weich statt sprunghaft: die Kamera zieht hinüber.

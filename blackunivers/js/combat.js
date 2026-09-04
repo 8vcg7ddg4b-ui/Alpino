@@ -33,8 +33,8 @@ function unitStrength(state, factionId, unit, opts) {
   const def = defs[unit.role] || defs[WATCH_ROLE];
   const faction = factionById(state, factionId);
   let value = def.attack * unit.count;
-  // Erfahrung: aus Neulingen werden Asse, und das sind bis zu +30%.
-  value *= 1 + experienceStars(unit.exp) * 0.1;
+  // Erfahrung: aus Neulingen werden Legenden, und das sind bis zu +35%.
+  value *= 1 + experienceStars(unit.exp) * 0.07;
   // Technik gilt für das ganze Reich.
   if (faction) value *= 1 + techAttackBonus(faction.tech.waffen);
   // Die Schlachtordnung verschiebt, was eine Rolle wert ist.

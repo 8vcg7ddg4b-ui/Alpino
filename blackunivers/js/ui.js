@@ -7,7 +7,7 @@ import {
   BUILDING_DEFS, BUILDING_ORDER, buildingName, sizeTier, shieldInfo,
   SHIELD_LEVELS, MAX_SHIELD_LEVEL, TECH_LINES, TECH_ORDER, MAX_TECH_LEVEL,
   techStep, TACTICS, ATTACK_TACTICS, DEFENCE_TACTICS, calendarOfTurn,
-  experienceStars, experienceLabel, factionProfile, GREAT_WORKS, TILE_LABELS,
+  experienceStars, experienceLabel, MAX_EXPERIENCE_STARS, factionProfile, GREAT_WORKS, TILE_LABELS,
   VICTORY_SYSTEMS, ROLE_REQUIRES, GAME_NAME,
 } from './data.js';
 import {
@@ -37,7 +37,7 @@ function bar(value, max, cls = '') {
 
 function stars(exp) {
   const n = experienceStars(exp);
-  return `<span class="stars" title="${experienceLabel(exp)}">${'★'.repeat(n)}${'☆'.repeat(3 - n)}</span>`;
+  return `<span class="stars" title="${experienceLabel(exp)}">${'★'.repeat(n)}${'☆'.repeat(MAX_EXPERIENCE_STARS - n)}</span>`;
 }
 
 // --- Kopfleiste -----------------------------------------------------------

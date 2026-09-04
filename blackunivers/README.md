@@ -65,6 +65,11 @@ Ein Feld ist nicht wie das andere:
 | **Strahlungszone** | Kosten 2, frisst Panzerung |
 | **Gravitationsgraben** | Unpassierbar. Die Gebirge dieser Karte |
 
+Nebel, Trümmer und Strahlung stehen **als Körper über der Platte**, nicht nur
+als Farbe in der Karte: Schwaden, die zur Kamera schauen und langsam treiben,
+Brocken in verschiedenen Höhen und Größen, und ein pulsender Schein über den
+Strahlungszonen.
+
 Durch die Gräben führen **Sprungpunkte**: acht feste Paare, die in einem
 Bewegungspunkt quer über die Karte bringen – der Enigma-Sprung nach K'tithrak
 Mang, der Grabensprung von Tyr zum Höllenloch, der Firekka-Sprung. Sie
@@ -113,6 +118,13 @@ Die Namen richten sich nach der Werft: Rapier, Broadsword, Tallahassee und
 Bengal bei der Konföderation, Dralthi, Paktahn, Kamekh, Fralthi und Snakeir
 beim Imperium, Banshee und Kormoran bei den Grenzwelten, Sabre und Longbow beim
 Landreich.
+
+### Erfahrung
+
+Ein Verband lernt in jedem Gefecht dazu - **fünf Stufen** vom Neuling über
+Erfahren, Veteranen, Asse und Elite bis zur **Legende**, jede ein Stern auf
+dem Staffelschild und bis zu 35 % mehr Durchschlag. Wer aufgefrischt wird,
+verliert einen Teil davon: neue Piloten senken den Schnitt.
 
 ### Asse
 

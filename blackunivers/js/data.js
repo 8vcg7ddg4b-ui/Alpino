@@ -342,10 +342,17 @@ export function shipName(factionId, role) {
 
 // Erfahrung wird in Balken auf dem Staffelwappen gezeigt: aus Neulingen
 // werden Veteranen, aus Veteranen Asse.
+// Erfahrung wird in fünf Stufen gezählt: von Neulingen, die zum ersten Mal
+// starten, bis zu Legenden, deren Rufzeichen der Gegner kennt. Voll erfahren
+// ist ein Verband erst bei hundert - dahin kommt nur, wer viele Gefechte
+// überlebt.
+export const MAX_EXPERIENCE_STARS = 5;
 export function experienceStars(exp) {
-  return Math.max(0, Math.min(3, Math.floor((exp || 0) / 34)));
+  return Math.max(0, Math.min(MAX_EXPERIENCE_STARS, Math.floor((exp || 0) / 20)));
 }
-export const EXPERIENCE_LABELS = ['Neulinge', 'Erfahren', 'Veteranen', 'Asse'];
+export const EXPERIENCE_LABELS = [
+  'Neulinge', 'Erfahren', 'Veteranen', 'Asse', 'Elite', 'Legenden',
+];
 export function experienceLabel(exp) {
   return EXPERIENCE_LABELS[experienceStars(exp)];
 }
@@ -541,7 +548,7 @@ export const BUILDING_DEFS = {
       { cost: 1300, time: 6, note: 'neue Staffeln veteran' },
     ],
     desc: 'Simulatoren und Ausbilder. Was hier startet, startet nicht als Neuling.',
-    experience: [34, 68],
+    experience: [20, 45],
   },
   terraformer: {
     id: 'terraformer', name: 'Terraformer', maxLevel: 2,
