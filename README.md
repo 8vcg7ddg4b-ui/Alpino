@@ -165,6 +165,18 @@ Mittelmeer schmale, hochgezogene **Zypressen**, und im Wüstengürtel – wo
 beim Wetter, nicht am Zufall: ein und dasselbe Waldfeld trägt immer dieselbe
 Baumart, in Nordafrika genauso wie an der Nordsee.
 
+**Auch die Häuser einer Stadt richten sich nach der Kultur ihrer Fraktion, nicht
+nur nach deren Farbe.** Rom, Athen, Sparta, Makedonien, Syrakus und Karthago
+bauen im Stil des Mittelmeers: verputzte Häuser mit Satteldach und, in der
+großen Stadt, ein Säulentempel. Die Seleukiden, die Ptolemäer, die Parther,
+Armenien und Pontus bauen im Stil des Ostens: Lehmziegelhäuser mit flachem
+Dach und, in der großen Stadt, ein Stufenheiligtum wie in Babylon oder
+Persepolis. Gallier, Germanen, Britannier, Iberer, Daker, Illyrer, Sarmaten
+und Numidien bauen Rundhäuser aus Holz und Reet mit einem First-Knauf in der
+Fraktionsfarbe, und in der großen Stadt tritt eine überhohe Halle an die
+Stelle des Tempels. Ein Dorf sieht dagegen überall gleich aus – dort zeigt
+allein das Banner, wem es gehört.
+
 ## Startbildschirm
 
 ### Der Vorspann: das Studio-Logo
@@ -816,12 +828,12 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   zeigt bei Bedarf auch die Kriege der anderen.
 - **Armeen sind an ihrer Größe zu erkennen**: das Lager wächst mit der Stärke,
   von einem einzelnen Zelt bei einer Handvoll Männern bis zum Zeltring mit
-  Führungszelt bei einem vollen Heer. Um die Zelte steht dieselbe Zahl an
-  **Wachen** - Fußvolk, Reiterei oder Schützen, je nachdem, woraus das Heer
-  wirklich besteht, in derselben Zusammensetzung wie die Marschordnung. Ein
-  Lager aus bloßen Zelten sagte nur "hier campiert jemand"; die Wache sagt,
-  dass dort ein Heer steht. Marschiert das Heer, treten die Zelte ab und die
-  Kolonne tritt an - dieselben Gestalten, nur im Zug statt im Ring.
+  Führungszelt bei einem vollen Heer. Davor stehen immer zwei **Wachen** -
+  Fußvolk, Reiterei oder Schützen, je nachdem, woraus das Heer wirklich
+  besteht - gleich groß oder klein das Lager dahinter ist. Ein Lager aus
+  bloßen Zelten sagte nur "hier campiert jemand"; die Wache sagt, dass dort
+  ein Heer steht. Marschiert das Heer, treten die Zelte ab und die Kolonne
+  tritt an - dieselben Gestalten, nur im Zug statt vor den Zelten.
 - **Karte verschieben**: Ziehen mit Maus oder einem Finger, Pfeiltasten/WASD
   oder das Steuerkreuz unten links. **Umschalt + Mausrad gedrückt** verschiebt
   ebenfalls – auch dort, wo unter dem Zeiger kein Boden liegt und das Ziehen

@@ -351,20 +351,30 @@ export function zoomCamera(factor) {
 // Definition im Quelltext steht).
 const TREE_H = 2.2;
 
-// Der Wedelschopf einer Palme: sechs schmale Blätter, die vom selben Punkt
-// ausgehen und schräg nach außen und unten fallen - eine einzige, feste
-// Geometrie wie beim Erzhaufen, damit sie sich weiter über InstancedMesh
-// zeichnen lässt.
+// Der Wedelschopf einer Palme: sieben Wedel, die vom selben Punkt ausgehen
+// und schräg nach außen und unten hängen - eine einzige, feste Geometrie wie
+// beim Erzhaufen, damit sie sich weiter über InstancedMesh zeichnen lässt.
+// Jeder Wedel ist ein spitz zulaufender Kegel (Rautenquerschnitt) statt einer
+// flachen Platte: eine dünne Platte verschwindet aus manchen Blickwinkeln
+// fast vollständig, weil die Kamera meist aus einem festen Winkel auf die
+// Karte schaut - ein Körper mit echtem Volumen bleibt aus jeder Richtung
+// sichtbar.
 function frondClusterGeometry() {
-  const blatt = new THREE.BoxGeometry(0.055, 1, 0.16);
-  blatt.translate(0, 0.5, 0);
-  const zahl = 6;
+  const wedel = new THREE.ConeGeometry(0.2, 1, 4, 1);
+  wedel.translate(0, 0.5, 0);
+  const zahl = 7;
   const teile = [];
   for (let i = 0; i < zahl; i++) {
-    teile.push(shapePart(blatt, 0, 0, 0, -1.05, (i / zahl) * Math.PI * 2, 0, 1, TREE_H * 0.5, 1));
+    // Reihenfolge wichtig: bei THREE.Euler steht die y-Drehung (Blickrichtung
+    // rundherum) in der Mitte der Verkettung und bliebe wirkungslos, würde
+    // sie auf einen bereits senkrecht gekippten Wedel angewandt (die
+    // y-Achse dreht sich nicht um sich selbst). Deshalb kippt hier die
+    // z-Drehung den Wedel zuerst zur Seite, danach verteilt die y-Drehung
+    // die Wedel rundherum.
+    teile.push(shapePart(wedel, 0, 0, 0, 0, (i / zahl) * Math.PI * 2, 2.15, 1, TREE_H * 0.5, 1));
   }
   const g = mergeShapes(teile);
-  blatt.dispose();
+  wedel.dispose();
   return g;
 }
 
@@ -1579,20 +1589,30 @@ function colorFor(type, rng) {
 
 // Ein Blick in die Requisiten - nur für die Prüfläufe: welche Instanzgruppen
 // stehen auf der Karte, in welcher Farbe, und wie viele Punkte trägt jede.
-export function propsDebug() {
+export function propsDebug(colorFilter = null) {
   if (!propsGroup) return [];
   const matrix = new THREE.Matrix4();
   const pos = new THREE.Vector3();
   return propsGroup.children.map((m) => {
-    m.getMatrixAt(0, matrix);
-    matrix.decompose(pos, new THREE.Quaternion(), new THREE.Vector3());
-    return {
-      color: `#${m.material.color.getHexString()}`,
-      count: m.count,
-      vertices: m.geometry.attributes.position.count,
-      firstCol: Math.round(pos.x / TILE_SIZE + mapCols / 2),
-      firstRow: Math.round(pos.z / TILE_SIZE + mapRows / 2),
-    };
+    const color = `#${m.material.color.getHexString()}`;
+    const entry = { color, count: m.count, vertices: m.geometry.attributes.position.count };
+    if (colorFilter && color === colorFilter) {
+      entry.positions = [];
+      for (let i = 0; i < m.count; i++) {
+        m.getMatrixAt(i, matrix);
+        matrix.decompose(pos, new THREE.Quaternion(), new THREE.Vector3());
+        entry.positions.push({
+          col: pos.x / TILE_SIZE + mapCols / 2,
+          row: pos.z / TILE_SIZE + mapRows / 2,
+        });
+      }
+    } else {
+      m.getMatrixAt(0, matrix);
+      matrix.decompose(pos, new THREE.Quaternion(), new THREE.Vector3());
+      entry.firstCol = pos.x / TILE_SIZE + mapCols / 2;
+      entry.firstRow = pos.z / TILE_SIZE + mapRows / 2;
+    }
+    return entry;
   });
 }
 
@@ -3778,7 +3798,29 @@ const CITY_MATERIALS = {
   stone: new THREE.MeshStandardMaterial({ color: '#8e8577', roughness: 0.95 }),
   // Der gestampfte Untergrund, auf dem ein Ort steht.
   terrace: new THREE.MeshStandardMaterial({ color: '#93836a', roughness: 1 }),
+  // Gestampfter Lehmziegel, wie er am Nil, am Euphrat und in Anatolien
+  // gebrannt wurde - heller und rötlicher als der verputzte Stein im Westen.
+  mudbrick: new THREE.MeshStandardMaterial({ color: '#c9a06a', roughness: 0.9 }),
 };
+
+// Drei Bauweisen, wie das Spiel die Fraktionen einteilt: die griechisch-
+// römische Welt des Mittelmeers, der Osten von Anatolien bis zum Nil, und der
+// Norden und Westen jenseits davon. Dieselbe Einteilung wie beim Thron im
+// Feldherrnzelt (`THRONE_STYLE`) - nur dass der Osten dort noch mit dem
+// Mittelmeer eine Gruppe bildet, hier aber eigene Bauformen bekommt: Der Bug
+// war vorher, dass ein Haus in Pergamon genauso aussah wie eines in Rom oder
+// in Mainz - nur das Dach war eingefärbt.
+const CIVIC_STYLE = {
+  rom: 'klassisch', athen: 'klassisch', sparta: 'klassisch', makedonien: 'klassisch',
+  syrakus: 'klassisch', karthago: 'klassisch',
+  seleukiden: 'oriental', ptolemaeer: 'oriental', parther: 'oriental',
+  armenien: 'oriental', pontus: 'oriental',
+  gallier: 'keltisch', germanen: 'keltisch', britannier: 'keltisch', iberer: 'keltisch',
+  daker: 'keltisch', illyrer: 'keltisch', sarmaten: 'keltisch', numidien: 'keltisch',
+};
+function civicStyle(factionId) {
+  return CIVIC_STYLE[factionId] || 'klassisch';
+}
 
 // Ein Haus mit Walmdach. Das Dach trägt die Fraktionsfarbe - es ist das, was
 // aus der Vogelperspektive zu sehen ist.
@@ -3815,7 +3857,9 @@ function makeGableRoof(width, depth, height) {
   return geometry;
 }
 
-function addHouse(group, tinted, x, z, width, depth, height, rotation) {
+// Ein Haus im Mittelmeerstil: verputzte Wände, Satteldach mit Ziegeln - das
+// Bild Roms, Athens und Karthagos.
+function addKlassischHouse(group, tinted, x, z, width, depth, height, rotation) {
   const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), CITY_MATERIALS.plaster);
   body.position.set(x, height / 2, z);
   body.rotation.y = rotation;
@@ -3836,6 +3880,64 @@ function addHouse(group, tinted, x, z, width, depth, height, rotation) {
   return roof;
 }
 
+// Ein Haus im Stil des Ostens: Lehmziegel statt Verputz, ein flaches Dach
+// statt eines First - wie am Nil und am Euphrat, wo Regen die Ausnahme ist.
+function addOrientalHouse(group, tinted, x, z, width, depth, height, rotation) {
+  const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), CITY_MATERIALS.mudbrick);
+  body.position.set(x, height / 2, z);
+  body.rotation.y = rotation;
+  group.add(body);
+
+  // Das Flachdach ragt über die Wände hinaus wie ein Sonnensegel und trägt,
+  // wie sonst die Ziegel, die Farbe der Fraktion.
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 1.1, height * 0.12, depth * 1.1),
+    new THREE.MeshStandardMaterial({ color: '#b5432f', roughness: 0.6 })
+  );
+  roof.position.set(x, height + height * 0.06, z);
+  roof.rotation.y = rotation;
+  group.add(roof);
+  tinted.push(roof);
+  return roof;
+}
+
+// Ein Haus im Stil des Nordens: ein Rundhaus aus Holz und Reet, wie es
+// Gallier, Germanen und Britannier bauten - kein First, keine Wandfarbe, dafür
+// ein First-Knauf in der Farbe der Fraktion, der das Reetdach abschließt.
+function addKeltischHouse(group, tinted, x, z, width, depth, height, rotation) {
+  const radius = (width + depth) / 4;
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius * 1.08, height, 9),
+    CITY_MATERIALS.timber
+  );
+  body.position.set(x, height / 2, z);
+  group.add(body);
+  const roof = new THREE.Mesh(
+    new THREE.ConeGeometry(radius * 1.3, height * 1.05, 9),
+    CITY_MATERIALS.thatch
+  );
+  roof.position.set(x, height + height * 0.52, z);
+  group.add(roof);
+  const knauf = new THREE.Mesh(
+    new THREE.SphereGeometry(radius * 0.22, 6, 5),
+    new THREE.MeshStandardMaterial({ color: '#b5432f', roughness: 0.6 })
+  );
+  knauf.position.set(x, height + height * 1.05, z);
+  group.add(knauf);
+  tinted.push(knauf);
+  return knauf;
+}
+
+const HOUSE_BUILDERS = {
+  klassisch: addKlassischHouse,
+  oriental: addOrientalHouse,
+  keltisch: addKeltischHouse,
+};
+
+function addHouse(style, group, tinted, x, z, width, depth, height, rotation) {
+  return (HOUSE_BUILDERS[style] || addKlassischHouse)(group, tinted, x, z, width, depth, height, rotation);
+}
+
 // Eine Rundhütte mit Strohdach - das Bild, das ein Dorf abgeben soll.
 function addHut(group, x, z, radius, height) {
   const body = new THREE.Mesh(
@@ -3852,8 +3954,9 @@ function addHut(group, x, z, radius, height) {
   group.add(roof);
 }
 
-// Podium, Säulen, Gebälk, Giebel: ein Tempel, der als Tempel zu erkennen ist.
-function addTemple(group, tinted, x, z, width, rotation) {
+// Podium, Säulen, Gebälk, Giebel: ein Tempel, der als Tempel zu erkennen ist -
+// das Bild der großen Stadt am Mittelmeer.
+function addKlassischTemple(group, tinted, x, z, width, rotation) {
   const temple = new THREE.Group();
   const depth = width * 0.62;
   const columnHeight = width * 0.52;
@@ -3898,6 +4001,54 @@ function addTemple(group, tinted, x, z, width, rotation) {
   temple.position.set(x, 0, z);
   temple.rotation.y = rotation;
   group.add(temple);
+}
+
+// Ein Stufenheiligtum, wie es von Babylon bis Persepolis stand: Terrasse über
+// Terrasse, jede schmaler als die vorige, ganz oben ein kleiner Schrein in
+// der Farbe der Fraktion - kein Säulentempel, sondern ein Turm aus Absätzen.
+function addOrientalShrine(group, tinted, x, z, width, rotation) {
+  const shrine = new THREE.Group();
+  const stufen = 3;
+  let y = 0;
+  for (let i = 0; i < stufen; i++) {
+    const w = width * (1 - i * 0.24);
+    const h = width * 0.16;
+    const stufe = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, w * 0.86),
+      CITY_MATERIALS.mudbrick
+    );
+    stufe.position.y = y + h / 2;
+    shrine.add(stufe);
+    y += h;
+  }
+  const schrein = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 0.3, width * 0.22, width * 0.26),
+    new THREE.MeshStandardMaterial({ color: '#c65a41', roughness: 0.6 })
+  );
+  schrein.position.y = y + width * 0.11;
+  shrine.add(schrein);
+  tinted.push(schrein);
+
+  shrine.position.set(x, 0, z);
+  shrine.rotation.y = rotation;
+  group.add(shrine);
+}
+
+// Die große Halle, wie sie im Norden an die Stelle des Tempels tritt: ein
+// überhohes Rundhaus mit steilem Reetdach und einem First-Knauf in der Farbe
+// der Fraktion - kein Podium, keine Säulen, aber von weitem ebenso zu sehen.
+function addKeltischHall(group, tinted, x, z, width, rotation) {
+  addKeltischHouse(group, tinted, x, z, width * 0.72, width * 0.72, width * 0.62, rotation);
+}
+
+const LANDMARK_BUILDERS = {
+  klassisch: (group, tinted, x, z, width, rotation) => addKlassischTemple(group, tinted, x, z, width, rotation),
+  oriental: addOrientalShrine,
+  keltisch: addKeltischHall,
+};
+
+function addLandmark(style, group, tinted, x, z, width, rotation) {
+  (LANDMARK_BUILDERS[style] || LANDMARK_BUILDERS.klassisch)(group, tinted, x, z, width, rotation);
 }
 
 // Ein Feldzeichen: Stange, Banner in der Fraktionsfarbe, vergoldete Spitze.
@@ -4060,24 +4211,26 @@ function buildCityGroup(city) {
     addStandard(group, tinted, 3.6 * bau, 1.15 * bau);
   } else {
     const large = city.size === 'large';
+    const style = civicStyle(city.factionId);
     // Die Halle in der Mitte, quer gestellt, damit sie nicht wie ein Würfel
     // wirkt - und nach hinten, damit der Tempel in der Standardansicht davor
     // steht und nicht dahinter verschwindet. Sie ist das einzige Gebäude, das
     // größer ist als ein Haus, und in jeder Stadt gleich groß.
-    addHouse(group, tinted, 0, -0.9 * spread, 1.9 * bau, 1.25 * bau, 1.15 * bau, 0);
+    addHouse(style, group, tinted, 0, -0.9 * spread, 1.9 * bau, 1.25 * bau, 1.15 * bau, 0);
     for (const [nr, ring] of ringe.entries()) {
       for (let i = 0; i < ring.n; i++) {
         // Jeder Ring beginnt anderswo, sonst stehen die Häuser in Speichen.
         const angle = (i / ring.n) * Math.PI * 2 + (large ? 2.0 : 0.4) + nr * 0.55;
         const width = (0.78 + rng() * 0.34) * bau;
-        addHouse(group, tinted,
+        addHouse(style, group, tinted,
           Math.cos(angle) * ring.r * spread, Math.sin(angle) * ring.r * spread,
           width, width * 0.72, (0.7 + rng() * 0.3) * bau, angle);
       }
     }
-    // Der Tempel steht nur in der großen Stadt - und dort in derselben Größe
-    // wie in jeder anderen großen Stadt.
-    if (large) addTemple(group, tinted, 0, 0.7 * spread, 1.55 * bau, 0);
+    // Das Wahrzeichen der großen Stadt steht nur dort - und richtet sich nach
+    // der Bauweise der Fraktion: Tempel am Mittelmeer, Stufenheiligtum im
+    // Osten, große Halle im Norden.
+    if (large) addLandmark(style, group, tinted, 0, 0.7 * spread, 1.55 * bau, 0);
     addStandard(group, tinted, 4.0 * bau, 1.1 * bau);
   }
 
@@ -4187,7 +4340,7 @@ function addFigure(group, material, height, { armUp = false, stride = 0.5 } = {}
 const WONDER_BUILDERS = {
   // Drei Pyramiden, die größte vorn, dazu ein Rest der Sphinx davor.
   pyramid(group) {
-    const sizes = [[3.9, 3.6, 0, 0], [2.9, 2.7, -3.6, 1.7], [2.0, 1.8, 3.2, 2.2]];
+    const sizes = [[3.9, 3.6, 0, 0], [2.6, 2.4, -2.2, 1.0], [1.8, 1.6, 2.0, 1.3]];
     for (const [radius, height, x, z] of sizes) {
       const pyramid = new THREE.Mesh(
         new THREE.ConeGeometry(radius, height, 4), WONDER_MATERIALS.limestone
@@ -4196,8 +4349,8 @@ const WONDER_BUILDERS = {
       pyramid.rotation.y = Math.PI / 4;
       group.add(pyramid);
     }
-    addBox(group, WONDER_MATERIALS.sandstone, 1.7, 0.55, 0.7, 0.5, 0, -3.1);
-    addBox(group, WONDER_MATERIALS.sandstone, 0.55, 0.85, 0.55, 1.15, 0.55, -3.1);
+    addBox(group, WONDER_MATERIALS.sandstone, 1.4, 0.5, 0.6, 0.4, 0, -2.3);
+    addBox(group, WONDER_MATERIALS.sandstone, 0.5, 0.75, 0.5, 0.95, 0.5, -2.3);
   },
 
   // Der Pharos: quadratischer Unterbau, achteckiger Mittelteil, runder Turm,
@@ -4372,7 +4525,13 @@ function buildWonders(state) {
     // einem Sockel mitten in der Stadt - sie rücken deshalb weiter zur Seite
     // und stehen auf dem Boden, auf dem sie stehen.
     const aufFels = shared && wonder.perch === 'fels';
-    const abstand = aufFels ? 0.38 : shared ? 0.62 : 0;
+    // Die Pyramiden sind kein einzelnes Gebäude, sondern drei nebeneinander
+    // gestaffelte Kegel - ihr Umriss reicht deutlich weiter als der eines
+    // gewöhnlichen Bauwerks und braucht darum mehr Abstand zur Stadt, sonst
+    // ragt der mittlere oder kleinste Bau trotz Eckenausweichens noch in die
+    // Dächer hinein.
+    const weitläufig = wonder.id === 'gizeh';
+    const abstand = aufFels ? 0.38 : shared ? (weitläufig ? 1.35 : 0.62) : 0;
     // Und in welche Ecke: in die, an der kein Fluss liegt. Die Pyramiden
     // rücken so nach Westen, weg vom Nil, statt auf ihm zu stehen.
     const ecke = wonder.versatz || { sx: 1, sz: -1 };
@@ -5658,11 +5817,11 @@ function columnLength(strength) {
 
 // --- Die Wache im Lager -----------------------------------------------------
 // Ein Zeltlager allein sagt nicht, dass dort ein Heer liegt - nur, dass dort
-// jemand campiert. Ein Ring von Gestalten um die Zelte macht daraus, was es
-// ist: dieselben Gattungen und Geometrien wie in der Kolonne, nur ruhig
-// stehend statt im Marsch, und in derselben Stärke wie die Zeltreihen selbst
-// (`tierForCount`) - ein großes Heer bekommt so auch eine große Wache.
-const GARRISON_MAX = 8;
+// jemand campiert. Zwei Gestalten vor den Zelten machen daraus, was es ist:
+// dieselben Gattungen und Geometrien wie in der Kolonne, nur ruhig stehend
+// statt im Marsch. Immer zwei, gleich groß oder klein das Heer dahinter ist -
+// eine Wache zählt nicht mit, sie zeigt nur, dass dort eine ist.
+const GARRISON_MAX = 2;
 const GARRISON_RADIUS = 1.55;
 
 function buildGarrison(color) {
@@ -5839,10 +5998,8 @@ function syncArmyGroup(state, army, entry) {
     const garrison = group.userData.garrison;
     garrison.visible = bewacht;
     garrison.userData.material.color.set(faction.color);
-    const rollenWache = columnRoles(army.units || {}, tierCount);
+    const rollenWache = columnRoles(army.units || {}, GARRISON_MAX);
     garrison.userData.wachen.forEach((mann, i) => {
-      mann.visible = i < tierCount;
-      if (i >= tierCount) return;
       const rolle = rollenWache[i] || 'infantry';
       if (mann.userData.rolle === rolle) return;
       mann.userData.rolle = rolle;
@@ -5985,21 +6142,23 @@ export function syncEntities(state) {
     }
     if (!entry) {
       entry = buildCityGroup(city);
-      entry.group.position.set(worldX(city.col), surfaceY(city.col, city.row), worldZ(city.row));
+      const r = entry.grundRadius;
+      const boden = [[-r, -r], [r, -r], [-r, r], [r, r], [-r, 0], [r, 0], [0, -r], [0, r]]
+        .map(([dx, dz]) => bandY(worldX(city.col) + dx, worldZ(city.row) + dz));
+      // Steigt das Gelände irgendwo unter dem Ort über die Höhe der Feldmitte
+      // - der Hang reicht in den Ort hinein statt umgekehrt -, hebt sich der
+      // Ort bis knapp unter die höchste Stelle, die er überdeckt. Sonst stünde
+      // der Ort selbst am eigenen Hang tiefer als das Gelände darunter.
+      const cityY = Math.max(surfaceY(city.col, city.row), ...boden.map((b) => b - 0.25));
+      entry.group.position.set(worldX(city.col), cityY, worldZ(city.row));
       // Auf welchem Feld dieses Modell steht: `pickTile` braucht es, um einen
       // Klick auf Mauer oder Dach dem richtigen Feld zuzuordnen.
       entry.group.userData.tile = { col: city.col, row: city.row };
       // Wie tief die Terrasse reicht: bis unter die tiefste Stelle des Bodens,
       // den sie überdeckt. Am Hang ist das mehr als einen Meter, in der Ebene
       // fast nichts - und sichtbar ist ohnehin nur, was aus dem Boden ragt.
-      const cityY = surfaceY(city.col, city.row);
-      const r = entry.grundRadius;
       let tief = 0.5;
-      for (const [dx, dz] of [[-r, -r], [r, -r], [-r, r], [r, r], [-r, 0], [r, 0],
-        [0, -r], [0, r]]) {
-        const boden = bandY(worldX(city.col) + dx, worldZ(city.row) + dz);
-        tief = Math.max(tief, cityY - boden + 0.3);
-      }
+      for (const b of boden) tief = Math.max(tief, cityY - b + 0.3);
       entry.fundament.scale.y = tief;
       entry.fundament.position.y = -tief / 2;
       scene.add(entry.group);
