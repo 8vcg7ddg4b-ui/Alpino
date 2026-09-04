@@ -6168,11 +6168,11 @@ export function syncEntities(state) {
       const r = entry.grundRadius;
       const boden = [[-r, -r], [r, -r], [-r, r], [r, r], [-r, 0], [r, 0], [0, -r], [0, r]]
         .map(([dx, dz]) => bandY(worldX(city.col) + dx, worldZ(city.row) + dz));
-      // Steigt das Gelände irgendwo unter dem Ort über die Höhe der Feldmitte
-      // - der Hang reicht in den Ort hinein statt umgekehrt -, hebt sich der
-      // Ort bis knapp unter die höchste Stelle, die er überdeckt. Sonst stünde
-      // der Ort selbst am eigenen Hang tiefer als das Gelände darunter.
-      const cityY = Math.max(surfaceY(city.col, city.row), ...boden.map((b) => b - 0.25));
+      // Der Ort steht auf der Höhe seiner eigenen Feldmitte, nicht höher - ein
+      // Versuch, ihn bis über den höchsten Punkt in seinem Umkreis anzuheben,
+      // ließ ihn wie auf einem eigenen Hügel stehen, sobald (wie am Kapitol)
+      // ein einzelner Nachbarpunkt deutlich höher lag als der Ort selbst.
+      const cityY = surfaceY(city.col, city.row);
       entry.group.position.set(worldX(city.col), cityY, worldZ(city.row));
       // Auf welchem Feld dieses Modell steht: `pickTile` braucht es, um einen
       // Klick auf Mauer oder Dach dem richtigen Feld zuzuordnen.

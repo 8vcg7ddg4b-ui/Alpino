@@ -118,9 +118,49 @@ function pharos(x, baseY, h, color, feuer) {
   </g>`;
 }
 
+// Ein kleiner Lorbeerkranz, offen nach oben, wie ihn die Legionsadler unter
+// der Inschrift trugen: zwei gespiegelte Zweige aus schmalen Blättern, die
+// sich unten in einem Knoten treffen. `spanne` ist der Bogen in Grad, den
+// jeder Zweig von unten aus überstreicht - bei 150° bleibt oben eine Lücke,
+// in der die Stange stehen kann, ohne den Kranz zu zerschneiden.
+function laurelSprig(cx, cy, rx, ry, color, spanne = 150) {
+  const blaetter = 5;
+  const bogen = (spanne * Math.PI) / 180;
+  let zweige = '';
+  for (const seite of [-1, 1]) {
+    for (let i = 1; i <= blaetter; i++) {
+      const t = i / (blaetter + 1);
+      // 0 = unten (Knoten), 1 = Ende des Zweigs oben außen.
+      const winkel = Math.PI / 2 - t * bogen;
+      const px = cx + seite * rx * Math.cos(winkel);
+      const py = cy - ry * Math.sin(winkel);
+      // Das Blatt steht quer zum Zweig, leicht nach oben zur Spitze hin.
+      const tangente = winkel + seite * 0.3;
+      const lx = Math.cos(tangente) * seite;
+      const ly = -Math.sin(tangente);
+      const laenge = 12 + (1 - t) * 5;
+      const x1 = px - (lx * laenge) / 2;
+      const y1 = py - (ly * laenge) / 2;
+      const x2 = px + (lx * laenge) / 2;
+      const y2 = py + (ly * laenge) / 2;
+      const nx = -ly * 3.6;
+      const ny = lx * 3.6;
+      zweige += `<path d="M ${x1.toFixed(1)} ${y1.toFixed(1)}
+        Q ${(px + nx).toFixed(1)} ${(py + ny).toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}
+        Q ${(px - nx).toFixed(1)} ${(py - ny).toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)} Z"
+        fill="${color}"/>`;
+    }
+  }
+  return `<g opacity="0.92">
+    <circle cx="${cx}" cy="${(cy + ry).toFixed(1)}" r="5" fill="${color}"/>
+    ${zweige}
+  </g>`;
+}
+
 // --- Das Feldzeichen ------------------------------------------------------
-// Ein Tuch an einer Querstange, unten in Zipfel geschnitten, mit einem Kranz
-// darauf und einer Lanzenspitze über der Stange.
+// Ein Tuch an einer Querstange, unten in Zipfel geschnitten, mit der
+// Inschrift SPQR und einem kleinen Lorbeerkranz darunter, und einer
+// Lanzenspitze über der Stange.
 function fieldStandard(x, top, h, w, tuch, saum, gold) {
   const unten = top + h;
   const zipfel = `M ${x - w / 2} ${unten - 46} L ${x - w / 2} ${unten}
@@ -134,19 +174,19 @@ function fieldStandard(x, top, h, w, tuch, saum, gold) {
     <circle cx="${x - w / 2 - 26}" cy="${top - 8}" r="9" fill="${gold}"/>
     <circle cx="${x + w / 2 + 26}" cy="${top - 8}" r="9" fill="${gold}"/>
     <!-- Das Tuch selbst schwingt leicht (CSS-Klasse tscn-cloth) - Stange,
-         Kranz und Spitze bleiben starr, wie es sich für Metall im Boden gehört. -->
+         Inschrift, Kranz und Spitze bleiben starr, wie es sich für Metall im
+         Boden gehört. Kranz und Schrift standen früher auf derselben Höhe
+         und überschnitten sich dadurch - der Kranz sitzt jetzt darunter, im
+         leeren Tuch zwischen Inschrift und den Zipfeln. -->
     <g class="tscn-cloth">
       <rect x="${x - w / 2}" y="${top}" width="${w}" height="${h - 46}" fill="${tuch}"/>
       <path d="${zipfel}" fill="${tuch}"/>
       <rect x="${x - w / 2}" y="${top}" width="${w}" height="${h - 46}" fill="none"
         stroke="${saum}" stroke-width="5"/>
-      <text x="${x}" y="${top + 158}" text-anchor="middle" fill="${gold}"
+      <text x="${x}" y="${top + 96}" text-anchor="middle" fill="${gold}"
         font-family="Georgia, 'Times New Roman', serif" font-size="46"
         letter-spacing="4" opacity="0.92">SPQR</text>
-    </g>
-    <g fill="none" stroke="${gold}" stroke-width="7" stroke-linecap="round" opacity="0.9">
-      <path d="M ${x - 44} ${top + 178} Q ${x - 60} ${top + 116} ${x - 28} ${top + 76}"/>
-      <path d="M ${x + 44} ${top + 178} Q ${x + 60} ${top + 116} ${x + 28} ${top + 76}"/>
+      ${laurelSprig(x, top + 210, w * 0.3, 70, gold)}
     </g>
   </g>`;
 }

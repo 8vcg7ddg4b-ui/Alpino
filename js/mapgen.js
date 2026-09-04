@@ -392,19 +392,22 @@ function traceRiver(tiles, course) {
     if (wet(colA, rowA) && wet(colB, rowB)) return;
     edges.push(riverEdgeKey(colA, rowA, colB, rowB));
   };
+  // Die zwei Felder, die eine Kante zwischen zwei Ecken trennt - dieselbe
+  // Rechnung wie in `segment`, hier aber als Werte statt als sofortige
+  // Eintragung, damit die Verlängerung unten wissen kann, ob sie das Meer
+  // schon erreicht hat.
+  const seiten = (from, to) => (from.i === to.i
+    ? [{ col: from.i - 1, row: Math.min(from.j, to.j) }, { col: from.i, row: Math.min(from.j, to.j) }]
+    : [{ col: Math.min(from.i, to.i), row: from.j - 1 }, { col: Math.min(from.i, to.i), row: from.j }]);
   const segment = (from, to) => {
-    if (from.i === to.i) {
-      // senkrechtes Ufer: trennt links und rechts
-      const j = Math.min(from.j, to.j);
-      add(from.i - 1, j, from.i, j);
-    } else {
-      // waagerechtes Ufer: trennt oben und unten
-      const i = Math.min(from.i, to.i);
-      add(i, from.j - 1, i, from.j);
-    }
+    const [a, b] = seiten(from, to);
+    add(a.col, a.row, b.col, b.row);
+    return wet(a.col, a.row) || wet(b.col, b.row);
   };
 
   let previous = null;
+  let lastDir = null;
+  let anKueste = false;
   for (let k = 0; k < course.length - 1; k++) {
     const [lon1, lat1] = course[k];
     const [lon2, lat2] = course[k + 1];
@@ -422,16 +425,33 @@ function traceRiver(tiles, course) {
         const di = current.i - previous.i;
         const dj = current.j - previous.j;
         if (Math.abs(di) + Math.abs(dj) === 1) {
-          segment(previous, current);
+          anKueste = segment(previous, current);
+          lastDir = { di, dj };
         } else if (Math.abs(di) === 1 && Math.abs(dj) === 1) {
           // Über Eck: erst waagerecht, dann senkrecht - der Lauf bleibt eine
           // zusammenhängende Kette.
           const corner = { i: current.i, j: previous.j };
           segment(previous, corner);
-          segment(corner, current);
+          anKueste = segment(corner, current);
+          lastDir = { di: 0, dj };
         }
       }
       previous = current;
+    }
+  }
+  // Die Geokoordinaten eines Laufs treffen die zufällig erzeugte Küste dieser
+  // Karte nicht immer genau - der Fluss endete dann sichtbar auf offenem
+  // Land, ein Feld oder mehr vor dem Wasser. Erreicht der Lauf die Küste noch
+  // nicht, rückt er in derselben Richtung weiter vor, Feld für Feld, bis eine
+  // Seite der Kante im Meer liegt (die Mündung) oder eine Grenze erreicht ist.
+  if (previous && lastDir && !anKueste) {
+    let hier = previous;
+    for (let i = 0; i < 8 && !anKueste; i++) {
+      const weiter = { i: hier.i + lastDir.di, j: hier.j + lastDir.dj };
+      const [a, b] = seiten(hier, weiter);
+      if (!inBounds(a.col, a.row) && !inBounds(b.col, b.row)) break;
+      anKueste = segment(hier, weiter);
+      hier = weiter;
     }
   }
   return edges;

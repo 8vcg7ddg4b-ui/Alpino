@@ -758,7 +758,11 @@ html, body {
 #splashScreen video {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  /* Immer randlos: "contain" ließ bei einem Bildschirm mit anderem
+     Seitenverhältnis als der Film schwarze Balken stehen, "cover" füllt den
+     Schirm immer ganz, auch wenn dafür ein Rand des Bildes abgeschnitten
+     wird - für ein Vollbild-Logo unauffälliger als Balken. */
+  object-fit: cover;
   display: block;
   pointer-events: none;
 }

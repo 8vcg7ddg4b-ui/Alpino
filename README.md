@@ -2222,9 +2222,14 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   die Loire erreichte Orléans nicht, der Rhein sparte Karlsruhe und Mannheim
   aus, und die Weichsel bog unterhalb von Warschau zu spät nach Westen.
 
-  **Und der Lauf erreicht das Meer.** An der Mündung reicht das Band jetzt
-  eine halbe Feldbreite weiter in das Wasserfeld hinein, statt an der
-  Feldgrenze aufzuhören – vorher endete mancher Strom sichtbar vor der Küste.
+  **Und der Lauf erreicht das Meer.** Die Geokoordinaten eines Flusses treffen
+  die zufällig erzeugte Küste nicht auf jeder Karte genau – der Lauf endete
+  dann ein Feld oder mehr vor dem Wasser sichtbar auf offenem Land. Erreicht
+  er die Küste noch nicht, rückt er jetzt in derselben Richtung weiter vor,
+  Feld für Feld (`traceRiver` in `js/mapgen.js`), bis eine Feldkante wirklich
+  ans Wasser grenzt – die Mündung selbst gehört dazu, nur die Kante zwischen
+  zwei Meeresfeldern fällt weg. Dieselbe Verlängerung gilt für die Bewegungs-
+  kosten und die Brücken, nicht nur fürs Bild.
 
   Dazu sind beide auf ihr Maß gebracht –
   eine Straße ist so breit, dass zwei Karren aneinander vorbeikommen, also
