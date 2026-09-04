@@ -307,6 +307,14 @@ export function titleSceneSVG() {
       }).join('')}
     </g>
 
+    <!-- Ein Segler weit draußen, jenseits des Hafens - er zieht ganz langsam
+         vorbei, statt nur dazustehen (CSS-Klasse tscn-underway). Ausreichend
+         Weg auf beiden Seiten, damit der Sprung zurück an den Anfang
+         außerhalb des Bildes liegt, wo ihn niemand sieht. Er steht vor der
+         Landzunge und der Stadt, nicht danach: sonst zöge er quer über die
+         Hafenstadt statt hinter ihr vorbeizuziehen. -->
+    <g class="tscn-underway">${titleWarship(-140, 512, 0.4, '#5a7488', '#e9e2c8')}</g>
+
     <!-- Die Landzunge links, die aus dem Meer eine Bucht macht -->
     ${headland(-60, 470, 502, 126, '#5d7a70', 0.9)}
     ${headland(-60, 330, 514, 78, '#46614f')}
@@ -319,12 +327,6 @@ export function titleSceneSVG() {
     ${temple(1268, 512, 112, 78, '#eae1c8')}
     ${pharos(1560, 524, 200, '#f0e6c8', '#ffcf7a')}
     <rect y="430" width="${SCENE_W}" height="130" fill="${dunst}" opacity="0.16"/>
-
-    <!-- Ein Segler weit draußen, jenseits des Hafens - er zieht ganz langsam
-         vorbei, statt nur dazustehen (CSS-Klasse tscn-underway). Ausreichend
-         Weg auf beiden Seiten, damit der Sprung zurück an den Anfang
-         außerhalb des Bildes liegt, wo ihn niemand sieht. -->
-    <g class="tscn-underway">${titleWarship(-140, 512, 0.4, '#5a7488', '#e9e2c8')}</g>
 
     <!-- Der Hafen: Kai und Schiffe. Jedes Schiff liegt vor Anker und wiegt
          sich leicht - fünf verschiedene Verzögerungen, sonst nickte die

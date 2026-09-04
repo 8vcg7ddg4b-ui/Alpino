@@ -2194,7 +2194,10 @@ function buildFieldStandard(factionId, colour) {
       roughness: 1, transparent: true,
     })
   );
-  cloth.position.set(0, 3.85, 0.03);
+  // Deutlich vor dem Mast, nicht in ihm: bei 0.03 steckte das Tuch innerhalb
+  // des 0.09 dicken Schafts und tauchte, aus mancher Drehung der Kamera
+  // gesehen, hinter ihm ab statt davor zu hängen.
+  cloth.position.set(0, 3.85, 0.16);
   group.add(cloth);
   return group;
 }
@@ -2865,6 +2868,24 @@ function buildTent(state) {
   // Stoffmuster bleiben eigene Meshes.
   bakeGroup(tentGroup);
   scene.add(tentGroup);
+}
+
+// Das Zelt hat seinen Auftritt, sobald die Ansprache vorbei ist - stehen
+// bliebe es sonst für den Rest des Feldzugs mitten auf der Karte: Thron,
+// Feldzeichen und die Schilde der Ausstattung stehen an einem festen Platz
+// nahe der Kartenmitte, unabhängig davon, wo die eigene Hauptstadt liegt,
+// und wer dorthin fährt, sähe sie zwischen den eigenen Feldern stehen.
+export function hideTent() {
+  if (!tentGroup) return;
+  scene.remove(tentGroup);
+  tentGroup.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+      else obj.material.dispose();
+    }
+  });
+  tentGroup = null;
 }
 
 // Das Straßennetz als ein einziges Gitter: für jedes Straßenfeld ein Plättchen

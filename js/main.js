@@ -37,7 +37,7 @@ import {
 } from './diplomacy.js';
 import { rulerFor, TRAITS, TRAIT_NAMES, traitLabel } from './rulers.js';
 import {
-  initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera, propsDebug,
+  initScene, buildMap, syncEntities, render, resize, centerOn, zoomCamera, propsDebug, hideTent,
   isAnimating, rotateCamera, resetCameraOrientation, panCameraRelative,
   setMapMode, getMapMode, setMarchSpeed, setOpeningView,
   setBordersVisible, areBordersVisible,
@@ -213,6 +213,9 @@ function hideHerald() {
     resetCameraOrientation();
     focusOwnCapital();
     zeichneKarte();
+    // Die Ansprache ist vorbei - das Zelt hat seinen Auftritt gehabt und
+    // verschwindet, statt für den Rest des Feldzugs auf der Karte zu stehen.
+    hideTent();
   }
 }
 
@@ -2633,9 +2636,11 @@ function enterGame(resumed) {
   if (resumed) {
     // Wer fortsetzt, steht schon mitten im Feldzug: kein Zelt, keine
     // Ansprache - der Blick geht sofort dorthin, wo die Ansprache im Zelt
-    // sonst erst hinführt.
+    // sonst erst hinführt. Das Zelt selbst wird nie gezeigt und verschwindet
+    // deshalb sofort wieder - sonst stünde es für immer auf der Karte.
     resetCameraOrientation();
     focusOwnCapital();
+    hideTent();
   } else {
     // Der Feldzug beginnt nicht auf der Karte, sondern im Zelt: erst der
     // Tisch mit der Karte darauf und der Thron dahinter, dann - wenn der
