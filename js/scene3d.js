@@ -174,6 +174,16 @@ export function initScene(canvas) {
   // Jede Partie baut eine neue Szene. Die Liste der Fahnen hängt am Modul und
   // müsste sonst noch die Banner der vorigen Partie ausrichten.
   billboards.length = 0;
+  // Dasselbe gilt für die Ort- und Heeresgruppen: sie merken sich ihr
+  // Objekt, um es nicht jede Runde neu zu bauen, und legen es deshalb nur an,
+  // wenn noch keins in der Liste steht. Ohne diese Zeilen hielt die Liste die
+  // Gruppen der vorigen Partie fest - sie hingen dann noch an der alten,
+  // verworfenen Szene und wurden nie wieder zur neuen hinzugefügt: Orte und
+  // Heere verschwanden beim Fortsetzen oder bei einer zweiten Partie
+  // vollständig von der Karte, obwohl ihre Daten noch da waren.
+  cityGroups.clear();
+  armyGroups.clear();
+  armyAnimations.clear();
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   // Für das Wetter: Regen und Schnee werden an der Tischkante beschnitten,
@@ -1614,6 +1624,19 @@ export function propsDebug(colorFilter = null) {
     }
     return entry;
   });
+}
+
+// Nur für die Prüfläufe: Zustand aller Ortsgruppen, um verschwundene oder
+// falsch stehende Orte zu finden.
+export function cityDebug() {
+  return [...cityGroups.entries()].map(([id, entry]) => ({
+    id,
+    size: entry.size,
+    pos: entry.group.position.toArray(),
+    visible: entry.group.visible,
+    inScene: entry.group.parent === scene,
+    children: entry.group.children.length,
+  }));
 }
 
 // Builds a single smooth, vertex-colored heightmap mesh for the whole map
