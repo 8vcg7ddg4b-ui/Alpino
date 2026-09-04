@@ -155,9 +155,15 @@
   <!-- ================= Das Spiel ================= -->
   <div id="app" class="hidden">
     <canvas id="gameCanvas"></canvas>
-    <div id="mapLabels" class="map-labels" aria-hidden="true"></div>
 
     <header id="topBar" class="top-bar"></header>
+
+    <!-- Der Zug wird oben rechts beendet, dort, wo auch Zug und Datum
+         stehen - und nicht am unteren Rand. -->
+    <div class="turn-controls">
+      <button id="nextFleetBtn" class="btn-ghost" title="Nächste Flotte (N)">Nächste Flotte</button>
+      <button id="endTurnBtn" class="btn-primary" title="Zug beenden (Leertaste)">Zug beenden</button>
+    </div>
 
     <div class="top-tools">
       <button id="btnEmpire" title="Das Reich (I)">Reich</button>
@@ -174,11 +180,6 @@
     </aside>
 
     <div id="feed" class="feed"></div>
-
-    <div class="bottom-bar">
-      <button id="nextFleetBtn" class="btn-ghost" title="Nächste Flotte (N)">Nächste Flotte</button>
-      <button id="endTurnBtn" class="btn-primary" title="Zug beenden (Leertaste)">Zug beenden</button>
-    </div>
 
     <div id="compassRose" class="compass" aria-hidden="true">
       <svg viewBox="0 0 60 60">

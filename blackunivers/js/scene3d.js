@@ -5,16 +5,13 @@
 // Heimatsystem steht. Wer die Kamera tief stellt, sieht die Brücke; wer von
 // oben schaut, sieht die Karte. Gekämpft wird auf dieser Karte.
 import {
-  TILE_TYPES, sizeTier, shieldInfo, experienceStars, factionProfile,
-  UNIT_ROLES, WATCH_ROLE, GREAT_WORKS,
+  TILE_TYPES, sizeTier, factionProfile, GREAT_WORKS,
 } from './data.js';
 import { GRID_COLS, GRID_ROWS, SECTORS, xOfCol, yOfRow } from './starchart.js';
 import { tileAt } from './mapgen.js';
 import {
-  fleetTotalCount, factionById, systemAt, hasSeen, garrisonTotal, fleetsAt,
+  fleetTotalCount, factionById, systemAt, hasSeen, fleetsAt,
 } from './state.js';
-import { atWar } from './diplomacy.js';
-import { emblemSVG } from './emblems.js';
 import { shipModel, flagshipRole, SHIP_LENGTH } from './ships3d.js';
 
 export const TILE_SIZE = 6;
@@ -45,7 +42,7 @@ const MAX_ZOOM = 4.6;
 const cam = { col: GRID_COLS / 2, row: GRID_ROWS / 2, zoom: 1.25, azimuth: DEFAULT_AZIMUTH, polar: DEFAULT_POLAR };
 // Die Brücke muss die Kamera umschließen, auch ganz herausgezoomt: halbe
 // Tischdiagonale plus größter Kameraabstand.
-const BRIDGE_RADIUS = 520;
+const BRIDGE_RADIUS = 470;
 const BRIDGE_HEIGHT = 420;
 
 export function worldOfTile(col, row) {
@@ -338,22 +335,6 @@ function buildTable() {
   }
 }
 
-// Das Wappen als Bild auf der Fahne: dasselbe Zeichen wie im HUD, nur aus
-// Stoff. Es wird nachgeladen; bis dahin hängt die Fahne einfarbig.
-const emblemTextures = new Map();
-function emblemTexture(profile) {
-  if (emblemTextures.has(profile.id)) return emblemTextures.get(profile.id);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150" width="200" height="300">`
-    + `<rect width="100" height="150" fill="${profile.colorDark}"/>`
-    + `<rect x="3" y="3" width="94" height="144" fill="none" stroke="${profile.color}" stroke-width="1.5" opacity="0.8"/>`
-    + `<g transform="translate(10 35) scale(0.8)">`
-    + emblemSVG(profile.emblem, { size: 100, color: profile.accent }).replace(/^<svg[^>]*>|<\/svg>$/g, '')
-    + '</g></svg>';
-  const tex = new THREE.TextureLoader().load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
-  emblemTextures.set(profile.id, tex);
-  return tex;
-}
-
 function paintCanvas(w, h, draw) {
   const cv = document.createElement('canvas');
   cv.width = w;
@@ -367,65 +348,99 @@ function paintCanvas(w, h, draw) {
 // Die Brücke: Deck, Konsolenring, Sessel, Fahnen, Fluganzug, Fenster. Sie
 // wird einmal gebaut und bleibt stehen - was sich ändert, ist die Farbe der
 // Flagge.
+// Die Brücke ist ein Raum, kein Requisitenlager: Deck, Schott, Decke - und in
+// das Schott eingelassen das Panoramafenster, hinter dem das Heimatsystem
+// steht. Sonst steht hier nichts herum; was zählt, liegt auf dem Tisch.
 function buildBridge(state) {
   bridgeGroup.clear();
   ceilingMesh = null;
   if (!bridgeVisible) return;
   const player = factionById(state, state.playerFactionId) || state.factions[0];
   const profile = factionProfile(player.id);
-  const colour = new THREE.Color(profile.color);
-  const dark = new THREE.Color(profile.colorDark);
 
-  const deckMat = new THREE.MeshStandardMaterial({ color: 0x0b1018, metalness: 0.35, roughness: 0.85 });
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0x161d28, metalness: 0.55, roughness: 0.6, side: THREE.DoubleSide });
+  const hullMat = new THREE.MeshStandardMaterial({
+    color: 0x1d2837, metalness: 0.45, roughness: 0.7, side: THREE.DoubleSide,
+    emissive: 0x0d1622, emissiveIntensity: 0.85,
+  });
   const trimMat = new THREE.MeshStandardMaterial({ color: 0x27313f, metalness: 0.8, roughness: 0.35 });
 
-  // Deck unter dem Tisch, mit Rillenmuster.
+  // Das Deck: Platten mit Fugen, ein Ring aus Leuchtstreifen um den Tisch.
   const deckTex = paintCanvas(512, 512, (g) => {
     g.fillStyle = '#0a0f16';
     g.fillRect(0, 0, 512, 512);
-    g.strokeStyle = 'rgba(90,120,160,0.16)';
+    g.strokeStyle = 'rgba(90,120,160,0.18)';
     g.lineWidth = 2;
     for (let i = 0; i <= 512; i += 64) {
       g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 512); g.stroke();
       g.beginPath(); g.moveTo(0, i); g.lineTo(512, i); g.stroke();
     }
-    g.fillStyle = 'rgba(120,160,210,0.08)';
-    g.fillRect(0, 0, 512, 8);
   });
   deckTex.wrapS = THREE.RepeatWrapping;
   deckTex.wrapT = THREE.RepeatWrapping;
-  deckTex.repeat.set(8, 8);
+  deckTex.repeat.set(7, 7);
   const deck = new THREE.Mesh(
-    new THREE.CircleGeometry(BRIDGE_RADIUS, 48),
-    new THREE.MeshStandardMaterial({ map: deckTex, color: 0x223040, metalness: 0.3, roughness: 0.9 }),
+    new THREE.CircleGeometry(BRIDGE_RADIUS, 56),
+    new THREE.MeshStandardMaterial({ map: deckTex, color: 0x1e2b3c, metalness: 0.3, roughness: 0.9 }),
   );
   deck.rotation.x = -Math.PI / 2;
   deck.position.y = -66;
   bridgeGroup.add(deck);
 
-  // Die Schotten: ein Zylinder ringsum, innen sichtbar.
+  // Ein Lichtring auf dem Deck rings um den Tisch - er hält den Blick am
+  // Tisch, statt ihn im dunklen Deck verlaufen zu lassen.
+  const deckRing = new THREE.Mesh(
+    new THREE.RingGeometry(MAP_W * 0.58, MAP_W * 0.6, 72),
+    new THREE.MeshBasicMaterial({
+      color: profile.color, transparent: true, opacity: 0.28, side: THREE.DoubleSide,
+    }),
+  );
+  deckRing.rotation.x = -Math.PI / 2;
+  deckRing.position.y = -65;
+  bridgeGroup.add(deckRing);
+  const outerRing = new THREE.Mesh(
+    new THREE.RingGeometry(BRIDGE_RADIUS * 0.72, BRIDGE_RADIUS * 0.74, 72),
+    new THREE.MeshBasicMaterial({ color: 0x6fb0ff, transparent: true, opacity: 0.12, side: THREE.DoubleSide }),
+  );
+  outerRing.rotation.x = -Math.PI / 2;
+  outerRing.position.y = -65;
+  bridgeGroup.add(outerRing);
+  // Ein weiches Licht über dem Deck, damit der Boden Grund hat und nicht
+  // schwarz ins Nichts läuft.
+  const deckGlow = new THREE.PointLight(0x4f7ab0, 0.55, 900, 2);
+  deckGlow.position.set(0, -30, 0);
+  bridgeGroup.add(deckGlow);
+
+  // Das Schott ringsum, innen sichtbar.
   const wall = new THREE.Mesh(
-    new THREE.CylinderGeometry(BRIDGE_RADIUS, BRIDGE_RADIUS, BRIDGE_HEIGHT, 48, 1, true),
+    new THREE.CylinderGeometry(BRIDGE_RADIUS, BRIDGE_RADIUS, BRIDGE_HEIGHT, 56, 1, true),
     hullMat,
   );
   wall.position.y = BRIDGE_HEIGHT / 2 - 66;
   bridgeGroup.add(wall);
-  // Lichtbänder in Augenhöhe: sie zeichnen die Rundung des Schotts nach.
-  for (const y of [-30, 30, 96]) {
+
+  // Spanten: senkrechte Rippen im Schott. Sie geben dem Raum Maßstab.
+  for (let i = 0; i < 16; i++) {
+    const angle = (i / 16) * Math.PI * 2;
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(5, BRIDGE_HEIGHT * 0.9, 5), trimMat);
+    rib.position.set(
+      Math.cos(angle) * (BRIDGE_RADIUS - 4), BRIDGE_HEIGHT * 0.45 - 66, Math.sin(angle) * (BRIDGE_RADIUS - 4),
+    );
+    bridgeGroup.add(rib);
+  }
+
+  // Lichtbänder in zwei Höhen, die die Rundung nachzeichnen.
+  for (const [y, opacity] of [[-24, 0.32], [70, 0.2]]) {
     const band = new THREE.Mesh(
-      new THREE.CylinderGeometry(BRIDGE_RADIUS - 1, BRIDGE_RADIUS - 1, 2.4, 48, 1, true),
-      new THREE.MeshBasicMaterial({
-        color: 0x6fb0ff, transparent: true, opacity: y === 30 ? 0.3 : 0.16, side: THREE.BackSide,
-      }),
+      new THREE.CylinderGeometry(BRIDGE_RADIUS - 1, BRIDGE_RADIUS - 1, 2.6, 56, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x6fb0ff, transparent: true, opacity, side: THREE.BackSide }),
     );
     band.position.y = y;
     bridgeGroup.add(band);
   }
 
-  // Die Decke mit Lichtbändern.
+  // Die Decke.
   const ceiling = new THREE.Mesh(
-    new THREE.CircleGeometry(BRIDGE_RADIUS, 48),
+    new THREE.CircleGeometry(BRIDGE_RADIUS, 56),
     new THREE.MeshStandardMaterial({ color: 0x0c1219, metalness: 0.4, roughness: 0.8, side: THREE.DoubleSide }),
   );
   ceiling.rotation.x = Math.PI / 2;
@@ -433,124 +448,58 @@ function buildBridge(state) {
   ceiling.name = 'ceiling';
   ceilingMesh = ceiling;
   bridgeGroup.add(ceiling);
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 4; i++) {
     const strip = new THREE.Mesh(
-      new THREE.BoxGeometry(BRIDGE_RADIUS * 1.5, 1.5, 8),
-      new THREE.MeshBasicMaterial({ color: 0x8fc4ff, transparent: true, opacity: 0.32 }),
+      new THREE.BoxGeometry(BRIDGE_RADIUS * 1.6, 1.5, 7),
+      new THREE.MeshBasicMaterial({ color: 0x8fc4ff, transparent: true, opacity: 0.26 }),
     );
     strip.position.y = BRIDGE_HEIGHT - 70;
-    strip.rotation.y = (i / 6) * Math.PI;
+    strip.rotation.y = (i / 4) * Math.PI;
     bridgeGroup.add(strip);
   }
 
-  // Der Konsolenring um den Tisch: schräge Pulte mit Anzeigen.
-  const consoleTex = paintCanvas(256, 128, (g) => {
-    g.fillStyle = '#0d141d';
-    g.fillRect(0, 0, 256, 128);
-    for (let i = 0; i < 40; i++) {
-      g.fillStyle = `rgba(${90 + Math.random() * 60},${170 + Math.random() * 60},255,${0.25 + Math.random() * 0.5})`;
-      g.fillRect(10 + Math.random() * 236, 10 + Math.random() * 100, 6 + Math.random() * 22, 4);
-    }
-    g.strokeStyle = 'rgba(120,190,255,0.35)';
-    g.strokeRect(6, 6, 244, 116);
-  });
-  for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2;
-    const r = MAP_W * 0.56;
-    const pult = new THREE.Mesh(
-      new THREE.BoxGeometry(44, 16, 20),
-      new THREE.MeshStandardMaterial({ map: consoleTex, color: 0x243244, metalness: 0.5, roughness: 0.5 }),
-    );
-    pult.position.set(Math.cos(angle) * r, -52, Math.sin(angle) * r * (MAP_H / MAP_W));
-    pult.rotation.y = -angle;
-    pult.rotation.x = -0.28;
-    bridgeGroup.add(pult);
-  }
-
-  // Der Kommandosessel auf seinem Podest, dem Betrachter gegenüber.
-  const seatGroup = new THREE.Group();
-  const podium = new THREE.Mesh(new THREE.CylinderGeometry(30, 36, 12, 24), trimMat);
-  podium.position.y = -60;
-  seatGroup.add(podium);
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(22, 8, 22), new THREE.MeshStandardMaterial({ color: 0x1b2432, metalness: 0.4, roughness: 0.7 }));
-  seat.position.y = -50;
-  seatGroup.add(seat);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(22, 26, 5), new THREE.MeshStandardMaterial({ color: dark, metalness: 0.35, roughness: 0.65 }));
-  back.position.set(0, -37, -9);
-  seatGroup.add(back);
-  for (const side of [-1, 1]) {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(4, 5, 18), trimMat);
-    arm.position.set(side * 12, -44, 0);
-    seatGroup.add(arm);
-  }
-  seatGroup.position.set(0, 0, -MAP_H * 0.78);
-  bridgeGroup.add(seatGroup);
-
-  // Zwei Feldzeichen neben dem Sessel: Stangen mit der Flagge der Fraktion.
-  for (const side of [-1, 1]) {
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 90, 8), trimMat);
-    pole.position.set(side * 54, -20, -MAP_H * 0.78);
-    bridgeGroup.add(pole);
-    const flag = new THREE.Mesh(
-      new THREE.PlaneGeometry(26, 40),
-      new THREE.MeshStandardMaterial({
-        map: emblemTexture(profile), color: 0xffffff, transparent: true,
-        opacity: 0.9, side: THREE.DoubleSide, roughness: 0.95,
-      }),
-    );
-    flag.position.set(side * 54 + side * 15, -22, -MAP_H * 0.78);
-    bridgeGroup.add(flag);
-  }
-
-  // Der Fluganzug auf seinem Ständer - das eine Stück auf der Brücke, an dem
-  // man sieht, wessen Flotte man führt.
-  const suit = new THREE.Group();
-  const stand = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 5, 26, 10), trimMat);
-  stand.position.y = -53;
-  suit.add(stand);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(5, 11, 6, 12), new THREE.MeshStandardMaterial({ color: colour, metalness: 0.3, roughness: 0.7 }));
-  suit.add(torso);
-  torso.position.y = -32;
-  const belt = new THREE.Mesh(new THREE.TorusGeometry(5.2, 0.7, 6, 16), new THREE.MeshStandardMaterial({ color: 0xd8b25a, metalness: 0.7, roughness: 0.35 }));
-  belt.rotation.x = Math.PI / 2;
-  belt.position.y = -37;
-  suit.add(belt);
-  const helmet = new THREE.Mesh(new THREE.SphereGeometry(4.2, 16, 12), new THREE.MeshStandardMaterial({ color: 0xdfe8f5, metalness: 0.6, roughness: 0.25 }));
-  helmet.position.y = -22;
-  suit.add(helmet);
-  const visor = new THREE.Mesh(new THREE.SphereGeometry(4.35, 16, 12, 0, Math.PI, 0.9, 1.2), new THREE.MeshStandardMaterial({ color: 0x0a1420, metalness: 0.9, roughness: 0.1 }));
-  visor.position.y = -22;
-  visor.rotation.y = Math.PI * 0.9;
-  suit.add(visor);
-  suit.position.set(-MAP_W * 0.66, 0, -MAP_H * 0.72);
-  bridgeGroup.add(suit);
-
-  // Das Panoramafenster: der Blick nach draußen, auf das Heimatsystem.
-  const view = buildViewportTexture(state, profile);
-  const window3d = new THREE.Mesh(
-    new THREE.PlaneGeometry(MAP_W * 0.72, 96),
-    new THREE.MeshBasicMaterial({ map: view, transparent: false }),
+  // --- Das Panoramafenster ------------------------------------------------
+  // Es hängt nicht im Raum, sondern ist in das Schott eingelassen: derselbe
+  // Radius, dieselbe Rundung, mit Rahmen oben und unten und Streben dazwischen.
+  const winArc = Math.PI * 0.5;                 // ein Viertel des Rundgangs
+  const winStart = Math.PI * 1.05;              // der Grundstellung der Kamera gegenüber
+  const winHeight = 120;
+  const winY = 24;
+  const glass = new THREE.Mesh(
+    new THREE.CylinderGeometry(BRIDGE_RADIUS - 2, BRIDGE_RADIUS - 2, winHeight, 40, 1, true, winStart, winArc),
+    new THREE.MeshBasicMaterial({ map: buildViewportTexture(state, profile), side: THREE.BackSide }),
   );
-  window3d.position.set(0, 20, MAP_H * 0.82);
-  window3d.rotation.y = Math.PI;
-  bridgeGroup.add(window3d);
-  // Der Rahmen des Fensters, damit es ein Fenster ist und kein Bild.
-  const frame = new THREE.Mesh(
-    new THREE.BoxGeometry(MAP_W * 0.76, 106, 4),
-    new THREE.MeshStandardMaterial({ color: 0x1c2634, metalness: 0.7, roughness: 0.4 }),
-  );
-  frame.position.set(0, 20, MAP_H * 0.83);
-  bridgeGroup.add(frame);
-  for (let i = 0; i < 5; i++) {
-    const mullion = new THREE.Mesh(new THREE.BoxGeometry(3, 100, 3), trimMat);
-    mullion.position.set((i - 2) * MAP_W * 0.15, 20, MAP_H * 0.815);
+  glass.position.y = winY;
+  bridgeGroup.add(glass);
+
+  // Rahmen: zwei Ringsegmente und ein paar Streben.
+  for (const y of [winY + winHeight / 2, winY - winHeight / 2]) {
+    const edge = new THREE.Mesh(
+      new THREE.CylinderGeometry(BRIDGE_RADIUS - 1, BRIDGE_RADIUS - 1, 7, 40, 1, true, winStart - 0.02, winArc + 0.04),
+      trimMat,
+    );
+    edge.position.y = y;
+    bridgeGroup.add(edge);
+  }
+  for (let i = 0; i <= 5; i++) {
+    const angle = winStart + (i / 5) * winArc;
+    const mullion = new THREE.Mesh(new THREE.BoxGeometry(4, winHeight, 4), trimMat);
+    mullion.position.set(
+      Math.cos(angle) * (BRIDGE_RADIUS - 3), winY, Math.sin(angle) * (BRIDGE_RADIUS - 3),
+    );
+    mullion.rotation.y = -angle;
     bridgeGroup.add(mullion);
   }
+  // Der Schein, den das Fenster ins Deck wirft.
+  const spill = new THREE.PointLight(new THREE.Color(profile.color), 0.6, 900, 2);
+  spill.position.set(
+    Math.cos(winStart + winArc / 2) * (BRIDGE_RADIUS - 60), winY,
+    Math.sin(winStart + winArc / 2) * (BRIDGE_RADIUS - 60),
+  );
+  bridgeGroup.add(spill);
 }
 
-// Was hinter dem Fenster steht, richtet sich nach der eigenen Hauptwelt: ein
-// Nebel, ein Gasriese, ein Trümmerring, zwei Sonnen - oder das eigene
-// Flugdeck, wenn ringsum nichts Besonderes liegt.
+
 function homeViewKind(state) {
   const player = state.playerFactionId;
   const home = state.systems.find((s) => s.factionId === player && s.capital)
@@ -660,6 +609,113 @@ function buildViewportTexture(state, profile) {
   });
 }
 
+// --- Schrift auf der Karte ----------------------------------------------
+// Die Namen stehen wieder als Sprites im Raum - aber sie werden bei jedem
+// Bild auf gleichbleibende Bildschirmgröße gerechnet und weichen einander
+// aus. So bleiben sie an ihrem Ort und trotzdem lesbar.
+const labelCache = new Map();
+function labelSprite(text, { size = 34, color = '#e6f0ff', weight = 600, glow = null } = {}) {
+  const key = `${text}|${size}|${color}|${weight}|${glow}`;
+  let entry = labelCache.get(key);
+  if (!entry) {
+    const scale = 2;                       // doppelt gezeichnet, damit es scharf bleibt
+    const pad = 7 * scale;
+    const cv = document.createElement('canvas');
+    const probe = cv.getContext('2d');
+    const font = `${weight} ${size * scale}px "Chakra Petch", "Eurostile", "Bahnschrift", system-ui, sans-serif`;
+    probe.font = font;
+    const w = Math.ceil(probe.measureText(text).width) + pad * 2;
+    const h = size * scale + pad * 1.1;
+    cv.width = w;
+    cv.height = h;
+    const g = cv.getContext('2d');
+    g.font = font;
+    g.textBaseline = 'middle';
+    // Ein dunkler Grund unter der Schrift: über einem hellen Nebel wäre sie
+    // sonst nicht zu lesen.
+    g.fillStyle = 'rgba(4,9,18,0.55)';
+    g.fillRect(0, 0, w, h);
+    if (glow) {
+      g.fillStyle = glow;
+      g.fillRect(0, 0, 4 * scale, h);
+    }
+    g.shadowColor = 'rgba(0,0,0,0.95)';
+    g.shadowBlur = 6 * scale;
+    g.fillStyle = color;
+    g.fillText(text, pad + (glow ? 6 * scale : 0), h / 2 + 1);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.needsUpdate = true;
+    entry = { tex, w: w / scale, h: h / scale };
+    labelCache.set(key, entry);
+  }
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: entry.tex, transparent: true, depthTest: false, depthWrite: false,
+  }));
+  sprite.userData.px = { w: entry.w, h: entry.h };
+  sprite.renderOrder = 10;
+  return sprite;
+}
+
+// Alle Schriftzüge einmal je Bild: Größe nach Entfernung, Sichtbarkeit nach
+// Rang und Platz. Der Rang entscheidet, wer stehen bleibt, wenn zwei Namen
+// einander überdecken.
+const labelEntries = [];
+function registerLabel(sprite, rank) {
+  sprite.userData.rank = rank;
+  labelEntries.push(sprite);
+}
+function forgetLabels(group) {
+  for (let i = labelEntries.length - 1; i >= 0; i--) {
+    let node = labelEntries[i];
+    while (node && node !== group) node = node.parent;
+    if (node === group) labelEntries.splice(i, 1);
+  }
+}
+
+const _labelPos = new THREE.Vector3();
+function layoutLabels() {
+  if (!camera || !canvasEl) return;
+  const height = canvasEl.clientHeight || 1;
+  const width = canvasEl.clientWidth || 1;
+  const fovScale = 2 * Math.tan((camera.fov * Math.PI) / 180 / 2) / height;
+  // Aus der Ferne bleiben nur die wichtigen Namen stehen.
+  const minRank = cam.zoom > 2.2 ? 0 : cam.zoom > 1.4 ? 22 : cam.zoom > 0.95 ? 38 : 58;
+  const taken = [];
+  const sorted = labelEntries
+    .filter((s) => s.parent && s.parent.visible)
+    .sort((a, b) => (b.userData.rank || 0) - (a.userData.rank || 0));
+  for (const sprite of sorted) {
+    const px = sprite.userData.px;
+    if ((sprite.userData.rank || 0) < minRank) { sprite.visible = false; continue; }
+    sprite.getWorldPosition(_labelPos);
+    const dist = camera.position.distanceTo(_labelPos);
+    const unit = dist * fovScale;              // Welteinheiten je Bildpunkt
+    sprite.scale.set(px.w * unit, px.h * unit, 1);
+    _labelPos.project(camera);
+    if (_labelPos.z > 1) { sprite.visible = false; continue; }
+    const sx = (_labelPos.x * 0.5 + 0.5) * width;
+    const sy = (-_labelPos.y * 0.5 + 0.5) * height;
+    if (sx < -80 || sy < -40 || sx > width + 80 || sy > height + 40) { sprite.visible = false; continue; }
+    // `center` sagt, wo der Anker in der Schachtel sitzt - danach richtet
+    // sich, welchen Platz sie auf dem Schirm belegt.
+    const rect = {
+      x: sx - px.w * sprite.center.x,
+      y: sy - px.h * (1 - sprite.center.y),
+      w: px.w,
+      h: px.h + 2,
+    };
+    let blocked = false;
+    for (const r of taken) {
+      if (rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y) {
+        blocked = true;
+        break;
+      }
+    }
+    sprite.visible = !blocked;
+    if (!blocked) taken.push(rect);
+  }
+}
+
 // --- Die Karte aufbauen --------------------------------------------------
 export function buildMap(state) {
   stateRef = state;
@@ -711,9 +767,23 @@ function buildJumpPoints(state) {
 }
 
 const systemMeshes = new Map();
+// Alles, was man anklicken können soll: unsichtbare Körper an Welten und
+// Verbänden. Ohne sie träfe der Zeiger die Tischplatte hinter dem Objekt.
+const pickTargets = [];
+
+// Wie wichtig ein Name ist - danach entscheidet sich, wer stehen bleibt.
+function systemRank(sys) {
+  let rank = sys.size * 10;
+  if (sys.capital) rank += 45;
+  if (sys.greatWork) rank += 20;
+  if (stateRef && sys.factionId === stateRef.playerFactionId) rank += 25;
+  return rank;
+}
 
 function buildSystems(state) {
   systemMeshes.clear();
+  pickTargets.length = 0;
+  labelEntries.length = 0;
   for (const sys of state.systems) {
     const group = new THREE.Group();
     const { x, z } = worldOfTile(sys.col, sys.row);
@@ -768,7 +838,33 @@ function buildSystems(state) {
     yard.name = 'yard';
     group.add(yard);
 
-    // Name und Zeichen liegen als HTML darüber (siehe `maplabels.js`).
+    // Der Name steht unter der Welt: Farbstrich der Flagge, Stern für die
+    // Hauptwelt, Raute für ein Großes Werk.
+    const work = sys.greatWork ? GREAT_WORKS.find((w) => w.id === sys.greatWork) : null;
+    const text = `${sys.name}${sys.capital ? ' ★' : ''}${work ? ' ◆' : ''}`;
+    const label = labelSprite(text, {
+      size: sys.capital ? 21 : 18,
+      glow: factionProfile(sys.factionId).color,
+    });
+    // Der Anker sitzt über dem Feld, die Schrift hängt darunter - so steht
+    // sie unter der Welt, gleich aus welcher Richtung man schaut.
+    label.position.set(0, 1.2, 0);
+    label.center.set(0.5, 1);
+    label.name = 'label';
+    group.add(label);
+    registerLabel(label, systemRank(sys));
+
+    // Ein unsichtbarer Fangkörper um den Planeten: er macht die Welt
+    // anklickbar, ohne dass das Bild etwas davon merkt.
+    const grab = new THREE.Mesh(
+      new THREE.SphereGeometry(radius + 2.4, 10, 8),
+      new THREE.MeshBasicMaterial({ visible: false }),
+    );
+    grab.position.y = radius + 2.5;
+    grab.userData.tile = { col: sys.col, row: sys.row };
+    grab.name = 'grab';
+    group.add(grab);
+    pickTargets.push(grab);
 
     mapGroup.add(group);
     systemMeshes.set(sys.id, group);
@@ -891,6 +987,27 @@ function fleetMesh(fleet) {
   ring.name = 'ring';
   group.add(ring);
 
+  const count = labelSprite(String(fleetTotalCount(fleet)), {
+    size: 17, glow: profile.color, color: '#f2f7ff',
+  });
+  count.position.set(0, 9.5, 0);
+  count.center.set(0.5, 0);
+  count.name = 'count';
+  group.add(count);
+  // Flotten stehen über den Namen der Welten: man sucht auf der Karte nach
+  // Verbänden, nicht nach Ortsnamen.
+  registerLabel(count, 120);
+
+  // Der Fangkörper der Flotte - groß genug für den Zeiger, klein genug, dass
+  // er dem Nachbarfeld nichts wegnimmt.
+  const grab = new THREE.Mesh(
+    new THREE.SphereGeometry(3.4, 10, 8),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  grab.position.y = 5;
+  grab.name = 'grab';
+  group.add(grab);
+
   return group;
 }
 
@@ -913,7 +1030,14 @@ export function syncEntities(state, view = {}) {
       mesh = fleetMesh(fleet);
       fleetMeshes.set(fleet.id, mesh);
       entityGroup.add(mesh);
+      const grab = mesh.getObjectByName('grab');
+      if (grab) {
+        grab.userData.tile = { col: fleet.col, row: fleet.row };
+        pickTargets.push(grab);
+      }
     }
+    const grab = mesh.getObjectByName('grab');
+    if (grab) grab.userData.tile = { col: fleet.col, row: fleet.row };
     seenIds.add(fleet.id);
     mesh.visible = visible;
     if (!visible) continue;
@@ -931,6 +1055,23 @@ export function syncEntities(state, view = {}) {
       mesh.position.x += (idx - (stack.length - 1) / 2) * 1.8;
       mesh.position.z += (idx % 2) * 1.6;
     }
+    const total = fleetTotalCount(fleet);
+    if (mesh.userData.count !== total) {
+      mesh.userData.count = total;
+      const old = mesh.getObjectByName('count');
+      if (old) {
+        forgetLabels(old);
+        mesh.remove(old);
+      }
+      const count = labelSprite(String(total), {
+        size: 17, glow: factionProfile(fleet.factionId).color, color: '#f2f7ff',
+      });
+      count.position.set(0, 9.5, 0);
+      count.center.set(0.5, 0);
+      count.name = 'count';
+      mesh.add(count);
+      registerLabel(count, 120);
+    }
     const ring = mesh.getObjectByName('ring');
     if (ring) {
       const selected = view.selectedFleetId === fleet.id;
@@ -945,6 +1086,12 @@ export function syncEntities(state, view = {}) {
   }
   for (const [id, mesh] of fleetMeshes) {
     if (seenIds.has(id)) continue;
+    const grab = mesh.getObjectByName('grab');
+    if (grab) {
+      const idx = pickTargets.indexOf(grab);
+      if (idx >= 0) pickTargets.splice(idx, 1);
+    }
+    forgetLabels(mesh);
     entityGroup.remove(mesh);
     fleetMeshes.delete(id);
   }
@@ -1174,6 +1321,17 @@ export function cameraState() {
   return { ...cam };
 }
 
+// Die Kamera von außen setzen - dafür gibt es keinen Knopf im Spiel, aber
+// ein Prüflauf muss einen bestimmten Blick einnehmen können.
+export function setCamera({ azimuth, polar, zoom, col, row } = {}) {
+  if (azimuth != null) cam.azimuth = azimuth;
+  if (polar != null) cam.polar = Math.max(MIN_POLAR, Math.min(MAX_POLAR, polar));
+  if (zoom != null) cam.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+  if (col != null) cam.col = col;
+  if (row != null) cam.row = row;
+  applyCamera();
+}
+
 // Für das Gefecht: die Kamera geht heran und danach wieder zurück.
 export function zoomTo(value, ms = 400) {
   const from = cam.zoom;
@@ -1225,6 +1383,16 @@ export function pickTile(clientX, clientY) {
   pointerVec.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointerVec, camera);
 
+  // Zuerst die Fangkörper an Welten und Verbänden: wer auf ein Schiff oder
+  // einen Planeten zeigt, meint dessen Feld - und nicht die Platte dahinter.
+  const hits = raycaster.intersectObjects(pickTargets, false);
+  for (const hit of hits) {
+    const tile = hit.object.userData.tile;
+    if (!tile) continue;
+    if (hit.object.parent && hit.object.parent.visible === false) continue;
+    return { col: tile.col, row: tile.row };
+  }
+
   const point = new THREE.Vector3();
   if (!raycaster.ray.intersectPlane(mapPlane, point)) return null;
   const { col, row } = tileOfWorld(point.x, point.z);
@@ -1257,6 +1425,7 @@ export function resize() {
 
 export function render() {
   if (!renderer || !scene || !camera) return;
+  layoutLabels();
   renderer.render(scene, camera);
 }
 

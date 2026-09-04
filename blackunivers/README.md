@@ -125,12 +125,18 @@ nie wieder auf der Karte.
 
 ## Was auf der Karte steht
 
-Die Namen der Systeme liegen nicht im Bild, sondern als **HTML darüber**:
-immer gleich groß, immer scharf, mit dem Farbpunkt ihrer Flagge, einem Stern
-für Hauptwelten und einer Raute für Große Werke. Wo zwei einander im Weg
-stehen, weicht der unwichtigere - und je weiter die Kamera zurückgeht, desto
-weniger Namen bleiben: aus der Ferne stehen nur noch Sol, Vega, Kilrah und
-ihresgleichen. Die Stärke einer Flotte steht als Plakette daneben.
+Die Namen stehen als **Sprites im Raum**, unter ihrer Welt, mit dem Farbstrich
+der Flagge, einem Stern für Hauptwelten und einer Raute für Große Werke. Sie
+werden bei jedem Bild auf gleichbleibende Bildschirmgröße gerechnet - also
+weder winzig noch riesig, egal wie nah die Kamera steht - und sie weichen
+einander aus: wo zwei Namen kollidieren, bleibt der wichtigere stehen. Je
+weiter die Kamera zurückgeht, desto weniger Namen bleiben; aus der Ferne
+stehen nur noch Sol, Vega, Kilrah und ihresgleichen. Die Stärke einer Flotte
+steht als Schild über dem Verband.
+
+Angeklickt wird, was man sieht: an jeder Welt und jedem Verband sitzt ein
+unsichtbarer Fangkörper. Wer auf einen Planeten oder ein Schiff zeigt, wählt
+dessen Feld - und nicht das Feld dahinter, auf das der Strahl sonst fiele.
 
 ## Wie eine Welt fällt
 
@@ -248,7 +254,6 @@ Fehlt die Datei, springt der eingebaute Synthesizer-Marsch ein.
 | `js/pilots.js` | Herrscher, Eigenschaften, Asse |
 | `js/ships3d.js` | Die Schiffsmodelle: Rapier, Broadsword, Bengal, Dralthi, Fralthi, Snakeir |
 | `js/titlescene3d.js` | Das Startbild in Echtzeit: Träger, Rotte, Nebel, Planet |
-| `js/maplabels.js` | Namen und Stärken als HTML über der Karte, mit Vorrang und Ausweichen |
 | `js/scene3d.js` | Die Darstellung: Holotisch, Brücke, Karte, Flotten, Nebel des Krieges |
 | `js/battle3d.js` | Das Gefecht auf der Karte |
 | `js/ui.js` | Kopfleiste, Tafeln, Berichte |
