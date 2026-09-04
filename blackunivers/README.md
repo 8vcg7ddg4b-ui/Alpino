@@ -30,16 +30,37 @@ Bevor der erste Zug fällt, meldet sich der Erste Offizier:
 
 ## Was im Gefecht zu sehen ist
 
-Die Kamera geht nah heran und flacher - ein Gefecht sieht man von der Seite,
-nicht von oben auf eine Landkarte. Die Verbände fliegen **langsam und
-geführt**: jedes Schiff hat seine Bahn um seinen Platz im Verband, schwere
-Kiele halten die Linie, Jäger kreisen eng, und wer an der Reihe ist, zieht
-einen **Anflug** auf den Gegner und wieder zurück. Die Nase zeigt dabei immer
-dorthin, wo das Schiff hinfliegt.
+Ein Gefecht ist eine **Einstellung**, kein Zahlenblatt. Die Kamera fährt auf
+das Feld, legt sich flach an den Horizont und zieht in großer Ruhe um die
+Verbände - Runde für Runde ein Stück näher heran, bis man die Rümpfe erkennt
+und nicht mehr die Marken. Zwei schwarze Balken oben und unten machen das
+Bild breit, ein schwerer Einschlag rüttelt den Blick durch.
 
-Bomber schießen nicht, sie **stoßen zu**: Ein Torpedo braucht seine Zeit,
-zieht eine Spur und geht am Ziel hoch - gegen den Planetenschild, wenn eine
-Welt dahintersteht, sonst gegen den schwersten Kiel der Gegenseite.
+Der Ablauf ist bewusst **langsam zum Mitlesen**:
+
+1. **Anflug** – beide Verbände kommen aus der Ferne aufeinander zu und
+   schließen auf, ehe der erste Schuss fällt.
+2. **Feuergefecht** – jedes Geschoss läuft sichtbar von Rohr zu Rumpf, mit
+   Mündungsblitz am Geschütz und Funkenschlag am Ziel. Man sieht, wer wen
+   aufs Korn nimmt.
+3. **Torpedos** – Bomber schießen nicht, sie **stoßen zu**: Ein Torpedo
+   braucht seine anderthalb Sekunden, zieht eine Rauchfahne und geht am Ziel
+   hoch - gegen den Planetenschild, wenn eine Welt dahintersteht, sonst gegen
+   den schwersten Kiel der Gegenseite.
+4. **Schild** – die Kuppel wird Runde für Runde dünner; fällt sie, geht sie
+   mit einer Druckwelle auf.
+5. **Verluste** – kein Schiff verschwindet auf Zuruf. Es bricht aus der
+   Formation, trudelt, verglüht und zerbricht in Trümmer.
+
+Die Verbände fliegen dabei **langsam und geführt**: jedes Schiff hat seine
+Bahn um seinen Platz im Verband, schwere Kiele halten die Linie, Jäger
+kreisen eng, und wer an der Reihe ist, zieht einen **Anflug** auf den Gegner
+und wieder zurück. Die Nase zeigt immer dorthin, wo das Schiff hinfliegt.
+
+Über dem Bild steht die **Gefechtsanzeige**: Runde, Stärke beider Seiten und
+was gerade passiert. Wem das zu lang dauert, drückt **Esc**, **Leertaste**
+oder die Schaltfläche unten rechts - der Bericht kommt trotzdem, denn
+entschieden ist das Gefecht schon, bevor es gezeigt wird.
 
 ## Der Vorspann
 

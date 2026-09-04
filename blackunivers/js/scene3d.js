@@ -32,6 +32,9 @@ let starsVisible = true;
 let animating = false;
 let ceilingMesh = null;
 let bordersVisible = true;
+// Im Gefecht verschwindet das Kartenwerk: Namen, Zahlen, Reichweiten. Was
+// bleibt, sind Welten, Sterne und die Schiffe, um die es gerade geht.
+let battleMode = false;
 
 // Die Kamera kreist um ihr Ziel. Azimut dreht sie um den Tisch, Polar ist die
 // Höhe über der Tischplatte - flach heißt: man sieht die Brücke.
@@ -41,8 +44,12 @@ const MIN_POLAR = 0.22;
 const MAX_POLAR = 1.42;
 const BASE_DISTANCE = 210;
 const MIN_ZOOM = 0.55;
-const MAX_ZOOM = 4.6;
-const cam = { col: GRID_COLS / 2, row: GRID_ROWS / 2, zoom: 1.25, azimuth: DEFAULT_AZIMUTH, polar: DEFAULT_POLAR };
+// Ganz nah heran geht es nur im Gefecht - dort steht die Kamera zwischen
+// den Verbänden, nicht über der Karte.
+const MAX_ZOOM = 7.5;
+// `lookY` hebt den Blickpunkt an: über der Karte liegt er auf der Platte,
+// im Gefecht auf Höhe der Schiffe.
+const cam = { col: GRID_COLS / 2, row: GRID_ROWS / 2, zoom: 1.25, azimuth: DEFAULT_AZIMUTH, polar: DEFAULT_POLAR, lookY: 0 };
 // Die Brücke muss die Kamera umschließen, auch ganz herausgezoomt: halbe
 // Tischdiagonale plus größter Kameraabstand.
 const BRIDGE_RADIUS = 470;
@@ -979,6 +986,10 @@ function layoutLabels() {
   const width = canvasEl.clientWidth || 1;
   const fovScale = 2 * Math.tan((camera.fov * Math.PI) / 180 / 2) / height;
   // Aus der Ferne bleiben nur die wichtigen Namen stehen.
+  if (battleMode) {
+    for (const sprite of labelEntries) sprite.visible = false;
+    return;
+  }
   const minRank = cam.zoom > 2.2 ? 0 : cam.zoom > 1.4 ? 22 : cam.zoom > 0.95 ? 38 : 58;
   const taken = [];
   const sorted = labelEntries
@@ -1589,7 +1600,7 @@ function applyCamera() {
     dist * Math.cos(cam.polar) + 12,
     target.z + dist * sinP * Math.sin(cam.azimuth),
   );
-  camera.lookAt(target.x, 0, target.z);
+  camera.lookAt(target.x, cam.lookY, target.z);
   // Steigt die Kamera über die Decke, wird sie ausgeblendet: sonst schaut man
   // von oben auf ein geschlossenes Dach und sieht seine eigene Karte nicht.
   if (ceilingMesh) ceilingMesh.visible = camera.position.y < ceilingMesh.position.y - 14;
@@ -1655,12 +1666,13 @@ export function cameraState() {
 
 // Die Kamera von außen setzen - dafür gibt es keinen Knopf im Spiel, aber
 // ein Prüflauf muss einen bestimmten Blick einnehmen können.
-export function setCamera({ azimuth, polar, zoom, col, row } = {}) {
+export function setCamera({ azimuth, polar, zoom, col, row, lookY } = {}) {
   if (azimuth != null) cam.azimuth = azimuth;
   if (polar != null) cam.polar = Math.max(MIN_POLAR, Math.min(MAX_POLAR, polar));
   if (zoom != null) cam.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
   if (col != null) cam.col = col;
   if (row != null) cam.row = row;
+  if (lookY != null) cam.lookY = lookY;
   applyCamera();
 }
 
@@ -1694,6 +1706,17 @@ export function setMapMode(mode) {
 export function getMapMode() { return mapMode; }
 
 export function setGuidesVisible(on) { guidesVisible = !!on; }
+// Der Gefechtsmodus: Beschriftungen und Kartenmarken aus, damit die
+// Einstellung dem Gefecht gehört und nicht dem Atlas.
+export function setBattleMode(on) {
+  battleMode = !!on;
+  if (overlayGroup) overlayGroup.visible = !battleMode;
+  // Die Flottenmarken der Karte treten ab: im Gefecht stehen die echten
+  // Verbände auf dem Feld, und zwei Träger übereinander sieht niemand gern.
+  for (const mesh of fleetMeshes.values()) mesh.visible = !battleMode;
+  if (!battleMode) layoutLabels();
+}
+
 export function setBordersVisible(on) {
   bordersVisible = !!on;
   if (territoryGroup) territoryGroup.visible = bordersVisible;

@@ -270,13 +270,14 @@ async function doAttack(fleet, col, row) {
   const report = result.report;
   const speed = MARCH_SPEED_FACTORS[getSetting('flugtempo')] || 1;
   // Das Gefecht ist entschieden, ehe es gezeigt wird: die Vorstellung darf
-  // den Feldzug also weder aufhalten noch anhalten. Auf einer langsamen
-  // Maschine bricht sie nach zwanzig Sekunden ab, und der Bericht kommt
+  // den Feldzug also weder aufhalten noch anhalten. Sie läuft in Ruhe ab -
+  // wem das zu lang ist, der drückt Esc oder die Schaltfläche. Als letzte
+  // Sicherung bricht sie nach anderthalb Minuten ab, und der Bericht kommt
   // trotzdem.
   try {
     await Promise.race([
       playBattle(report, { speed, render: draw }),
-      new Promise((resolve) => setTimeout(resolve, 20000)),
+      new Promise((resolve) => setTimeout(resolve, 95000)),
     ]);
   } catch (err) {
     console.error('Gefechtsdarstellung abgebrochen:', err);

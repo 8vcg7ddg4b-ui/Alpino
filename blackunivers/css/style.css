@@ -1024,6 +1024,121 @@ button.tactic.on { color: var(--amber); border-color: var(--amber); background: 
 .memo h4 { color: var(--amber); }
 .rules p { font-size: 0.84rem; }
 
+/* Läuft ein Gefecht, tritt die Bedienung zurück: das Bild gehört den
+   Schiffen. Nichts wird ausgeblendet, nur zurückgenommen - man soll sehen,
+   dass die Brücke weiterarbeitet. */
+body.gefecht-laeuft .top-bar,
+body.gefecht-laeuft .turn-controls,
+body.gefecht-laeuft .side-panel,
+body.gefecht-laeuft .feed,
+body.gefecht-laeuft .compass {
+  opacity: 0.12;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+}
+body.gefecht-laeuft .top-bar { opacity: 0.2; }
+
+/* --- Die Anzeige über dem Gefecht --------------------------------------- */
+/* Sie liegt über allem, nimmt aber keine Klicks an - außer der einen
+   Schaltfläche, die das Schauspiel abkürzt. Dazu zwei schwarze Balken oben
+   und unten: ein Gefecht ist kein Tabellenblatt, es ist eine Einstellung. */
+.battle-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  animation: bh-in 420ms ease-out;
+}
+.battle-hud::before,
+.battle-hud::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 7vh;
+  background: linear-gradient(to bottom, rgba(2, 5, 10, 0.92), rgba(2, 5, 10, 0));
+  animation: bh-bars 520ms ease-out;
+}
+.battle-hud::after {
+  bottom: 0;
+  top: auto;
+  background: linear-gradient(to top, rgba(2, 5, 10, 0.92), rgba(2, 5, 10, 0));
+}
+.battle-hud .bh-bar {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 18px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(4, 9, 16, 0.78);
+  box-shadow: 0 0 26px rgba(0, 0, 0, 0.6);
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.battle-hud .bh-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 130px;
+}
+.battle-hud .bh-right { text-align: right; }
+.battle-hud .bh-name {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+.battle-hud .bh-strength {
+  font-size: 1.15rem;
+  color: var(--text);
+  font-weight: 700;
+}
+.battle-hud .bh-round {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 14px;
+  border-left: 1px solid var(--line-soft);
+  border-right: 1px solid var(--line-soft);
+}
+.battle-hud .bh-round b {
+  font-size: 0.9rem;
+  color: var(--amber);
+  letter-spacing: 0.14em;
+}
+.battle-hud .bh-round small {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.battle-hud .bh-skip {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  pointer-events: auto;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(4, 9, 16, 0.8);
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+.battle-hud .bh-skip:hover {
+  color: var(--text);
+  border-color: var(--blue);
+}
+@keyframes bh-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bh-bars { from { height: 0; } to { height: 7vh; } }
+
 /* --- Schmale Schirme ---------------------------------------------------- */
 @media (max-width: 900px) {
   .setup-grid { grid-template-columns: 1fr; }
@@ -1034,4 +1149,8 @@ button.tactic.on { color: var(--amber); border-color: var(--amber); background: 
   .turn-controls { top: 46px; right: 8px; }
   .tb-tools { gap: 2px; }
   .tb-tool { width: 28px; height: 26px; }
+  .battle-hud .bh-bar { top: 44px; gap: 10px; padding: 6px 10px; }
+  .battle-hud .bh-side { min-width: 78px; }
+  .battle-hud .bh-name { font-size: 0.66rem; }
+  .battle-hud .bh-strength { font-size: 0.95rem; }
 }

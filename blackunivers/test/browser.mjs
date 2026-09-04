@@ -153,6 +153,13 @@ if (hasConfirm) {
   await page.click('#confirmOk');
   await page.waitForTimeout(2200);
   await shot('05d-gefecht');
+  // Ein Gefecht läuft jetzt in Ruhe ab - also ein paar Bilder mittendrin,
+  // damit man Anflug, Feuergefecht und Wracks auch prüfen kann.
+  for (const name of ['05d2-anflug', '05d3-feuer', '05d4-wracks']) {
+    await page.waitForTimeout(7000);
+    if (await page.locator('#battleModal:not(.hidden)').count()) break;
+    await shot(name);
+  }
   try {
     await page.waitForSelector('#battleModal:not(.hidden)', { timeout: 90000 });
     await page.waitForTimeout(400);
