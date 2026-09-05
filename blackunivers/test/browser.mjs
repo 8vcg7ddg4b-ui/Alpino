@@ -37,14 +37,13 @@ console.log('Startbild …');
 // und ein laufender Medienstrom hält die Leitung offen.
 await page.goto('http://127.0.0.1:8123/index.html', { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(900);
-// Der Vorspann läuft zuerst; wo er abspielbar ist, wird er weggeklickt, wo
-// nicht, ist er schon von selbst verschwunden.
-const introShown = await page.locator('#intro').count();
+// Der Studio-Vorspann läuft zuerst und wird weggeklickt.
+const introShown = await page.locator('#studioIntro').count();
 if (introShown) {
   await shot('00-vorspann');
-  await page.click('#introSkip').catch(() => {});
-  await page.waitForSelector('#intro', { state: 'detached', timeout: 8000 }).catch(() => {
-    problems.push('Der Vorspann ließ sich nicht überspringen.');
+  await page.click('#studioIntro').catch(() => {});
+  await page.waitForSelector('#studioIntro', { state: 'detached', timeout: 8000 }).catch(() => {
+    problems.push('Der Studio-Vorspann ließ sich nicht überspringen.');
   });
 }
 await page.waitForTimeout(400);
@@ -290,9 +289,9 @@ await page.waitForFunction(() => window.__blackUniversReady === true, { timeout:
 await page.waitForTimeout(700);
 // Nach dem Neuladen läuft der Vorspann erneut - erst wegklicken, dann sieht
 // man das Startbild mit dem gespeicherten Feldzug.
-if (await page.locator('#intro').count()) {
-  await page.click('#introSkip').catch(() => {});
-  await page.waitForSelector('#intro', { state: 'detached', timeout: 8000 }).catch(() => {});
+if (await page.locator('#studioIntro').count()) {
+  await page.click('#studioIntro').catch(() => {});
+  await page.waitForSelector('#studioIntro', { state: 'detached', timeout: 8000 }).catch(() => {});
 }
 await page.waitForTimeout(500);
 const canContinue = await page.locator('#continueGameBtn:not(.hidden)').count();
