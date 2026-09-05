@@ -804,6 +804,26 @@ button.mini.good { color: var(--green); }
 .pv-chance.bad { color: var(--red); border-color: var(--red); }
 .pv-notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.8rem; }
 
+/* Vor jedem Angriff wird die Ordnung gewählt - sie steht in der Vorschau,
+   nicht in einer Tafel drei Klicks weiter. */
+.pv-tactics {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  background: rgba(10, 20, 34, 0.6);
+}
+.pv-tactics > span {
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.pv-tactics small { color: var(--muted); font-size: 0.76rem; }
+
 .report h3 {
   margin: 0 0 14px;
   letter-spacing: 0.16em;

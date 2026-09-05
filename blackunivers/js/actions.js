@@ -17,7 +17,7 @@ import {
   makeId, createFleet, factionById, playerFaction, systemAt, systemById,
   fleetsAt, fleetsOf, systemsOf, capitalOf, fleetTotalCount, fleetRoleCount,
   garrisonTotal, garrisonFieldUnits, movementMaxFor, hasGreatWork, logMsg,
-  markSeen, hasSeen, tileOf, attachAce,
+  markSeen, hasSeen, tileOf, attachAce, tidyUnits,
 } from './state.js';
 import { atWar, adjustRelation, declareWar, learnFaction, pushNews } from './diplomacy.js';
 import { resolveBattle, battleSummary, sumLosses, lossesText, previewBattle } from './combat.js';
@@ -550,6 +550,9 @@ export function mergeFleets(state, a, b) {
   if (a.factionId !== b.factionId) return { ok: false, text: 'Fremde Flotten schließen sich nicht zusammen.' };
   if (a.col !== b.col || a.row !== b.row) return { ok: false, text: 'Sie stehen nicht auf demselben Feld.' };
   for (const u of b.units) a.units.push({ ...u, id: makeId('unt') });
+  // Zwei Flotten mit je zwei Jägerstaffeln ergeben eine Flotte mit einer
+  // Jägerstaffel doppelter Sollstärke - nicht vier Zeilen untereinander.
+  tidyUnits(a);
   a.morale = Math.round((a.morale + b.morale) / 2);
   a.movement = Math.min(a.movement, b.movement);
   if (!a.ace && b.ace) {
@@ -575,9 +578,10 @@ export function reinforceFleet(state, fleet) {
   const missing = [];
   for (const u of fleet.units) {
     const def = defs[u.role];
-    const gap = Math.max(0, def.staffel - u.count);
+    const cap = u.max || def.staffel;
+    const gap = Math.max(0, cap - u.count);
     if (!gap) continue;
-    missing.push({ u, gap, def });
+    missing.push({ u, gap, def, cap });
     cost += Math.round((def.cost / def.staffel) * gap * REINFORCE_COST_FACTOR);
   }
   if (!missing.length) return { ok: false, text: 'Die Flotte ist vollzählig.' };
@@ -588,7 +592,7 @@ export function reinforceFleet(state, fleet) {
   for (const m of missing) {
     m.u.count += m.gap;
     // Neue Piloten senken den Schnitt der Erfahrung.
-    m.u.exp = Math.round((m.u.exp || 0) * (m.def.staffel - m.gap) / m.def.staffel);
+    m.u.exp = Math.round((m.u.exp || 0) * (m.cap - m.gap) / Math.max(1, m.cap));
   }
   fleet.morale = Math.min(MORALE_MAX, fleet.morale + 8);
   return { ok: true, text: `${fleet.name} ist wieder vollzählig (${cost} Kredits).` };

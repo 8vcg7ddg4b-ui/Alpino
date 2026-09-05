@@ -42,7 +42,10 @@ Der Ablauf ist bewusst **langsam zum Mitlesen**:
    schließen auf, ehe der erste Schuss fällt.
 2. **Feuergefecht** – jedes Geschoss läuft sichtbar von Rohr zu Rumpf, mit
    Mündungsblitz am Geschütz und Funkenschlag am Ziel. Man sieht, wer wen
-   aufs Korn nimmt.
+   aufs Korn nimmt. **Kreuzer und Träger kreisen nicht**: sie halten die
+   Linie ein Feld hinter dem Getümmel, drehen dem Feind die Breitseite zu und
+   legen jede zweite Salve als schwere, langsame Lage quer über das Feld.
+   Die Bewegung machen die Jäger.
 3. **Torpedos** – Bomber schießen nicht, sie **stoßen zu**: ein Stahlkörper
    mit Suchkopf, glühendem Zielring, vier Flossen und einem Triebwerk, das
    flackert. Er verlässt das Rohr mit einem Startblitz, rollt um die
@@ -165,6 +168,12 @@ nur, was leuchtet - Düsen, Landebahn, Kennstreifen. Auf der weiten Karte fällt
 das Kleinzeug weg, im Gefecht ist alles da.
 
 ### Verbände
+
+Eine Flotte führt **je Art einen Verband**, nicht drei nebeneinander: zwei
+Rapier-Staffeln stehen als eine Staffel mit doppelter Sollstärke in der Liste
+(24/24 statt zweimal 12/12). Das liest sich schneller, und gerechnet wird
+ohnehin über die Zahl der Maschinen. Beim Zusammenlegen zweier Flotten und
+beim Laden alter Feldzüge geschieht dasselbe.
 
 Sechs Rollen, die einander im Kreis schlagen: **Jäger** fangen **Bomber**,
 Bomber knacken **Kreuzer** und **Korvetten**, Großkampfschiffe zerfetzen Jäger.
@@ -319,6 +328,11 @@ Technik die Forschungstafel. Die Zeichen rechts führen zu Reich, Diplomatie,
 Technik, Chronik, Grenzen, Flaggenansicht, **Hilfe**, Einstellungen und Menü –
 jedes erklärt sich beim Überfahren **sofort**, ohne die Sekunde, die der
 Browser sonst wartet.
+
+**Vor jedem Angriff** steht die **Schlachtordnung** in der Vorschau selbst:
+Zangenangriff, Panzerkeil, Schwarmangriff oder Torpedolauf, jede mit ihrer
+Wirkung daneben. Ein Klick setzt sie, die Siegchance rechnet sofort neu, und
+das Fenster bleibt stehen, bis man sich entschieden hat.
 
 **Die Aufgabenleiste** darunter sagt, was in diesem Zug noch offen ist, und
 jeder Punkt führt mit einem Klick zur Sache selbst:

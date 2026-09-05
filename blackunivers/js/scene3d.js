@@ -1189,10 +1189,14 @@ function systemRank(sys) {
 // Die Netze über den Schilden drehen sich langsam - ein Deflektor steht
 // nicht still.
 const shieldNets = [];
+// Im Gefecht treten die Schilde der Nachbarwelten zurück: sonst steht das
+// halbe Sonnensystem vor den Schiffen.
+const shieldDomes = [];
 
 function buildSystems(state) {
   systemMeshes.clear();
   shieldNets.length = 0;
+  shieldDomes.length = 0;
   pickTargets.length = 0;
   labelEntries.length = 0;
   for (const sys of state.systems) {
@@ -1244,6 +1248,7 @@ function buildSystems(state) {
     shield.position.y = orbit;
     shield.name = 'shield';
     group.add(shield);
+    shieldDomes.push(shield);
     const net = new THREE.Mesh(shieldGeo.clone(), new THREE.MeshBasicMaterial({
       color: 0xbfeaff, transparent: true, opacity: 0.18,
       wireframe: true, depthWrite: false,
@@ -1349,14 +1354,16 @@ export function updateSystems(state) {
       beam.material.opacity = sys.capital ? 0.3 : 0.16;
     }
     if (shield) {
-      shield.visible = sys.shield.level > 0;
+      shield.userData.want = sys.shield.level > 0;
+      shield.visible = shield.userData.want && !battleMode;
       shield.material.opacity = Math.max(0.04, 0.16 * (1 - sys.shield.down))
         * (1 + sys.shield.level * 0.15);
       shield.material.color.set(sys.shield.down > 0.5 ? 0xff9a6a : 0x7fd4ff);
     }
     const net = group.getObjectByName('shieldnet');
     if (net) {
-      net.visible = sys.shield.level > 0;
+      net.userData.want = sys.shield.level > 0;
+      net.visible = net.userData.want && !battleMode;
       net.material.opacity = Math.max(0.05, 0.2 * (1 - sys.shield.down));
       net.material.color.set(sys.shield.down > 0.5 ? 0xffc2a0 : 0xbfeaff);
     }
@@ -1375,7 +1382,7 @@ const fleetMeshes = new Map();
 // halbes Feld, ein Träger anderthalb - so sieht man an der Silhouette, was
 // da fliegt, bevor man die Flotte anklickt.
 const MAP_SHIP_LENGTH = {
-  jaeger: 5.4, bomber: 5.8, korvette: 7, kreuzer: 8.8, traeger: 11.4, marines: 5.8, wache: 6,
+  jaeger: 4.3, bomber: 4.6, korvette: 5.6, kreuzer: 7, traeger: 9.1, marines: 4.6, wache: 4.8,
 };
 
 function fleetMesh(fleet) {
@@ -1833,6 +1840,9 @@ export function setBattleMode(on) {
   // Die Flottenmarken der Karte treten ab: im Gefecht stehen die echten
   // Verbände auf dem Feld, und zwei Träger übereinander sieht niemand gern.
   for (const mesh of fleetMeshes.values()) mesh.visible = !battleMode;
+  for (const mesh of [...shieldDomes, ...shieldNets]) {
+    mesh.visible = !!mesh.userData.want && !battleMode;
+  }
   if (!battleMode) layoutLabels();
 }
 

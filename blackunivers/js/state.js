@@ -182,6 +182,33 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION, sce
 }
 
 // --- Flotten --------------------------------------------------------------
+// Eine Flotte führt je Art einen Verband, nicht drei nebeneinander: zwei
+// Rapier-Staffeln stehen als eine Staffel mit doppelter Sollstärke in der
+// Liste. Das liest sich schneller, und gerechnet wird ohnehin über die Zahl
+// der Maschinen.
+export function tidyUnits(fleet, defsIn = null) {
+  if (!fleet || !Array.isArray(fleet.units)) return fleet;
+  const defs = defsIn || unitDefs(fleet.factionId);
+  const byRole = new Map();
+  for (const u of fleet.units) {
+    const cap = u.max || (defs[u.role] ? defs[u.role].staffel : u.count) || 1;
+    const have = byRole.get(u.role);
+    if (!have) {
+      byRole.set(u.role, { ...u, max: cap });
+      continue;
+    }
+    // Die Erfahrung mischt sich nach Köpfen, nicht nach Verbänden.
+    const total = have.count + u.count;
+    have.exp = total > 0
+      ? Math.round(((have.exp || 0) * have.count + (u.exp || 0) * u.count) / total)
+      : Math.max(have.exp || 0, u.exp || 0);
+    have.count = total;
+    have.max = have.max + cap;
+  }
+  fleet.units = [...byRole.values()].filter((u) => u.count > 0 || u.max > 0);
+  return fleet;
+}
+
 export function createFleet(state, factionId, col, row, unitList, opts = {}) {
   const defs = unitDefs(factionId);
   const fleet = {
@@ -204,6 +231,7 @@ export function createFleet(state, factionId, col, row, unitList, opts = {}) {
     hasMoved: false,
     createdTurn: state.turn,
   };
+  tidyUnits(fleet, defs);
   if (opts.ace) attachAce(state, fleet);
   state.fleets.push(fleet);
   // Erst in der Liste kennt der Wegfinder die Flotte - und erst dann steht

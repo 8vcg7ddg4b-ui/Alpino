@@ -77,7 +77,7 @@ function clearGroup() {
 // dran, also dürfen die Kiele Platz beanspruchen: ein Jäger misst ein halbes
 // Feld, ein Träger anderthalb.
 const FIGHT_LENGTH = {
-  jaeger: 3.2, bomber: 3.8, korvette: 4.8, kreuzer: 6.4, traeger: 8.4, marines: 3.8, wache: 4.2,
+  jaeger: 2.5, bomber: 3.0, korvette: 3.8, kreuzer: 5.1, traeger: 6.7, marines: 3.0, wache: 3.4,
 };
 
 // Ein Schiff im Gefecht. Es trägt dieselbe Silhouette wie auf der Karte -
@@ -257,20 +257,30 @@ function shipDeath(g, ship, colour, speed) {
 // --- Leuchtspuren ---------------------------------------------------------
 // Kein Strich, der aufblitzt und weg ist: ein Geschoss braucht seine Zeit von
 // Rohr zu Rumpf. Erst dadurch sieht man, wer auf wen schießt.
-function fireBolt(g, from, targetShip, colour, onHit) {
-  const geo = sharedGeo('bolt', () => {
-    const c = new THREE.CylinderGeometry(0.085, 0.085, 2.2, 6);
-    c.rotateX(Math.PI / 2);
-    return c;
-  });
-  const bolt = new THREE.Mesh(geo, glowMaterial(colour, 0.95));
+function fireBolt(g, from, targetShip, colour, onHit, heavy = false) {
+  const geo = heavy
+    ? sharedGeo('boltHeavy', () => {
+      const c = new THREE.CylinderGeometry(0.2, 0.2, 4.4, 8);
+      c.rotateX(Math.PI / 2);
+      return c;
+    })
+    : sharedGeo('bolt', () => {
+      const c = new THREE.CylinderGeometry(0.085, 0.085, 2.2, 6);
+      c.rotateX(Math.PI / 2);
+      return c;
+    });
+  const bolt = new THREE.Mesh(geo, glowMaterial(colour, heavy ? 1 : 0.95));
   const start = from.clone();
   const aim = targetShip.position.clone();
   bolt.position.copy(start);
   bolt.lookAt(aim);
   g.add(bolt);
   muzzleFlash(g, start, colour);
-  const dur = (0.34 + start.distanceTo(aim) * 0.012);
+  if (heavy) muzzleFlash(g, start, 0xfff2d0);
+  // Ein schwerer Schuss braucht länger bis ins Ziel - man sieht ihn kommen.
+  const dur = heavy
+    ? (0.6 + start.distanceTo(aim) * 0.02)
+    : (0.34 + start.distanceTo(aim) * 0.012);
   let t = 0;
   addEffect((dt, e) => {
     t += dt;
@@ -416,10 +426,19 @@ const FLIGHT_STYLE = {
   wache: { radius: 2.1, speed: 0.5, weight: 2 },
 };
 
+// Ein Kreuzer kreist nicht. Großkampfschiffe halten die Linie im Rücken des
+// Gefechts, drehen dem Gegner die Breitseite zu und schießen auf Distanz -
+// die Jäger machen die Bewegung.
+const HOLD_ROLES = new Set(['kreuzer', 'traeger']);
+
 function setupFlight(ship, role, heading, home, entry) {
   const style = FLIGHT_STYLE[role] || FLIGHT_STYLE.jaeger;
   const d = ship.userData;
   d.role = role;
+  // Wer die Linie hält, dreht sich nicht: er liegt quer zum Feind, damit
+  // seine Türme tragen.
+  d.hold = HOLD_ROLES.has(role);
+  d.facing = heading;
   d.phase = Math.random() * Math.PI * 2;
   d.radius = style.radius * (0.8 + Math.random() * 0.4);
   d.speed = style.speed * (0.85 + Math.random() * 0.3);
@@ -553,8 +572,11 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
     for (let i = 0; i < attackerCount; i++) {
       const f = makeFighter(attackerProfile.kind, attackerRoles[i], attackerProfile, Math.PI / 2);
       const angle = (i / attackerCount) * Math.PI - Math.PI / 2;
+      // Schwere Kiele stehen ein Feld weiter hinten - sie schießen auf
+      // Distanz, statt in den Nahkampf zu fahren.
+      const back = HOLD_ROLES.has(attackerRoles[i]) ? TILE_SIZE * 1.3 : 0;
       const home = new THREE.Vector3(
-        origin.x - TILE_SIZE * 2.9 + Math.cos(angle) * 3.0,
+        origin.x - TILE_SIZE * 2.9 - back + Math.cos(angle) * 3.0,
         6 + Math.sin(angle) * 3.2,
         origin.z + Math.sin(angle) * TILE_SIZE * 1.25,
       );
@@ -567,8 +589,9 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
     for (let i = 0; i < defenderCount; i++) {
       const f = makeFighter(defenderProfile.kind, defenderRoles[i], defenderProfile, -Math.PI / 2);
       const angle = (i / defenderCount) * Math.PI + Math.PI / 2;
+      const back = HOLD_ROLES.has(defenderRoles[i]) ? TILE_SIZE * 1.3 : 0;
       const home = new THREE.Vector3(
-        origin.x + TILE_SIZE * 2.7 + Math.cos(angle) * 3.0,
+        origin.x + TILE_SIZE * 2.7 + back + Math.cos(angle) * 3.0,
         6 + Math.sin(angle) * 3.2,
         origin.z + Math.sin(angle) * TILE_SIZE * 1.25,
       );
@@ -614,6 +637,22 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
       const d = ship.userData;
       _prev.copy(ship.position);
       const home = homeOf(ship);
+      if (d.hold) {
+        // Die Linie: ein schwerer Kiel schiebt sich langsam vor und zurück,
+        // mehr nicht. Die Breitseite bleibt zum Feind.
+        ship.position.set(
+          home.x + Math.sin(t * 0.14 + d.phase) * 0.9,
+          home.y + Math.sin(t * 0.21 + d.phase) * 0.7,
+          home.z + Math.cos(t * 0.11 + d.phase) * 1.4,
+        );
+        let delta = d.facing - d.yaw;
+        while (delta > Math.PI) delta -= Math.PI * 2;
+        while (delta < -Math.PI) delta += Math.PI * 2;
+        d.yaw += delta * 0.05;
+        ship.rotation.y = d.yaw;
+        ship.rotation.z *= 0.9;
+        return;
+      }
       const a = t * d.speed + d.phase;
       _next.set(
         home.x + Math.cos(a) * d.radius * 0.8,
@@ -646,7 +685,7 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
 
     // Die Kamerafahrt: Ziel-Azimut wandert langsam weiter, der Zoom geht von
     // Runde zu Runde näher heran. Alles nachgeführt, nichts geschnitten.
-    const camAim = { azimuth: camBefore.azimuth, polar: 1.26, zoom: 3.6, lookY: 7 };
+    const camAim = { azimuth: camBefore.azimuth, polar: 1.26, zoom: 3.2, lookY: 7 };
     const camNow = {
       azimuth: camBefore.azimuth, polar: camBefore.polar, zoom: camBefore.zoom, lookY: 0,
     };
@@ -698,7 +737,9 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
       hud.round(round.round, total, 'Anflug');
       hud.strength(round.attackStrength, round.defenceStrength);
       // Jede Runde geht die Kamera ein Stück näher heran.
-      camAim.zoom = Math.min(6.9, 4.2 + (round.round / total) * 2.6);
+      // Die Verbände stehen jetzt weiter auseinander - der Rahmen bleibt so
+      // weit, dass beide Linien im Bild liegen.
+      camAim.zoom = Math.min(5.4, 3.6 + (round.round / total) * 1.8);
       camAim.polar = 1.3 - (round.round / total) * 0.16;
 
       // Wer greift in dieser Runde an? Zwei bis drei Maschinen je Seite ziehen
@@ -737,6 +778,24 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
             sparks(g, at, 0xffd8a0, 3);
           });
           if (s % 2 === 0) sfx.laser();
+        }
+        // Die schweren Kiele halten ihre Linie und schießen von dort - jede
+        // zweite Salve eine schwere Lage, quer über das Feld.
+        if (s % 2 === 1) {
+          for (const [side, foes, colour] of [
+            [attackers, defenders, attackerColour],
+            [defenders, attackers, defenderColour],
+          ]) {
+            const heavies = side.filter((sh) => sh.userData.hold);
+            const gun = heavies[Math.floor(Math.random() * heavies.length)];
+            const mark = foes[Math.floor(Math.random() * foes.length)];
+            if (!gun || !mark) continue;
+            fireBolt(g, gun.position.clone(), mark, colour, (at) => {
+              explode(g, at, { size: 1.6, colour: 0xffd08a, shards: 4, life: 0.5 });
+              sfx.treffer();
+            }, true);
+          }
+          sfx.laser();
         }
         await wait(280 / speed);
       }
@@ -808,7 +867,7 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
       const losers = report.winner === 'angreifer' ? defenders : attackers;
       const colour = report.winner === 'angreifer' ? defenderColour : attackerColour;
       hud.round(total, total, report.winner === 'angreifer' ? 'Angreifer siegt' : 'Verteidiger hält');
-      camAim.zoom = 5.2;
+      camAim.zoom = 4.6;
       for (const f of losers.slice()) {
         shipDeath(g, f, colour, speed);
         await wait(240 / speed);

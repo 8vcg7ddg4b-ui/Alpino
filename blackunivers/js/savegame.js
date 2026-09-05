@@ -3,6 +3,7 @@
 // Karte wird nicht mitgespeichert - sie entsteht aus demselben Samen wieder
 // genauso, und das spart das Zehnfache an Platz.
 import { generateMap, tileAt } from './mapgen.js';
+import { tidyUnits } from './state.js';
 
 const KEY = 'blackunivers.save.v1';
 
@@ -46,6 +47,9 @@ export function loadGame() {
       const tile = tileAt(map, sys.col, sys.row);
       if (tile) tile.systemId = sys.id;
     }
+    // Ältere Feldzüge führen noch mehrere Staffeln derselben Art neben-
+    // einander - hier werden sie zusammengelegt.
+    for (const fleet of data.fleets || []) tidyUnits(fleet);
     return { ...data, map, lastBattle: null };
   } catch (err) {
     return null;

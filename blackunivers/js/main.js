@@ -357,12 +357,15 @@ async function doAttack(fleet, col, row) {
   const sys = systemAt(state, col, row);
   const defender = defenderFleets[0] || sys;
   if (!defender) return;
-  const preview = previewBattle(state, fleet, defender);
   const name = defenderFleets[0] ? defenderFleets[0].name : sys.name;
+  // Die Vorschau wird bei jeder Wahl der Ordnung neu gerechnet: man sieht
+  // sofort, was die Entscheidung wert ist.
+  const drawPreview = () => battlePreviewHTML(previewBattle(state, fleet, defender), fleet, name);
   const ok = await confirmModal(
     'Angriff',
-    battlePreviewHTML(preview, fleet, name),
+    drawPreview(),
     'Angreifen', 'Abbrechen',
+    drawPreview,
   );
   if (!ok) return;
   busy = true;
@@ -489,9 +492,14 @@ function showBattleReport(report) {
   $('battleModal').classList.remove('hidden');
 }
 
-function confirmModal(title, html, okText = 'Ja', cancelText = 'Nein') {
+// Steht in der Rückfrage etwas, das sich ändern kann - die Schlachtordnung
+// vor einem Angriff -, dann liefert `rerender` den neuen Text dafür.
+let confirmRerender = null;
+
+function confirmModal(title, html, okText = 'Ja', cancelText = 'Nein', rerender = null) {
   return new Promise((resolve) => {
     const modal = $('confirmModal');
+    confirmRerender = rerender;
     $('confirmTitle').textContent = title;
     $('confirmBody').innerHTML = html;
     $('confirmOk').textContent = okText;
@@ -499,6 +507,7 @@ function confirmModal(title, html, okText = 'Ja', cancelText = 'Nein') {
     modal.classList.remove('hidden');
     const done = (value) => {
       modal.classList.add('hidden');
+      confirmRerender = null;
       $('confirmOk').onclick = null;
       $('confirmCancel').onclick = null;
       resolve(value);
@@ -567,6 +576,13 @@ function handleAction(action, el) {
     case 'research':
       report(startResearch(state, state.playerFactionId, el.dataset.id));
       openSheet('technik');
+      break;
+    // Die Ordnung wird in der Angriffsvorschau gewählt: setzen, Vorschau neu
+    // rechnen, Fenster stehen lassen.
+    case 'pick-tactic':
+      setTactic(state, state.playerFactionId, el.dataset.kind || 'angriff', el.dataset.id);
+      sfx.klick();
+      if (confirmRerender) $('confirmBody').innerHTML = confirmRerender();
       break;
     case 'set-tactic':
       report(setTactic(state, state.playerFactionId, el.dataset.kind, el.dataset.id));

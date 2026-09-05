@@ -291,7 +291,7 @@ export function fleetPanelHTML(state, fleet, extra = {}) {
   const rows = fleet.units.map((u) => `
     <tr>
       <td class="u-name">${shipName(fleet.factionId, u.role)}</td>
-      <td class="u-count">${u.count}<small>/${defs[u.role].staffel}</small></td>
+      <td class="u-count">${u.count}<small>/${u.max || defs[u.role].staffel}</small></td>
       <td class="u-exp">${stars(u.exp)}</td>
     </tr>`).join('');
 
@@ -464,9 +464,18 @@ export function battlePreviewHTML(preview, attacker, defenderName) {
           ${preview.chance}%</div>
         <div class="pv-side"><span>Abwehr</span><strong>${num(preview.defenceStrength)}</strong></div>
       </div>
+      <div class="pv-tactics">
+        <span>Schlachtordnung wählen</span>
+        <div class="set-choice">
+          ${ATTACK_TACTICS.map((id) => `<button data-action="pick-tactic" data-kind="angriff"
+            data-id="${id}" class="${id === preview.attackerTactic ? 'on' : ''}"
+            data-tip="${TACTICS[id].desc}">${TACTICS[id].name}</button>`).join('')}
+        </div>
+        <small>${TACTICS[preview.attackerTactic].desc}</small>
+      </div>
       <ul class="pv-notes">
         <li>Raum: ${preview.terrain}</li>
-        <li>Ordnung: ${TACTICS[preview.attackerTactic].name} gegen ${TACTICS[preview.defenderTactic].name}</li>
+        <li>Gegenüber steht: ${TACTICS[preview.defenderTactic].name}</li>
         ${preview.needsMarines ? `<li>${preview.hasMarines ? 'Landungstruppen an Bord'
     : '<span class="bad">Ohne Landungstruppen fällt die Welt nicht</span>'}</li>` : ''}
         ${preview.shieldLevel ? `<li>Schild: ${shieldInfo(preview.shieldLevel).name}

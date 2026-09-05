@@ -159,6 +159,20 @@ await page.waitForTimeout(700);
 const hasConfirm = await page.locator('#confirmModal:not(.hidden)').count();
 if (hasConfirm) {
   await shot('05c-angriffsvorschau');
+  // Vor jedem Angriff wird die Schlachtordnung gewählt - das Fenster bleibt
+  // dabei stehen und die Vorschau rechnet neu.
+  const tactics = await page.locator('[data-action="pick-tactic"]').count();
+  if (tactics < 2) problems.push('In der Angriffsvorschau fehlt die Wahl der Schlachtordnung.');
+  else {
+    await page.click('[data-action="pick-tactic"][data-id="torpedolauf"]');
+    await page.waitForTimeout(300);
+    const chosen = await page.locator('[data-action="pick-tactic"][data-id="torpedolauf"].on').count();
+    if (!chosen) problems.push('Die gewählte Schlachtordnung wird nicht übernommen.');
+    if (!await page.locator('#confirmModal:not(.hidden)').count()) {
+      problems.push('Die Wahl der Schlachtordnung schließt das Fenster.');
+    }
+    await shot('05c2-schlachtordnung');
+  }
   await page.click('#confirmOk');
   await page.waitForTimeout(2200);
   await shot('05d-gefecht');
