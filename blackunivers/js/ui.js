@@ -21,7 +21,7 @@ import {
 import { systemIncome, upkeepOf, canBuildRole, sensorRangeOf } from './actions.js';
 import { emblemSVG, iconSVG } from './emblems.js';
 import { sectorOfTile } from './starchart.js';
-import { territorySize } from './territory.js';
+import { territorySize, baseOwner } from './territory.js';
 import { aceBonusText } from './pilots.js';
 import { battleRoundsHTML } from './battle3d.js';
 
@@ -88,6 +88,8 @@ export function topBarHTML(state, view = {}) {
         data-tip="Grenzen der Reiche anzeigen (B)">${iconSVG('target', { size: 18 })}</button>
       <button class="tb-tool ${view.mapMode === 'besitz' ? 'on' : ''}" data-action="toggle-mapmode"
         data-tip="Karte nach Flaggen einfärben (M)">${iconSVG('eye', { size: 18 })}</button>
+      <button class="tb-tool ${view.fullscreen ? 'on' : ''}" data-action="toggle-fullscreen"
+        data-tip="Vollbild ein- und ausschalten (F)">${iconSVG('jump', { size: 18 })}</button>
       ${toolButton('hilfe', 'book', 'Steuerung und Hilfe (F1)')}
       ${toolButton('einstellungen', 'gear', 'Einstellungen')}
       <button class="tb-tool" data-action="to-menu"
@@ -190,6 +192,13 @@ export function todoHTML(state) {
 // --- Die Karte unter dem Zeiger ------------------------------------------
 // Was dort liegt, steht sofort da - ohne Klick, ohne Warten. Nur das
 // Wichtigste: Name, Flagge, Stärke.
+
+// Steht auf diesem Feld eine Startbasis? Sie gehört dem Reich, dessen Grenze
+// um sie herum verläuft.
+function baseAt(state, col, row) {
+  return (state.bases || []).find((b) => b.col === col && b.row === row) || null;
+}
+
 export function hoverCardHTML(state, col, row, visibleFleets = null) {
   const tile = tileOf(state, col, row);
   if (!tile) return '';
@@ -197,6 +206,16 @@ export function hoverCardHTML(state, col, row, visibleFleets = null) {
   const here = fleetsAt(state, col, row).filter((f) => f.factionId === state.playerFactionId
     || !visibleFleets || visibleFleets.has(f.id));
   const parts = [];
+  const base = baseAt(state, col, row);
+  if (base) {
+    const owner = baseOwner(state, base);
+    const p = owner ? factionProfile(owner) : null;
+    parts.push(`<div class="hc-line" style="--faction:${p ? p.color : '#8fa6c4'}">
+      <b>${base.name}</b>
+      <small>${base.kind === 'station' ? 'Raumstation' : 'Militärbasis im Trümmerfeld'}${
+  p ? ` · ${p.short}` : ' · herrenlos'} · Startdeck für Staffeln</small>
+    </div>`);
+  }
   if (sys) {
     const p = factionProfile(sys.factionId);
     const seen = hasSeen(state, sys.col, sys.row) || sys.factionId === state.playerFactionId;
@@ -255,6 +274,7 @@ export function helpHTML() {
     ['T', 'Technik: Triebwerke, Waffen, Schilde'],
     ['C', 'Chronik: was bisher geschah'],
     ['B / M', 'Grenzen ein- und ausblenden · Karte nach Flaggen einfärben'],
+    ['F', 'Vollbild ein und aus'],
     ['F1 oder ?', 'Diese Tafel'],
   ];
   const table = (rows) => `<table class="list keys"><tbody>${rows.map(([k, v]) => `
@@ -430,6 +450,15 @@ export function tileInfoHTML(state, col, row) {
         <small>${tile.zoneName || sector.name} · Feld ${col}/${row}</small>
       </span>
     </header>
+    ${(() => {
+    const base = baseAt(state, col, row);
+    if (!base) return '';
+    const owner = baseOwner(state, base);
+    const p = owner ? factionProfile(owner) : null;
+    return `<div class="panel-block"><h4>${base.kind === 'station' ? 'Raumstation' : 'Militärbasis'}</h4>
+      <ul class="tight"><li>${base.name} <small>${p ? p.short : 'herrenlos'}</small></li>
+      <li>Startdeck <small>Jäger und Bomber im Umkreis von zwei Feldern</small></li></ul></div>`;
+  })()}
     <div class="panel-stats">
       <div><span>Sektor</span><strong>${sector.name}</strong></div>
       <div><span>Flugkosten</span><strong>${tile.type === 'graben' ? 'kein Weg'
@@ -476,6 +505,9 @@ export function battlePreviewHTML(preview, attacker, defenderName) {
       <ul class="pv-notes">
         <li>Raum: ${preview.terrain}</li>
         <li>Gegenüber steht: ${TACTICS[preview.defenderTactic].name}</li>
+        ${preview.hasFighters ? (preview.launchBase && preview.launchBase.ok
+    ? `<li>Staffeln starten von <strong>${preview.launchBase.name}</strong></li>`
+    : '<li><span class="bad">Kein Deck in Reichweite – Jäger und Bomber leisten nur die Hälfte</span></li>') : ''}
         ${preview.needsMarines ? `<li>${preview.hasMarines ? 'Landungstruppen an Bord'
     : '<span class="bad">Ohne Landungstruppen fällt die Welt nicht</span>'}</li>` : ''}
         ${preview.shieldLevel ? `<li>Schild: ${shieldInfo(preview.shieldLevel).name}

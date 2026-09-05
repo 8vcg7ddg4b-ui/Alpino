@@ -1070,9 +1070,135 @@ export function buildMap(state) {
   mapMaterial = new THREE.MeshBasicMaterial({ map: mapTexture });
   buildTable();
   buildJumpPoints(state);
+  buildBases(state);
   buildSystems(state);
   buildBridge(state);
   centerOnFaction(state);
+}
+
+// --- Startbasen -----------------------------------------------------------
+// Zwei Sorten: der Ring einer Raumstation, der im freien Raum steht, und die
+// Militärbasis, die in einen Brocken gehauen ist. Von beiden starten Staffeln.
+const baseNodes = [];
+
+function stationModel(colour) {
+  const g = new THREE.Group();
+  const steel = new THREE.MeshStandardMaterial({
+    color: 0x6a7480, metalness: 0.8, roughness: 0.35, flatShading: true,
+  });
+  const lit = new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.85 });
+  // Der Ring, in dem gewohnt wird.
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.5, 8, 26), steel);
+  ring.rotation.x = -Math.PI / 2 + 0.25;
+  g.add(ring);
+  // Die Nabe mit dem Turm.
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 1.6, 10), steel);
+  g.add(hub);
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 1.8, 8), steel);
+  tower.position.y = 1.6;
+  g.add(tower);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 8), lit);
+  dome.position.y = 2.5;
+  g.add(dome);
+  // Vier Speichen und zwei Hangartore.
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.22, 0.3), steel);
+    spoke.position.set(Math.cos(a) * 1.5, 0, Math.sin(a) * 1.5);
+    spoke.rotation.set(0.25 * Math.sin(a), -a, 0);
+    g.add(spoke);
+  }
+  for (const side of [-1, 1]) {
+    const gate = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.12), lit);
+    gate.position.set(side * 2.6, 0.55 * side * 0.25, 0);
+    gate.rotation.y = Math.PI / 2;
+    g.add(gate);
+  }
+  g.userData.spin = ring;
+  return g;
+}
+
+function asteroidBaseModel(colour) {
+  const g = new THREE.Group();
+  const rock = new THREE.MeshStandardMaterial({
+    color: 0x6d6154, roughness: 0.95, metalness: 0.05, flatShading: true,
+  });
+  const steel = new THREE.MeshStandardMaterial({
+    color: 0x5d6672, metalness: 0.75, roughness: 0.4, flatShading: true,
+  });
+  const lit = new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.85 });
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(2.1, 0), rock);
+  body.scale.set(1.25, 0.8, 1);
+  body.rotation.set(0.3, 0.7, 0.2);
+  g.add(body);
+  // Die Anlage obenauf: Kuppel, Mast, zwei Startröhren im Fels.
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.85, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), steel);
+  dome.position.y = 1.4;
+  g.add(dome);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.16, 12), lit);
+  band.position.y = 1.42;
+  g.add(band);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.5, 6), steel);
+  mast.position.y = 2.4;
+  g.add(mast);
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({
+    color: 0xff5a4a, transparent: true, opacity: 0.9,
+  }));
+  beacon.position.y = 3.2;
+  beacon.name = 'feuer';
+  g.add(beacon);
+  for (const side of [-1, 1]) {
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 1.5, 8, 1, true), steel);
+    tube.rotation.set(Math.PI / 2, 0, 0);
+    tube.position.set(side * 1.3, 0.35, 1.1);
+    g.add(tube);
+    const mouth = new THREE.Mesh(new THREE.CircleGeometry(0.32, 10), lit);
+    mouth.position.set(side * 1.3, 0.35, 1.86);
+    g.add(mouth);
+  }
+  return g;
+}
+
+function buildBases(state) {
+  baseNodes.length = 0;
+  for (const base of state.bases || []) {
+    const { x, z } = worldOfTile(base.col, base.row);
+    const group = new THREE.Group();
+    group.position.set(x, 0, z);
+    const model = base.kind === 'station' ? stationModel(0xbfe4ff) : asteroidBaseModel(0xffc98a);
+    model.position.y = base.kind === 'station' ? 6.5 : 3.2;
+    model.scale.setScalar(0.85);
+    group.add(model);
+    // Ein dünner Halt zur Platte, wie ihn auch die Flotten haben.
+    const tether = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.08, base.kind === 'station' ? 6 : 3, 5),
+      new THREE.MeshBasicMaterial({ color: 0x8fb6dc, transparent: true, opacity: 0.3 }),
+    );
+    tether.position.y = (base.kind === 'station' ? 6 : 3) / 2;
+    group.add(tether);
+    const label = labelSprite(`${base.kind === 'station' ? '◉' : '◆'} ${base.name}`, {
+      size: 15, color: '#cfe2ff', glow: '#7fd4ff',
+    });
+    label.position.set(0, 0.9, 0);
+    label.center.set(0.5, 1);
+    group.add(label);
+    registerLabel(label, 70);
+    group.userData.base = base;
+    group.userData.model = model;
+    holoGroup.add(group);
+    baseNodes.push(group);
+  }
+}
+
+function animateBases(time) {
+  for (const node of baseNodes) {
+    const model = node.userData.model;
+    if (!model) continue;
+    if (model.userData.spin) model.userData.spin.rotation.z += 0.004;
+    const beacon = model.getObjectByName('feuer');
+    if (beacon) beacon.material.opacity = 0.35 + Math.abs(Math.sin(time * 2.6)) * 0.6;
+    model.position.y += Math.sin(time * 0.7 + node.position.x) * 0.004;
+  }
 }
 
 // Eine Sprungboje: kein Ring auf der Platte, sondern ein Seezeichen im Raum -
@@ -1156,6 +1282,8 @@ function buildJumpPoints(state) {
       buoy.scale.setScalar(1.35);
       buoy.position.set(p.x, 0, p.z);
       buoy.userData.phase = Math.random() * Math.PI * 2;
+      buoy.userData.col = p === a ? jp.a.col : jp.b.col;
+      buoy.userData.row = p === a ? jp.a.row : jp.b.row;
       holoGroup.add(buoy);
       jumpBuoys.push(buoy);
     }
@@ -1299,6 +1427,7 @@ function buildSystems(state) {
     group.add(grab);
     pickTargets.push(grab);
 
+    group.userData.system = sys;
     mapGroup.add(group);
     systemMeshes.set(sys.id, group);
   }
@@ -1334,7 +1463,7 @@ export function updateSystems(state) {
     const profile = factionProfile(sys.factionId);
     const seen = hasSeen(state, sys.col, sys.row);
     const colour = new THREE.Color(profile.color);
-    group.visible = seen;
+    group.visible = seen && !battleMode;
     const planet = group.getObjectByName('planet');
     const owner = group.getObjectByName('owner');
     const beam = group.getObjectByName('beam');
@@ -1834,14 +1963,33 @@ export function getMapMode() { return mapMode; }
 export function setGuidesVisible(on) { guidesVisible = !!on; }
 // Der Gefechtsmodus: Beschriftungen und Kartenmarken aus, damit die
 // Einstellung dem Gefecht gehört und nicht dem Atlas.
-export function setBattleMode(on) {
+export function setBattleMode(on, focus = null) {
   battleMode = !!on;
   if (overlayGroup) overlayGroup.visible = !battleMode;
+  if (territoryGroup) territoryGroup.visible = bordersVisible && !battleMode;
   // Die Flottenmarken der Karte treten ab: im Gefecht stehen die echten
   // Verbände auf dem Feld, und zwei Träger übereinander sieht niemand gern.
   for (const mesh of fleetMeshes.values()) mesh.visible = !battleMode;
   for (const mesh of [...shieldDomes, ...shieldNets]) {
     mesh.visible = !!mesh.userData.want && !battleMode;
+  }
+  // Im Gefecht bleibt nur der Schauplatz stehen: die Welt, um die gekämpft
+  // wird, die Station daneben, die Boje im Feld - der Rest der Galaxis
+  // wartet, bis es vorbei ist.
+  const near = (col, row) => !focus
+    || Math.max(Math.abs(col - focus.col), Math.abs(row - focus.row)) <= 2;
+  for (const [, group] of systemMeshes) {
+    const sys = group.userData.system;
+    if (!sys) continue;
+    const seen = stateRef ? hasSeen(stateRef, sys.col, sys.row) : true;
+    group.visible = battleMode ? (seen && near(sys.col, sys.row)) : seen;
+  }
+  for (const node of baseNodes) {
+    const base = node.userData.base;
+    node.visible = !battleMode || near(base.col, base.row);
+  }
+  for (const buoy of jumpBuoys) {
+    buoy.visible = !battleMode || near(buoy.userData.col, buoy.userData.row);
   }
   if (!battleMode) layoutLabels();
 }
@@ -1927,6 +2075,7 @@ export function render() {
   const now = performance.now();
   animateFields(now);
   animateBuoys(now / 1000);
+  animateBases(now / 1000);
   animateShields(now / 1000);
   layoutLabels();
   renderer.render(scene, camera);

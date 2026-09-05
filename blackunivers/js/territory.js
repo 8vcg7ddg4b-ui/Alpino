@@ -86,3 +86,16 @@ export function territorySize(state, factionId) {
 export function clearTerritoryCache() {
   cache = null;
 }
+
+
+// Eine Basis gehört dem Reich, dessen Grenze um sie herum verläuft. So
+// wechselt sie den Besitzer, wenn die Welt daneben fällt - ohne eigene
+// Eroberungsregel.
+export function baseOwner(state, base) {
+  const map = territoryMap(state);
+  return map.owner[base.row * GRID_COLS + base.col] || null;
+}
+
+export function basesOf(state, factionId) {
+  return (state.bases || []).filter((b) => baseOwner(state, b) === factionId);
+}

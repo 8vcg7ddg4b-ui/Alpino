@@ -9,6 +9,7 @@ import {
   DEFAULT_TACTIC, TILE_TYPES, techMoveBonus, TRADE_GOODS, MAX_TECH_LEVEL,
 } from './data.js';
 import { generateMap, tileAt } from './mapgen.js';
+import { GRID_COLS, GRID_ROWS } from './starchart.js';
 import { initRelations, seedKnowledge, declareWar } from './diplomacy.js';
 import { rulerFor, rulerTraitSum, drawAce } from './pilots.js';
 import { makePrng, pick, rollInt } from './prng.js';
@@ -63,6 +64,10 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION, sce
     aces: [],
     usedAceNames: [],
     seen: {},
+    // Startbasen: Raumstationen im freien Raum und Militärbasen in
+    // Trümmerfeldern. Von ihnen starten Jäger und Bomber, wenn kein Träger
+    // dabei ist - ohne eine solche Basis fliegt eine Staffel nur halb.
+    bases: [],
     victory: null,
     nephilimTurn: null,
     lastBattle: null,
@@ -177,8 +182,71 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION, sce
     ], { name: `${prefix}-Grenzflotte` });
   }
 
+  placeBases(state, rnd);
+
   logMsg(state, `Feldzug beginnt: ${playerFaction(state).name}.`, 'start');
   return state;
+}
+
+// --- Startbasen -----------------------------------------------------------
+// Eine Jägerstaffel braucht ein Deck. Wo kein Träger mitfliegt, muss eine
+// Welt, eine Raumstation oder eine Militärbasis in Reichweite sein - sonst
+// hängen die Maschinen in der Leere und leisten nur die Hälfte.
+const STATION_NAMES = ['Ankerplatz', 'Vorposten', 'Wachring', 'Sprungwacht', 'Kranzstation', 'Randfeuer'];
+const ROCK_NAMES = ['Felsennest', 'Steinbruch', 'Brockenwacht', 'Grubenbasis', 'Trümmerhorst', 'Kieskrone'];
+
+function placeBases(state, rnd) {
+  const used = new Set(state.systems.map((sys) => `${sys.col},${sys.row}`));
+  let n = 0;
+  const add = (kind, name, col, row) => {
+    const key = `${col},${row}`;
+    if (used.has(key)) return;
+    used.add(key);
+    state.bases.push({ id: makeId('bas'), kind, name, col, row });
+    n += 1;
+  };
+
+  for (const f of state.factions) {
+    if (f.isNeutral || f.isInvader) continue;
+    const home = capitalOf(state, f.id);
+    if (!home) continue;
+    // Die Raumstation steht im freien Raum vor der Hauptwelt.
+    const dir = home.col < GRID_COLS / 2 ? 1 : -1;
+    for (const [dc, dr] of [[dir * 3, 0], [dir * 3, 2], [dir * 2, -3], [0, 3], [0, -3]]) {
+      const col = home.col + dc;
+      const row = home.row + dr;
+      const tile = tileAt(state.map, col, row);
+      if (!tile || tile.type === TILE_TYPES.RIFT || used.has(`${col},${row}`)) continue;
+      add('station', `${STATION_NAMES[n % STATION_NAMES.length]} ${home.name}`, col, row);
+      break;
+    }
+    // Die Militärbasis liegt in einem Trümmerfeld in der Nähe.
+    let best = null;
+    for (let r = 2; r <= 7 && !best; r++) {
+      for (let dr = -r; dr <= r && !best; dr++) {
+        for (let dc = -r; dc <= r && !best; dc++) {
+          if (Math.max(Math.abs(dc), Math.abs(dr)) !== r) continue;
+          const col = home.col + dc;
+          const row = home.row + dr;
+          const tile = tileAt(state.map, col, row);
+          if (!tile || tile.type !== TILE_TYPES.ASTEROIDS) continue;
+          if (used.has(`${col},${row}`)) continue;
+          best = { col, row };
+        }
+      }
+    }
+    if (best) add('asteroid', `${ROCK_NAMES[n % ROCK_NAMES.length]}`, best.col, best.row);
+  }
+
+  // Ein paar herrenlose Brocken dazu - sie wechseln den Besitzer mit der
+  // Grenze, die um sie herum verläuft.
+  for (let i = 0; i < 6; i++) {
+    const col = 4 + Math.floor(rnd() * (GRID_COLS - 8));
+    const row = 3 + Math.floor(rnd() * (GRID_ROWS - 6));
+    const tile = tileAt(state.map, col, row);
+    if (!tile || tile.type !== TILE_TYPES.ASTEROIDS) continue;
+    add('asteroid', ROCK_NAMES[(n + 2) % ROCK_NAMES.length], col, row);
+  }
 }
 
 // --- Flotten --------------------------------------------------------------

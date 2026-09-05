@@ -543,7 +543,7 @@ export async function playBattle(report, { speed = 1, onRound = null, render = n
 
   // Das Kartenwerk tritt zurück: keine Namen, keine Reichweiten, kein
   // Bedienfeld über dem Gefecht.
-  setBattleMode(true);
+  setBattleMode(true, { col: report.col, row: report.row });
   document.body.classList.add('gefecht-laeuft');
 
   const skip = () => { cancelled = true; };

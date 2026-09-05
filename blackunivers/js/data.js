@@ -234,24 +234,30 @@ export const ROLE_SHORT = {
 
 // Wer schlägt wen. Der Faktor gilt für den Angreifer der Zeile gegen den
 // Verteidiger der Spalte.
+// Ein Jäger schießt keinen Kreuzer zusammen. Er kommt an seiner Flak nicht
+// vorbei - dafür gibt es Bomber, und die bleiben der einzige Weg, einen
+// schweren Kiel zu knacken.
 export const ROLE_MATCHUP = {
-  jaeger: { jaeger: 1, bomber: 1.6, korvette: 0.9, kreuzer: 0.5, traeger: 1.2, marines: 1.4, wache: 0.8 },
+  jaeger: { jaeger: 1, bomber: 1.6, korvette: 0.7, kreuzer: 0.3, traeger: 1.2, marines: 1.4, wache: 0.8 },
   bomber: { jaeger: 0.6, bomber: 1, korvette: 1.5, kreuzer: 1.8, traeger: 1.7, marines: 1.1, wache: 1.2 },
-  korvette: { jaeger: 1.3, bomber: 1.1, korvette: 1, kreuzer: 0.7, traeger: 1.3, marines: 1.2, wache: 1 },
-  kreuzer: { jaeger: 1.5, bomber: 1.2, korvette: 1.4, kreuzer: 1, traeger: 1.5, marines: 1.3, wache: 1.2 },
-  traeger: { jaeger: 0.4, bomber: 0.4, korvette: 0.5, kreuzer: 0.4, traeger: 0.5, marines: 0.5, wache: 0.4 },
+  korvette: { jaeger: 1.6, bomber: 1.2, korvette: 1, kreuzer: 0.7, traeger: 1.3, marines: 1.2, wache: 1 },
+  kreuzer: { jaeger: 2.0, bomber: 1.3, korvette: 1.5, kreuzer: 1, traeger: 1.5, marines: 1.3, wache: 1.2 },
+  traeger: { jaeger: 0.6, bomber: 0.5, korvette: 0.5, kreuzer: 0.4, traeger: 0.5, marines: 0.5, wache: 0.4 },
   marines: { jaeger: 0.3, bomber: 0.4, korvette: 0.5, kreuzer: 0.5, traeger: 0.8, marines: 1, wache: 1.8 },
-  wache: { jaeger: 1.1, bomber: 1.2, korvette: 0.9, kreuzer: 0.6, traeger: 1, marines: 1.6, wache: 1 },
+  wache: { jaeger: 1.3, bomber: 1.2, korvette: 0.9, kreuzer: 0.6, traeger: 1, marines: 1.6, wache: 1 },
 };
 
 // Die Grundwerte einer Rolle. `staffel` ist die Zahl der Maschinen oder
 // Schiffe, aus denen ein Verband besteht; sie schmilzt im Gefecht.
+// Ein schwerer Kiel ist wenige Schiffe, aber jedes davon zählt: die Werte
+// sind so gesetzt, dass ein Kreuzer seinen Preis wert ist und nicht von drei
+// Jägerstaffeln überrannt wird.
 const ROLE_BASE = {
   jaeger: { cost: 260, time: 2, attack: 9, armour: 6, staffel: 12, upkeep: 22 },
   bomber: { cost: 340, time: 3, attack: 13, armour: 7, staffel: 8, upkeep: 30 },
-  korvette: { cost: 420, time: 3, attack: 16, armour: 14, staffel: 3, upkeep: 38 },
-  kreuzer: { cost: 720, time: 5, attack: 26, armour: 26, staffel: 2, upkeep: 62 },
-  traeger: { cost: 1150, time: 7, attack: 10, armour: 34, staffel: 1, upkeep: 96 },
+  korvette: { cost: 420, time: 3, attack: 23, armour: 21, staffel: 3, upkeep: 38 },
+  kreuzer: { cost: 720, time: 5, attack: 40, armour: 44, staffel: 2, upkeep: 62 },
+  traeger: { cost: 1150, time: 7, attack: 16, armour: 64, staffel: 1, upkeep: 96 },
   marines: { cost: 300, time: 2, attack: 7, armour: 9, staffel: 6, upkeep: 24 },
   wache: { cost: 0, time: 0, attack: 8, armour: 10, staffel: 10, upkeep: 0 },
 };

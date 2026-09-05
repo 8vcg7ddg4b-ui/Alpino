@@ -10,6 +10,7 @@ export function setupInput(canvas, handlers = {}) {
     onEndTurn: () => {}, onCancel: () => {}, onNextFleet: () => {},
     onCenterHome: () => {}, onSheet: () => {}, onRender: () => {},
     onToggleBorders: () => {}, onToggleMapMode: () => {}, onToggleMini: () => {},
+    onToggleFullscreen: () => {},
     ...handlers,
   };
 
@@ -131,6 +132,7 @@ export function setupInput(canvas, handlers = {}) {
       case 'b': case 'B': H.onToggleBorders(); break;
       case 'm': case 'M': H.onToggleMapMode(); break;
       case 'ü': case 'Ü': H.onToggleMini(); break;
+      case 'f': case 'F': H.onToggleFullscreen(); break;
       // Die Hilfe liegt auf der Taste, auf der sie jeder sucht.
       case 'F1': ev.preventDefault(); H.onSheet('hilfe'); break;
       case '?': H.onSheet('hilfe'); break;

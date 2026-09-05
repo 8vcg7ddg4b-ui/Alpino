@@ -11,6 +11,7 @@ import {
 import {
   factionById, fleetTotalCount, garrisonTotal, hasGreatWork, logMsg, tileOf,
 } from './state.js';
+import { baseOwner } from './territory.js';
 import { aceCombatBonus } from './pilots.js';
 import { rulerTraitSum } from './pilots.js';
 
@@ -25,6 +26,29 @@ function unitsOfSystem(state, system) {
     out.push({ id: `gar_${system.id}_${role}`, role, count, exp: 20, garrison: true });
   }
   return out;
+}
+
+// --- Woher die Staffeln starten ------------------------------------------
+// Jäger und Bomber haben keine Sprungtriebwerke und keine Vorräte für Wochen.
+// Sie starten von einem Träger, von einer eigenen Welt, von einer Raumstation
+// oder von einer Militärbasis in einem Trümmerfeld. Fehlt beides, hängen sie
+// in der Leere und leisten nur die Hälfte.
+export function launchBase(state, factionId, col, row, units) {
+  if ((units || []).some((u) => u.role === 'traeger' && u.count > 0)) {
+    return { ok: true, kind: 'traeger', name: 'Trägerdeck' };
+  }
+  for (const sys of state.systems) {
+    if (sys.factionId !== factionId) continue;
+    if (Math.max(Math.abs(sys.col - col), Math.abs(sys.row - row)) <= 1) {
+      return { ok: true, kind: 'welt', name: sys.name };
+    }
+  }
+  for (const base of state.bases || []) {
+    if (Math.max(Math.abs(base.col - col), Math.abs(base.row - row)) > 2) continue;
+    if (baseOwner(state, base) !== factionId) continue;
+    return { ok: true, kind: base.kind, name: base.name };
+  }
+  return { ok: false, kind: null, name: null };
 }
 
 // Der Beitrag eines Verbands zur Stärke einer Seite.
@@ -42,9 +66,11 @@ function unitStrength(state, factionId, unit, opts) {
   if (tactic && tactic.mods[unit.role]) value *= tactic.mods[unit.role];
   // Das Ass fliegt in einer Rolle vorn.
   value *= 1 + aceCombatBonus(opts.ace, unit.role);
-  // Träger machen die Jäger daneben stärker - das ist ihr eigentlicher Wert.
-  if ((unit.role === 'jaeger' || unit.role === 'bomber') && opts.carriers > 0) {
-    value *= 1 + Math.min(0.35, opts.carriers * 0.12);
+  if (unit.role === 'jaeger' || unit.role === 'bomber') {
+    // Träger machen die Jäger daneben stärker - das ist ihr eigentlicher Wert.
+    if (opts.carriers > 0) value *= 1 + Math.min(0.35, opts.carriers * 0.12);
+    // Ohne Deck in Reichweite fliegt eine Staffel nur halb.
+    if (opts.launch === false) value *= 0.5;
   }
   // Moral: eine gebrochene Flotte schießt schlecht.
   value *= 0.55 + (opts.morale / MORALE_MAX) * 0.65;
@@ -81,6 +107,7 @@ function sideStrength(state, side) {
     if (u.count <= 0) continue;
     total += unitStrength(state, side.factionId, u, {
       tactic: side.tactic, ace: side.ace, morale: side.morale, carriers,
+      launch: side.launch === undefined ? true : side.launch,
     });
   }
   return total;
@@ -111,15 +138,24 @@ function sideArmour(state, side) {
 function applyLosses(side, foe, damage) {
   const losses = {};
   if (damage <= 0) return losses;
+  const defs = unitDefs(side.factionId);
+  const armourOf = (u) => (defs[u.role] || defs[WATCH_ROLE]).armour;
   let pool = damage;
   for (let pass = 0; pass < 3 && pool >= 0.75; pass++) {
     const alive = side.units.filter((u) => u.count > 0);
     if (!alive.length) break;
     const totalV = totalVulnerability(alive, foe);
+    // Panzerung zählt beim Sterben, nicht nur beim Rechnen: ein Kreuzer
+    // verträgt viermal so viel wie ein Jäger, ehe er ausfällt.
+    let machines = 0;
+    let armourSum = 0;
+    for (const u of alive) { machines += u.count; armourSum += armourOf(u) * u.count; }
+    const avgArmour = machines ? armourSum / machines : 8;
     const before = pool;
     for (const u of alive) {
       if (pool < 0.75) break;
-      const share = before * (vulnerability(u, foe) / totalV);
+      const share = before * (vulnerability(u, foe) / totalV)
+        * (avgArmour / Math.max(1, armourOf(u)));
       let hit = Math.floor(share + 0.5);
       if (hit <= 0) hit = pass === 0 && before >= 1 ? 1 : 0;
       hit = Math.min(hit, u.count, Math.floor(pool));
@@ -198,6 +234,13 @@ export function resolveBattle(state, attackerFleet, defender, opts = {}) {
   if (defenceSide.tactic === 'hinterhalt' && terrain.label !== 'Nebelbank') {
     defenceSide.tactic = 'jagdschirm';
   }
+
+  // Wer von wo startet - das entscheidet über die halbe Wirkung der Staffeln.
+  const attackerBase = launchBase(state, attackSide.factionId, defender.col, defender.row, attackSide.units);
+  attackSide.launch = attackerBase.ok;
+  defenceSide.launch = isSystemFight
+    ? true
+    : launchBase(state, defenceSide.factionId, defender.col, defender.row, defenceSide.units).ok;
 
   const shield = isSystemFight ? { ...defender.shield } : null;
   const rounds = [];
@@ -279,15 +322,18 @@ export function resolveBattle(state, attackerFleet, defender, opts = {}) {
   }
 
   if (!winner) {
-    // Nach fünf Runden entscheidet, wer noch stehen kann.
-    const aScore = attackSide.units.reduce((s, u) => s + u.count, 0) * (attackSide.morale / 60);
-    const dScore = defenceSide.units.reduce((s, u) => s + u.count, 0) * (defenceSide.morale / 60);
+    // Nach fünf Runden entscheidet, wer noch stehen kann - und zwar nach
+    // Gefechtswert, nicht nach Stückzahl. Zwei Kreuzer sind mehr als
+    // zwanzig angeschlagene Jäger.
+    const aScore = sideStrength(state, attackSide) * (attackSide.morale / 60);
+    const dScore = sideStrength(state, defenceSide) * (defenceSide.morale / 60);
     winner = aScore > dScore * 1.1 ? 'angreifer' : dScore > aScore * 1.1 ? 'verteidiger' : 'unentschieden';
   }
 
   return {
     kind: isSystemFight ? 'system' : 'flotte',
     winner,
+    launchBase: attackerBase,
     rounds,
     terrain: terrain.label,
     attacker: {
@@ -342,6 +388,12 @@ export function previewBattle(state, attackerFleet, defender, opts = {}) {
     ace: isSystemFight ? null : defender.ace,
     tactic: opts.defenderTactic || (defenderFaction ? defenderFaction.tacticDefence : 'schildwall'),
   };
+  const aBase = launchBase(state, attackSide.factionId, defender.col, defender.row, attackSide.units);
+  const dBase = isSystemFight
+    ? { ok: true, kind: 'welt', name: defender.name }
+    : launchBase(state, defenceSide.factionId, defender.col, defender.row, defenceSide.units);
+  attackSide.launch = aBase.ok;
+  defenceSide.launch = dBase.ok;
   const terrain = terrainMods(state, defender.col, defender.row);
   const a = sideStrength(state, attackSide) * matchupFactor(attackSide.units, defenceSide.units);
   let d = sideStrength(state, defenceSide) * matchupFactor(defenceSide.units, attackSide.units) * terrain.defence;
@@ -362,6 +414,11 @@ export function previewBattle(state, attackerFleet, defender, opts = {}) {
     hasMarines: attackerFleet.units.some((u) => u.role === 'marines' && u.count > 0),
     attackerTactic: attackSide.tactic,
     defenderTactic: defenceSide.tactic,
+    launchBase: aBase,
+    foeLaunchBase: dBase,
+    hasFighters: attackerFleet.units.some(
+      (u) => (u.role === 'jaeger' || u.role === 'bomber') && u.count > 0,
+    ),
   };
 }
 

@@ -4,6 +4,7 @@
 const KEY = 'blackunivers.settings.v1';
 
 const DEFAULTS = {
+  vollbild: true,
   vorspann: true,
   grenzen: true,
   musik: true,
@@ -78,7 +79,8 @@ export function settingsHTML() {
 
   return `
     <div class="set-list">
-      ${row('vorspann', 'Vorspann', 'Das Video vor dem Startbild', toggle('vorspann'))}
+      ${row('vollbild', 'Vollbild', 'Der Feldzug nimmt den ganzen Schirm (F)', toggle('vollbild'))}
+      ${row('vorspann', 'Vorspann', 'Der Studio-Vorspann vor dem Startbild', toggle('vorspann'))}
       ${row('musik', 'Musik', '„Black Hull Directive" – im Startbild und im Feldzug', toggle('musik'))}
       ${row('klang', 'Klang', 'Funk, Triebwerke, Treffer', toggle('klang'))}
       ${row('bruecke', 'Brücke zeigen', 'Der Raum um den Holotisch. Aus: nur die Karte.', toggle('bruecke'))}

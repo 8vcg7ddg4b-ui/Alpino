@@ -98,6 +98,7 @@ function refreshUI() {
   $('topBar').innerHTML = topBarHTML(state, {
     borders: areBordersVisible(),
     mapMode: getMapMode(),
+    fullscreen: isFullscreen(),
   });
   $('feed').innerHTML = logFeedHTML(state, 6);
   // Die Aufgabenleiste: was in diesem Zug noch offen ist.
@@ -630,6 +631,9 @@ function handleAction(action, el) {
     case 'next-fleet':
       nextFleet();
       break;
+    case 'toggle-fullscreen':
+      toggleFullscreen();
+      break;
     case 'next-yard':
       nextYard();
       break;
@@ -836,6 +840,7 @@ async function beginGame(newState, { opening = true } = {}) {
       onToggleBorders: () => { handleAction('toggle-borders'); },
       onToggleMapMode: () => { handleAction('toggle-mapmode'); },
       onToggleMini: () => toggleMiniMap(),
+      onToggleFullscreen: toggleFullscreen,
       onRender: (needsResize) => { if (needsResize) resize(); draw(); drawMiniMap(); },
     });
     sceneReady = true;
@@ -979,6 +984,12 @@ function wireGameChrome() {
   // Sprechblasen ohne Wartezeit: alles mit `data-tip` erklärt sich sofort.
   wireTips();
 
+  // Vollbild: der Browser verlangt eine Handlung des Nutzers, also wird bei
+  // jedem Klick nachgesehen, ob es schon steht.
+  document.addEventListener('pointerdown', () => {
+    if (state && !$('app').classList.contains('hidden')) enterFullscreen();
+  });
+
   // Die rechte Maustaste ist überall dasselbe: ein Zurück. Sie schließt die
   // offene Tafel, sonst hebt sie die Auswahl auf - auch über einer Tafel,
   // nicht nur über der Karte.
@@ -1014,6 +1025,39 @@ function wireGameChrome() {
       if (body) body.innerHTML = settingsHTML();
     }
   });
+}
+
+// --- Vollbild -------------------------------------------------------------
+// Eine Sternenkarte auf einer halben Seite ist keine Sternenkarte. Der
+// Feldzug nimmt den ganzen Schirm - der Browser lässt das nur nach einer
+// Handlung des Nutzers zu, also wird es beim Beginn eines Feldzugs und bei
+// jedem Klick nachgeholt, solange es nicht steht.
+function isFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function enterFullscreen() {
+  if (!getSetting('vollbild') || isFullscreen()) return;
+  const el = document.documentElement;
+  const go = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!go) return;
+  try {
+    const p = go.call(el, { navigationUI: 'hide' });
+    if (p && p.catch) p.catch(() => { /* der Browser mag nicht - dann eben nicht */ });
+  } catch (err) { /* in einem Rahmen ohne Erlaubnis geht es nicht */ }
+}
+
+function toggleFullscreen() {
+  if (isFullscreen()) {
+    setSetting('vollbild', false);
+    const out = document.exitFullscreen || document.webkitExitFullscreen;
+    if (out) { try { out.call(document); } catch (err) { /* egal */ } }
+    toast('Vollbild aus.');
+    return;
+  }
+  setSetting('vollbild', true);
+  enterFullscreen();
+  toast('Vollbild an.');
 }
 
 // --- Sprechblasen ---------------------------------------------------------

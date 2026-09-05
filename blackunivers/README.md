@@ -63,6 +63,11 @@ Bahn um seinen Platz im Verband, schwere Kiele halten die Linie, Jäger
 kreisen eng, und wer an der Reihe ist, zieht einen **Anflug** auf den Gegner
 und wieder zurück. Die Nase zeigt immer dorthin, wo das Schiff hinfliegt.
 
+Während eines Gefechts steht **nur der Schauplatz** im Bild: die kämpfenden
+Verbände, die Welt, um die es geht, eine Station oder Boje daneben. Der Rest
+der Galaxis – ferne Welten, Flottenmarken, Grenzen, Beschriftungen – wartet,
+bis es vorbei ist.
+
 Über dem Bild steht die **Gefechtsanzeige**: Runde, Stärke beider Seiten und
 was gerade passiert. Wem das zu lang dauert, drückt **Esc**, **Leertaste**
 oder die Schaltfläche unten rechts - der Bericht kommt trotzdem, denn
@@ -149,13 +154,25 @@ wenn einer dabei ist, sonst der Kreuzer, sonst die Korvette - und ganz unten
 die Jägerstaffel allein. Zwei Begleiter fliegen daneben, wenn die Flotte auch
 Jäger führt. Fällt das Flaggschiff, bekommt die Flotte ein neues Gesicht.
 
-Die Modelle sind gebaut, nicht geladen: der Bengal-Träger mit Flugdeck,
-Landebahn, schrägem Landedeck, Fangseilen, Insel, Mast und offenem, von innen
-glühendem Hangarmaul; der Rapier mit gepfeilten Flächen, Kanonenrohren,
-Unterflügelrakete und einem Piloten im Sitz; der Dralthi als fliegender Flügel
-ohne Rumpf; der Snakeir als Klinge mit Rückenkamm; die Firekkaner mit
-gefächerten Schwingen und leuchtenden Federkanten; der Schwarm gewachsen statt
-gebaut, mit Adern und Beißzangen.
+Die Modelle sind gebaut, nicht geladen – und zwar **nach den Entwürfen des
+Films von 1999**, nicht nach den schlanken Pfeilen der frühen Spiele:
+
+- **Rapier**: ein breiter, flacher Blechkasten mit tief sitzender Kanzel,
+  kurzen gekappten Flügeln, dickem Vorderholm, zwei wuchtigen
+  Triebwerksgondeln und nach außen geneigten Seitenleitwerken. Ein
+  Arbeitsgerät, kein Sportwagen – mit Pilot im Sitz.
+- **Tiger Claw** (Bengal-Klasse): ein langer, dunkler Stahlkasten. Das
+  Flugdeck läuft über die ganze Länge, das Hangarmaul steht offen unter dem
+  Bug und leuchtet von innen, der Brückenturm sitzt weit achtern auf dem
+  Rücken, am Heck ein schwerer Block mit vier Düsen, die Flanken gerippt wie
+  ein Schiffsrumpf.
+- **Dralthi**: dunkle Bronze, ein breiter Flügel, der sich in drei Segmenten
+  nach vorn krümmt, die Spitzen nach unten gebogen, dazwischen ein
+  gedrungener Pod mit geteilter, bernsteinfarbener Kanzel.
+
+Dazu der Snakeir als Klinge mit Rückenkamm, die Firekkaner mit gefächerten
+Schwingen und leuchtenden Federkanten, der Schwarm gewachsen statt gebaut,
+mit Adern und Beißzangen.
 
 Aus der Nähe zählt das Kleinzeug: **Geschütztürme** mit Sockel, drehbarem Kopf
 und Doppelrohr statt Würfel mit Stäbchen, **Kühlerflügel** mit glühender Kante
@@ -167,6 +184,28 @@ Klauen des Paktahn. Der Rumpf trägt die Farbe der Flagge gedämpft, hell wird
 nur, was leuchtet - Düsen, Landebahn, Kennstreifen. Auf der weiten Karte fällt
 das Kleinzeug weg, im Gefecht ist alles da.
 
+### Wo Staffeln starten
+
+Jäger und Bomber haben keine Sprungtriebwerke und keine Vorräte für Wochen.
+Sie brauchen ein **Deck in Reichweite**:
+
+| Startdeck | Reichweite |
+| --- | --- |
+| **Träger** in der eigenen Flotte | immer |
+| **Eigene Welt** | das Feld und die acht daneben |
+| **Raumstation** im freien Raum | zwei Felder |
+| **Militärbasis** in einem Trümmerfeld | zwei Felder |
+
+Fehlt alles davon, hängen die Maschinen in der Leere und leisten **nur die
+Hälfte**. Die Angriffsvorschau sagt vorher, von wo gestartet wird – oder dass
+kein Deck da ist.
+
+Stationen und Basen stehen von Beginn an auf der Karte: je Reich eine
+Raumstation vor der Hauptwelt und eine Militärbasis im nächsten Trümmerfeld,
+dazu ein paar herrenlose Brocken. Sie gehören dem Reich, dessen **Grenze um
+sie herum verläuft** – fällt die Welt daneben, wechselt die Basis den
+Besitzer, ganz ohne eigene Eroberungsregel.
+
 ### Verbände
 
 Eine Flotte führt **je Art einen Verband**, nicht drei nebeneinander: zwei
@@ -177,6 +216,11 @@ beim Laden alter Feldzüge geschieht dasselbe.
 
 Sechs Rollen, die einander im Kreis schlagen: **Jäger** fangen **Bomber**,
 Bomber knacken **Kreuzer** und **Korvetten**, Großkampfschiffe zerfetzen Jäger.
+Ein Jäger kommt an der Flak eines Kreuzers **nicht** vorbei – Bomber bleiben
+der einzige Weg, einen schweren Kiel zu knacken. Panzerung zählt dabei auch
+beim Sterben: ein Kreuzer verträgt ein Vielfaches, ehe er ausfällt, und nach
+fünf Runden entscheidet der **Gefechtswert**, nicht die Stückzahl – zwei
+Kreuzer sind mehr als zwanzig angeschlagene Jäger.
 **Träger** tragen keine Waffe, die zählt – sie machen die Jäger neben sich
 stärker. **Landungstruppen** nehmen Welten; ohne sie fällt keine.
 
@@ -373,6 +417,7 @@ muss quer über die Karte ziehen. `Ü` klappt sie weg.
 | `N` | Nächste Flotte mit Bewegung · `H` nach Hause |
 | `I` / `D` / `T` / `C` | Reich · Diplomatie · Technik · Chronik |
 | `B` / `M` / `Ü` | Grenzen · Flaggenansicht · Übersichtskarte |
+| `F` | Vollbild ein und aus (der Feldzug startet von selbst darin) |
 | `F1` oder `?` | Steuerung und Hilfe – alles auf einer Tafel |
 | `Esc` | Auswahl aufheben · Tafel schließen · Gefecht überspringen |
 
