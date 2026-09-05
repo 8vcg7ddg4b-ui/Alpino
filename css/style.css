@@ -3057,6 +3057,10 @@ kbd {
   transition: opacity 0.4s ease;
 }
 #tentFade.tent-fade-in { opacity: 1; }
+/* Das Verdunkeln selbst hat keine Übergangszeit - es steht sofort und ganz,
+   ehe der Umbau dahinter beginnt, der beliebig lange dauern darf. Nur das
+   Zurückblenden am Ende läuft weich, mit der Übergangszeit oben. */
+#tentFade.tent-fade-instant { transition: none; }
 
 /* --- Der Empfang im Zelt -------------------------------------------------- */
 /* Die Ansprache steht auf der Karte, nicht davor: der Hintergrund bleibt

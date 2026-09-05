@@ -199,9 +199,6 @@ const HERALD_TITLES = {
 
 const heraldOverlay = document.getElementById('heraldOverlay');
 const tentFade = document.getElementById('tentFade');
-// Dieselbe Dauer wie die Ausblendung in css/style.css (#tentFade) - beide
-// müssen zusammenpassen, sonst kommt der Tausch dahinter zu früh oder zu spät.
-const TENT_FADE_MS = 400;
 let heraldTimer = null;
 
 function hideHerald() {
@@ -217,27 +214,40 @@ function hideHerald() {
   // das ganze Zelt auf einen Schlag weg - geschieht hinter einer kurzen
   // Schwarzblende, derselben Art Schnitt wie am Ende des Vorspanns: sonst
   // sprang das Zelt ersatzlos weg, mitten im Bild, ohne Übergang.
+  //
+  // Verdunkelt wird ohne eigene Übergangszeit, sofort und ganz, und der Umbau
+  // (Kamerawechsel, Zeltabbau, neuer Aufbau der Szene) läuft direkt im selben
+  // Zug dahinter - nicht erst nach einer abgewarteten Einblendung oder einem
+  // abgewarteten Bild. Eine Karte mit vielen Objekten braucht beim Umbau
+  // schon mal einen Moment, und diese Zeit ist nicht vorherzusagen; auf ein
+  // bestimmtes Zeitfenster oder einen weiteren Bildwechsel zu warten, ehe der
+  // Umbau beginnt, hieß bei einem lang dauernden Umbau: die Karte wurde schon
+  // sichtbar, während die Blende selbst noch am Aufziehen war, halb dunkel,
+  // mit unfertigem Aufbau - genau das Zwischenbild, das hier vermieden werden
+  // soll. Läuft alles im selben Zug, bekommt der Browser den fertigen Stand
+  // ohnehin erst zu fassen, wenn er wieder zeichnet - der Umbau bleibt so
+  // unsichtbar, ganz gleich, wie lange er braucht. Nur das Aufhellen am Ende
+  // bleibt ein eigener Schritt: erst wenn es beginnt, darf es auch sichtbar
+  // werden, sanft statt hart wie der Wechsel selbst.
   if (wasOpen && state) {
-    const wechsel = () => {
-      resetCameraOrientation();
-      focusOwnCapital();
-      zeichneKarte();
-      // Die Ansprache ist vorbei - das Zelt hat seinen Auftritt gehabt und
-      // verschwindet, statt für den Rest des Feldzugs auf der Karte zu stehen.
-      hideTent();
-      if (tentFade) {
-        // Ein Bild abwarten, damit der Browser die neue Szene schon
-        // gezeichnet hat, ehe die Schwarzblende wieder aufreißt.
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          tentFade.classList.remove('tent-fade-in');
-        }));
-      }
-    };
     if (tentFade) {
+      tentFade.classList.add('tent-fade-instant');
       tentFade.classList.add('tent-fade-in');
-      setTimeout(wechsel, TENT_FADE_MS);
-    } else {
-      wechsel();
+    }
+    resetCameraOrientation();
+    focusOwnCapital();
+    // Die Ansprache ist vorbei - das Zelt hat seinen Auftritt gehabt und
+    // verschwindet, statt für den Rest des Feldzugs auf der Karte zu stehen.
+    hideTent();
+    // refresh() statt des bloßen zeichneKarte(): es synchronisiert auch
+    // Städte und Heere neu, ehe gezeichnet wird - der reine Render-Aufruf
+    // zeigte sonst unter Umständen einen Stand von vor dem Kamerawechsel.
+    refresh();
+    if (tentFade) {
+      requestAnimationFrame(() => {
+        tentFade.classList.remove('tent-fade-instant');
+        tentFade.classList.remove('tent-fade-in');
+      });
     }
   }
 }
