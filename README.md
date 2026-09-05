@@ -25,12 +25,18 @@ flache Schicht über der Tischplatte und werden an ihren Kanten beschnitten.
 Der Feldzug beginnt deshalb auch nicht auf der Karte, sondern im Zelt: die
 **Eröffnungsansicht** steht weit genug zurück, dass der ganze Tisch mit der
 Karte darauf im Bild liegt und dahinter der Thron. Erst wenn die Ansprache
-weggeklickt ist, geht die Kamera hinunter auf die eigene Hauptstadt – und das
-Zelt selbst tritt ab, hinter einer kurzen Schwarzblende, derselben Art Schnitt
-wie am Ende des Vorspanns: erst verdunkelt sich das Bild, dahinter tauscht die
-Kamera Ort und Neigung und das ganze Zeltinnere verschwindet auf einen
-Schlag, dann hellt es sich wieder auf der Karte auf. Ohne sie sprang das Zelt
-mit der Ansprache mitten im Bild ersatzlos weg.
+weggeklickt ist, geht die Kamera hinunter auf die eigene Hauptstadt – hinter
+einer kurzen Schwarzblende, derselben Art Schnitt wie am Ende des Vorspanns:
+erst verdunkelt sich das Bild, dahinter tauscht die Kamera Ort und Neigung,
+dann hellt es sich wieder auf der Karte auf.
+**Nur die Bühne der Ansprache tritt dabei ab** – Thron, Feldzeichen und die
+Ausrüstung des Reiches –, denn sie stehen an einem festen Platz nahe der
+Kartenmitte, unabhängig davon, wo die eigene Hauptstadt liegt: bliebe sie
+stehen, sähe man sie irgendwann zwischen den eigenen Feldern. **Das Zelt
+selbst bleibt für den ganzen Feldzug bestehen** – Wände, Dach, Boden, der
+Ausblick vor der Tür: wer weit genug herauszoomt, wie es der Kartenblick
+selbst erlaubt, sieht es immer noch um sich herum, nicht nur in der
+Eröffnungsansicht. Ohne das sähe man dort nur noch ins Leere.
 
 Dem Betrachter gegenüber steht der **Feldherrnsitz**: der Thron auf seinem
 Podest, links und rechts die Feldzeichen mit dem Wappen, daneben zwei Stücke

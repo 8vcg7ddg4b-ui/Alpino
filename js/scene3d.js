@@ -2634,6 +2634,7 @@ function buildTentBackdrop(tent, state, colour, floorY) {
   );
   stage.rotation.y = Math.PI / 2 - DEFAULT_AZIMUTH;
   tent.add(stage);
+  return stage;
 }
 
 // --- Der Zeltausgang -------------------------------------------------------
@@ -2927,8 +2928,26 @@ function buildTentExit(tent, state, colour, floorY) {
   }
 }
 
+// Eine Gruppe aus der Szene nehmen und alles darin freigeben - Geometrien
+// und Materialien, die Three.js sonst im Speicher hielte, obwohl niemand mehr
+// darauf zeigt.
+function disposeGroup(group) {
+  if (!group) return;
+  if (group.parent) group.parent.remove(group);
+  group.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+      else obj.material.dispose();
+    }
+  });
+}
+
 function buildTent(state) {
-  if (tentGroup) scene.remove(tentGroup);
+  // Ein Zelt aus einem vorigen Feldzug in derselben Sitzung wird ganz
+  // abgeräumt, nicht nur aus der Szene genommen - sonst hielte jeder neue
+  // Feldzug das Geländer des alten mit im Speicher.
+  disposeGroup(tentGroup);
   tentGroup = new THREE.Group();
   tentGroup.name = 'Zelt';
   const player = factionById(state, (state.factions.find((f) => f.isPlayer) || {}).id);
@@ -3003,31 +3022,33 @@ function buildTent(state) {
     tentGroup.add(pole);
   }
 
-  buildTentBackdrop(tentGroup, state, colour, floor.position.y);
+  // Thron, Feldzeichen und Ausrüstung: die Bühne der Ansprache. Sie bleibt ein
+  // eigenes, unverbackenes Teilobjekt (siehe `keep` unten) - nur sie räumt
+  // `hideTent` später ab, das Zelt selbst bleibt stehen.
+  const stage = buildTentBackdrop(tentGroup, state, colour, floor.position.y);
+  tentGroup.userData.stage = stage;
   buildTentExit(tentGroup, state, colour, floor.position.y);
 
   // Alles Holz und Metall im Zelt zu je einem Mesh; die Zeltbahnen mit ihrem
-  // Stoffmuster bleiben eigene Meshes.
-  bakeGroup(tentGroup);
+  // Stoffmuster bleiben eigene Meshes, und die Bühne bleibt unangetastet -
+  // sie muss sich später als Ganzes wieder herauslösen lassen.
+  bakeGroup(tentGroup, { keep: new Set([stage]) });
   scene.add(tentGroup);
 }
 
-// Das Zelt hat seinen Auftritt, sobald die Ansprache vorbei ist - stehen
-// bliebe es sonst für den Rest des Feldzugs mitten auf der Karte: Thron,
-// Feldzeichen und die Schilde der Ausstattung stehen an einem festen Platz
-// nahe der Kartenmitte, unabhängig davon, wo die eigene Hauptstadt liegt,
-// und wer dorthin fährt, sähe sie zwischen den eigenen Feldern stehen.
+// Die Bühne der Ansprache hat ihren Auftritt gehabt, sobald sie vorbei ist -
+// stehen bliebe sie sonst für den Rest des Feldzugs mitten auf der Karte:
+// Thron, Feldzeichen und die Schilde der Ausstattung stehen an einem festen
+// Platz nahe der Kartenmitte, unabhängig davon, wo die eigene Hauptstadt
+// liegt, und wer dorthin fährt, sähe sie zwischen den eigenen Feldern stehen.
+// Das Zelt selbst - Wände, Dach, Boden, der Ausblick vor der Tür - bleibt
+// stehen: es umschließt die Kamera nicht nur in der Eröffnungsansicht,
+// sondern für den ganzen Feldzug, sooft man weit genug herauszoomt. Ohne das
+// sähe man dort nur noch ins Leere, kaum anders als ein Loch im Himmel.
 export function hideTent() {
-  if (!tentGroup) return;
-  scene.remove(tentGroup);
-  tentGroup.traverse((obj) => {
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) {
-      if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
-      else obj.material.dispose();
-    }
-  });
-  tentGroup = null;
+  if (!tentGroup || !tentGroup.userData.stage) return;
+  disposeGroup(tentGroup.userData.stage);
+  tentGroup.userData.stage = null;
 }
 
 // Das Straßennetz als ein einziges Gitter: für jedes Straßenfeld ein Plättchen
