@@ -294,20 +294,34 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
       if (verteidigerId) setArmyCampHidden(verteidigerId, true);
       if (onBattleHud) onBattleHud({ report: schlacht, angreiferFraktion, verteidigerFraktion });
       const startPolar = cameraState().polar;
+      const startAzimuth = cameraState().azimuth;
+      // Die Mitte zwischen Anmarsch und Ziel, nicht das Zielfeld selbst - sonst
+      // stünde der Verteidiger immer mittig im Bild und der Angreifer am Rand.
+      // Und der Blickwinkel selbst schwenkt quer zur Angriffsachse, sodass die
+      // beiden Schlachtreihen links und rechts stehen statt vorn und hinten
+      // hintereinander - wie ein Kampf, den man von der Seite verfolgt, nicht
+      // von hinten durch die eigenen Reihen hindurch.
+      const bdx = col - anmarsch.col;
+      const bdz = row - anmarsch.row;
+      const hatAchse = Math.abs(bdx) > 1e-6 || Math.abs(bdz) > 1e-6;
+      const battleCol = (anmarsch.col + col) / 2;
+      const battleRow = (anmarsch.row + row) / 2;
+      const battleAzimuth = hatAchse ? Math.atan2(bdx, -bdz) : startAzimuth;
       // Der Blick zieht erst zur Stelle, dann setzt der Zusammenprall ein -
       // ein Angriff wird auf der großen Karte ausgetragen, nicht irgendwo
       // außerhalb des Bildausschnitts.
-      flyCameraTo(col, row, BATTLE_ZOOM, BATTLE_PAN_DURATION, () => {
+      flyCameraTo(battleCol, battleRow, BATTLE_ZOOM, BATTLE_PAN_DURATION, () => {
         sfx.clash();
         // Ob auf See gefochten wurde, sagt der Bericht selbst.
         const zurSee = reports.some((r) => r.naval);
         playBattleClash(col, row, () => {
           setArmyCampHidden(armyId, false);
           if (verteidigerId) setArmyCampHidden(verteidigerId, false);
-          // Erst die Neigung zurück zur gewohnten Warte, dann erst der
-          // Bericht - sonst öffnete er sich noch mitten im Rückschwenk.
+          // Erst die Neigung und Ausrichtung zurück zur gewohnten Warte, dann
+          // erst der Bericht - sonst öffnete er sich noch mitten im Rückschwenk.
           const jetzt = cameraState();
-          flyCameraTo(jetzt.col, jetzt.row, jetzt.zoom, BATTLE_POLAR_RESTORE, settle, startPolar);
+          flyCameraTo(jetzt.col, jetzt.row, jetzt.zoom, BATTLE_POLAR_RESTORE, settle,
+            startPolar, startAzimuth);
         }, {
           naval: zurSee,
           attackerColor: angreiferFraktion ? angreiferFraktion.color : undefined,
@@ -317,7 +331,7 @@ export function setupInput(canvas, getState, onChange, onShowReport, onBeforeAct
           approachCol: anmarsch.col,
           approachRow: anmarsch.row,
         });
-      }, BATTLE_POLAR);
+      }, BATTLE_POLAR, battleAzimuth);
     });
     onChange();
   }

@@ -365,14 +365,26 @@ export function cameraState() {
 // Eröffnung weiter hinaus darf, als er selbst zoomen könnte.
 // `polar` ist optional: bleibt er aus, ändert der Schwenk nur Ort und Zoom,
 // nicht die Neigung - so nutzt ihn jeder Aufrufer außer der Schlacht selbst.
-export function flyCameraTo(col, row, zoom, duration = 0.6, onComplete, polar) {
+// `azimuth` ebenso: bleibt er aus, dreht sich der Blickwinkel nicht mit - nur
+// die Schlacht selbst schwenkt auch die Ausrichtung, auf kürzestem Dreh statt
+// einmal ganz herum.
+export function flyCameraTo(col, row, zoom, duration = 0.6, onComplete, polar, azimuth) {
   const startCol = cam.col;
   const startRow = cam.row;
   const startZoom = cam.zoom;
   const startPolar = cam.polar;
+  const startAzimuth = cam.azimuth;
   const zielZoom = Math.max(MIN_ZOOM, zoom);
   const zielPolar = polar === undefined
     ? startPolar : Math.max(MIN_POLAR, Math.min(MAX_POLAR, polar));
+  // Kürzester Weg: nie mehr als eine halbe Drehung, sonst schwenkte die Kamera
+  // bei einem Ziel knapp jenseits von Nord einmal fast ganz herum.
+  let azimuthDelta = 0;
+  if (azimuth !== undefined) {
+    azimuthDelta = azimuth - startAzimuth;
+    while (azimuthDelta > Math.PI) azimuthDelta -= Math.PI * 2;
+    while (azimuthDelta < -Math.PI) azimuthDelta += Math.PI * 2;
+  }
   effects.push({
     elapsed: 0,
     duration,
@@ -384,6 +396,7 @@ export function flyCameraTo(col, row, zoom, duration = 0.6, onComplete, polar) {
       cam.row = startRow + (row - startRow) * eased;
       cam.zoom = startZoom + (zielZoom - startZoom) * eased;
       cam.polar = startPolar + (zielPolar - startPolar) * eased;
+      if (azimuth !== undefined) cam.azimuth = startAzimuth + azimuthDelta * eased;
       applyCamera();
     },
     dispose() {},
@@ -3350,9 +3363,14 @@ function buildRivers(state) {
     return feld && feld.type === 'water';
   };
 
+  // Wie weit die Mündung noch über die Küste hinausreicht - nur ein Saum, der
+  // die Naht zum Meer schließt, keine ganze halbe Feldlänge. Der Linienzug
+  // endet ohnehin schon an einer Rastercke, die selbst schon auf der
+  // Küstenlinie liegt (Ecken der Wasserfelder, nicht ihre Mitte) - ein volles
+  // halbes Feld darüber hinaus ließ den Fluss sichtbar als Zunge ins offene
+  // Meer hineinragen, statt an seinem Rand zu enden.
+  const muendungsSaum = half * 0.18;
   for (const roh of riverPolylines(rivers, cols)) {
-    // **Die Mündung ins Meer.** Endet der Zug an der Küste, läuft er ein
-    // halbes Feld weiter - sonst hört der Strom sichtbar vor dem Wasser auf.
     const zug = roh.slice();
     for (const ende of [0, 1]) {
       const i = ende ? zug.length - 1 : 0;
@@ -3362,7 +3380,7 @@ function buildRivers(state) {
       const dx = p.x - q.x;
       const dz = p.z - q.z;
       const len = Math.hypot(dx, dz) || 1;
-      const weiter = { x: p.x + (dx / len) * half, z: p.z + (dz / len) * half };
+      const weiter = { x: p.x + (dx / len) * muendungsSaum, z: p.z + (dz / len) * muendungsSaum };
       if (!istWasser(weiter)) continue;
       if (ende) zug.push(weiter); else zug.unshift(weiter);
     }
@@ -6086,7 +6104,13 @@ function syncArmyGroup(state, army, entry) {
       new THREE.MeshStandardMaterial({ color: faction.color })
     );
     const angle = ((idx - 1) / 7) * Math.PI * 2 + 0.4;
-    const radius = idx > 4 ? 1.2 : 0.72;
+    // 0,72 wäre genau die Summe beider Kegelradien (0,42 + 0,3) - die Zelte
+    // berührten sich dann exakt an der Grundfläche, und die groben, nur
+    // sechseckig facettierten Kegel trafen sich dort nie ganz sauber: ein
+    // Spalt blieb offen, durch den man ins dunkle Nichts hinter dem Tuch sah,
+    // als würde das Zelt dort innen verschwinden. Ein echter Abstand schließt
+    // den Spalt.
+    const radius = idx > 4 ? 1.2 : 0.88;
     tent.position.set(
       big ? 0 : Math.cos(angle) * radius,
       big ? CAMP_TENT_HEIGHT / 2 : (CAMP_TENT_HEIGHT * 0.7) / 2,

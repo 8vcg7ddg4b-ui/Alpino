@@ -548,9 +548,15 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   gut eine Sekunde langen Schwenk **näher heran, als der Spieler von Hand
   zoomen kann**, und ihre Neigung sinkt auf eine flachere, dramatischere Warte
   ab – näher an Augenhöhe als der steile Kartenblick, aber kein Blick aus der
-  Truppe selbst. So stehen die Heere im Bild, nicht nur die Gegend, in der
-  gefochten wird, und bei einem Sturm auf einen Ort auch seine **Mauern,
-  Türme und Tore**, in dem Ausbauzustand, den die Stadt tatsächlich hat.
+  Truppe selbst. Der Schwenk zieht dabei zugleich zur **Mitte zwischen Anmarsch
+  und Ziel**, nicht zum Zielfeld selbst – sonst stünde der Verteidiger immer
+  bildmittig und der Angreifer am Rand –, und dreht den Blickwinkel quer zur
+  Angriffsachse: die beiden Seiten stehen sich danach **links und rechts**
+  gegenüber, wie ein Kampf, den man von der Seite verfolgt, statt hintereinander
+  auf einer Linie zur Kamera. So stehen die Heere im Bild, nicht nur die
+  Gegend, in der gefochten wird, und bei einem Sturm auf einen Ort auch seine
+  **Mauern, Türme und Tore**, in dem Ausbauzustand, den die Stadt tatsächlich
+  hat.
   **Zwei Schlachtreihen treten einander gegenüber** – dieselben Gestalten wie
   im Marschzug und im Wachkreis vor dem Lager (Fußvolk mit Schild und Speer,
   Reiterei mit Lanze, Schützen mit Bogen), nur zu einer Front aufgestellt statt
@@ -811,13 +817,14 @@ Hauptstädten, nicht aus eigens gesetzten Truppen.
   Schlupfloch, durch das man beides umgeht. Gemerkt wird nur, **für wen** sie
   gedacht war – steht das Heer bei der Musterung noch im Ort, tritt sie bei ihm
   an; ist es abmarschiert, geht sie in die Wache.
-- **Erfahrung**: Jede Armee sammelt im Feld Erfahrung – ein Stern nach etwa
-  zwei Schlachten, drei Sterne nach rund sieben. Jeder Stern bringt **+12 %
-  Kampfkraft**, und die Sterne stehen im Armee-Panel, auf der Karte am
-  Truppenzähler und in Bericht und Kampfvorschau. Frisch ausgehobene Armeen
-  beginnen bei null; nimmt eine Armee Rekruten auf, verdünnt das ihre Erfahrung
-  im Verhältnis der Männer. Löst sie sich in eine Garnison auf, ist die
-  Erfahrung verloren.
+- **Erfahrung**: Jede Armee sammelt im Feld Erfahrung – **fünf Sterne** sind
+  das Höchste, ein Stern nach etwa zwei Schlachten, alle fünf nach rund
+  neunzehn. Jeder Stern bringt **+12 % Kampfkraft**, macht am Ende also mehr
+  als die halbe Kampfkraft noch einmal obendrauf, und die Sterne stehen im
+  Armee-Panel, auf der Karte am Truppenzähler und in Bericht und
+  Kampfvorschau. Frisch ausgehobene Armeen beginnen bei null; nimmt eine Armee
+  Rekruten auf, verdünnt das ihre Erfahrung im Verhältnis der Männer. Löst sie
+  sich in eine Garnison auf, ist die Erfahrung verloren.
 - **Moral und Erschöpfung**: Jede Armee führt beide Werte mit; sie gehen direkt
   in die Kampfkraft ein. Beides steht im Armee-Panel. Erschöpfung wird je
   Bewegungspunkt berechnet (1,2), nicht je Feld – auf der Straße kommt ein Heer

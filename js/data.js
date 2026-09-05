@@ -1,6 +1,6 @@
 // Die Spielversion. Sie steht im Startbildschirm und muss mit der Angabe in
 // package.json übereinstimmen - dieselbe Zahl trägt auch das Desktop-Paket.
-export const GAME_VERSION = '1.63.0';
+export const GAME_VERSION = '1.64.0';
 
 // The grid comes from the geography, not the other way round: change the
 // bounds or the tile size in geodata.js and everything here follows.
@@ -1399,9 +1399,9 @@ export function wallDefenceMultiplier(level) {
 }
 
 // --- Erfahrung -----------------------------------------------------------
-// Armeen lernen im Feld. Drei Sterne sind das Höchste; jeder Stern ist echte
+// Armeen lernen im Feld. Fünf Sterne sind das Höchste; jeder Stern ist echte
 // Kampfkraft, keine Verzierung.
-export const EXPERIENCE_THRESHOLDS = [20, 55, 110];
+export const EXPERIENCE_THRESHOLDS = [20, 55, 110, 190, 300];
 export const MAX_STARS = EXPERIENCE_THRESHOLDS.length;
 export const MAX_EXPERIENCE = EXPERIENCE_THRESHOLDS[MAX_STARS - 1];
 export const EXPERIENCE_PER_BATTLE = 8;
@@ -1409,7 +1409,9 @@ export const EXPERIENCE_FOR_WIN = 8;
 // Wie viel Kampfkraft ein Stern bringt.
 export const EXPERIENCE_BONUS_PER_STAR = 0.12;
 
-export const STAR_TITLES = ['Aushebung', 'Erprobt', 'Kampferfahren', 'Veteranen'];
+export const STAR_TITLES = [
+  'Aushebung', 'Erprobt', 'Kampferfahren', 'Veteranen', 'Elitetruppen', 'Legenden',
+];
 
 export function experienceStars(experience) {
   let stars = 0;
