@@ -3043,6 +3043,21 @@ kbd {
 }
 .income-line strong { color: #e7c86a; }
 
+/* Der Schnitt vom Zelt zur Karte: dieselbe kurze Ausblendung wie am Ende des
+   Vorspanns (#splashScreen), hier zum Kaschieren des Kamerasprungs, wenn die
+   Ansprache endet - kurz auf Schwarz, der Tausch geschieht dahinter, dann
+   wieder auf. `pointer-events` bleibt aus: eine Klapp-Karte, kein Knopf. */
+#tentFade {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+#tentFade.tent-fade-in { opacity: 1; }
+
 /* --- Der Empfang im Zelt -------------------------------------------------- */
 /* Die Ansprache steht auf der Karte, nicht davor: der Hintergrund bleibt
    sichtbar, damit man das Zelt sieht, in dem gesprochen wird. */

@@ -198,6 +198,10 @@ const HERALD_TITLES = {
 };
 
 const heraldOverlay = document.getElementById('heraldOverlay');
+const tentFade = document.getElementById('tentFade');
+// Dieselbe Dauer wie die Ausblendung in css/style.css (#tentFade) - beide
+// müssen zusammenpassen, sonst kommt der Tausch dahinter zu früh oder zu spät.
+const TENT_FADE_MS = 400;
 let heraldTimer = null;
 
 function hideHerald() {
@@ -209,14 +213,32 @@ function hideHerald() {
   }
   heraldOverlay.classList.add('hidden');
   // „Lass uns die Schlachtkarte betrachten": die Kamera geht vom Zelt
-  // hinunter auf den eigenen Sitz.
+  // hinunter auf den eigenen Sitz. Der Sprung selbst - Kamera hart umgesetzt,
+  // das ganze Zelt auf einen Schlag weg - geschieht hinter einer kurzen
+  // Schwarzblende, derselben Art Schnitt wie am Ende des Vorspanns: sonst
+  // sprang das Zelt ersatzlos weg, mitten im Bild, ohne Übergang.
   if (wasOpen && state) {
-    resetCameraOrientation();
-    focusOwnCapital();
-    zeichneKarte();
-    // Die Ansprache ist vorbei - das Zelt hat seinen Auftritt gehabt und
-    // verschwindet, statt für den Rest des Feldzugs auf der Karte zu stehen.
-    hideTent();
+    const wechsel = () => {
+      resetCameraOrientation();
+      focusOwnCapital();
+      zeichneKarte();
+      // Die Ansprache ist vorbei - das Zelt hat seinen Auftritt gehabt und
+      // verschwindet, statt für den Rest des Feldzugs auf der Karte zu stehen.
+      hideTent();
+      if (tentFade) {
+        // Ein Bild abwarten, damit der Browser die neue Szene schon
+        // gezeichnet hat, ehe die Schwarzblende wieder aufreißt.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          tentFade.classList.remove('tent-fade-in');
+        }));
+      }
+    };
+    if (tentFade) {
+      tentFade.classList.add('tent-fade-in');
+      setTimeout(wechsel, TENT_FADE_MS);
+    } else {
+      wechsel();
+    }
   }
 }
 

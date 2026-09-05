@@ -578,6 +578,13 @@
     </div>
   </div>
 
+  <!-- Der Schnitt vom Zelt zur Karte: dieselbe Ausblendung wie beim Vorspann
+       (siehe #splashScreen), nur umgekehrt genutzt - kurz auf Schwarz, dahinter
+       tauscht main.js Kamera und Bühne, dann wieder auf. Ohne sie sprang das
+       Zelt beim Wegklicken der Ansprache ersatzlos weg und die Kamera zugleich
+       hart auf die Kartenansicht - ein Schnitt mitten im Bild, kein Übergang. -->
+  <div id="tentFade"></div>
+
   <!-- Feldzug beenden: er wird dabei gespeichert, nicht verworfen. -->
   <div id="quitOverlay" class="hidden">
     <div class="overlay-box">
