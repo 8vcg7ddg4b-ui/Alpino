@@ -115,6 +115,13 @@ Bewegungspunkt quer über die Karte bringen – der Enigma-Sprung nach K'tithrak
 Mang, der Grabensprung von Tyr zum Höllenloch, der Firekka-Sprung. Sie
 entscheiden, wo Feldzüge stattfinden.
 
+Jedes Ende trägt eine **Sprungboje**: Schwimmkörper mit Warnkragen, Mast mit
+blinkendem Feuer, drei Warnrippen und ein Kranz, der langsam mitdreht – ein
+Seezeichen im Raum, das sich wiegt und blinkt, damit man es aus der Entfernung
+an seinem Takt erkennt. Keine Boje liegt auf einer Welt oder daneben: wo die
+Sollstelle besetzt ist, wandert der Punkt beim Aufbau der Karte auf das
+nächste freie Feld. Ein Tor gehört in den freien Raum, nicht in einen Orbit.
+
 ## Was man führt
 
 Fünf spielbare Flaggen, jede mit eigener Doktrin, eigenen Schiffsnamen und
@@ -199,6 +206,13 @@ steht als Schild über dem Verband.
 Jeder Name trägt das **Wappen seiner Flagge** - man sieht, wem eine Welt
 gehört, ohne die Farbe deuten zu müssen.
 
+Jede Welt steht in einem Orbit über der Platte, hoch genug, dass ihr
+**Deflektornetz** rundherum Platz hat: eine Blase mit einem Netz darüber, das
+sich langsam dreht und die Welt **vollständig umschließt** – vorher schnitt die
+Tischkante die Blase unten ab. Fällt der Schild, färbt sich das Netz warm.
+Der Werftring liegt flach im Orbit und bleibt damit innerhalb des Schildes,
+unter der Welt liegt ihre Flagge als Scheibe auf der Platte.
+
 **Grenzen:** Jede Welt greift in den Raum um sich aus, große weiter als kleine,
 Hauptwelten am weitesten; ein Feld gehört der Welt, die ihm am nächsten liegt.
 Daraus wird eine Fläche in der Farbe der Flagge und eine Linie dort, wo zwei
@@ -208,6 +222,16 @@ an, und im Reichsfenster steht, wie viele Felder das eigene Reich hält.
 Angeklickt wird, was man sieht: an jeder Welt und jedem Verband sitzt ein
 unsichtbarer Fangkörper. Wer auf einen Planeten oder ein Schiff zeigt, wählt
 dessen Feld - und nicht das Feld dahinter, auf das der Strahl sonst fiele.
+
+### Wie eine Flotte fliegt
+
+Ein Weg über ein Gitter ist eine **Treppe**: rechts, hoch, rechts, hoch. Wer
+so fliegt, zappelt. Also wird der Weg vor dem Start geglättet – erst werden
+Zwischenpunkte eingeschoben, dann die Ecken in fünf Durchgängen weggemittelt,
+Anfang und Ende bleiben, wo sie sind. Darüber läuft eine weiche Kurve, und die
+Nase des Verbands richtet sich nach der **tatsächlichen Bewegung**, nicht nach
+der Tangente – weich nachgezogen und in die Kurve gelegt. Aus der Treppe wird
+eine Bahn.
 
 ## Wie eine Welt fällt
 
@@ -323,7 +347,8 @@ muss quer über die Karte ziehen. `Ü` klappt sie weg.
 | Eingabe | Wirkung |
 | --- | --- |
 | Linke Maustaste ziehen | Karte schwenken |
-| Rechte Maustaste ziehen | Kamera drehen und neigen (nach unten: hinunter zur Brücke) |
+| **Mausrad gedrückt ziehen** | Kamera frei drehen und neigen (nach unten: hinunter zur Brücke) |
+| **Rechte Maustaste** | Zurück: erst die offene Tafel schließen, dann die Auswahl aufheben – überall, auch über einer Tafel |
 | Mausrad, `+` / `−` | Zoomen · Doppelklick holt ein Feld in die Mitte |
 | Klick auf eigene Flotte | Auswählen – blaue Felder sind erreichbar, rote Rauten sind Ziele |
 | Klick auf blaues Feld | Hinfliegen (der Weg wird beim Überfahren gezeigt) |

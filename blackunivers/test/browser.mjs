@@ -197,6 +197,16 @@ for (const [sheet, name] of [['reich', '06-reich'], ['diplomatie', '07-diplomati
 
 // Die Aufgabenleiste: sie muss sagen, was noch offen ist, und jeder Punkt
 // muss mit einem Klick zur Sache führen.
+// Die rechte Taste nimmt zurück: erst die Tafel, dann die Auswahl.
+console.log('Rechte Taste nimmt zurück …');
+await page.click('.tb-tool[data-action="sheet"][data-sheet="reich"]');
+await page.waitForTimeout(300);
+await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.6, { button: 'right' });
+await page.waitForTimeout(300);
+if (await page.locator('#sheet:not(.hidden)').count()) {
+  problems.push('Die rechte Maustaste schließt die Tafel nicht.');
+}
+
 console.log('Karte unter dem Zeiger …');
 // Über einer Welt muss sofort dastehen, was dort liegt - ohne Klick.
 const solPoint = await page.evaluate(() => {
@@ -265,9 +275,10 @@ console.log('Kamera flach: die Brücke …');
 await page.keyboard.press('r');
 for (let i = 0; i < 4; i++) await page.keyboard.press('-');
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-await page.mouse.down({ button: 'right' });
+// Gedreht wird mit gedrücktem Mausrad, nicht mehr mit der rechten Taste.
+await page.mouse.down({ button: 'middle' });
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 170, { steps: 14 });
-await page.mouse.up({ button: 'right' });
+await page.mouse.up({ button: 'middle' });
 await page.waitForTimeout(500);
 await shot('12-bruecke');
 

@@ -1,11 +1,12 @@
 // --- Steuerung ------------------------------------------------------------
-// Maus, Finger und Tastatur. Die Karte wird gezogen, gedreht und gezoomt;
-// ein Klick wählt, ein zweiter befiehlt. Alles Weitere entscheidet `main.js`.
+// Maus, Finger und Tastatur. Die linke Taste zieht die Karte und wählt aus,
+// das gedrückte Mausrad dreht den Blick frei, die rechte Taste nimmt zurück:
+// Auswahl weg, Tafel zu. Alles Weitere entscheidet `main.js`.
 import { pickTile, zoomCamera, rotateCamera, panCameraRelative, resetCameraOrientation } from './scene3d.js';
 
 export function setupInput(canvas, handlers = {}) {
   const H = {
-    onTileClick: () => {}, onTileHover: () => {}, onTileContext: () => {},
+    onTileClick: () => {}, onTileHover: () => {},
     onEndTurn: () => {}, onCancel: () => {}, onNextFleet: () => {},
     onCenterHome: () => {}, onSheet: () => {}, onRender: () => {},
     onToggleBorders: () => {}, onToggleMapMode: () => {}, onToggleMini: () => {},
@@ -31,8 +32,12 @@ export function setupInput(canvas, handlers = {}) {
     }
     moved = 0;
     lastPointer = { x: ev.clientX, y: ev.clientY };
-    // Rechte Taste dreht, linke zieht - wie in jeder Karte, die man kennt.
-    dragging = ev.button === 2 || ev.ctrlKey ? 'rotate' : 'pan';
+    // Das gedrückte Mausrad dreht den Blick frei, die linke Taste zieht die
+    // Karte. Die rechte bewegt nichts - sie nimmt zurück, und das hängt
+    // dokumentweit am Kontextmenü, damit es auch über einer Tafel gilt.
+    if (ev.button === 1 || ev.ctrlKey) dragging = 'rotate';
+    else if (ev.button === 2) dragging = null;
+    else dragging = 'pan';
   }
 
   function pointerMove(ev) {
@@ -84,11 +89,11 @@ export function setupInput(canvas, handlers = {}) {
   canvas.addEventListener('pointerup', pointerUp);
   canvas.addEventListener('pointercancel', pointerUp);
   canvas.addEventListener('pointerleave', () => { H.onTileHover(null, null); });
-  canvas.addEventListener('contextmenu', (ev) => {
-    ev.preventDefault();
-    const tile = pickTile(ev.clientX, ev.clientY);
-    if (tile && moved < 6) H.onTileContext(tile);
-  });
+  // Das Menü des Browsers steht der rechten Taste im Weg.
+  canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
+  // Das gedrückte Mausrad darf die Seite nicht scrollen.
+  canvas.addEventListener('auxclick', (ev) => { if (ev.button === 1) ev.preventDefault(); });
+  canvas.addEventListener('mousedown', (ev) => { if (ev.button === 1) ev.preventDefault(); });
   canvas.addEventListener('wheel', (ev) => {
     ev.preventDefault();
     zoomCamera(ev.deltaY < 0 ? 1.12 : 1 / 1.12);

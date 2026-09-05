@@ -85,10 +85,39 @@ export function generateMap() {
 
   // Die Sprungpunkte bekommen ihr Feld. Liegt es im Graben, wird es frei -
   // ein Sprungpunkt mitten im Nichts ist der Sinn der Sache.
+  // Kein Sprungpunkt liegt auf einer Welt oder daneben: ein Tor gehört in den
+  // freien Raum, nicht in einen Orbit. Wo die Sollstelle besetzt ist, wandert
+  // der Punkt auf das nächste freie Feld.
+  const taken = new Set(SYSTEM_TILES.map((sys) => `${sys.col},${sys.row}`));
+  const busy = (col, row) => {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (taken.has(`${col + dc},${row + dr}`)) return true;
+      }
+    }
+    return false;
+  };
+  const freePlace = (p) => {
+    if (!busy(p.col, p.row)) return p;
+    for (let r = 1; r <= 6; r++) {
+      for (let dr = -r; dr <= r; dr++) {
+        for (let dc = -r; dc <= r; dc++) {
+          if (Math.max(Math.abs(dc), Math.abs(dr)) !== r) continue;
+          const col = p.col + dc;
+          const row = p.row + dr;
+          if (col < 1 || row < 1 || col >= GRID_COLS - 1 || row >= GRID_ROWS - 1) continue;
+          if (busy(col, row)) continue;
+          return { col, row };
+        }
+      }
+    }
+    return p;
+  };
+
   const jumpPoints = [];
   for (const def of JUMP_DEFS) {
-    const a = { col: colOfX(def.a.x), row: rowOfY(def.a.y) };
-    const b = { col: colOfX(def.b.x), row: rowOfY(def.b.y) };
+    const a = freePlace({ col: colOfX(def.a.x), row: rowOfY(def.a.y) });
+    const b = freePlace({ col: colOfX(def.b.x), row: rowOfY(def.b.y) });
     for (const p of [a, b]) {
       const t = tiles[tileIndex(p.col, p.row)];
       if (t.type === TILE_TYPES.RIFT) { t.type = TILE_TYPES.VOID; t.zoneName = ''; }

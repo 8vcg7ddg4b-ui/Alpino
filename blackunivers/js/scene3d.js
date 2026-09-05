@@ -398,6 +398,34 @@ function buildSpaceFields(state) {
 }
 
 // Nebel treibt, Strahlung pulst - langsam, damit die Karte ruhig bleibt.
+// Die Sprungbojen leben: der Kranz dreht, das Feuer blinkt, das Fass wiegt
+// sich leicht. Ein Seezeichen, das still steht, übersieht man.
+function animateShields(time) {
+  for (const net of shieldNets) {
+    if (!net.visible) continue;
+    net.rotation.y = time * 0.12;
+    net.rotation.x = Math.sin(time * 0.2) * 0.12;
+  }
+}
+
+function animateBuoys(time) {
+  for (const buoy of jumpBuoys) {
+    const ph = buoy.userData.phase || 0;
+    buoy.position.y = Math.sin(time * 0.9 + ph) * 0.5;
+    buoy.rotation.z = Math.sin(time * 0.6 + ph) * 0.05;
+    const ring = buoy.getObjectByName('kranz');
+    if (ring) ring.rotation.z += 0.006;
+    const puls = 0.55 + Math.abs(Math.sin(time * 2.2 + ph)) * 0.45;
+    const lamp = buoy.getObjectByName('feuer');
+    if (lamp) lamp.material.opacity = 0.35 + puls * 0.6;
+    const halo = buoy.getObjectByName('schein');
+    if (halo) {
+      halo.material.opacity = 0.1 + puls * 0.3;
+      halo.scale.setScalar(0.9 + puls * 0.35);
+    }
+  }
+}
+
 function animateFields(time) {
   if (!fieldsGroup) return;
   for (const node of fieldsGroup.children) {
@@ -1047,25 +1075,89 @@ export function buildMap(state) {
   centerOnFaction(state);
 }
 
+// Eine Sprungboje: kein Ring auf der Platte, sondern ein Seezeichen im Raum -
+// Schwimmkörper, Mast mit Blinkfeuer, drei Warnrippen und ein Kranz, der
+// langsam mitdreht. Man erkennt sie aus der Entfernung an ihrem Takt.
+const jumpBuoys = [];
+
+function jumpBuoy() {
+  const g = new THREE.Group();
+  const steel = new THREE.MeshStandardMaterial({
+    color: 0x5a6675, metalness: 0.8, roughness: 0.35, flatShading: true,
+  });
+  const warn = new THREE.MeshBasicMaterial({ color: 0xffb765, transparent: true, opacity: 0.9 });
+  const glass = new THREE.MeshBasicMaterial({
+    color: 0x9fe4ff, transparent: true, opacity: 0.85,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+
+  // Der Schwimmkörper: ein Fass mit Kragen.
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 0.85, 2.4, 10), steel);
+  body.position.y = 3.4;
+  g.add(body);
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.34, 10), warn);
+  collar.position.y = 4.3;
+  g.add(collar);
+  const keel = new THREE.Mesh(new THREE.ConeGeometry(0.85, 1.6, 8), steel);
+  keel.rotation.x = Math.PI;
+  keel.position.y = 1.5;
+  g.add(keel);
+
+  // Der Mast mit dem Feuer obenauf.
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 2.6, 6), steel);
+  mast.position.y = 5.9;
+  g.add(mast);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.62, 10, 8), glass);
+  lamp.position.y = 7.4;
+  lamp.name = 'feuer';
+  g.add(lamp);
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(1.25, 10, 8), new THREE.MeshBasicMaterial({
+    color: 0x7ad4ff, transparent: true, opacity: 0.28,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  halo.position.y = 7.4;
+  halo.name = 'schein';
+  g.add(halo);
+
+  // Drei Warnrippen rund um das Fass.
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.6, 0.9), warn);
+    fin.position.set(Math.cos(a) * 1.25, 3.4, Math.sin(a) * 1.25);
+    fin.rotation.y = -a;
+    g.add(fin);
+  }
+
+  // Der Kranz: das Tor selbst, waagerecht um die Boje.
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(TILE_SIZE * 0.4, 0.28, 8, 24),
+    new THREE.MeshBasicMaterial({
+      color: 0x7ad4ff, transparent: true, opacity: 0.7,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 3.4;
+  ring.name = 'kranz';
+  g.add(ring);
+  return g;
+}
+
 function buildJumpPoints(state) {
-  const mat = new THREE.MeshBasicMaterial({ color: 0x7ad4ff, transparent: true, opacity: 0.8 });
   const lineMat = new THREE.LineDashedMaterial({
     color: 0x4f9fd0, dashSize: 6, gapSize: 5, transparent: true, opacity: 0.45,
   });
+  jumpBuoys.length = 0;
   for (const jp of state.map.jumpPoints) {
     const a = worldOfTile(jp.a.col, jp.a.row);
     const b = worldOfTile(jp.b.col, jp.b.row);
     for (const p of [a, b]) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(TILE_SIZE * 0.42, 0.5, 8, 20), mat);
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.set(p.x, 1.4, p.z);
-      holoGroup.add(ring);
-      const core = new THREE.Mesh(
-        new THREE.SphereGeometry(1.2, 10, 8),
-        new THREE.MeshBasicMaterial({ color: 0xbfe9ff, transparent: true, opacity: 0.85 }),
-      );
-      core.position.set(p.x, 1.6, p.z);
-      holoGroup.add(core);
+      const buoy = jumpBuoy();
+      buoy.scale.setScalar(1.35);
+      buoy.position.set(p.x, 0, p.z);
+      buoy.userData.phase = Math.random() * Math.PI * 2;
+      holoGroup.add(buoy);
+      jumpBuoys.push(buoy);
     }
     // Die Verbindung der beiden Enden: eine gestrichelte Linie über der
     // Karte, damit man sieht, wohin der Sprung führt.
@@ -1094,8 +1186,13 @@ function systemRank(sys) {
   return rank;
 }
 
+// Die Netze über den Schilden drehen sich langsam - ein Deflektor steht
+// nicht still.
+const shieldNets = [];
+
 function buildSystems(state) {
   systemMeshes.clear();
+  shieldNets.length = 0;
   pickTargets.length = 0;
   labelEntries.length = 0;
   for (const sys of state.systems) {
@@ -1104,13 +1201,16 @@ function buildSystems(state) {
     group.position.set(x, 0, z);
     const tier = sizeTier(sys.size);
     const radius = 1.4 + sys.size * 0.55;
+    // Die Welt steht hoch genug über der Platte, dass ihr Schild rundherum
+    // Platz hat - vorher schnitt die Tischkante die Blase unten ab.
+    const orbit = radius + 4.4;
 
     // Der Planet: eine Kugel über der Platte, in der Farbe des Besitzers.
     const planet = new THREE.Mesh(
       new THREE.SphereGeometry(radius, 18, 14),
       new THREE.MeshStandardMaterial({ color: 0x8899aa, roughness: 0.8, metalness: 0.1 }),
     );
-    planet.position.y = radius + 2.5;
+    planet.position.y = orbit;
     planet.name = 'planet';
     group.add(planet);
 
@@ -1133,22 +1233,35 @@ function buildSystems(state) {
     beam.name = 'beam';
     group.add(beam);
 
-    // Der Planetenschild als Blase - er steht nur, wenn er auch steht.
-    const shield = new THREE.Mesh(
-      new THREE.SphereGeometry(radius + 2.2, 16, 12),
-      new THREE.MeshBasicMaterial({ color: 0x7fd4ff, transparent: true, opacity: 0.14, side: THREE.DoubleSide }),
-    );
-    shield.position.y = radius + 2.5;
+    // Der Planetenschild: eine Blase, die die Welt wirklich umschließt, und
+    // ein Netz darüber, an dem man den Deflektor erkennt. Beide schreiben
+    // keine Tiefe - sonst frisst die eigene Rückseite die Vorderseite auf.
+    const shieldGeo = new THREE.SphereGeometry(radius + 2.4, 20, 16);
+    const shield = new THREE.Mesh(shieldGeo, new THREE.MeshBasicMaterial({
+      color: 0x7fd4ff, transparent: true, opacity: 0.14,
+      side: THREE.DoubleSide, depthWrite: false,
+    }));
+    shield.position.y = orbit;
     shield.name = 'shield';
     group.add(shield);
+    const net = new THREE.Mesh(shieldGeo.clone(), new THREE.MeshBasicMaterial({
+      color: 0xbfeaff, transparent: true, opacity: 0.18,
+      wireframe: true, depthWrite: false,
+    }));
+    net.position.y = orbit;
+    net.name = 'shieldnet';
+    net.scale.setScalar(1.02);
+    group.add(net);
+    shieldNets.push(net);
 
-    // Werftring: eine Scheibe um den Planeten, wenn dort gebaut wird.
+    // Werftring: eine Scheibe um den Planeten, wenn dort gebaut wird. Sie
+    // liegt flach im Orbit und bleibt damit innerhalb des Schildes.
     const yard = new THREE.Mesh(
-      new THREE.TorusGeometry(radius + 1.6, 0.28, 6, 20),
-      new THREE.MeshBasicMaterial({ color: 0xffc98a, transparent: true, opacity: 0.85 }),
+      new THREE.TorusGeometry(radius + 1.5, 0.2, 6, 24),
+      new THREE.MeshBasicMaterial({ color: 0xffc98a, transparent: true, opacity: 0.6 }),
     );
-    yard.rotation.x = -Math.PI / 2.4;
-    yard.position.y = radius + 2.5;
+    yard.rotation.x = -Math.PI / 2 + 0.32;
+    yard.position.y = orbit;
     yard.name = 'yard';
     group.add(yard);
 
@@ -1241,10 +1354,16 @@ export function updateSystems(state) {
         * (1 + sys.shield.level * 0.15);
       shield.material.color.set(sys.shield.down > 0.5 ? 0xff9a6a : 0x7fd4ff);
     }
+    const net = group.getObjectByName('shieldnet');
+    if (net) {
+      net.visible = sys.shield.level > 0;
+      net.material.opacity = Math.max(0.05, 0.2 * (1 - sys.shield.down));
+      net.material.color.set(sys.shield.down > 0.5 ? 0xffc2a0 : 0xbfeaff);
+    }
     if (yard) {
       const werft = sys.buildings.werft;
       yard.visible = !!(werft && werft.level);
-      if (yard.visible) yard.material.opacity = 0.4 + (werft.level * 0.2);
+      if (yard.visible) yard.material.opacity = 0.3 + (werft.level * 0.14);
     }
   }
 }
@@ -1795,7 +1914,10 @@ export function resize() {
 
 export function render() {
   if (!renderer || !scene || !camera) return;
-  animateFields(performance.now());
+  const now = performance.now();
+  animateFields(now);
+  animateBuoys(now / 1000);
+  animateShields(now / 1000);
   layoutLabels();
   renderer.render(scene, camera);
 }
@@ -1823,38 +1945,74 @@ function tileWorldPoint(step) {
   return new THREE.Vector3(x, 0, z);
 }
 
-// Ein Flugabschnitt: der Verband folgt einer weichen Kurve durch die
-// Feldmitten, statt von Ecke zu Ecke zu knicken - und seine Nase zeigt dabei
-// immer dorthin, wo er hinfliegt.
+// Ein Weg über ein Gitter ist eine Treppe: rechts, hoch, rechts, hoch. Wer
+// so fliegt, zappelt. Also wird der Weg vorher geglättet - die Ecken werden
+// in mehreren Durchgängen weggemittelt, Anfang und Ende bleiben, wo sie
+// sind. Danach ist es eine Bahn und keine Treppe mehr.
+function smoothPath(points, rounds = 4) {
+  let out = points.map((p) => p.clone());
+  for (let r = 0; r < rounds; r++) {
+    const next = out.map((p) => p.clone());
+    for (let i = 1; i < out.length - 1; i++) {
+      next[i].set(
+        (out[i - 1].x + out[i].x * 2 + out[i + 1].x) / 4,
+        0,
+        (out[i - 1].z + out[i].z * 2 + out[i + 1].z) / 4,
+      );
+    }
+    out = next;
+  }
+  return out;
+}
+
+// Ein Flugabschnitt: der Verband folgt einer weichen Kurve durch den
+// geglätteten Weg - und seine Nase zeigt dabei immer dorthin, wo er
+// tatsächlich hinfliegt, nicht dorthin, wo die Kurve gerade zeigt.
 function flyCurve(mesh, points, speed) {
   return new Promise((resolve) => {
-    const pts = points.map(tileWorldPoint);
-    const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.4);
+    const raw = points.map(tileWorldPoint);
+    // Zwischenpunkte einschieben: eine Treppe aus wenigen Stufen lässt sich
+    // erst glätten, wenn sie genug Stützstellen hat.
+    const dense = [];
+    for (let i = 0; i < raw.length - 1; i++) {
+      dense.push(raw[i]);
+      dense.push(raw[i].clone().lerp(raw[i + 1], 0.5));
+    }
+    dense.push(raw[raw.length - 1]);
+    const pts = smoothPath(dense, 5);
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.5);
     const length = Math.max(1, curve.getLength());
-    const duration = Math.max(260, (length * 24) / Math.max(0.2, speed));
+    const duration = Math.max(320, (length * 26) / Math.max(0.2, speed));
     const start = performance.now();
     const pos = new THREE.Vector3();
-    const tangent = new THREE.Vector3();
+    const prev = new THREE.Vector3();
+    curve.getPointAt(0, prev);
     let yaw = mesh.rotation.y;
+    let bank = 0;
     const tick = () => {
       const t = Math.min(1, (performance.now() - start) / duration);
       curve.getPointAt(t, pos);
-      curve.getTangentAt(t, tangent);
+      const dx = pos.x - prev.x;
+      const dz = pos.z - prev.z;
       mesh.position.set(pos.x, Math.sin(t * Math.PI) * 1.2, pos.z);
-      // Kurs weich nachziehen und in die Kurve legen: ein Verband dreht
-      // nicht auf der Stelle.
-      const want = Math.atan2(tangent.x, tangent.z);
-      let delta = want - yaw;
-      while (delta > Math.PI) delta -= Math.PI * 2;
-      while (delta < -Math.PI) delta += Math.PI * 2;
-      yaw += delta * 0.22;
-      mesh.rotation.y = yaw;
-      mesh.rotation.z = Math.max(-0.45, Math.min(0.45, -delta * 5));
+      // Kurs aus der wirklichen Bewegung, weich nachgezogen. Ein Verband
+      // dreht nicht auf der Stelle und schwenkt nicht hin und her.
+      if (dx * dx + dz * dz > 1e-8) {
+        const want = Math.atan2(dx, dz);
+        let delta = want - yaw;
+        while (delta > Math.PI) delta -= Math.PI * 2;
+        while (delta < -Math.PI) delta += Math.PI * 2;
+        yaw += delta * 0.1;
+        bank += (Math.max(-0.4, Math.min(0.4, -delta * 9)) - bank) * 0.1;
+        mesh.rotation.y = yaw;
+        mesh.rotation.z = bank;
+      }
+      prev.copy(pos);
       render();
       if (t >= 1) {
         mesh.rotation.z = 0;
-        mesh.rotation.y = want;
-        mesh.userData.heading = want;
+        mesh.rotation.y = yaw;
+        mesh.userData.heading = yaw;
         resolve();
         return;
       }

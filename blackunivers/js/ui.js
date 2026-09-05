@@ -233,10 +233,10 @@ export function hoverCardHTML(state, col, row, visibleFleets = null) {
 export function helpHTML() {
   const keys = [
     ['Linke Maustaste', 'Karte ziehen · Klick wählt aus'],
-    ['Rechte Maustaste ziehen', 'Kamera drehen und neigen – nach unten geht der Blick auf die Brücke'],
+    ['Mausrad gedrückt ziehen', 'Kamera frei drehen und neigen – nach unten geht der Blick auf die Brücke'],
+    ['Rechte Maustaste', 'Zurück: offene Tafel schließen, sonst Auswahl aufheben'],
     ['Mausrad · + / −', 'Näher heran, weiter weg'],
     ['Doppelklick', 'Feld in die Mitte holen'],
-    ['Rechtsklick auf ein Feld', 'Dorthin blicken'],
     ['Pfeiltasten', 'Schwenken · mit Umschalt schneller'],
     ['Q / E', 'Drehen · R stellt die Kamera zurück'],
   ];

@@ -810,7 +810,7 @@ async function beginGame(newState, { opening = true } = {}) {
       onTileClick,
       onTileHover,
       onEndTurn: endTurn,
-      onCancel: () => { closeSheet(); clearSelection(); },
+      onCancel: goBack,
       onNextFleet: nextFleet,
       onCenterHome: () => {
         const home = capitalOf(state, state.playerFactionId);
@@ -870,6 +870,22 @@ function nextYard() {
   selectSystem(next);
   centerOn(next.col, next.row);
   draw();
+}
+
+// Ein Zurück, das immer dasselbe tut: erst die offene Tafel schließen, dann
+// die Auswahl aufheben. Es hängt an Esc und an der rechten Maustaste.
+function goBack() {
+  const sheet = $('sheet');
+  if (sheet && !sheet.classList.contains('hidden')) { closeSheet(); return; }
+  const battle = $('battleModal');
+  if (battle && !battle.classList.contains('hidden')) {
+    battle.classList.add('hidden');
+    return;
+  }
+  if (selection.kind) { clearSelection(); return; }
+  // Nichts offen, nichts gewählt: dann zeigt das Zurück die Hilfe an - besser
+  // als gar nichts zu tun.
+  toast('Nichts ausgewählt. F1 zeigt die Steuerung.');
 }
 
 function nextFleet() {
@@ -946,6 +962,17 @@ function wireGameChrome() {
 
   // Sprechblasen ohne Wartezeit: alles mit `data-tip` erklärt sich sofort.
   wireTips();
+
+  // Die rechte Maustaste ist überall dasselbe: ein Zurück. Sie schließt die
+  // offene Tafel, sonst hebt sie die Auswahl auf - auch über einer Tafel,
+  // nicht nur über der Karte.
+  document.addEventListener('contextmenu', (ev) => {
+    const app = $('app');
+    if (!state || !app || app.classList.contains('hidden')) return;
+    if (ev.target.closest && ev.target.closest('input, textarea, select')) return;
+    ev.preventDefault();
+    goBack();
+  });
 
   // Alle Schaltflächen in den Tafeln laufen über einen Draht.
   document.addEventListener('click', (ev) => {
