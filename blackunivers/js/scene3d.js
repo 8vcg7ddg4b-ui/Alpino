@@ -1077,46 +1077,9 @@ export function buildMap(state) {
 }
 
 // --- Startbasen -----------------------------------------------------------
-// Zwei Sorten: der Ring einer Raumstation, der im freien Raum steht, und die
-// Militärbasis, die in einen Brocken gehauen ist. Von beiden starten Staffeln.
+// Eine Militärbasis, in einen Brocken gehauen: Kuppel, Mast und zwei
+// Startröhren im Fels. Von hier starten Staffeln, wenn kein Träger da ist.
 const baseNodes = [];
-
-function stationModel(colour) {
-  const g = new THREE.Group();
-  const steel = new THREE.MeshStandardMaterial({
-    color: 0x6a7480, metalness: 0.8, roughness: 0.35, flatShading: true,
-  });
-  const lit = new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.85 });
-  // Der Ring, in dem gewohnt wird.
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.5, 8, 26), steel);
-  ring.rotation.x = -Math.PI / 2 + 0.25;
-  g.add(ring);
-  // Die Nabe mit dem Turm.
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 1.6, 10), steel);
-  g.add(hub);
-  const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 1.8, 8), steel);
-  tower.position.y = 1.6;
-  g.add(tower);
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 8), lit);
-  dome.position.y = 2.5;
-  g.add(dome);
-  // Vier Speichen und zwei Hangartore.
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2;
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.22, 0.3), steel);
-    spoke.position.set(Math.cos(a) * 1.5, 0, Math.sin(a) * 1.5);
-    spoke.rotation.set(0.25 * Math.sin(a), -a, 0);
-    g.add(spoke);
-  }
-  for (const side of [-1, 1]) {
-    const gate = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.12), lit);
-    gate.position.set(side * 2.6, 0.55 * side * 0.25, 0);
-    gate.rotation.y = Math.PI / 2;
-    g.add(gate);
-  }
-  g.userData.spin = ring;
-  return g;
-}
 
 function asteroidBaseModel(colour) {
   const g = new THREE.Group();
@@ -1165,18 +1128,18 @@ function buildBases(state) {
     const { x, z } = worldOfTile(base.col, base.row);
     const group = new THREE.Group();
     group.position.set(x, 0, z);
-    const model = base.kind === 'station' ? stationModel(0xbfe4ff) : asteroidBaseModel(0xffc98a);
-    model.position.y = base.kind === 'station' ? 6.5 : 3.2;
+    const model = asteroidBaseModel(0xffc98a);
+    model.position.y = 3.2;
     model.scale.setScalar(0.85);
     group.add(model);
     // Ein dünner Halt zur Platte, wie ihn auch die Flotten haben.
     const tether = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.08, base.kind === 'station' ? 6 : 3, 5),
+      new THREE.CylinderGeometry(0.08, 0.08, 3, 5),
       new THREE.MeshBasicMaterial({ color: 0x8fb6dc, transparent: true, opacity: 0.3 }),
     );
-    tether.position.y = (base.kind === 'station' ? 6 : 3) / 2;
+    tether.position.y = 1.5;
     group.add(tether);
-    const label = labelSprite(`${base.kind === 'station' ? '◉' : '◆'} ${base.name}`, {
+    const label = labelSprite(`◆ ${base.name}`, {
       size: 15, color: '#cfe2ff', glow: '#7fd4ff',
     });
     label.position.set(0, 0.9, 0);

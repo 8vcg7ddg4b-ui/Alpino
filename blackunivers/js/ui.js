@@ -212,7 +212,7 @@ export function hoverCardHTML(state, col, row, visibleFleets = null) {
     const p = owner ? factionProfile(owner) : null;
     parts.push(`<div class="hc-line" style="--faction:${p ? p.color : '#8fa6c4'}">
       <b>${base.name}</b>
-      <small>${base.kind === 'station' ? 'Raumstation' : 'Militärbasis im Trümmerfeld'}${
+      <small>Militärbasis im Trümmerfeld${
   p ? ` · ${p.short}` : ' · herrenlos'} · Startdeck für Staffeln</small>
     </div>`);
   }
@@ -455,7 +455,7 @@ export function tileInfoHTML(state, col, row) {
     if (!base) return '';
     const owner = baseOwner(state, base);
     const p = owner ? factionProfile(owner) : null;
-    return `<div class="panel-block"><h4>${base.kind === 'station' ? 'Raumstation' : 'Militärbasis'}</h4>
+    return `<div class="panel-block"><h4>Militärbasis</h4>
       <ul class="tight"><li>${base.name} <small>${p ? p.short : 'herrenlos'}</small></li>
       <li>Startdeck <small>Jäger und Bomber im Umkreis von zwei Feldern</small></li></ul></div>`;
   })()}

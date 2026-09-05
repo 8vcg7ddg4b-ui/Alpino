@@ -64,9 +64,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION, sce
     aces: [],
     usedAceNames: [],
     seen: {},
-    // Startbasen: Raumstationen im freien Raum und Militärbasen in
-    // Trümmerfeldern. Von ihnen starten Jäger und Bomber, wenn kein Träger
-    // dabei ist - ohne eine solche Basis fliegt eine Staffel nur halb.
+    // Startbasen: Militärbasen in Trümmerfeldern. Von ihnen starten Jäger
+    // und Bomber, wenn kein Träger dabei ist - ohne eine solche Basis fliegt
+    // eine Staffel nur halb.
     bases: [],
     victory: null,
     nephilimTurn: null,
@@ -190,9 +190,9 @@ export function createInitialState(playerFactionId = DEFAULT_PLAYER_FACTION, sce
 
 // --- Startbasen -----------------------------------------------------------
 // Eine Jägerstaffel braucht ein Deck. Wo kein Träger mitfliegt, muss eine
-// Welt, eine Raumstation oder eine Militärbasis in Reichweite sein - sonst
-// hängen die Maschinen in der Leere und leisten nur die Hälfte.
-const STATION_NAMES = ['Ankerplatz', 'Vorposten', 'Wachring', 'Sprungwacht', 'Kranzstation', 'Randfeuer'];
+// eigene Welt oder eine Militärbasis in Reichweite sein - sonst hängen die
+// Maschinen in der Leere und leisten nur die Hälfte. Basen werden in Fels
+// gehauen; im freien Raum steht nichts, was nicht selbst fliegt.
 const ROCK_NAMES = ['Felsennest', 'Steinbruch', 'Brockenwacht', 'Grubenbasis', 'Trümmerhorst', 'Kieskrone'];
 
 function placeBases(state, rnd) {
@@ -210,19 +210,11 @@ function placeBases(state, rnd) {
     if (f.isNeutral || f.isInvader) continue;
     const home = capitalOf(state, f.id);
     if (!home) continue;
-    // Die Raumstation steht im freien Raum vor der Hauptwelt.
-    const dir = home.col < GRID_COLS / 2 ? 1 : -1;
-    for (const [dc, dr] of [[dir * 3, 0], [dir * 3, 2], [dir * 2, -3], [0, 3], [0, -3]]) {
-      const col = home.col + dc;
-      const row = home.row + dr;
-      const tile = tileAt(state.map, col, row);
-      if (!tile || tile.type === TILE_TYPES.RIFT || used.has(`${col},${row}`)) continue;
-      add('station', `${STATION_NAMES[n % STATION_NAMES.length]} ${home.name}`, col, row);
-      break;
-    }
     // Die Militärbasis liegt in einem Trümmerfeld in der Nähe.
+    // Sie darf weiter weg liegen: Trümmerfelder gibt es nicht überall, und
+    // ohne Basis fliegen die Staffeln eines Reiches nur halb.
     let best = null;
-    for (let r = 2; r <= 7 && !best; r++) {
+    for (let r = 2; r <= 12 && !best; r++) {
       for (let dr = -r; dr <= r && !best; dr++) {
         for (let dc = -r; dc <= r && !best; dc++) {
           if (Math.max(Math.abs(dc), Math.abs(dr)) !== r) continue;
@@ -240,7 +232,8 @@ function placeBases(state, rnd) {
 
   // Ein paar herrenlose Brocken dazu - sie wechseln den Besitzer mit der
   // Grenze, die um sie herum verläuft.
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 40; i++) {
+    if (state.bases.length >= 12) break;
     const col = 4 + Math.floor(rnd() * (GRID_COLS - 8));
     const row = 3 + Math.floor(rnd() * (GRID_ROWS - 6));
     const tile = tileAt(state.map, col, row);

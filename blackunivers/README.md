@@ -64,7 +64,7 @@ kreisen eng, und wer an der Reihe ist, zieht einen **Anflug** auf den Gegner
 und wieder zurück. Die Nase zeigt immer dorthin, wo das Schiff hinfliegt.
 
 Während eines Gefechts steht **nur der Schauplatz** im Bild: die kämpfenden
-Verbände, die Welt, um die es geht, eine Station oder Boje daneben. Der Rest
+Verbände, die Welt, um die es geht, eine Basis oder Boje daneben. Der Rest
 der Galaxis – ferne Welten, Flottenmarken, Grenzen, Beschriftungen – wartet,
 bis es vorbei ist.
 
@@ -193,18 +193,17 @@ Sie brauchen ein **Deck in Reichweite**:
 | --- | --- |
 | **Träger** in der eigenen Flotte | immer |
 | **Eigene Welt** | das Feld und die acht daneben |
-| **Raumstation** im freien Raum | zwei Felder |
 | **Militärbasis** in einem Trümmerfeld | zwei Felder |
 
 Fehlt alles davon, hängen die Maschinen in der Leere und leisten **nur die
 Hälfte**. Die Angriffsvorschau sagt vorher, von wo gestartet wird – oder dass
 kein Deck da ist.
 
-Stationen und Basen stehen von Beginn an auf der Karte: je Reich eine
-Raumstation vor der Hauptwelt und eine Militärbasis im nächsten Trümmerfeld,
-dazu ein paar herrenlose Brocken. Sie gehören dem Reich, dessen **Grenze um
-sie herum verläuft** – fällt die Welt daneben, wechselt die Basis den
-Besitzer, ganz ohne eigene Eroberungsregel.
+Die Basen sind in Fels gehauen: im freien Raum steht nichts, was nicht selbst
+fliegt. Sie stehen von Beginn an auf der Karte – je Reich eine im nächsten
+Trümmerfeld, dazu ein paar herrenlose Brocken. Sie gehören dem Reich, dessen
+**Grenze um sie herum verläuft** – fällt die Welt daneben, wechselt die Basis
+den Besitzer, ganz ohne eigene Eroberungsregel.
 
 ### Verbände
 

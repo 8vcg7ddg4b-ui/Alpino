@@ -30,9 +30,9 @@ function unitsOfSystem(state, system) {
 
 // --- Woher die Staffeln starten ------------------------------------------
 // Jäger und Bomber haben keine Sprungtriebwerke und keine Vorräte für Wochen.
-// Sie starten von einem Träger, von einer eigenen Welt, von einer Raumstation
-// oder von einer Militärbasis in einem Trümmerfeld. Fehlt beides, hängen sie
-// in der Leere und leisten nur die Hälfte.
+// Sie starten von einem Träger, von einer eigenen Welt oder von einer
+// Militärbasis in einem Trümmerfeld. Fehlt alles davon, hängen sie in der
+// Leere und leisten nur die Hälfte.
 export function launchBase(state, factionId, col, row, units) {
   if ((units || []).some((u) => u.role === 'traeger' && u.count > 0)) {
     return { ok: true, kind: 'traeger', name: 'Trägerdeck' };
